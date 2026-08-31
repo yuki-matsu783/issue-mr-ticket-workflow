@@ -17,7 +17,7 @@ description: >
 依頼を受けたら**コードに触る前に** issue を確定し、issue に紐づく feature ブランチと draft PR を作り、その上でチケット駆動ワークフローを実施する。
 このスキルは**順序と承認ポイントを司るオーケストレータ**であり、個々の操作は既存スキルに委譲する。
 
-- 要件: `.claude/docs/00_requirements/skills/00-workflow-issue-mr-driven.md`
+- 要件: `.claude/docs/00_requirement/skills/00-workflow-issue-mr-driven.md`
 - 仕様（承認ポイント・命名規約・委譲内容の正）: `.claude/docs/10_spec/skills/00-workflow-issue-mr-driven.md`
 - 振り分け実施済み判定の仕様（WF101 フックの正。`00-workflow-quick-request` と共有するメタ文書）: `.claude/docs/10_spec/ワークフロー振り分け実施済み判定.md`
 - 類似 issue の判定基準と `gh` コマンド集: `references/issue-triage.md`

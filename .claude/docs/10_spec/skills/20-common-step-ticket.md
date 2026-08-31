@@ -98,6 +98,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 2. 種類が全体まとめ（overall-summary）なら TK005 で拒否し、片付けの提供コマンドを案内する
 3. 検査を行い、未充足をすべて列挙して TK003 で拒否する（1 件目で止めない）:
    - DoD の `- [ ]` が 0 件（すべて `- [x]`）
+   - チェック済みの各 DoD 項目の根拠欄（ファイル・テスト ID・コマンド出力）が空でない
    - 作業ログ「現在地」に未完了の項目が残っていない
    - 作業ログ「AI アセットに反映すべき内容」が空でない（0 件なら根拠の記述があること）
    - `git status` にチケットファイル以外の未コミットの変更が無い（成果物のコミット済み検査）
@@ -133,7 +134,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 |-----------|------|----------------|
 | TICKET-T01 | 正常系 | create → start → complete の遷移とファイルの移動・時刻/基準点の記録 |
 | TICKET-T02 | 異常系 | 作業中があるときの start が TK002 |
-| TICKET-T03 | 異常系 | DoD 未チェック・作業ログ欠け・未コミットありの complete が TK003 で全件列挙 |
+| TICKET-T03 | 異常系 | DoD 未チェック・根拠欄が空・作業ログ欠け・未コミットありの complete が TK003 で全件列挙 |
 | TICKET-T04 | 異常系 | 全体まとめの complete が TK005 |
 | TICKET-T05 | 境界 | 連番が取り消し済みを含めて重複しない |
 | TICKET-T06 | 正常系 | next の JSON（current / next / type / skill）と空のときの null |

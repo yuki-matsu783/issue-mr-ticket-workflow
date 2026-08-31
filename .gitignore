@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# 参考実装（agent-workflow / MR-driven-workflow のコピー）。参照専用でリポジトリに含めない
+参考ディレクトリ/

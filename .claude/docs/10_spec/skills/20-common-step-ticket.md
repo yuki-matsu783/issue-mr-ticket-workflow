@@ -76,14 +76,16 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 ## Script 処理
 
-実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: すべてのサブコマンドは共通 logger（`10_spec/lib/logger.md`）を source し、受け付けた操作・判定結果・拒否理由を INFO で、判定材料の詳細を DEBUG で `logs/sh/` に記録する。標準出力には出さない。
+実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
+
+状態変更のコミットは各サブコマンドが内部で `git` を直接実行して行う（メッセージ規約に従う。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし現在のブランチが default のとき（全体計画チケットの作成・着手）はコミットを行わず、その旨を出力する（ファイルは未追跡のまま feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様）。
 
 ### create <種類> --field 値 ...
 
 1. `wip/10_tickets/{00_todo,10_doing,20_done,30_cancelled}` を無ければ作成する
 2. 全ディレクトリを走査して既存の最大連番 + 1 を採番する
 3. テンプレートをコピーし、渡された記載事項を埋める。`{{ }}` の残存が 1 つでもあれば TK001 で拒否する
-4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`）を commit の提供コマンドで行う
+4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`）を行う（コミットの方式と default 上の例外は冒頭の規定に従う）
 
 ### start <番号>
 

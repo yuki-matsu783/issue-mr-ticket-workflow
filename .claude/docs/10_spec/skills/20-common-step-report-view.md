@@ -39,7 +39,7 @@ Markdown を正文とし、HTML はテンプレートのコピーを Edit で埋
 cp .claude/skills/20-common-step-report-view/assets/report.template.html wip/30_reports/0002-investigation.html
 # （Edit で節を埋める）
 bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_reports/0002-investigation.html
-# => OK: 検査 6 項目すべて通過（id 42 件 / リンク 17 件を確認）
+# => OK: 検査 7 項目すべて通過（id 42 件 / リンク 17 件を確認）
 # => RV001: プレースホルダが残っている: {{summary}}（1 件）
 ```
 
@@ -47,7 +47,7 @@ bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_repo
 
 1. 対象を判定する: `wip/30_reports/` の結果レポート・統括レポートと `wip/20_plans/` の計画書は必須。全体計画書（`wip/00_overall_plan/`）には作らない
 2. 用途に対応するテンプレート（レポート用 / 計画書用）を**同じベース名**で `cp` する
-3. Edit で節を埋める。内容は md と同一（視覚化のみ）。テンプレートの節に対応しない内容は最も近い節へ、空になる任意の節は削除する（DOM の構造変更はしない）
+3. Edit で節を埋める。内容は md と同一（視覚化のみ）。テンプレートの節に対応しない内容は最も近い節へ収める。必須節（`data-required`）は削除できない。空になる**任意**の節は節ごと削除してよく、それ以外の DOM 構造は変更しない
 4. `check-html.sh` を実行し、失敗したら原因を直して再実行する（飛ばさない）
 5. 検査結果（通過項目・確認件数）を作業ログに残す
 6. 以後 md を更新したら、同じ変更を HTML に反映して 4〜5 を繰り返す
@@ -72,12 +72,12 @@ bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_repo
 
 ### check-html.sh <file.html>
 
-検査は**全項目を実行して**未充足を全件列挙する。終了コードは成功 0 / 検査不合格 1 / 引数・ファイル不正 2。ログ: すべてのサブコマンドは共通 logger（`10_spec/lib/logger.md`）を source し、受け付けた操作・判定結果・拒否理由を INFO で、判定材料の詳細を DEBUG で `logs/sh/` に記録する。標準出力には出さない。
+検査は**全項目を実行して**未充足を全件列挙する。終了コードは成功 0 / 検査不合格 1 / 引数・ファイル不正 2。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
 
 | # | 検査 | 不合格の識別子 |
 |---|------|---------------|
 | 1 | プレースホルダ（`{{名前}}`）の残存が 0 件 | RV001 |
-| 2 | 外部リソース参照（`http(s)://` の href / src / url()。ページ内アンカーと `data:` は除く）が 0 件 | RV002 |
+| 2 | 外部リソースの読み込み（`src` 属性・`<link href>`・CSS の `url()`・``）が 0 件。`<a href>` のハイパーリンク（issue・MR への参照）は表示の自己完結を損なわないため対象外 | RV002 |
 | 3 | id の重複が無い | RV003 |
 | 4 | ページ内リンク（`#id`）の参照先がすべて存在する | RV004 |
 | 5 | `<style>` 要素がちょうど 1 つ | RV005 |
@@ -86,6 +86,7 @@ bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_repo
 
 - 出力は `OK:`（確認した件数を添える。件数の明示が負のコントロールを兼ねる）または `RVxxx:` の列挙
 - 検査 6 の必須節一覧はテンプレート自身から導出する（テンプレートを読み `data-required` を集める）。テンプレートと検査の二重管理をしない
+- テンプレートは必須節の id と目次アンカーを常に持つ（正しく埋めた HTML で id・リンクが 0 件になることはない — RV007 の前提）
 
 ### テスト観点
 
@@ -95,7 +96,7 @@ bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_repo
 | RV-T02 | 異常系 | プレースホルダ残存・外部参照・重複 id・破断リンク・style 2 つがそれぞれの RV で全件列挙 |
 | RV-T03 | 異常系 | 必須節を丸ごと削った HTML が RV006 |
 | RV-T04 | 異常系 | 空に近い HTML（id/リンク 0 件）が RV007（出力なし＝合格にしない） |
-| RV-T05 | 境界 | ページ内アンカー・data: URI は外部参照と数えない |
+| RV-T05 | 境界 | ページ内アンカー・`data:` URI・`<a href>` の外部リンクは外部リソースと数えない |
 
 ## 要件との対応
 

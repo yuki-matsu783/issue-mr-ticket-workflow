@@ -53,7 +53,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 ## OUT ひな形
 
 - 除外パターン一覧: `assets/exclude-patterns.txt`。1 行 1 パターン（glob）。クレデンシャル類（`.env*`・秘密鍵・トークンを含む名前）と開発副産物（ビルド出力・依存ディレクトリ・OS 固有ファイル）を初期収録し、追加はこのファイルの編集で行う
-- スキップ記録: `wip/push-check-skip.md`。意図的に飛ばす検査項目と理由を書いてコミットする（MR の差分に見える）。`push.sh` はこのファイルに列挙された項目だけを飛ばし、飛ばした事実を出力する
+- スキップ記録: `wip/push-check-skip.md`。意図的に飛ばす検査項目と理由を書いてコミットする（MR の差分に見える）。`push.sh` はこのファイルに列挙された項目だけを飛ばし、飛ばした事実を出力する（項目 4 はスキップ不可）
 
 ## 参照ナレッジ
 
@@ -63,7 +63,9 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 
 ## Script 処理
 
-終了コードは成功 0 / 検査未充足 1 / 引数・環境の誤り 2。出力の最終行は `OK:` または `CPxxx:`。ログ: すべてのサブコマンドは共通 logger（`10_spec/lib/logger.md`）を source し、受け付けた操作・判定結果・拒否理由を INFO で、判定材料の詳細を DEBUG で `logs/sh/` に記録する。標準出力には出さない。
+終了コードは成功 0 / 検査未充足 1 / 引数・環境の誤り 2。出力の最終行は `OK:` または `CPxxx:`。オプション（`-m`・`--allow-empty` など）は順不同で受け付ける。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
+
+`block-direct-git` フックが拒否するのは AI による `git` の直接実行であり、提供コマンド（このスキルと各スキルのスクリプト）の内部からの `git` 実行は拒否の対象外（識別方法はフックの仕様が正）。
 
 ### commit.sh -m "<メッセージ>" [--allow-empty] <ファイル>...
 
@@ -71,7 +73,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 2. 対象ファイルの指定を検査する: 未指定（`--allow-empty` 時を除く）・`-A`・`.`・glob は CP001
 3. 各対象を除外パターンと突き合わせ、一致したものを除外一覧に移す。全対象が除外されたら CP003
 4. 残った対象だけを `git add --` でステージし、ステージされた差分が空なら CP004（`--allow-empty` 時は空のままコミットする）
-5. `git commit` を実行し（amend・`--no-verify` に相当するオプションは存在しない）、コミット時の検査（フック）が失敗したらその出力を返して停止する（3 の except: 除外一覧は成功時も失敗時も出力する）
+5. `git commit` を実行し（amend・`--no-verify` に相当するオプションは存在しない）、コミット時の検査（フック）が失敗したらその出力を返して停止する（例外として、除外一覧は成功時も失敗時も出力する）
 6. SHA・コミットしたファイル・除外一覧を出力する
 
 ### push.sh
@@ -85,7 +87,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 | 3 | レポート・計画書の対が揃っている | `wip/30_reports/`・`wip/20_plans/` の `.md` と `.html` が同じベース名で対になっている（内容の同期は HTML 検査とレビューが担う） |
 | 4 | draft 解除後の作業領域が空 | `logs/` の記録が draft 解除済みを示すとき、`wip/` に `.gitkeep` 以外が無い |
 
-2. `wip/push-check-skip.md` に列挙された項目は飛ばし、飛ばした項目名を出力に含める（記録ファイル自体が未コミットなら項目 1 で止まる = 記録は必ず MR の差分になる）
+2. `wip/push-check-skip.md` に列挙された項目は飛ばし、飛ばした項目名を出力に含める（記録ファイル自体が未コミットなら項目 1 で止まる = 記録は必ず MR の差分になる）。ただし項目 4（draft 解除後の作業領域が空）は安全性の項目のため**スキップできない**（記録に書かれていても無視して検査する）
 3. `git push`（上流未設定なら `--set-upstream origin <現在ブランチ>`）を実行し、リモートに拒否されたら CP006 で出力をそのまま返す（force しない）
 4. 成功時は push した範囲（前回 push からのコミット数）を出力する
 

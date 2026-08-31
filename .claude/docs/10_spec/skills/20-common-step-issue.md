@@ -45,11 +45,11 @@ issue 操作の共通ステップの内部仕様。対応する要件は [00_req
 git remote get-url origin   # => https://github.com/... → gh / https://gitlab.com/... → glab
 
 # 検索（1 ページ目だけを取得して判定する）
-gh issue list --state open --search "ログイン login" --limit 20 --json number,title,state,url
-glab issue list --search "ログイン login" --per-page 20 --page 1
+gh issue list --state open --search "ログイン login" --limit 21 --json number,title,state,url
+glab issue list --search "ログイン login" --per-page 21 --page 1
 # 0 件なら closed を含めて再検索
-gh issue list --state all --search "ログイン login" --limit 20 --json number,title,state,url
-glab issue list --all --search "ログイン login" --per-page 20 --page 1
+gh issue list --state all --search "ログイン login" --limit 21 --json number,title,state,url
+glab issue list --all --search "ログイン login" --per-page 21 --page 1
 
 # 作成（本文はファイル経由。glab はサブコマンドに本文のファイル渡しが無いため API 経由）
 gh issue create --title "ログイン検証の不備" --body-file wip/tmp/issue-body.md
@@ -60,10 +60,14 @@ glab api projects/:id/issues -X POST --raw-field "title=ログイン検証の不
 ## 処理フロー
 
 1. **ホスト判定**: `git remote get-url origin` の URL に `gitlab` を含めば `glab`、`github` を含めば `gh`。どちらでもない（セルフホスト等で判別不能）ならユーザーに確認し、推測で選ばない。CLI の導入・認証（`gh auth status` / `glab auth status`）が通らなければ導入手順を返して停止する
-2. **検索**: open を対象にキーワード（日本語と英語の両方を空白区切りで）検索し、0 件なら closed を含めて再検索する（gh `--state all` / glab `--all`）。**取得は 1 ページ目のみ**（gh `--limit 20` / glab `--per-page 20 --page 1`。検索の絞り込みはサーバー側で行われるため、1 ページ目が 0 件なら該当なしと判定してよい）。結果は上位 20 件までの表 + 使った検索語と件数（上限に達したら「20 件以上」と表現し、必要なら検索語を狭める。ページを繰らない）。番号・URL 指定があれば検索を省いて閲覧へ
+2. **検索**: open を対象にキーワード（日本語と英語の両方を空白区切りで）検索し、0 件なら closed を含めて再検索する（gh `--state all` / glab `--all`）。**取得は 1 ページ目のみ**（gh `--limit 21` / glab `--per-page 21 --page 1`。検索の絞り込みはサーバー側で行われるため、1 ページ目が 0 件なら該当なしと判定してよい）。結果は上位 20 件までの表 + 使った検索語と件数（21 件目が取得されたときだけ「20 件以上」と表現し、必要なら検索語を狭める。ページを繰らない）。番号・URL 指定があれば検索を省いて閲覧へ
 3. **閲覧**: 番号で本文を取得して呼び出し元に返す（`--json number,title,state,url,body` 相当）
 4. **作成**: 承認済みの本文を `wip/tmp/issue-body-<連番または slug>.md` に書き、GitHub は `gh issue create --body-file`、GitLab は下記「GitLab の長文送信」の API 経由で作成する。成功したら番号と URL を報告し、一時ファイルを削除する。失敗したらコマンドと出力を返して停止し、再試行しない（二重投稿防止）
-5. **追記**: 現在の本文を取得 → `wip/tmp/` のファイルに「現在の本文 + 空行 + 区切り（`---`）+ 追記セクション」を組み立て → GitHub は `gh issue edit N --body-file`、GitLab は API 経由（PUT）で置き換える。取得した本文のバイト列は変更しない（末尾追加のみ）。取得と更新の間に本文が変わっていないか、更新後に先頭部分の一致を確認する
+5. **追記**: 現在の本文を取得 → `wip/tmp/` のファイルに「現在の本文 + 空行 + 区切り（`---`）+ 追記セクション」を組み立て → GitHub は `gh issue edit N --body-file`、GitLab は API 経由（PUT）で置き換える。取得した本文のバイト列は変更しない（末尾追加のみ）。**更新の送信直前に本文を再取得し**、組み立ての元にした本文と一致することを確かめてから送る（変わっていれば取得からやり直す — 他者の追記を上書きしない）。更新後にも先頭部分の一致を確認する
+
+6. **報告**: 実行した操作（検索条件 / 番号と URL）を呼び出し元に返し、作業ログに残せる形にする
+
+停止条件（エラー識別子は持たない。手順として停止する）: CLI 未導入・未認証 / 作成・追記の失敗 / 承認前の本文 / スコープ外の操作（状態変更・コメント）の要求。
 
 ### GitLab の長文送信（正）
 
@@ -74,9 +78,6 @@ glab の issue / mr 系サブコマンドは本文のファイル渡しフラグ
 - `:id` は glab が現在のリポジトリに解決するプレースホルダ。実装時に glab のバージョンでフラグの有無を再確認し、ファイル渡しのフラグが追加されていればそちらへ移行してよい
 
 この節は `20-common-step-feature-mr`（MR 本文）と、タスクの切れ目の MR 本文更新（`00-workflow-issue-mr-driven` の仕様）からも参照される。一覧取得を全件必要とする場面（レビュー指摘の取得など）では `gh api --paginate` / `glab api --paginate` を使う（1 ページ目で打ち切らない）。
-6. **報告**: 実行した操作（検索条件 / 番号と URL）を呼び出し元に返し、作業ログに残せる形にする
-
-停止条件（エラー識別子は持たない。手順として停止する）: CLI 未導入・未認証 / 作成・追記の失敗 / 承認前の本文 / スコープ外の操作（状態変更・コメント）の要求。
 
 ## OUT ひな形
 

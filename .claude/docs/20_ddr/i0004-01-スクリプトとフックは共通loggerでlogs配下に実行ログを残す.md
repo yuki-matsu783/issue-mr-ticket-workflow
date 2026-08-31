@@ -20,7 +20,7 @@ keywords: [logger, 共通ライブラリ, logs, LOG_LEVEL, INFO, DEBUG, 標準�
 - 行にはタイムスタンプ（ISO 8601）・レベル・出どころ・PID を logger が自動付与する
 - ログは**ファイルにのみ**書く（フックの標準出力は応答チャネル、スクリプトの標準出力は AI が読む結果のため、混ぜない）
 - 書き込み失敗は黙殺し、logger の関数は常に成功を返す（ログは補助であり、本体のコミット・push・フック判定を止めない）
-- 設計文書はライブラリ用に `00_requirement/lib/` と `10_spec/lib/` を設け、スキル用フォーマットを流用して書く（`lib` はスキル・フック・ルール・エージェントに続く 5 つ目のアセット種別）
+- 設計文書は「sh ファイルを書くときのルール」として `00_requirement/rules/logger.md` に置く（ルールのため仕様書は作らない。関数 API・行フォーマット・出力先などルール本文の必須項目は要件書が列挙する。当初はライブラリ用に lib/ ディレクトリを設けたが、ログの書き方は sh を書くたびに効く規約なのでルールに一本化した）
 
 ## 理由
 
@@ -36,7 +36,7 @@ keywords: [logger, 共通ライブラリ, logs, LOG_LEVEL, INFO, DEBUG, 標準�
 
 ## 影響
 
-- `00_requirement/lib/logger.md`・`10_spec/lib/logger.md`（新規）
+- `00_requirement/rules/logger.md`（新規）・`rules/ルール体系.md`（logger 行の追加）
 - スクリプトを持つ仕様書（ticket / commit-push / report-view / overall-summary）と今後のフック仕様に「ログは共通 logger」の参照を追加
 - 自己改善ワークフロー機構.md の logs/ の列挙に実行ログを追加
 - AI アセット実装フェーズで logger.sh を最初に作る（他のスクリプトが依存するため）

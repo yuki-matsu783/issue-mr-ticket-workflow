@@ -50,12 +50,12 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 2. **別 issue 起票**: フィードバック計画より後のタスクの作業ログ・レポートから反映すべき内容（改善候補・スコープ外の気づき）を集め、あれば本文案の承認を得て `20-common-step-issue` で起票する。無ければ「追加の反映なし」と確認範囲を統括レポートに書く
 3. **衝突解消**: `git fetch origin` して default との衝突を確認する。無ければ承認なしで次へ。あれば衝突ファイルと解消方針を提示して承認を得てから `git merge origin/<default>` で取り込み、解消してコミットする（方針が一意でなければ両側の意図を要約して判断を仰ぐ）
 4. **統括レポート**: `wip/30_reports/` に md + HTML（report-view の手順）で 1 つ作る。内容: 受け入れ条件との対応（どのタスク・テストで満たしたか）/ 各タスクのレビュー結果（省略はその旨）/ フィードバック計画の対応（この MR / 別 issue / 対応しない）/ 残課題
-5. **MR 本文の最終化**: 統括レポートの要約（受け入れ条件との対応・残課題・別 issue 一覧）を MR 本文に書き写す。GitHub は `gh pr edit --body-file`、GitLab は issue 仕様「GitLab の長文送信」の API 経由（`wip/` 配下のパスを恒久参照として書かない）
-6. **HTML 添付**: 作業領域の全 HTML レポートをアップロードし、リンクを列挙したコメントを MR の先頭コメントとして投稿する:
+5. **MR 本文の最終化**: 統括レポートの要約（受け入れ条件との対応・残課題・別 issue 一覧）を、MR 本文の見出し `## 統括` の節として書き写す。GitHub は `gh pr edit --body-file`、GitLab は issue 仕様「GitLab の長文送信」の API 経由（`wip/` 配下のパスを恒久参照として書かない）
+6. **HTML 添付**: 作業領域の全 HTML レポートをアップロードし、リンクを列挙した**通常コメントを 1 件**投稿する（GitHub / GitLab とも「先頭に固定する」コメント枠は無いため、位置には依存しない）。投稿後、アップロード URL の一覧を MR 本文の「## 統括」節にも追記し、本文から辿れるようにする:
    - GitLab: `glab api "projects/:id/uploads" --form "file=@<ファイル>"` でアップロードし、返された markdown リンクを使う
    - GitHub: 非公式エンドポイント `POST https://uploads.github.com/user-attachments/assets?name=<ファイル名>&content_type=text/html&repository_id=<ID>`（`Authorization: Bearer $(gh auth token)`、ボディはファイルのバイナリ）でアップロードし、返された URL を使う。`repository_id` は `gh api "repos/<owner>/<repo>" --jq .id`。`.html` は添付として許可されたファイル種別（2025-08 の GitHub changelog で拡大済み）。この curl 実行は「CLI 不在時の curl 代替の禁止」の例外とする（gh に相当機能が無い、添付のためだけの限定用途）
    - どちらの経路でもアップロードが失敗した場合（GitHub の非公式エンドポイントの廃止・4xx を含む）は再試行せず、「添付できない環境」として省略の事実と本文の要約で代替していることを MR 本文に書く（要件の代替フロー）
-7. **push（毎回）**: `push.sh` で push し、統括レポート・添付済みの成果物を履歴に載せる（人間レビューの要否によらず行う）
+7. **push**: `push.sh` で push し、統括レポート・添付済みの成果物を履歴に載せる
 8. **（レビュー要の場合のみ）** レビューを依頼し、完了連絡（未解決スレッドの確認込み）を受けてから次へ
 9. **片付けから draft 解除まで**: `finalize.sh release` を実行する（下記。完了検査 → 片付け → push → 最終ゲート → draft 解除 を 1 コマンドで連続実行。途中で失敗したら同じコマンドの再実行で続きから進む）
 10. **報告**: 結果（issue・MR 番号、別 issue 一覧、衝突解消の有無、片付けの件数）と、`pre_cleanup_sha` から組み立てた作業領域リンクを報告して停止する。マージしない
@@ -73,17 +73,19 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 ## Script 処理
 
-`scripts/finalize.sh <subcommand>`。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "cleaned" | "ready", "pre_cleanup_sha": ..., "cleaned_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: すべてのサブコマンドは共通 logger（`10_spec/lib/logger.md`）を source し、受け付けた操作・判定結果・拒否理由を INFO で、判定材料の詳細を DEBUG で `logs/sh/` に記録する。標準出力には出さない。
+`scripts/finalize.sh <subcommand>`。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "cleaned" | "ready", "pre_cleanup_sha": ..., "cleaned_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
+
+`logs/merge-state.json` が無い・壊れている場合、release は状態を実態から再導出して書き戻してから続ける: `wip/` に成果物がある → 未実施 / `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
 
 ### release
 
 片付けから draft 解除までを段階（stage）として順に実行する。各段階の完了を `logs/merge-state.json` の `state`（`started` → `cleaned` → `pushed` → `ready`）に記録し、再実行時は記録済みの段階を飛ばして続きから行う（冪等）。
 
-1. **前提検査**（初回のみ）: 未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に統括の節がある）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）
-2. **完了検査**（初回のみ）: 全体まとめチケットの完了検査（`ticket.sh complete` と同じ検査。DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する
+1. **前提検査**（初回のみ）: 未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に見出し `## 統括` がある — 手順 5 の見出し文字列と一致で判定）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）
+2. **完了検査**（初回のみ）: 全体まとめチケットの完了検査（DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する。検査ロジックは `ticket.sh` の完了検査を共通関数として source して使い、二重実装しない
 3. **片付け**: 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`state` を `cleaned` にする
 4. **push**: `push.sh` を内部から実行し（前チェック込み）、`state` を `pushed` にする
-5. **最終ゲートと draft 解除**: `git fetch` して origin/<default> に対する遅れ・衝突が無いことを検査し（あれば FN003。処理フロー 3 に戻る）、`gh pr ready <M>` / `glab mr update <M> --ready` を実行して `state` を `ready` にする
+5. **最終ゲートと draft 解除**: `git fetch` して origin/<default> に対する遅れ・衝突が無いことを検査し、`gh pr ready <M>` / `glab mr update <M> --ready` を実行して `state` を `ready` にする。検査で止まったら（FN003）取り込み（処理フロー 3 の要領で承認を得て merge）を行い、release を再実行する。統括レポート・添付・本文はやり直さない（取り込みが成果物の内容に影響した場合のみ、該当箇所を更新して push してから再実行する）
 6. **出力**: 解除した MR の番号と URL、削除した件数、`pre_cleanup_sha` から組み立てた作業領域リンク（GitLab: `https://<ホスト>/<プロジェクト>/-/tree/<SHA>/wip/30_reports`、GitHub: `https://github.com/<owner>/<repo>/tree/<SHA>/wip/30_reports`。コミット固定のため片付け後も辿れる）を出力する
 
 ### エラー識別子

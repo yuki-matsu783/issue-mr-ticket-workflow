@@ -1,7 +1,7 @@
 ---
 type: spec
 title: 10-task-overall-summary スキル 仕様
-description: 全体まとめタスクの内部仕様。固定順序の処理フロー、finalize.sh（cleanup / ready）のインターフェースと検査、HTML レポートの MR 添付の実現方法（GitLab uploads / GitHub 非公式エンドポイント）、logs/ のマージ前進行状態、エラー識別子（FN0xx）を定める
+description: 全体まとめタスクの内部仕様。固定順序の処理フロー、finalize.sh release のインターフェースと段階実行・検査、HTML レポートの MR 添付の実現方法（GitLab uploads / GitHub 非公式エンドポイント）、logs/ のマージ前進行状態、エラー識別子（FN0xx）を定める
 tags: [spec, skill, task]
 keywords: [全体まとめ, finalize.sh, cleanup, ready, 片付け, draft 解除, 添付, uploads, 統括レポート, logs, FN0xx]
 ---
@@ -12,7 +12,7 @@ keywords: [全体まとめ, finalize.sh, cleanup, ready, 片付け, draft 解除
 
 全体まとめタスクの内部仕様。対応する要件は [00_requirement/skills/10-task-overall-summary.md](../../00_requirement/skills/10-task-overall-summary.md)。
 
-固定順序（別 issue 起票 → 衝突解消 → 統括レポート → MR 本文の最終化 → HTML 添付 → push → 片付け → push → draft 解除）で issue の作業を締める。片付けと draft 解除はこのスキルが持つ `finalize.sh` が担い、進行状態を `logs/` に記録する。
+固定順序（別 issue 起票 → 衝突解消 → 統括レポート → MR 本文の最終化 → HTML 添付 → push → 片付け → push → draft 解除）で issue の作業を締める。片付けから draft 解除までは、このスキルが持つ `finalize.sh release` が 1 コマンドで連続して行い、進行状態を `logs/` に記録する（チケットが無い状態の個別操作を AI に残さないため。失敗時は再実行で続きから）。
 
 禁止事項:
 
@@ -39,10 +39,9 @@ keywords: [全体まとめ, finalize.sh, cleanup, ready, 片付け, draft 解除
 ## IN / OUT サンプル
 
 ```bash
-bash .claude/skills/10-task-overall-summary/scripts/finalize.sh cleanup
-# => OK: チケット 0009 を完了し、作業領域 14 ファイルを削除してコミットした
-bash .claude/skills/10-task-overall-summary/scripts/finalize.sh ready
-# => FN003: draft を解除できない。未充足: origin/main が 2 コミット進んでいる（取り込みが必要）
+bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
+# => OK: チケット 0009 を完了し 14 ファイルを片付け、push して draft を解除した。レポート: https://github.com/<o>/<r>/tree/<sha>/wip/30_reports
+# => FN003: draft を解除できない。未充足: origin/main が 2 コミット進んでいる（取り込んでから release を再実行）
 ```
 
 ## 処理フロー
@@ -58,9 +57,8 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh ready
    - どちらの経路でもアップロードが失敗した場合（GitHub の非公式エンドポイントの廃止・4xx を含む）は再試行せず、「添付できない環境」として省略の事実と本文の要約で代替していることを MR 本文に書く（要件の代替フロー）
 7. **push（毎回）**: `push.sh` で push し、統括レポート・添付済みの成果物を履歴に載せる（人間レビューの要否によらず行う）
 8. **（レビュー要の場合のみ）** レビューを依頼し、完了連絡（未解決スレッドの確認込み）を受けてから次へ
-9. **片付け**: `finalize.sh cleanup` を実行する（下記）
-10. **push**: `push.sh` で push する（チケットが無い状態でも拒否されない）
-11. **draft 解除**: `finalize.sh ready` を実行し（下記）、結果（issue・MR 番号、別 issue 一覧、衝突解消の有無、片付けの件数）と、`pre_cleanup_sha` から組み立てた作業領域リンクを報告して停止する。マージしない
+9. **片付けから draft 解除まで**: `finalize.sh release` を実行する（下記。完了検査 → 片付け → push → 最終ゲート → draft 解除 を 1 コマンドで連続実行。途中で失敗したら同じコマンドの再実行で続きから進む）
+10. **報告**: 結果（issue・MR 番号、別 issue 一覧、衝突解消の有無、片付けの件数）と、`pre_cleanup_sha` から組み立てた作業領域リンクを報告して停止する。マージしない
 
 ## OUT ひな形
 
@@ -77,43 +75,41 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh ready
 
 `scripts/finalize.sh <subcommand>`。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "cleaned" | "ready", "pre_cleanup_sha": ..., "cleaned_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: すべてのサブコマンドは共通 logger（`10_spec/lib/logger.md`）を source し、受け付けた操作・判定結果・拒否理由を INFO で、判定材料の詳細を DEBUG で `logs/sh/` に記録する。標準出力には出さない。
 
-### cleanup
+### release
 
-1. 前提を検査し、未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に統括の節がある）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）
-2. 全体まとめチケットの完了検査（`ticket.sh complete` と同じ検査。DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する
-3. 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`logs/merge-state.json` を `cleaned` にする
-4. 削除した件数と内訳を出力する
+片付けから draft 解除までを段階（stage）として順に実行する。各段階の完了を `logs/merge-state.json` の `state`（`started` → `cleaned` → `pushed` → `ready`）に記録し、再実行時は記録済みの段階を飛ばして続きから行う（冪等）。
 
-### ready
-
-1. 前提を検査し、未充足を全件列挙して FN003 で拒否する: `merge-state` が `cleaned` / `wip/` が空（`.gitkeep` 除く）/ 未コミットの変更なし / push 済み（HEAD が origin と一致）/ `git fetch` して origin/<default> に対する遅れ・衝突なし（draft 解除直前の最終ゲート）
-2. `gh pr ready <M>` / `glab mr update <M> --ready` を実行し、`merge-state` を `ready` にする
-3. 解除した MR の番号と URL、`pre_cleanup_sha` から組み立てた作業領域リンク（GitLab: `https://<ホスト>/<プロジェクト>/-/tree/<SHA>/wip/30_reports`、GitHub: `https://github.com/<owner>/<repo>/tree/<SHA>/wip/30_reports`。コミット固定のため片付け後も辿れる）を出力する
+1. **前提検査**（初回のみ）: 未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に統括の節がある）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）
+2. **完了検査**（初回のみ）: 全体まとめチケットの完了検査（`ticket.sh complete` と同じ検査。DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する
+3. **片付け**: 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`state` を `cleaned` にする
+4. **push**: `push.sh` を内部から実行し（前チェック込み）、`state` を `pushed` にする
+5. **最終ゲートと draft 解除**: `git fetch` して origin/<default> に対する遅れ・衝突が無いことを検査し（あれば FN003。処理フロー 3 に戻る）、`gh pr ready <M>` / `glab mr update <M> --ready` を実行して `state` を `ready` にする
+6. **出力**: 解除した MR の番号と URL、削除した件数、`pre_cleanup_sha` から組み立てた作業領域リンク（GitLab: `https://<ホスト>/<プロジェクト>/-/tree/<SHA>/wip/30_reports`、GitHub: `https://github.com/<owner>/<repo>/tree/<SHA>/wip/30_reports`。コミット固定のため片付け後も辿れる）を出力する
 
 ### エラー識別子
 
 | ID | 条件 | メッセージに含める内容 |
 |----|------|----------------------|
-| FN001 | cleanup の前提未充足 | 未充足の全件と、戻るべき手順（チケットの継続・レポート作成・本文最終化） |
+| FN001 | release の前提未充足（初回検査） | 未充足の全件と、戻るべき手順（チケットの継続・レポート作成・本文最終化・push） |
 | FN002 | 全体まとめチケットの完了検査未充足 | ticket 仕様 TK003 と同じ列挙 |
-| FN003 | ready の前提未充足 | 未充足の全件。ベースの遅れ・衝突なら処理フロー 3 に戻ること |
+| FN003 | 最終ゲートの未充足（ベースの遅れ・衝突） | 遅れ・衝突の内容。取り込み（処理フロー 3）後に release を再実行すること |
 
 ### テスト観点
 
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
-| FN-T01 | 正常系 | cleanup がチケット完了を内包し wip/ を空にして 1 コミットにする |
-| FN-T02 | 異常系 | 他のチケットが残っている cleanup が FN001 |
-| FN-T03 | 異常系 | DoD 未充足の cleanup が FN002 |
-| FN-T04 | 異常系 | cleaned でない・wip 非空・未 push・base 遅れの ready が FN003 で全件列挙 |
-| FN-T05 | 正常系 | ready 後の merge-state が ready になり再実行が冪等 |
+| FN-T01 | 正常系 | release が完了検査 → 片付け → push → 解除を 1 回で行い、状態が ready になる |
+| FN-T02 | 異常系 | 他のチケットが残っている release が FN001、DoD 未充足が FN002 |
+| FN-T03 | 異常系 | base が進んでいる release が FN003 で止まり、片付けは巻き戻らない |
+| FN-T04 | 正常系 | push で失敗した後の再実行が片付けをやり直さず push から続く |
+| FN-T05 | 正常系 | ready 後の再実行が何もせず成功する（冪等） |
 
 ## 要件との対応
 
 | 要件（受け入れ基準） | 実現箇所 |
 |--------------------|---------|
 | メイン: メインエージェント専任 | 禁止事項・呼出条件 |
-| メイン: 着手と固定順序 | 処理フロー 1〜11、禁止事項（順序） |
+| メイン: 着手と固定順序 | 処理フロー 1〜10、禁止事項（順序） |
 | メイン: 別 issue 起票（承認 → 起票） | 処理フロー 2 |
 | メイン: 衝突確認・承認 → merge・rebase 禁止 | 処理フロー 3、禁止事項 |
 | メイン: 統括レポート（md + HTML・内容 4 点） | 処理フロー 4 |
@@ -121,11 +117,11 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh ready
 | メイン: HTML 添付 | 処理フロー 6（GitLab uploads / GitHub 非公式アップロードエンドポイント。失敗時は省略に縮退） |
 | メイン: 作業中 issue へ書き込まない | 禁止事項 |
 | メイン: 書き写しは MR 本文と添付に限る・未反映は別 issue | 処理フロー 2・5、禁止事項 |
-| メイン: 片付け（提供コマンド・完了内包・logs は対象外） | finalize.sh cleanup |
+| メイン: 片付け（提供コマンド・完了内包・logs は対象外） | finalize.sh release 1〜3 |
 | メイン: 添付後の push（毎回・履歴に載せる） | 処理フロー 7、FN001（push 済み検査） |
-| メイン: 片付け後の push・draft 解除・再宣言不要 | 処理フロー 10・11（entry / guard の継続判定は logs/ の記録） |
-| メイン: draft 解除直前の再確認 | finalize.sh ready 1（最終ゲート） |
-| メイン: 結果報告と停止・マージしない・作業領域リンクを添える | 処理フロー 11・finalize.sh ready 3、禁止事項 |
+| メイン: 片付け以降は 1 コマンド・個別操作なし・再実行のみ許可 | finalize.sh release 4・5（entry の継続判定は logs/ の記録） |
+| メイン: draft 解除直前の再確認 | finalize.sh release 5（最終ゲート） |
+| メイン: 結果報告と停止・マージしない・作業領域リンクを添える | 処理フロー 10・finalize.sh release 6、禁止事項 |
 | 代替: 反映なし・再開・添付不可・draft のまま | 処理フロー 2・呼出条件（logs から再開）・処理フロー 6・ユーザー選択で停止 |
 | 代替: レビュー要時のレビュー依頼 | 処理フロー 8（push は 7 で毎回実施済み） |
 | 例外: 片付け前提未充足・衝突判断・起票/添付失敗 | FN001〜003・処理フロー 3・停止（再試行しない） |

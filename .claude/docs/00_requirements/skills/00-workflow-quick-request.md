@@ -100,7 +100,7 @@ issue と MR を作るまでもない軽作業のための振り分けスキル�
 ## 前提条件
 
 - `CLAUDE.md`「作業の振り分け」により、プロンプトごとにこのスキルまたは `00-workflow-issue-mr-driven` の読み込みが求められ、機構がそれを強制すること
-- `.claude/` 配下の変更は例外なく `00-workflow-issue-mr-driven` で行うこと（`CLAUDE.md`）
+- `.claude/` 配下の変更は例外なく `00-workflow-issue-mr-driven` で行うこと（`CLAUDE.md`）。この定めへの `CLAUDE.md`・旧世代スキルの追従は、本機構の AI アセット実装フェーズの変更対象（参照更新の一覧）に含める
 - 対になる `00-workflow-issue-mr-driven` が導入済みで、振り返りからの切り替えを受け付けること
 
 ---

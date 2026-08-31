@@ -33,3 +33,7 @@ go.work.sum
 
 # 参考実装（agent-workflow / MR-driven-workflow のコピー）。参照専用でリポジトリに含めない
 参考ディレクトリ/
+
+# 一時ファイル置き場（issue / MR 本文・作業用スクリプト）。.gitkeep 以外は追跡しない
+wip/tmp/*
+!wip/tmp/.gitkeep

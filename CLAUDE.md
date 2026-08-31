@@ -20,14 +20,14 @@
 
 | スキル | 使う場面 |
 |--------|---------|
-| `workflow-issue-mr-driven` | 開発作業。機能追加・バグ修正・リファクタリングなど振る舞いが変わる変更、複数モジュールにまたがる変更、テストやレビューが必要な変更。issue と draft PR に紐づけてチケット駆動で進める |
-| `workflow-quick-request` | 上記に当たらない軽作業。質問・説明・調査、typo やドキュメントの修正、設定値の微調整など、issue と PR を作るまでもない作業。範囲を宣言してから進める |
+| `00-workflow-issue-mr-driven` | 開発作業。機能追加・バグ修正・リファクタリングなど振る舞いが変わる変更、複数モジュールにまたがる変更、テストやレビューが必要な変更。issue と draft PR に紐づけてチケット駆動で進める |
+| `00-workflow-quick-request` | 上記に当たらない軽作業。質問・説明・調査、typo やドキュメントの修正、設定値の微調整など、issue と PR を作るまでもない作業。範囲を宣言してから進める |
 
 - 宣言は**ユーザーのプロンプトごと**に必要。フォローアップ（「はい」「続けて」）でも前のプロンプトの宣言は引き継がれない
-- ただし `wip/10_tickets/00_todo/` または `10_doing/` または `20_done/` にチケットがある間（`workflow-issue-mr-driven` の作業中）は継続とみなし、再宣言は不要。別の依頼を始めるならチケットを完了するか todo に戻してから宣言し直す
-- 判断基準は `workflow-quick-request` の手順 0 の表に従う。迷ったら `workflow-issue-mr-driven`（重い側）に倒すか、AskUserQuestion で確認する
-- `.claude/` 配下のアセット（スキル・フック・ルール・エージェント・settings.json）の作成・変更は `workflow-issue-mr-driven`（`ai-asset-design` → `ai-asset-implementation`）で進める。
-- 軽作業として始めた後に基準を超えると分かったら、止めて `workflow-issue-mr-driven` への切り替えを提案する
+- ただし `wip/10_tickets/00_todo/` または `10_doing/` または `20_done/` にチケットがある間（`00-workflow-issue-mr-driven` の作業中）は継続とみなし、再宣言は不要。別の依頼を始めるならチケットを完了するか todo に戻してから宣言し直す
+- 判断基準は `00-workflow-quick-request` の手順 0 の表に従う。迷ったら `00-workflow-issue-mr-driven`（重い側）に倒すか、AskUserQuestion で確認する
+- `.claude/` 配下のアセット（スキル・フック・ルール・エージェント・settings.json）の作成・変更は `00-workflow-issue-mr-driven`（`ai-asset-design` → `ai-asset-implementation`）で進める。
+- 軽作業として始めた後に基準を超えると分かったら、止めて `00-workflow-issue-mr-driven` への切り替えを提案する
 - ブロックされたら迂回せず、該当スキルを Skill ツールで読み込んでから元の操作をやり直す
 - `WORKFLOW_ENTRY_ENFORCE=0` での無効化はユーザーの明示的な指示があるときだけ
 
@@ -37,11 +37,17 @@
 
 | 層 | 命名 prefix | 実現単位 | チェックポイントの承認者 |
 |---|---|---|---|
-| ワークフロー | `workflow-*` | ワークの組み合わせ | 人間（MRレビュー または AskUserQuestion） |
-| ワーク | `work-*` | タスクの組み合わせ | 敵対的レビューエージェント（複数タスク完了時点） |
-| タスク | `task-*` | 作業レベルの手順 | 実行者自身のセルフレビュー |
+| ワークフロー | `00-workflow-*` | ワークの組み合わせ | 人間（MRレビュー または AskUserQuestion） |
+| ワーク | `10-work-*` | タスクの組み合わせ | 敵対的レビューエージェント（複数タスク完了時点） |
+| タスク | `20-task-*` | 作業レベルの手順 | 実行者自身のセルフレビュー |
 
 新しいスキルを追加・変更する際は、この3層のどれに属するかを判断してから命名する。
+
+## 環境と制約
+
+- gitlab/github操作はglab/gh cliを利用し、インストールしても使えない環境であればMCPを使う
+- マージ操作は行わない
+- リポジトリの設定変更など、ソースコード修正の枠を越えた操作は禁止
 
 ## システム開発における基本原則
 

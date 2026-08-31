@@ -1,6 +1,6 @@
 # 類似 issue の判定基準と `gh` コマンド集
 
-正は `.claude/docs/10_spec/skill-workflow-issue-mr-driven.md`。
+正は `.claude/docs/10_spec/00-workflow-issue-mr-driven.md`。
 
 ## 判定区分
 

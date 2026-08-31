@@ -1,36 +1,36 @@
 ---
-name: workflow-issue-mr-driven
+name: 00-workflow-issue-mr-driven
 description: >
   ユーザーの依頼を GitHub の issue と PR（MR）に紐づけてから、チケット駆動ワークフローで実作業を進める。
-  既存 issue の検索 → 類似があればそれで対応するか確認 → 人間の承認 → issue の作成/修正（task-gh-issue）
-  → feature ブランチと draft PR の作成（task-gh-feature）→ チケット駆動ワークフロー、の順で進める開発の振り分け。
-  workflow-quick-request と対になる 2 つの振り分けの一方で、振る舞いが変わる変更（機能追加・バグ修正・リファクタリング）、
+  既存 issue の検索 → 類似があればそれで対応するか確認 → 人間の承認 → issue の作成/修正（20-task-gh-issue）
+  → feature ブランチと draft PR の作成（20-task-gh-feature）→ チケット駆動ワークフロー、の順で進める開発の振り分け。
+  00-workflow-quick-request と対になる 2 つの振り分けの一方で、振る舞いが変わる変更（機能追加・バグ修正・リファクタリング）、
   複数モジュールや 4 ファイル以上に及ぶ変更、GitHub に経緯を残したい作業はこちら。
-  質問・説明・typo 修正など振る舞いを変えない軽作業は workflow-quick-request を使う。
+  質問・説明・typo 修正など振る舞いを変えない軽作業は 00-workflow-quick-request を使う。
   Use when the user mentions "issue 駆動で", "issue-MR 駆動", "MR 駆動", "PR 駆動", "issue から作業",
   "issue にしてから進めて", "issue-driven", "#12 をやって", or asks to start development work that
   should be tracked as a GitHub issue and pull request before any code is touched.
 ---
 
-# workflow-issue-mr-driven — issue と PR に紐づけてから作業する
+# 00-workflow-issue-mr-driven — issue と PR に紐づけてから作業する
 
 依頼を受けたら**コードに触る前に** issue を確定し、issue に紐づく feature ブランチと draft PR を作り、その上でチケット駆動ワークフローを実施する。
 このスキルは**順序と承認ポイントを司るオーケストレータ**であり、個々の操作は既存スキルに委譲する。
 
-- 要件: `.claude/docs/00_requirements/skill-workflow-issue-mr-driven.md`
-- 仕様（承認ポイント・命名規約・委譲内容の正）: `.claude/docs/10_spec/skill-workflow-issue-mr-driven.md`
-- 振り分け実施済み判定の仕様（WF101 フックの正。`workflow-quick-request` と共有するメタ文書）: `.claude/docs/10_spec/ワークフロー振り分け実施済み判定.md`
+- 要件: `.claude/docs/00_requirements/00-workflow-issue-mr-driven.md`
+- 仕様（承認ポイント・命名規約・委譲内容の正）: `.claude/docs/10_spec/00-workflow-issue-mr-driven.md`
+- 振り分け実施済み判定の仕様（WF101 フックの正。`00-workflow-quick-request` と共有するメタ文書）: `.claude/docs/10_spec/ワークフロー振り分け実施済み判定.md`
 - 類似 issue の判定基準と `gh` コマンド集: `references/issue-triage.md`
-- 対になる振り分け: `workflow-quick-request`（issue / PR を作るまでもない軽作業。判定表は同スキルの手順 0 が正。依頼が軽作業に該当すると分かったら、そちらを Skill ツールで読み込んで切り替える）
+- 対になる振り分け: `00-workflow-quick-request`（issue / PR を作るまでもない軽作業。判定表は同スキルの手順 0 が正。依頼が軽作業に該当すると分かったら、そちらを Skill ツールで読み込んで切り替える）
 
 ```
-依頼 ─→ 既存 issue を検索 ─┬─ 類似あり ─→ 承認①「#N で対応する？」─→ 追記案 ─→ 承認② ─→ task-gh-issue（編集）─┐
-                           └─ 類似なし ─→ 承認①「新規で作る？」  ─→ 本文案 ─→ 承認② ─→ task-gh-issue（作成）─┤
+依頼 ─→ 既存 issue を検索 ─┬─ 類似あり ─→ 承認①「#N で対応する？」─→ 追記案 ─→ 承認② ─→ 20-task-gh-issue（編集）─┐
+                           └─ 類似なし ─→ 承認①「新規で作る？」  ─→ 本文案 ─→ 承認② ─→ 20-task-gh-issue（作成）─┤
                                                                                                           ▼
-                                                                 task-gh-feature（ブランチ + draft PR）─→ work-overall-plan（全体計画・最初の計画チケット）
+                                                                 20-task-gh-feature（ブランチ + draft PR）─→ 10-work-overall-plan（全体計画・最初の計画チケット）
                                                                                                           │
    ┌──────────────────────────────── ワークループ（チケット type ごとに繰り返す）────────────────────────────┘
-   │  work-<phase>-plan / work-<phase>-exec（1 ワーク実施）─→ push ─→ PR 本文更新 ─→ work-boundary.sh request ─→ 応答を終える
+   │  10-work-<phase>-plan / 10-work-<phase>-exec（1 ワーク実施）─→ push ─→ PR 本文更新 ─→ work-boundary.sh request ─→ 応答を終える
    │        ▲                                                                                    │
    │        └── 指摘あり: 同 type の追加チケット ◄── work-boundary.sh complete ◄── 承認④「レビュー完了」の連絡
    │                                                指摘なし: 次のワークへ ──────────────────────────┐
@@ -46,11 +46,11 @@ description: >
 | 担当 | やること | 呼び出し方 |
 |------|---------|-----------|
 | このスキル | 依頼の整理、候補の提示、承認の取得、各スキルへの引き継ぎ、完了処理 | — |
-| `task-gh-issue` | issue の検索・作成・編集 | 「検索モード」「作成モード」「編集モード」を指定して手順に従う |
-| `task-gh-feature` | feature ブランチの作成・push・draft PR の作成 | 「issue 連携モード」を指定して手順に従う |
-| `work-overall-plan` | ワークループの初回。フェーズ列を決めて全体計画を書き、最初の計画チケットを起こす | issue / PR の文脈（番号・URL・受け入れ条件）を渡して実施する |
-| `work-<phase>-plan` / `work-<phase>-exec` | 各フェーズ（調査 / 設計 / 実装・テスト / 設計反映 / AI アセット設計 / AI アセット実装）の計画と実施。1 つのワーク（チケット type）が完了するたびに制御を返す | `work-boundary.sh status` の `todo_head_type` から選ぶ（`<phase>-plan` → `work-<phase>-plan`、`<phase>` → `work-<phase>-exec`。対応表は `.claude/docs/10_spec/フェーズ別ワークスキル.md`） |
-| `work-ticket-driven` | チケット運用の仕組み（着手・完了・境界判定・フックのブロック時の対処）、振り返り（`retrospective`）、レビュー指摘の追加チケット作成 | フェーズ別ワークスキルから手順番号で参照される。`todo_head_type` が `retrospective` のときと追加チケット作成時に直接使う |
+| `20-task-gh-issue` | issue の検索・作成・編集 | 「検索モード」「作成モード」「編集モード」を指定して手順に従う |
+| `20-task-gh-feature` | feature ブランチの作成・push・draft PR の作成 | 「issue 連携モード」を指定して手順に従う |
+| `10-work-overall-plan` | ワークループの初回。フェーズ列を決めて全体計画を書き、最初の計画チケットを起こす | issue / PR の文脈（番号・URL・受け入れ条件）を渡して実施する |
+| `10-work-<phase>-plan` / `10-work-<phase>-exec` | 各フェーズ（調査 / 設計 / 実装・テスト / 設計反映 / AI アセット設計 / AI アセット実装）の計画と実施。1 つのワーク（チケット type）が完了するたびに制御を返す | `work-boundary.sh status` の `todo_head_type` から選ぶ（`<phase>-plan` → `10-work-<phase>-plan`、`<phase>` → `10-work-<phase>-exec`。対応表は `.claude/docs/10_spec/フェーズ別ワークスキル.md`） |
+| `10-work-ticket-driven` | チケット運用の仕組み（着手・完了・境界判定・フックのブロック時の対処）、振り返り（`retrospective`）、レビュー指摘の追加チケット作成 | フェーズ別ワークスキルから手順番号で参照される。`todo_head_type` が `retrospective` のときと追加チケット作成時に直接使う |
 | `work-boundary.sh` | ワーク境界の判定（`status`）、レビュー依頼（`request`）、レビュー完了の確認（`complete`）、インライン返信（`reply`）。レビュー状態ファイルを書き換える唯一の経路 | `bash .claude/hooks/work-boundary.sh <subcommand>` |
 | `merge-prep.sh` | 完了処理のマージ前作業: wip のリセット（`reset-wip`）、default ブランチとの衝突判定（`check-conflicts`）、関連 issue へのコメント（`notify-issue`）、draft 解除（`ready`）。状態 `wip/merge-prep.json` を書き換える唯一の経路で、`ready` は先行ステップの記録と再検証を通ったときだけ `gh pr ready` を実行する | `bash .claude/hooks/merge-prep.sh <subcommand>` |
 
@@ -81,7 +81,7 @@ gh pr view --json number,url,isDraft,state,body 2>/dev/null
 ls wip/10_tickets/00_todo/ wip/10_tickets/10_doing/ wip/10_tickets/20_done/ 2>/dev/null
 ```
 
-- `gh` が未導入・未認証 → `task-gh-install` スキルまたは `gh auth login` を案内して停止する
+- `gh` が未導入・未認証 → `20-task-gh-install` スキルまたは `gh auth login` を案内して停止する
 - **現在ブランチに open な PR があり、`wip/10_tickets/` に todo / doing のチケットがある** → 再開。手順 1〜4 を飛ばし、PR 本文の `Closes #N` から issue 番号を控えて手順 5 に進む。手順 5 に入る前に `bash .claude/hooks/work-boundary.sh status` を実行し、`at_boundary` と `review_state` で「ワークの途中」「レビュー依頼前」「レビュー待ち（`requested`）」「レビュー済み（`completed`）」のどこにいるかを確定する。`requested` ならレビュー完了の連絡を受けていない限り `complete` を実行せず、応答を終える
 - 未コミットの変更がある → 下記「未コミットの変更があるとき」に従い、**必ずユーザーに確認する**
 - ユーザーが `#N` を指定している → `gh issue view N --json number,title,state,url,body` で内容を取得し、手順 2 を飛ばして「既存 #N で対応」として手順 3A に進む
@@ -115,19 +115,19 @@ ls wip/10_tickets/00_todo/ wip/10_tickets/10_doing/ wip/10_tickets/20_done/ 2>/d
 
 ### 振り返りからの切り替え
 
-次のいずれかで「issue を作って workflow-issue-mr-driven で進める」と合意し、その場でこのスキルが読み込まれた場合は、依頼文からの抽出をやり直さない。
+次のいずれかで「issue を作って 00-workflow-issue-mr-driven で進める」と合意し、その場でこのスキルが読み込まれた場合は、依頼文からの抽出をやり直さない。
 
-- `workflow-quick-request` 手順 5-3
-- `work-ticket-driven` の retrospective チケットの振り返り合意（完了処理が終わった後。仕様: `.claude/docs/10_spec/skill-work-ticket-driven.md`「retrospective の棚卸しと合意」）
+- `00-workflow-quick-request` 手順 5-3
+- `10-work-ticket-driven` の retrospective チケットの振り返り合意（完了処理が終わった後。仕様: `.claude/docs/10_spec/10-work-ticket-driven.md`「retrospective の棚卸しと合意」）
 
-- 引き継ぐ項目（切り替え元と項目名を一致させる）: `summary` / `acceptance` / `kind`（改善・最適化、または新規作成ならタスク）/ フェーズ列（AI アセットの標準: 調査 → AI アセット設計 → AI アセット実装 → 振り返り。`work-overall-plan` が全体計画に書く）
+- 引き継ぐ項目（切り替え元と項目名を一致させる）: `summary` / `acceptance` / `kind`（改善・最適化、または新規作成ならタスク）/ フェーズ列（AI アセットの標準: 調査 → AI アセット設計 → AI アセット実装 → 振り返り。`10-work-overall-plan` が全体計画に書く）
 - 省略できる: 依頼の要約に関する曖昧点の質問（上記が既に確定しているため、まとめて 1 回質問するステップは不要）
 - 省略できない: 手順 0 の未コミットの変更の確認、承認①②③④はすべてこの手順で改めて取る（切り替え元の合意は「このルートに進むこと」の合意であり、issue の内容や PR の承認ではない）
 - `keywords` は切り替え元から渡されないため、`summary` から自分で組み立てて手順 2（既存 issue の検索）に使う
 
-## 手順 2: 既存 issue の検索（task-gh-issue 検索モード）
+## 手順 2: 既存 issue の検索（20-task-gh-issue 検索モード）
 
-`task-gh-issue` スキルの検索モードに従い、open issue を keywords で検索する。0 件なら `--state all` で closed も含めて再検索する。
+`20-task-gh-issue` スキルの検索モードに従い、open issue を keywords で検索する。0 件なら `--state all` で closed も含めて再検索する。
 
 ```bash
 gh issue list --state open --search "<keywords>" --limit 20 --json number,title,state,labels,url,body
@@ -158,13 +158,13 @@ gh issue list --state open --search "<keywords>" --limit 20 --json number,title,
 1. `gh issue view N --json body -q .body` で現在の本文を取得する
 2. `assets/issue-addendum.template.md` を Read し、手順 1 の内容で埋めた**追記セクション**を作る
 3. 追記案・ブランチ名・PR タイトル（命名規約は下記）をユーザーに提示し、**承認②**を得る
-4. `task-gh-issue` スキルの**編集モード**に従い、既存本文の**末尾に追記**する。既存の記述は消さない・書き換えない
+4. `20-task-gh-issue` スキルの**編集モード**に従い、既存本文の**末尾に追記**する。既存の記述は消さない・書き換えない
 
 ### 3B: 新規 issue を作る場合
 
-1. `task-gh-issue` スキルの `assets/issue.template.md` を Read し、手順 1 の内容で本文案を作る（種別・概要・詳細・受け入れ条件・優先度）
+1. `20-task-gh-issue` スキルの `assets/issue.template.md` を Read し、手順 1 の内容で本文案を作る（種別・概要・詳細・受け入れ条件・優先度）
 2. タイトル・本文案・ブランチ名・PR タイトルをユーザーに提示し、**承認②**を得る。修正があれば反映してから進む
-3. `task-gh-issue` スキルの**作成モード**に従い issue を作成する。作成後に修正を頼まれたら編集モードで反映する
+3. `20-task-gh-issue` スキルの**作成モード**に従い issue を作成する。作成後に修正を頼まれたら編集モードで反映する
 
 ### 命名規約（承認②で提示する案）
 
@@ -173,40 +173,40 @@ gh issue list --state open --search "<keywords>" --limit 20 --json number,title,
 | ブランチ | `<prefix>-<N>-<slug>`（区切りはすべてハイフン。スラッシュは使わない）。バグは `fix`、それ以外は `feature`。slug は英小文字・数字・ハイフンで 2〜4 語 | `fix-12-login-empty-password` |
 | PR タイトル | `<prefix>: <issue タイトル> (#<N>)`。prefix は `feat` / `fix` / `chore` / `docs` / `refactor` | `fix: 空パスワードで送信できる (#12)` |
 
-## 手順 4: feature ブランチと draft PR の作成（task-gh-feature issue 連携モード）
+## 手順 4: feature ブランチと draft PR の作成（20-task-gh-feature issue 連携モード）
 
-`task-gh-feature` スキルの **issue 連携モード**に従う。要点:
+`20-task-gh-feature` スキルの **issue 連携モード**に従う。要点:
 
 1. デフォルトブランチを取得して最新化する（承認②で合意済みならベースの再確認は不要）
 2. `git checkout -b <branch> <default>` でブランチを作成する
 3. PR に差分が必要なため、空コミットを作る: `git commit --allow-empty -m "chore: start #N <slug>"`
 4. `git push -u origin <branch>`
-5. `task-gh-feature` の `assets/pr.template.md` を土台に、`## 関連 Issue` に `- Closes #N` を書いた本文で **draft PR** を作成する
+5. `20-task-gh-feature` の `assets/pr.template.md` を土台に、`## 関連 Issue` に `- Closes #N` を書いた本文で **draft PR** を作成する
 
 作成した PR の番号と URL を控え、ユーザーに報告する。
 
 ## 手順 5: チケット駆動ワークフロー（ワークループ）
 
-**初回は `work-overall-plan`** を Skill ツールで読み込んで実施し、全体計画（フェーズ列）の作成と最初の計画チケットの起票まで進める。これが最初のワークであり、完了時にワーク境界（全体計画のレビュー）が発生する。引き継ぐ文脈:
+**初回は `10-work-overall-plan`** を Skill ツールで読み込んで実施し、全体計画（フェーズ列）の作成と最初の計画チケットの起票まで進める。これが最初のワークであり、完了時にワーク境界（全体計画のレビュー）が発生する。引き継ぐ文脈:
 
 - 全体計画の冒頭に `- 対象 issue: #N <url>` と `- PR: #M <url>` を書く
 - issue の受け入れ条件（acceptance）を、全体計画の「受け入れ条件との対応」に書き、各計画ワークが実施チケットの DoD に落とす。振り返りチケットの確認項目にも使う
 - 結果報告（`wip/30_reports/`）の「対象 issue」「PR」欄を埋める
-- 対象が AI アセット（フック・スキル・ルール・エージェント・設定）の場合、フェーズ列の標準は 調査 → AI アセット設計（`.claude/docs/` の要件・仕様）→ AI アセット実装（フック・スキル・settings.json）→ 振り返り。ソフトウェア変更は 調査 → 設計 → 実装・テスト → 設計反映 → 振り返り。省略は全体計画に理由を書く（`work-overall-plan` 手順 4-2）。振り返りからの切り替え（上記）で引き継いだフェーズ列もこれに従う
+- 対象が AI アセット（フック・スキル・ルール・エージェント・設定）の場合、フェーズ列の標準は 調査 → AI アセット設計（`.claude/docs/` の要件・仕様）→ AI アセット実装（フック・スキル・settings.json）→ 振り返り。ソフトウェア変更は 調査 → 設計 → 実装・テスト → 設計反映 → 振り返り。省略は全体計画に理由を書く（`10-work-overall-plan` 手順 4-2）。振り返りからの切り替え（上記）で引き継いだフェーズ列もこれに従う
 - チケットは全件を最初に作らない。各計画ワークが「同フェーズの実施チケット群 + 次の計画チケット」を連鎖的に起こす（仕様: `.claude/docs/10_spec/フェーズ別ワークスキル.md`「ワークの連鎖規則」）
 
 以降、todo と doing が両方空になるまで次を繰り返す。1 回のループが 1 ワーク（同じ type のチケット群）に対応する。
 
 | # | やること | 補足 |
 |---|---------|------|
-| 5-1 | `bash .claude/hooks/work-boundary.sh status` の `todo_head_type` から次のスキルを選び、Skill ツールで読み込んで実施する: `overall-plan` → `work-overall-plan`、`<phase>-plan` → `work-<phase>-plan`、`<phase>` → `work-<phase>-exec`、`retrospective` → `work-ticket-driven`（手順 4 の retrospective）、null → ループ終了（手順 6 へ）。1 つのワークが完了すると、完了報告とともに制御が戻る | 境界かどうかは同コマンドの `at_boundary` で確認する。目視で type を比べない。`todo_head_type` に対応するスキルが無ければ type 定義とスキルの不整合として報告して停止する |
+| 5-1 | `bash .claude/hooks/work-boundary.sh status` の `todo_head_type` から次のスキルを選び、Skill ツールで読み込んで実施する: `overall-plan` → `10-work-overall-plan`、`<phase>-plan` → `10-work-<phase>-plan`、`<phase>` → `10-work-<phase>-exec`、`retrospective` → `10-work-ticket-driven`（手順 4 の retrospective）、null → ループ終了（手順 6 へ）。1 つのワークが完了すると、完了報告とともに制御が戻る | 境界かどうかは同コマンドの `at_boundary` で確認する。目視で type を比べない。`todo_head_type` に対応するスキルが無ければ type 定義とスキルの不整合として報告して停止する |
 | 5-2 | `git push` | doing が空なのでフックは働かない |
-| 5-3 | PR 本文を更新する: `task-gh-feature` の `assets/pr.template.md` の「変更点」に完了したワークの要約を追記し、Write で一時ファイルに書いて `gh pr edit M --body-file <path>` | 各ワークの要約が積み上がる形にする |
+| 5-3 | PR 本文を更新する: `20-task-gh-feature` の `assets/pr.template.md` の「変更点」に完了したワークの要約を追記し、Write で一時ファイルに書いて `gh pr edit M --body-file <path>` | 各ワークの要約が積み上がる形にする |
 | 5-4 | レビューを依頼する: レビュー観点を書いた一時ファイルを用意し、`bash .claude/hooks/work-boundary.sh request --body-file <path>` を実行する | スクリプトが `gh pr comment` を投稿し、レビュー状態を `requested` にしてコミット・push する。`gh pr comment` を直接叩かない。前提未充足（未コミット・未 push・PR なし・境界でない）は WF013 で止まるので、条件を解消してから再実行する |
 | 5-5 | チャットで「ワーク X を push しレビューを依頼した。完了したら知らせてほしい」と報告し、**応答を終える**（承認④の待機） | `AskUserQuestion` で待たない |
 | 5-6 | レビュー完了の連絡（次のユーザー発言）を受けたら `bash .claude/hooks/work-boundary.sh complete` を実行する | スクリプトがコメント・レビューを取得し、`CHANGES_REQUESTED` または返信の無いインラインスレッドがあれば WF014 で止まる。通れば `completed` にしてコミットし、`request` 以降の指摘（自分の投稿を除く）を JSON で返す |
 | 5-7 | 返された指摘が 0 件なら、そのまま次のワークへ（5-1）。1 件以上なら内容を提示し、対応要否を `AskUserQuestion` で確認する。インラインスレッドへの返信は `bash .claude/hooks/work-boundary.sh reply <id> "<対応内容>"` | 対応要否の判断は人間に残す。スクリプトは「取得した」ことを保証するだけ |
-| 5-8 | 対応が必要なら、`work-ticket-driven` 手順 2 の要領で**同じ type の追加チケット**（指摘内容を DoD に落とす）を todo に作り、5-1 に戻る（計画ワークの差し戻しなら計画 type、実施ワークなら実施 type の追加チケット）。追加チケットが done になると境界の状態は失効するので、再度 5-2〜5-6 を回す | done 済みチケットを doing に戻さない。同じ type の追加チケットは `completed` でなくても着手できる（フックが例外として許可する）。計画ワークが次の計画チケットを起こし忘れていた場合は、追加チケットではなく次の計画チケットを直接 todo に起こす |
+| 5-8 | 対応が必要なら、`10-work-ticket-driven` 手順 2 の要領で**同じ type の追加チケット**（指摘内容を DoD に落とす）を todo に作り、5-1 に戻る（計画ワークの差し戻しなら計画 type、実施ワークなら実施 type の追加チケット）。追加チケットが done になると境界の状態は失効するので、再度 5-2〜5-6 を回す | done 済みチケットを doing に戻さない。同じ type の追加チケットは `completed` でなくても着手できる（フックが例外として許可する）。計画ワークが次の計画チケットを起こし忘れていた場合は、追加チケットではなく次の計画チケットを直接 todo に起こす |
 
 WF014 で `complete` が止まった場合（`CHANGES_REQUESTED` のまま／未返信スレッドあり）は、理由を報告して指摘対応（5-7・5-8）に進む。レビュアーが approve / dismiss しない限り状態は進まないので、状態ファイルを直して通そうとしない。
 
@@ -214,7 +214,7 @@ WF014 で `complete` が止まった場合（`CHANGES_REQUESTED` のまま／未
 
 ## 手順 6: 完了処理（全ワーク done 後）
 
-ループを抜けた時点で push とレビュー（最後のワークの `complete`）は済んでいる。ここからマージ前作業を `merge-prep.sh` で順に実行し、記録と再検証を通ったときだけ draft を解除する（仕様: `.claude/docs/10_spec/skill-work-ticket-driven.md`「マージ前作業の判定と状態」）。各サブコマンドは前提未充足を WF016 で返すので、状態ファイル `wip/merge-prep.json` を直接直して通そうとしない。
+ループを抜けた時点で push とレビュー（最後のワークの `complete`）は済んでいる。ここからマージ前作業を `merge-prep.sh` で順に実行し、記録と再検証を通ったときだけ draft を解除する（仕様: `.claude/docs/10_spec/10-work-ticket-driven.md`「マージ前作業の判定と状態」）。各サブコマンドは前提未充足を WF016 で返すので、状態ファイル `wip/merge-prep.json` を直接直して通そうとしない。
 
 | # | やること | 補足 |
 |---|---------|------|
@@ -240,12 +240,12 @@ WF014 で `complete` が止まった場合（`CHANGES_REQUESTED` のまま／未
 
 | 状況 | 対処 |
 |------|------|
-| `gh` 未導入 / 未認証 | `task-gh-install` または `gh auth login` を案内して停止 |
-| `origin` が GitHub でない | 対象外として報告する（`task-gh-feature` 自体は GitHub/GitLab 両対応だが、本ワークフローの issue 検索・作成・編集は `task-gh-issue` に依存しており、`task-gh-issue` が GitHub 専用の間は本ワークフロー全体として GitLab には未対応） |
+| `gh` 未導入 / 未認証 | `20-task-gh-install` または `gh auth login` を案内して停止 |
+| `origin` が GitHub でない | 対象外として報告する（`20-task-gh-feature` 自体は GitHub/GitLab 両対応だが、本ワークフローの issue 検索・作成・編集は `20-task-gh-issue` に依存しており、`20-task-gh-issue` が GitHub 専用の間は本ワークフロー全体として GitLab には未対応） |
 | 未コミットの変更がある | 手順 0「未コミットの変更があるとき」に従い、扱いをユーザーに確認する。勝手に stash / コミット / 破棄しない |
 | 検索が 0 件 | closed を含めて再検索。それでも 0 件なら 3B へ |
 | `gh pr create` が「差分なし」で失敗 | 空コミットを作って再試行 |
-| ブランチ名が衝突 | `task-gh-feature` の手順に従い別名を提案 |
+| ブランチ名が衝突 | `20-task-gh-feature` の手順に従い別名を提案 |
 | `gh issue edit` / `gh pr create` の失敗 | コマンドと出力を報告して停止。別コマンドで代替しない |
 | チケット作業中に `gh` が必要になった | WF003 でブロックされる。迂回せず、チケット完了後に行う |
 | 承認①②③で却下 | その段階に留まり、修正案を作り直すか停止する。先の段階に進まない |
@@ -270,7 +270,7 @@ WF014 で `complete` が止まった場合（`CHANGES_REQUESTED` のまま／未
 - issue の受け入れ条件を先に固め、チケットの DoD と結果報告に一貫して使う
 - `--body-file` 用の一時ファイルはリポジトリ外（例: `/tmp/`）に置き、残さない
 - レビュー依頼（`request --body-file`）には「対象の差分範囲」「見てほしい観点」「次のワーク」を書く。後段のワークで確定したい判断があれば、そこで指摘してもらえるよう明示する
-- ワークの粒度が細かすぎてレビュー往復が多いと感じたら、type をまとめるのではなく、レビュー依頼に「軽微なので approve のみで可」と添える。計画 → 実施で必ず 2 回の境界が発生するため、小さな依頼では全体計画でフェーズを省略する（`work-overall-plan` 手順 4-2 の目安）
+- ワークの粒度が細かすぎてレビュー往復が多いと感じたら、type をまとめるのではなく、レビュー依頼に「軽微なので approve のみで可」と添える。計画 → 実施で必ず 2 回の境界が発生するため、小さな依頼では全体計画でフェーズを省略する（`10-work-overall-plan` 手順 4-2 の目安）
 - レビュー依頼の観点は、各フェーズ別ワークスキルの「5. レビュー観点」を元にする
 - `reset-wip` で消える情報（結果報告の「うまくいかなかったこと」「改善提案」「残課題」）は、6-1 の PR 本文と 6-5 の issue コメントに要約して残す。`wip/` は PR の作業領域であり、main に残す記録ではない
 - issue コメントの本文は「受け入れ条件との対応」を表にし、根拠（ファイル・テスト ID）を添える。後から issue だけを読んでも何が満たされたか分かるようにする

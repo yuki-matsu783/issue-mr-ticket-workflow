@@ -1,10 +1,10 @@
 {
-  "skill_name": "workflow-issue-mr-driven",
+  "skill_name": "00-workflow-issue-mr-driven",
   "evals": [
     {
       "id": 0,
       "prompt": "issue 駆動で進めて。ログイン画面でパスワードが空でも送信できてしまうバグを直したい",
-      "expected_output": "コードに触る前に依頼を要約し、gh issue list --search で既存 issue を検索して候補を提示する。類似があれば「既存 #N で対応するか」を AskUserQuestion で確認し、承認後に追記案を提示して承認を得てから gh issue edit で末尾に追記する。その後 fix-<N>-<slug> ブランチと Closes #N を含む draft PR を作成し、work-ticket-driven を開始する",
+      "expected_output": "コードに触る前に依頼を要約し、gh issue list --search で既存 issue を検索して候補を提示する。類似があれば「既存 #N で対応するか」を AskUserQuestion で確認し、承認後に追記案を提示して承認を得てから gh issue edit で末尾に追記する。その後 fix-<N>-<slug> ブランチと Closes #N を含む draft PR を作成し、10-work-ticket-driven を開始する",
       "files": [],
       "expectations": [
         "実作業（Edit/Write）の前に gh issue list で既存 issue を検索している",
@@ -12,13 +12,13 @@
         "承認②（issue 本文・追記案）を得てから gh issue create / edit を実行している",
         "ブランチ名が <prefix>-<N>-<slug>（ハイフン区切り、スラッシュなし）で issue 番号を含み、PR 本文に Closes #N がある",
         "PR は --draft で作成している",
-        "work-overall-plan に issue / PR の文脈を渡して開始している（チケット全件を最初に作っていない）"
+        "10-work-overall-plan に issue / PR の文脈を渡して開始している（チケット全件を最初に作っていない）"
       ]
     },
     {
       "id": 1,
       "prompt": "（既存 issue に類似が無い状態で）MR 駆動で、README に目次生成のスクリプトを追加する作業を進めて",
-      "expected_output": "検索結果が 0 件（closed を含む再検索後）であることを報告し、新規 issue の案（タイトル・種別・概要・受け入れ条件）とブランチ名・PR タイトルを提示して承認を得る。承認後に gh issue create → feature-<N>-<slug> ブランチ + draft PR → work-ticket-driven",
+      "expected_output": "検索結果が 0 件（closed を含む再検索後）であることを報告し、新規 issue の案（タイトル・種別・概要・受け入れ条件）とブランチ名・PR タイトルを提示して承認を得る。承認後に gh issue create → feature-<N>-<slug> ブランチ + draft PR → 10-work-ticket-driven",
       "files": [],
       "expectations": [
         "open で 0 件のあと closed を含めて再検索している",
@@ -30,7 +30,7 @@
     {
       "id": 2,
       "prompt": "（feature-12-login-empty-password ブランチ上で open な draft PR があり、wip/10_tickets/10_doing/ にチケットがある状態で）続きをやって",
-      "expected_output": "issue の検索や承認をやり直さず、PR 本文の Closes #N から issue 番号を確認した上で work-ticket-driven の手順 0（doing チケットからの再開）に進む",
+      "expected_output": "issue の検索や承認をやり直さず、PR 本文の Closes #N から issue 番号を確認した上で 10-work-ticket-driven の手順 0（doing チケットからの再開）に進む",
       "files": ["wip/10_tickets/10_doing/002-implementation-実装.md"],
       "expectations": [
         "gh issue list による再検索を行っていない",
@@ -89,14 +89,14 @@
     },
     {
       "id": 7,
-      "prompt": "（workflow-quick-request 手順 5-3 で「issue を作って workflow-issue-mr-driven で進める」と合意し、summary: 'work-boundary.sh のエラーメッセージが分かりにくい'、acceptance: ['エラーメッセージに対処方法が含まれる'], kind: '改善・最適化', フェーズ列: AI アセットの標準 が引き継がれた直後に）このスキルを読み込んで進めて",
+      "prompt": "（00-workflow-quick-request 手順 5-3 で「issue を作って 00-workflow-issue-mr-driven で進める」と合意し、summary: 'work-boundary.sh のエラーメッセージが分かりにくい'、acceptance: ['エラーメッセージに対処方法が含まれる'], kind: '改善・最適化', フェーズ列: AI アセットの標準 が引き継がれた直後に）このスキルを読み込んで進めて",
       "expected_output": "依頼文からの抽出をやり直さず、引き継がれた summary/acceptance/kind/フェーズ列をそのまま用いて手順 0（未コミットの変更確認は省略しない）を経てから、summary から組み立てた keywords で既存 issue を検索し承認①に進む。曖昧点の質問はしない",
       "files": [],
       "expectations": [
         "summary/acceptance/kind を聞き直さず、引き継がれた内容をそのまま使っている",
         "手順 0 の未コミットの変更確認は省略していない",
         "gh issue list による検索を行ってから承認①（AskUserQuestion）に進んでいる",
-        "フェーズ列が AI アセットの標準（調査 → AI アセット設計 → AI アセット実装 → 振り返り）として work-overall-plan に引き継がれている"
+        "フェーズ列が AI アセットの標準（調査 → AI アセット設計 → AI アセット実装 → 振り返り）として 10-work-overall-plan に引き継がれている"
       ]
     },
     {
@@ -137,10 +137,10 @@
     {
       "id": 11,
       "prompt": "（draft PR 作成直後、wip/10_tickets/ が空の状態で）チケット駆動で進めて",
-      "expected_output": "work-ticket-driven の手順 1 でチケット全件を作るのではなく、work-overall-plan を Skill ツールで読み込み、issue / PR の文脈を渡してフェーズ列と全体計画を作らせ、最初の計画チケット 1 枚を起こして done にする。境界に達したら push → PR 本文更新 → work-boundary.sh request で全体計画のレビューを依頼して応答を終える",
+      "expected_output": "10-work-ticket-driven の手順 1 でチケット全件を作るのではなく、10-work-overall-plan を Skill ツールで読み込み、issue / PR の文脈を渡してフェーズ列と全体計画を作らせ、最初の計画チケット 1 枚を起こして done にする。境界に達したら push → PR 本文更新 → work-boundary.sh request で全体計画のレビューを依頼して応答を終える",
       "files": [],
       "expectations": [
-        "初回に work-overall-plan を読み込んでいる",
+        "初回に 10-work-overall-plan を読み込んでいる",
         "投資・設計・実装など後続フェーズのチケットを最初に一括作成していない",
         "全体計画の完了をワーク境界として扱い、レビューを依頼している"
       ]

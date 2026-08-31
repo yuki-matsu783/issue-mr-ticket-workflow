@@ -1,30 +1,30 @@
 ---
-name: workflow-quick-request
+name: 00-workflow-quick-request
 description: >
   issue と PR を作るまでもない軽作業（質問への回答・説明・調査、typo やドキュメントの修正、
   設定値の微調整、1〜3 ファイルに閉じた振る舞いを変えない変更）を、範囲を宣言してから進め、
   作業後に使った AI アセット（スキル・フック・ルール・エージェント）の修正・新規作成の要否をユーザーに確認する作業の振り分け。
-  workflow-issue-mr-driven と対になる 2 つの振り分けの一方で、CLAUDE.md「作業の振り分け」により
+  00-workflow-issue-mr-driven と対になる 2 つの振り分けの一方で、CLAUDE.md「作業の振り分け」により
   すべての依頼はどちらかを読み込んでから着手する（フックが WF101 で強制する）。
   Use when the user mentions "軽く", "ちょっと", "さっと", "質問", "教えて", "説明して", "確認して",
   "調べて", "typo", "誤字", "ドキュメント直して", "issue 不要", "issue にしなくていい",
-  or asks something that does not meet the workflow-issue-mr-driven criteria (no behavior change,
+  or asks something that does not meet the 00-workflow-issue-mr-driven criteria (no behavior change,
   no new feature or bug fix, no multi-module change).
 ---
 
-# workflow-quick-request — 軽作業を範囲を宣言してから進める
+# 00-workflow-quick-request — 軽作業を範囲を宣言してから進める
 
 issue / PR / チケットを作らずに進めてよい**軽作業**のための振り分け。
 「本当に軽作業か」を最初に判定し、範囲を宣言してから作業し、範囲を超えたら止まる。
-判定に迷ったら重い側（`workflow-issue-mr-driven`）に倒す。
+判定に迷ったら重い側（`00-workflow-issue-mr-driven`）に倒す。
 
-- 対になる振り分け: `workflow-issue-mr-driven`（issue と draft PR に紐づけてチケット駆動で進める）
+- 対になる振り分け: `00-workflow-issue-mr-driven`（issue と draft PR に紐づけてチケット駆動で進める）
 
 ## 手順 0: 軽作業かどうかの判定
 
 依頼を次の表に当てはめる。**1 つでも「issue-pr」側に該当したら、このスキルでは進めない**。
 
-| 観点 | 軽作業（このスキル） | workflow-issue-mr-driven |
+| 観点 | 軽作業（このスキル） | 00-workflow-issue-mr-driven |
 |------|---------------------|--------------------------|
 | 成果物 | 回答・説明・調査結果のみ（ファイル変更なし） | コードや設定の変更を伴う開発作業 |
 | 振る舞い | 変わらない（typo、コメント、ドキュメント、フォーマット、設定値の微調整） | 変わる（機能追加、バグ修正、リファクタリング、依存の追加・更新） |
@@ -35,8 +35,8 @@ issue / PR / チケットを作らずに進めてよい**軽作業**のための
 | 対象 | `.claude/` 配下のアセット以外。または `.claude/` 配下でも SKILL.md・ルール・テンプレートの typo・文言修正など振る舞いが変わらないもの | `.claude/` 配下のアセット（スキル・フック・ルール・エージェント・settings.json）の作成・変更（新規作成、フックのロジック変更、スキルの手順変更など振る舞いが変わるもの） |
 
 - 判定結果は 1 行で述べる（例: 「README の誤字修正 1 ファイル、振る舞いの変更なし → 軽作業として進める」）
-- issue-pr 側に該当する場合は、その旨を伝えて **`workflow-issue-mr-driven` を Skill ツールで読み込んで**そちらの手順に切り替える（このスキルの手順は続けない）
-- 境界上で判断できないときは `AskUserQuestion` で「軽作業として進める / workflow-issue-mr-driven で進める」を確認する
+- issue-pr 側に該当する場合は、その旨を伝えて **`00-workflow-issue-mr-driven` を Skill ツールで読み込んで**そちらの手順に切り替える（このスキルの手順は続けない）
+- 境界上で判断できないときは `AskUserQuestion` で「軽作業として進める / 00-workflow-issue-mr-driven で進める」を確認する
 
 ## 手順 1: 状態確認
 
@@ -48,7 +48,7 @@ git status --short
 gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 ```
 
-- `wip/10_tickets/10_doing/` にチケットがある → チケット駆動ワークフローの作業中。軽作業を割り込ませず、`work-ticket-driven` の再開が正しいかユーザーに確認する
+- `wip/10_tickets/10_doing/` にチケットがある → チケット駆動ワークフローの作業中。軽作業を割り込ませず、`10-work-ticket-driven` の再開が正しいかユーザーに確認する
 - 未コミットの変更がある → 触らない。自分の変更と混ざらないよう、対象ファイルが既に変更されていないか確認する
 - **現在ブランチがデフォルトブランチと異なる** → `AskUserQuestion` で次を確認する
   - **このまま現在のブランチで実施する**: そのまま手順 2 に進む
@@ -71,7 +71,7 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 
 - ファイルの編集は Edit / Write で行う。読み取りは Read / Glob / Grep
 - 既存テストがあり、変更がその対象に触れるなら実行して結果を確認する
-- **範囲を超えると分かったら止まる**: 宣言に無いファイルを触る必要が出た、振る舞いの変更が必要になった、4 ファイル以上になった、のいずれかに当たったら作業を止め、`AskUserQuestion` で「軽作業として範囲を広げる / workflow-issue-mr-driven に切り替える / ここまでで止める」を確認する。切り替える場合は、ここまでの変更を残すか戻すかも確認する
+- **範囲を超えると分かったら止まる**: 宣言に無いファイルを触る必要が出た、振る舞いの変更が必要になった、4 ファイル以上になった、のいずれかに当たったら作業を止め、`AskUserQuestion` で「軽作業として範囲を広げる / 00-workflow-issue-mr-driven に切り替える / ここまでで止める」を確認する。切り替える場合は、ここまでの変更を残すか戻すかも確認する
 
 ## 手順 4: 報告
 
@@ -90,7 +90,7 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 
 | 種類 | 例 |
 |------|-----|
-| スキル | 読み込んだもの（このスキル、委譲先の `task-gh-issue` など） |
+| スキル | 読み込んだもの（このスキル、委譲先の `20-task-gh-issue` など） |
 | フック | 発火・ブロック・確認を出したもの（`[WF101]`、`[WF00x]`、`[WF-DIFF]` など。`.claude/hooks/workflow.log` で確認できる） |
 | ルール | 判断の根拠にした `.claude/rules/*.md` |
 | エージェント | Agent ツールで起動したサブエージェント |
@@ -112,16 +112,16 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 | 重さ | 該当するもの | 合意の形 |
 |------|-------------|---------|
 | 軽微 | SKILL.md・ルール・テンプレートの文言修正、判定表への 1 行追加など、**振る舞いが変わらない**もの | 「このまま軽作業として続けて修正する」 |
-| 振る舞いが変わる | フックのロジック変更、スキルの手順変更、フック・スキル・ルール・エージェントの**新規作成**、settings.json の変更 | **「新規 issue を作って `workflow-issue-mr-driven` で進める」** |
+| 振る舞いが変わる | フックのロジック変更、スキルの手順変更、フック・スキル・ルール・エージェントの**新規作成**、settings.json の変更 | **「新規 issue を作って `00-workflow-issue-mr-driven` で進める」** |
 
-- 選択肢の例: 「軽作業として続けて修正する」「issue を作って workflow-issue-mr-driven で進める」「issue として記録だけする（着手しない）」「今回は不要」（候補が無いときは「不要（完了）」「修正したいアセットがある」）。振る舞いが変わる候補に「軽作業として続ける」の選択肢は付けない
-- **「issue として記録だけする」が選ばれたら**、`task-gh-issue` の作成モードで候補を issue にする（種別: 改善・最適化、優先度は低を既定、発端の振り返りを「追加情報」に書く）。ブランチ・PR・実作業には進まない。後日 `#N をやって` で `workflow-issue-mr-driven` から着手できる
-- **「issue を作って workflow-issue-mr-driven で進める」が選ばれたら、その場で `workflow-issue-mr-driven` を Skill ツールで読み込み、手順 1 から始める**（次のプロンプトに先送りしない）。引き継ぐ内容:
+- 選択肢の例: 「軽作業として続けて修正する」「issue を作って 00-workflow-issue-mr-driven で進める」「issue として記録だけする（着手しない）」「今回は不要」（候補が無いときは「不要（完了）」「修正したいアセットがある」）。振る舞いが変わる候補に「軽作業として続ける」の選択肢は付けない
+- **「issue として記録だけする」が選ばれたら**、`20-task-gh-issue` の作成モードで候補を issue にする（種別: 改善・最適化、優先度は低を既定、発端の振り返りを「追加情報」に書く）。ブランチ・PR・実作業には進まない。後日 `#N をやって` で `00-workflow-issue-mr-driven` から着手できる
+- **「issue を作って 00-workflow-issue-mr-driven で進める」が選ばれたら、その場で `00-workflow-issue-mr-driven` を Skill ツールで読み込み、手順 1 から始める**（次のプロンプトに先送りしない）。引き継ぐ内容:
   - summary / acceptance: 振り返りで挙げた対象アセット・変更点・理由・期待する挙動
   - kind: 改善・最適化（新規作成ならタスク）
-  - フェーズ列は AI アセットの標準（調査 → AI アセット設計（`.claude/docs/` の要件・仕様）→ AI アセット実装（フック・スキル・settings.json）→ 振り返り）。`work-overall-plan` が全体計画に書き、各計画ワークがチケットを起こす。実装は `task-ai-asset-creator` の規約に従う
-  - どの issue で対応するか（既存 / 新規）と issue 本文の承認は、workflow-issue-mr-driven 側の承認①②で改めて取る。ここでの合意は「そのルートに進むこと」の合意であり、issue の内容の承認ではない
-- 今回の軽作業に未コミットの変更が残っている場合、workflow-issue-mr-driven の手順 0（ブランチを切る前の扱いの確認）で扱う。勝手に stash・破棄しない
+  - フェーズ列は AI アセットの標準（調査 → AI アセット設計（`.claude/docs/` の要件・仕様）→ AI アセット実装（フック・スキル・settings.json）→ 振り返り）。`10-work-overall-plan` が全体計画に書き、各計画ワークがチケットを起こす。実装は `20-task-ai-asset-creator` の規約に従う
+  - どの issue で対応するか（既存 / 新規）と issue 本文の承認は、00-workflow-issue-mr-driven 側の承認①②で改めて取る。ここでの合意は「そのルートに進むこと」の合意であり、issue の内容の承認ではない
+- 今回の軽作業に未コミットの変更が残っている場合、00-workflow-issue-mr-driven の手順 0（ブランチを切る前の扱いの確認）で扱う。勝手に stash・破棄しない
 - ヘッドレス実行（`claude -p`、CI）では確認に応答できないため、振り返りと候補を報告に含めるだけにして完了扱いとする（承認待ちで止まらない・issue も作らない）
 - 「不要」と答えられた候補は、報告に「見送り」として残す（黙って捨てない）。見送りが積み上がってきたら「issue として記録だけする」を勧める
 
@@ -129,13 +129,13 @@ gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name'
 
 | 状況 | 対処 |
 |------|------|
-| `[WF101]` でブロックされた | このスキルまたは `workflow-issue-mr-driven` を Skill ツールで読み込んでから、元の操作をやり直す。迂回しない |
+| `[WF101]` でブロックされた | このスキルまたは `00-workflow-issue-mr-driven` を Skill ツールで読み込んでから、元の操作をやり直す。迂回しない |
 | `wip/10_tickets/10_doing/` にチケットがある（`[WF00x]` でブロック） | チケット駆動ワークフローの作業中。軽作業を差し込まず、ユーザーに状況を報告する |
 | 作業中に範囲を超えた | 手順 3 のとおり止めて確認する。黙って広げない |
-| 判定が issue-pr 側だった | `workflow-issue-mr-driven` を読み込んで切り替える。このスキルの手順 1 以降に進まない |
+| 判定が issue-pr 側だった | `00-workflow-issue-mr-driven` を読み込んで切り替える。このスキルの手順 1 以降に進まない |
 | 変更が既存テストを壊した | 修正が軽作業の範囲内なら直す。範囲を超えるなら止めて確認する |
-| 振り返りで「軽微」として始めた修正が振る舞いの変更に及んだ | 止めて、新規 issue を作って `workflow-issue-mr-driven` で進めることを `AskUserQuestion` で合意し直す。黙って続けない |
-| 振り返りから workflow-issue-mr-driven に切り替えたが `gh` が未導入・未認証 | workflow-issue-mr-driven の手順 0 に従い `task-gh-install` / `gh auth login` を案内して停止する。軽作業として代替しない |
+| 振り返りで「軽微」として始めた修正が振る舞いの変更に及んだ | 止めて、新規 issue を作って `00-workflow-issue-mr-driven` で進めることを `AskUserQuestion` で合意し直す。黙って続けない |
+| 振り返りから 00-workflow-issue-mr-driven に切り替えたが `gh` が未導入・未認証 | 00-workflow-issue-mr-driven の手順 0 に従い `20-task-gh-install` / `gh auth login` を案内して停止する。軽作業として代替しない |
 
 ## ベストプラクティス
 

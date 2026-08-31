@@ -99,7 +99,7 @@ keywords: [実装実施, テスト先行, TDD, テスト ID, 失敗ケース, �
 
 - `.claude/skills/00-workflow-issue-mr-driven/`（呼び出し元。完了後に切れ目の処理を行う）
 - `10-work-implementation-plan`（実装計画書と実装チケットを用意する。未作成）
-- 設計反映フェーズの計画ワークと `10-work-feedback-plan`（逸脱の一覧を入力に使う。未作成）
+- `10-work-design-feedback-plan` と `10-work-feedback-plan`（逸脱の一覧を入力に使う。未作成）
 - チケットの着手・完了を行う task スキルと提供コマンド（未作成）
 - レポートのテンプレート（md + HTML。未作成）
 - プロジェクトの規約（`CLAUDE.md` の基本原則・コード規約のルール）

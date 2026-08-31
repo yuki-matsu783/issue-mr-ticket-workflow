@@ -100,7 +100,7 @@ keywords: [実装計画, 変更対象, 許可範囲, テスト方針, テスト 
 - `.claude/skills/00-workflow-issue-mr-driven/`（呼び出し元。完了後に切れ目の処理を行う）
 - `10-work-design-exec`（設計書とテスト ID を渡す。未作成）
 - `10-work-implementation-exec`（実装チケットの担当。未作成）
-- `10-work-design-feedback-plan` 相当の設計反映計画と `10-work-feedback-plan`（次の計画チケットの担当。未作成）
+- `10-work-design-feedback-plan`（設計反映計画）と `10-work-feedback-plan`（次の計画チケットの担当。未作成）
 - チケットの作成・着手・完了を行う task スキルと提供コマンド（未作成）
 - 計画書のテンプレート（md + HTML。未作成）
 

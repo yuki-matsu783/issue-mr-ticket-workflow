@@ -76,7 +76,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 ## Script 処理
 
-実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。
+実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: すべてのサブコマンドは共通 logger（`10_spec/lib/logger.md`）を source し、受け付けた操作・判定結果・拒否理由を INFO で、判定材料の詳細を DEBUG で `logs/sh/` に記録する。標準出力には出さない。
 
 ### create <種類> --field 値 ...
 

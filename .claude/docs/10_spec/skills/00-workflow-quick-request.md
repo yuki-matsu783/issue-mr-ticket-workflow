@@ -103,7 +103,7 @@ keywords: [軽作業, 判定基準, 範囲宣言, 範囲超過, 状態確認, �
 - 手順 0-4・1-2・1-3・3-2・5-3 の確認を行わず、現在のブランチのまま宣言の範囲内だけを実施する。範囲超過は「ここまでで止める」に倒す
 - 振り返りの候補は報告に含めるだけで完了扱いとし、issue を作らない
 - 作業領域にチケットがある場合は実施せず、その旨を報告して終える
-- ヘッドレスかどうかの判定は機構が伝える実行形態に従う（判定方法の正はフック横断の仕様 — 未作成、TBD。決まるまでは `AskUserQuestion` が使えない環境をヘッドレスとみなす）
+- ヘッドレスかどうかは `WORKFLOW_HEADLESS=1` または `CI` が真値のとき（正は `10_spec/フック共通仕様.md` §10。フックの `ask` → `deny` の置き換えと同じ条件）
 
 ### 機構に拒否されたとき
 
@@ -127,7 +127,7 @@ keywords: [軽作業, 判定基準, 範囲宣言, 範囲超過, 状態確認, �
 - issue の起票: `10_spec/skills/20-common-step-issue.md`
 - コミット・push: `10_spec/skills/20-common-step-commit-push.md`
 - 切り替え先: `10_spec/skills/00-workflow-issue-mr-driven.md`（呼出条件・手順 1）
-- 宣言の強制と継続条件: `hooks/10-UserPromptSubmit/workflow-entry` の仕様（未作成）
+- 宣言の強制と継続条件: `10_spec/hooks/10-UserPromptSubmit/workflow-entry.md`
 
 ## Script 処理
 

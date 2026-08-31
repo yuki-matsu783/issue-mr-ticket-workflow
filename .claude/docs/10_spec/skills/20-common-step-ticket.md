@@ -58,7 +58,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 | 節 | 内容 | 記入者 |
 |----|------|--------|
-| 記載事項（表） | 種類 / 先行チケット / 実行者 / 人間レビュー要否と理由 / やってよいこと / 開始時刻 / 完了時刻 / 差分基準点 | 作成時に AI（時刻・基準点はスクリプト） |
+| 記載事項（frontmatter・YAML） | `ticket_type` / `predecessors` / `executor` / `human_review`（required・reason）/ `allow`（write・ops）/ `started_at` / `completed_at` / `base_sha`。機械可読の正で、フックと提供コマンドはここを読む（形式の正は `10_spec/フック共通仕様.md` §9。表への転記はしない） | 作成時に AI（時刻・基準点はスクリプト） |
 | 目的 | 1〜3 行 | AI |
 | DoD | `- [ ]` 形式のチェックリスト（各項目に根拠を書く欄） | 作成時に AI、完了までにチェック |
 | 作業内容 | 実施ステップの箇条書き | AI |

@@ -58,7 +58,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 ## 参照ナレッジ
 
 - prefix の一覧と使い分け・コミットのタイミング: 要件書（Conventional Commits + `ai-asset`。タイミングの既定はチケット完了時）
-- 直接実行の検知・拒否の仕組み: `hooks/20-PreToolUse/block-direct-git.md` の仕様（未作成）
+- 直接実行の検知・拒否の仕組み: `10_spec/hooks/20-PreToolUse/block-direct-git.md`
 - 空コミットが許される場面: `20-common-step-feature-mr`（MR 作成時の差分作り）
 
 ## Script 処理

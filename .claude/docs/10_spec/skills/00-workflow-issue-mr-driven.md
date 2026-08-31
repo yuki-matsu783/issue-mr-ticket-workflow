@@ -167,7 +167,7 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 - MR 本文の長文送信・`--paginate`・ホスト判定: `10_spec/skills/20-common-step-issue.md`
 - 全体計画・フィードバック計画・全体まとめの中身と承認: 各 task 仕様（`10-task-overall-plan` / `feedback-plan` / `overall-summary`）
 - 実行者・レビュー要否の既定: `rules/work-defaults.md`
-- 継続条件・現在地の注入: `hooks/10-UserPromptSubmit/workflow-entry`・`hooks/00-SessionStart/session-start` の仕様（未作成。`boundary.sh status` と同じ判定規則を共有する — 本仕様「切れ目の判定」が正）
+- 継続条件・現在地の注入: `10_spec/hooks/10-UserPromptSubmit/workflow-entry.md`・`10_spec/hooks/00-SessionStart/session-start.md`（`boundary.sh status --offline` を使う。判定規則は本仕様「切れ目の判定」が正）。フック横断の事項は `10_spec/フック共通仕様.md`
 - 経緯: DDR i0001-06（type で識別）、i0001-15（未解決スレッドの確認）、i0001-18（切れ目でのリモート統制）、i0001-23（並列禁止）、i0001-25（ベース追従）、i0001-26（承認の書き写し）、i0001-28（logs/）
 
 ## Script 処理
@@ -192,24 +192,27 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 
 全体まとめチケットは完了が `finalize.sh release` に内包され、レビューは release の前（チケットが作業中のまま）に行う。そのため `10_doing/` が全体まとめチケット 1 枚のときは `at_boundary` を false のまま、`request` / `skip` / `complete` を `--final` 付きで受け付ける（`boundary.task_type` は `overall-summary`、`last_done` はそのチケット番号）。`--final` 無しの `request` は BD001、全体まとめ以外での `--final` も BD001。release は前提検査でこの記録（レビュー要なら `completed`、不要なら `skipped`）を確認する（`10-task-overall-summary` 仕様）。
 
-### status
+### status [--offline]
+
+`--offline` は CLI を呼ばず `logs/` と作業領域だけで導出する（フック `workflow-entry` / `session-start` が使う。MR が未記録なら `mr: null` のまま）。
 
 1. 対応表 `assets/task-types.tsv` を読み、`ticket.sh next` の結果に `skill` を添えて `next` / `current` を返す
 2. 上記の判定で `at_boundary`・`last_task`・`review`・`position` を求める
 3. MR を `logs/mr.json` から読み、無ければ CLI（`gh pr view --json number,url,state` / `glab mr list --source-branch <ブランチ>`）で特定して書く。CLI が使えず記録も無ければ `mr: null`
 4. JSON を出力する（終了コードは常に 0。判定不能な項目は null）
 
-### note --body-file <path>
+### note --body-file <path> [--usage-report <path>]
 
 1. 本文が空なら BD001。MR が無ければ（単独実行モード）BD001 で `--standalone` を案内する
 2. `gh pr comment <M> --body-file` / `glab mr note <M> --message "$(cat ...)"` で通常コメントを投稿し、URL を `logs/review-history.jsonl` に `{"kind": "note", ...}` として追記する（review-state の `state` は変えない）
 
-### request --body-file <path> [--external --comment-url <url>] [--standalone]
+### request --body-file <path> [--external --comment-url <url>] [--standalone] [--usage-report <path>]
 
 1. 前提を検査し、未充足を全件列挙して BD001 で拒否する: `at_boundary` である / 未コミットの変更が無い / HEAD が push 済み（`git rev-list origin/<ブランチ>..HEAD` が空）/ MR がある（`--standalone` を除く）/ 現在の切れ目で `requested` でない / 本文が空でない
 2. 本文の先頭に固定マーカーを付け、`gh pr comment` / `glab mr note` で投稿する。`--external` ではコメントを投稿せず `--comment-url` を証跡として受け取る。`--standalone` ではチャットで依頼した旨を本文ごと記録する
 3. `logs/review-state.json` に `requested`、`base_sha`（前回の切れ目の `head_sha`、無ければ開始コミット）、`head_sha`、コメント URL、時刻、`via` を書く
 4. `OK:` にコメント URL・対象・差分範囲を出力する
+5. `--usage-report <path>` が渡されたら（`post-push-usage-report` が組み立てた対応工数レポート）、その本文を別の通常コメントとして投稿し、成功したら `logs/usage/<branch>.json` に `posted: true` と `since_sha` を書く（失敗しても `request` 自体は成功とし、繰り越しは usage-report 側）。`note` も同じ
 
 ### skip --reason <理由>
 

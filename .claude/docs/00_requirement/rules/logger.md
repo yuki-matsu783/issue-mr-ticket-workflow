@@ -1,7 +1,7 @@
 ---
 type: requirement
 title: logger ルール
-description: sh ファイル（スキルの scripts・フック）を書くときのログの規約を定めるルールの要件。共通 logger（.claude/lib/logger.sh）の使用義務、レベル体系（既定 INFO・LOG_LEVEL=DEBUG）、行フォーマットの自動付与、logs/sh/ への出力、標準出力の禁止、失敗時の黙殺を定める
+description: sh ファイル（スキルの scripts・フック）を書くときのログの規約を定めるルールの要件。共通 logger（20-common-step-shell-script の scripts/logger.sh）の使用義務、レベル体系（既定 INFO・LOG_LEVEL=DEBUG）、行フォーマットの自動付与、logs/sh/ への出力、標準出力の禁止、失敗時の黙殺を定める
 tags: [requirement, rule]
 keywords: [logger, ルール, sh, ログ, logs, INFO, DEBUG, LOG_LEVEL, タイムスタンプ, 標準出力禁止, fail-open]
 ---
@@ -10,13 +10,13 @@ keywords: [logger, ルール, sh, ログ, logs, INFO, DEBUG, LOG_LEVEL, タイ�
 
 ## 概要
 
-sh ファイルを書くときのログの規約を定めるルール（`.claude/rules/logger.md`）の要件を定義する。ログの実体は共通 logger `.claude/lib/logger.sh` で、すべてのスキルのスクリプト（`scripts/*.sh`）とフック（`.claude/hooks/**/*.sh`）はこれを source して使う。
+sh ファイルを書くときのログの規約を定めるルール（`.claude/rules/logger.md`）の要件を定義する。ログの実体は共通 logger（`20-common-step-shell-script` スキルの `scripts/logger.sh`）で、すべてのスキルのスクリプト（`scripts/*.sh`）とフック（`.claude/hooks/**/*.sh`）はこれを source して使う。logger の内部仕様（行フォーマット・出力先・失敗時の振る舞い）の正は `10_spec/skills/20-common-step-shell-script.md`。
 
 - **背景**: スクリプト・フックが各自の方式でログを書く（または書かない）と、拒否や失敗の原因調査で「何がいつ実行され、どこで止まったか」を辿れない。フックは標準出力が応答チャネルのため、ログの出し方を誤ると機構自体を壊す。ログの書き方は sh を書くたびに効く規約なので、ルールとして常設する。
 - **目的**: sh を書く AI がこのルールを読めば、同じ形式・同じ場所・同じレベル制御のログを迷わず組み込め、通常はノイズなく（INFO）、調査時は環境変数 1 つで詳細（DEBUG）が得られる状態を作る。
 - **スコープ**:
   - 含む: ルールが定める内容（logger の使い方・レベル・フォーマット・出力先・禁止事項・失敗時の振る舞い）と適用条件
-  - 含まない: 何をログに書くか（各スクリプト・フックの仕様）、`logs/` の他の記録（進行状態・判定記録。機構の要件）、logger.sh の作成そのもの（AI アセット実装フェーズ）
+  - 含まない: 何をログに書くか（各スクリプト・フックの仕様）、`logs/` の他の記録（進行状態・判定記録。機構の要件）、logger.sh の内部仕様と作成（`20-common-step-shell-script`）
 
 ---
 
@@ -48,19 +48,17 @@ sh ファイルを書くときのログの規約を定めるルール（`.claude
 
 ### ルールが定める内容（ルール本文の必須項目）
 
-- **使い方**: 冒頭で `source "$(git rev-parse --show-toplevel)/.claude/lib/logger.sh"`。提供される関数は `log_debug` / `log_info` / `log_warn` / `log_error`（各 1 引数。複数引数はスペース連結）
+- **使い方**: 冒頭で `source "$(git rev-parse --show-toplevel)/.claude/skills/20-common-step-shell-script/scripts/logger.sh"`。提供される関数は `log_debug` / `log_info` / `log_warn` / `log_error`（各 1 引数。複数引数はスペース連結）
 - **レベル**: DEBUG < INFO < WARN < ERROR。`LOG_LEVEL` の有効値は 4 レベル名（未設定・無効値は INFO に正規化）。使い分け — 受け付けた操作・判定結果・拒否理由は INFO、判定材料の詳細（比較した値・走査したファイル）は DEBUG、想定外だが続行できる事象は WARN、続行できない失敗は ERROR
-- **行フォーマット**: `<ISO 8601 タイムスタンプ（秒・タイムゾーン付き）> [<LEVEL>] [<出どころ>] [pid:<PID>] <メッセージ>`。改行を含むメッセージは 1 行に畳む
-- **出力先**: `logs/sh/<出どころ>.log` への追記。出どころは `$0` の basename（拡張子なし）から自動導出し、`LOGGER_NAME` 環境変数で上書きできる。ローテーションは持たない
+- **内部仕様の参照**: 行フォーマット・出力先（`logs/sh/<出どころ>.log`）・出どころの導出・失敗時の黙殺の詳細は `10_spec/skills/20-common-step-shell-script.md` が正。ルール本文には要点（自動付与される情報・ファイルにのみ書く・失敗しても本体を止めない）だけを書き、詳細を再掲しない
 - **禁止**: 標準出力・標準エラーへのログ出力（ファイルのみ。フックの応答・スクリプトの結果出力と混ぜない）。環境変数の値・トークン・クレデンシャル・個人情報のログ出力
-- **失敗時**: 書き込み失敗はすべて握りつぶし、logger の関数は常に成功（終了コード 0）を返す（`set -e` の利用側を巻き込まない）
 
 ---
 
 ## 前提条件
 
 - `logs/` が `.gitignore` に含まれ、片付けの対象外であること（機構の記録の要件・DDR i0001-28）
-- 共通 logger の実体 `.claude/lib/logger.sh` が AI アセット実装フェーズで作られること（このルールと同時に導入する）
+- 共通 logger の実体（`20-common-step-shell-script` の `scripts/logger.sh`）がこのルールと同時に導入されること
 
 ---
 
@@ -74,7 +72,7 @@ sh ファイルを書くときのログの規約を定めるルール（`.claude
 ## 依存関係
 
 - すべてのスキルのスクリプト・フック（このルールの読者）
-- `.claude/lib/logger.sh`（実体。未作成）
+- `20-common-step-shell-script`（logger の実体と内部仕様・sh の作成手順。未作成）
 - `rules/ルール体系.md`（適用条件の一覧）
 - `logs/` の規定（自己改善ワークフロー機構の要件・DDR i0001-28）
 

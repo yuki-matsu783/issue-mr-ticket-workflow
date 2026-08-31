@@ -63,7 +63,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 
 ## Script 処理
 
-終了コードは成功 0 / 検査未充足 1 / 引数・環境の誤り 2。出力の最終行は `OK:` または `CPxxx:`。オプション（`-m`・`--allow-empty` など）は順不同で受け付ける。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
+終了コードは成功 0 / 検査未充足 1 / 引数・環境の誤り 2。出力の最終行は `OK:` または `CPxxx:`。オプション（`-m`・`--allow-empty` など）は順不同で受け付ける。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
 `block-direct-git` フックが拒否するのは AI による `git` の直接実行であり、提供コマンド（このスキルと各スキルのスクリプト）の内部からの `git` 実行は拒否の対象外（識別方法はフックの仕様が正）。
 

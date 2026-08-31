@@ -76,9 +76,9 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 ## Script 処理
 
-実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
+実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
-状態変更のコミットは各サブコマンドが内部で `git` を直接実行して行う（メッセージ規約に従う。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし現在のブランチが default のとき（全体計画チケットの作成・着手）はコミットを行わず、その旨を出力する（ファイルは未追跡のまま feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様）。
+状態変更のコミットは各サブコマンドが内部で `git` を直接実行して行う（メッセージ規約に従う。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし現在のブランチが default のとき（全体計画チケットの作成・着手）はコミットを行わず、その旨を出力する（ファイルは未追跡のまま feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様）。機構（entry の継続判定・guard の宣言範囲の強制・session-start の現在地）のチケット判定はチケットファイルの存在（作業領域の配置）で行い、git の追跡状態やコミットの有無を見ないため、未追跡のまま持ち越したチケットも作業中として扱われる。
 
 ### create <種類> --field 値 ...
 

@@ -18,6 +18,8 @@ keywords: [全体計画チケット, default ブランチ, コミット保留, �
 - 未追跡のまま持ち越されたチケットファイルは、`20-common-step-feature-mr` がブランチ作成直後に行う**開始コミット**（`chore: #<N> <slug> の作業を開始`）で feature ブランチに載せる。載せるものが無い場合に限り従来どおり空コミットを作る
 - feature-mr の未コミット検査は、`wip/` 配下の未追跡ファイル（持ち越し分）を除いた残りで判定する
 - ブランチは従来どおり `origin/<default>` から切る（ローカル default にコミットを残さない）
+- 機構のチケット判定（継続判定・宣言範囲の強制・現在地の導出）はファイルの存在で行い、git の追跡・コミットの有無を見ない。未追跡のまま持ち越したチケットも作業中として扱われる
+- 開始コミットの前に、持ち越した作業中チケットの差分の基準点を作成元コミット（`origin/<default>`）に付け替える（差分検知の誤検知防止）
 
 ## 理由
 
@@ -36,3 +38,4 @@ keywords: [全体計画チケット, default ブランチ, コミット保留, �
 - `10_spec/skills/20-common-step-ticket.md`（コミットの方式と default 上の例外）
 - `10_spec/skills/20-common-step-feature-mr.md`・`00_requirement/skills/20-common-step-feature-mr.md`（開始コミット・未コミット検査の除外）
 - `10_spec/skills/20-common-step-commit-push.md`（`--allow-empty` の位置づけ: 載せるものが無いときの予備）
+- `hooks/10-UserPromptSubmit/workflow-entry.md`・`hooks/00-SessionStart/session-start.md`（判定がファイルの存在によることの明記、「チケットはあるが MR・ブランチが無い」状態を全体計画の途中として扱う）

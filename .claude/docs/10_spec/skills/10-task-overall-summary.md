@@ -73,7 +73,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 ## Script 処理
 
-`scripts/finalize.sh <subcommand>`。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "cleaned" | "ready", "pre_cleanup_sha": ..., "cleaned_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
+`scripts/finalize.sh <subcommand>`。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "cleaned" | "ready", "pre_cleanup_sha": ..., "cleaned_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
 `logs/merge-state.json` が無い・壊れている場合、release は状態を実態から再導出して書き戻してから続ける: `wip/` に成果物がある → 未実施 / `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
 

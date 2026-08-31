@@ -72,7 +72,7 @@ bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_repo
 
 ### check-html.sh <file.html>
 
-検査は**全項目を実行して**未充足を全件列挙する。終了コードは成功 0 / 検査不合格 1 / 引数・ファイル不正 2。ログ: 共通 logger を使う（規約の正は `rules/logger.md`。要件は `00_requirement/rules/logger.md`。レベルの使い分けもそちら）。
+検査は**全項目を実行して**未充足を全件列挙する。終了コードは成功 0 / 検査不合格 1 / 引数・ファイル不正 2。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
 | # | 検査 | 不合格の識別子 |
 |---|------|---------------|

@@ -1,9 +1,9 @@
 ---
 type: ddr
 title: i0004-01. スクリプトとフックは共通 logger で logs/ 配下に実行ログを残す
-description: スキルのスクリプトとフックのログ出力を .claude/lib/logger.sh に一本化し、logs/sh/ 配下へ書く。既定 INFO・LOG_LEVEL=DEBUG で詳細、タイムスタンプ等は自動付与、ファイルのみに書き失敗は黙殺（本体を止めない）
+description: スキルのスクリプトとフックのログ出力を 20-common-step-shell-script の scripts/logger.sh に一本化し、logs/sh/ 配下へ書く。既定 INFO・LOG_LEVEL=DEBUG で詳細、タイムスタンプ等は自動付与、ファイルのみに書き失敗は黙殺（本体を止めない）
 tags: [ddr, logging, lib]
-keywords: [logger, 共通ライブラリ, logs, LOG_LEVEL, INFO, DEBUG, 標準出力禁止, fail-open, lib]
+keywords: [logger, 共通ライブラリ, shell-script, logs, LOG_LEVEL, INFO, DEBUG, 標準出力禁止, fail-open, lib]
 ---
 
 # i0004-01. スクリプトとフックは共通 logger で logs/ 配下に実行ログを残す
@@ -14,7 +14,7 @@ keywords: [logger, 共通ライブラリ, logs, LOG_LEVEL, INFO, DEBUG, 標準�
 
 ## 決定
 
-- 共通 logger を `.claude/lib/logger.sh` として提供し、すべてのスキルのスクリプトとフックは source して使う（独自のログ方式を持たない）
+- 共通 logger を `20-common-step-shell-script` スキルの `scripts/logger.sh` として提供し（`.claude/lib/` は設けない — DDR `i0004-06`）、すべてのスキルのスクリプトとフックは source して使う（独自のログ方式を持たない）
 - 出力先は `logs/sh/<出どころ>.log`（出どころはスクリプト名から自動導出）。`logs/` の既存の扱い（gitignore・片付け対象外・唯一の正にしない — `i0001-28`）に従う
 - 既定レベルは INFO。環境変数 `LOG_LEVEL=DEBUG` で DEBUG も出力する
 - 行にはタイムスタンプ（ISO 8601）・レベル・出どころ・PID を logger が自動付与する

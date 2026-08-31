@@ -56,7 +56,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
    - GitHub: 非公式エンドポイント `POST https://uploads.github.com/user-attachments/assets?name=<ファイル名>&content_type=text/html&repository_id=<ID>`（`Authorization: Bearer $(gh auth token)`、ボディはファイルのバイナリ）でアップロードし、返された URL を使う。`repository_id` は `gh api "repos/<owner>/<repo>" --jq .id`。`.html` は添付として許可されたファイル種別（2025-08 の GitHub changelog で拡大済み）。この curl 実行は「CLI 不在時の curl 代替の禁止」の例外とする（gh に相当機能が無い、添付のためだけの限定用途）
    - どちらの経路でもアップロードが失敗した場合（GitHub の非公式エンドポイントの廃止・4xx を含む）は再試行せず、「添付できない環境」として省略の事実と本文の要約で代替していることを MR 本文に書く（要件の代替フロー）
 7. **push**: `push.sh` で push し、統括レポート・添付済みの成果物を履歴に載せる
-8. **（レビュー要の場合のみ）** レビューを依頼し、完了連絡（未解決スレッドの確認込み）を受けてから次へ
+8. **（レビュー要の場合のみ）** `boundary.sh request --final` でレビューを依頼し（全体まとめチケットは作業中のままなので `--final` が要る — `00-workflow-issue-mr-driven` 仕様）、完了連絡を受けて `boundary.sh complete --final`（未解決スレッドの確認込み）が通ってから次へ。レビュー不要なら `boundary.sh skip --final --reason`
 9. **片付けから draft 解除まで**: `finalize.sh release` を実行する（下記。完了検査 → 片付け → push → 最終ゲート → draft 解除 を 1 コマンドで連続実行。途中で失敗したら同じコマンドの再実行で続きから進む）
 10. **報告**: 結果（issue・MR 番号、別 issue 一覧、衝突解消の有無、片付けの件数）と、`pre_cleanup_sha` から組み立てた作業領域リンクを報告して停止する。マージしない
 
@@ -81,7 +81,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 片付けから draft 解除までを段階（stage）として順に実行する。各段階の完了を `logs/merge-state.json` の `state`（`started` → `cleaned` → `pushed` → `ready`）に記録し、再実行時は記録済みの段階を飛ばして続きから行う（冪等）。
 
-1. **前提検査**（初回のみ）: 未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に見出し `## 統括` がある — 手順 5 の見出し文字列と一致で判定）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）
+1. **前提検査**（初回のみ）: 未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に見出し `## 統括` がある — 手順 5 の見出し文字列と一致で判定）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）/ 全体まとめチケットが人間レビュー要なら `logs/review-state.json` の最終レビューが `completed`、不要なら `skipped`（`boundary.sh` の記録。`00-workflow-issue-mr-driven` 仕様）
 2. **完了検査**（初回のみ）: 全体まとめチケットの完了検査（DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する。検査ロジックは `ticket.sh` の完了検査を共通関数として source して使い、二重実装しない
 3. **片付け**: 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`state` を `cleaned` にする
 4. **push**: `push.sh` を内部から実行し（前チェック込み）、`state` を `pushed` にする

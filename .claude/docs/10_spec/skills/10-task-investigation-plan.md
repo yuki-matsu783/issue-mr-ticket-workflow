@@ -85,7 +85,7 @@ keywords: [調査計画, 計画タスク共通, 処理フロー, 調査観点, �
 - チケット操作・作業ログ・完了検査: `10_spec/skills/20-common-step-ticket.md`
 - 計画書の HTML: `10_spec/skills/20-common-step-report-view.md`
 - 実行者・レビュー要否の既定: `rules/work-defaults.md`、全体計画書の方針
-- フェーズ列とタスク種別 → スキル名: `10_spec/skills/00-workflow-issue-mr-driven.md`（未作成 — TBD）
+- フェーズ列とタスク種別 → スキル名: `10_spec/skills/00-workflow-issue-mr-driven.md`
 
 ## Script 処理
 

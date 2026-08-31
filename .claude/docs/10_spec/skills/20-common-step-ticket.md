@@ -70,7 +70,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 ## 参照ナレッジ
 
-- タスクの種類 → スキル名の対応表: `10_spec/skills/00-workflow-issue-mr-driven.md`（未作成）が正。`next` はそれと同じ対応で `skill` を返す
+- タスクの種類 → スキル名の対応表: `10_spec/skills/00-workflow-issue-mr-driven.md`（正。実体は同スキルの `assets/task-types.tsv`）。`next` はそのファイルを読んで `skill` を返す
 - 種類ごとの宣言の上限・既定判断基準: 機構の設定と `rules/work-defaults.md`
 - 成果物のコミット手順: `20-common-step-commit-push`
 

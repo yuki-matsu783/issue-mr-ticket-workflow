@@ -50,7 +50,7 @@ gh pr create --draft --title "feat: ログイン検証の不備 (#12)" --body-fi
 2. **default ブランチの特定と最新化**: `gh repo view --json defaultBranchRef` / `glab repo view`（取れなければ `git remote show origin` の HEAD branch）。`git fetch origin` で最新を取得する
 3. **ブランチ作成**: 同名ブランチが既にあれば作らず、別の slug 案を添えて呼び出し元に返す。無ければ `git checkout -b <ブランチ名> origin/<default>` で作成する（ローカル default の状態に依存しない）
 4. **差分の用意**: `commit.sh --allow-empty -m "chore: start #<N> <slug>"` で空コミットを作り、`push.sh` で push する（上流設定はコマンドが行う）
-5. **draft MR の作成**: 現在ブランチに open な MR が既にあるか確認し（`gh pr view --json number,url,state` / `glab mr list --source-branch`）、あればその番号と URL を返して終える。無ければテンプレートから本文を `wip/tmp/mr-body.md` に作り、`gh pr create --draft --title <タイトル> --body-file ...` / `glab mr create --draft --title ... --description-file ...` で作成する。失敗したらコマンドと出力を返して停止し、別の手段で再試行しない
+5. **draft MR の作成**: 現在ブランチに open な MR が既にあるか確認し（`gh pr view --json number,url,state` / `glab mr list --source-branch <ブランチ> --per-page 20`）、あればその番号と URL を返して終える。無ければテンプレートから本文を `wip/tmp/mr-body.md` に作り、GitHub は `gh pr create --draft --title <タイトル> --body-file ...`、GitLab は `glab mr create --draft --title ... --description "$(cat wip/tmp/mr-body.md)"` で作成する（glab に本文のファイル渡しフラグが無いため。作成時の本文は短いテンプレート骨格なので文字列渡しを許す。以後の本文更新は長くなるため `20-common-step-issue` 仕様「GitLab の長文送信」の API 経由で行う）。失敗したらコマンドと出力を返して停止し、別の手段で再試行しない
 6. **報告**: ブランチ名・MR の番号と URL を呼び出し元に返し、一時ファイルを削除する
 
 ## OUT ひな形

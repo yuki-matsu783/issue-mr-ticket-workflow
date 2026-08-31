@@ -1,0 +1,11 @@
+{
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true,
+    "plugin-dev@claude-plugins-official": true
+  },
+  "permissions": {
+    "defaultMode": "plan"
+  },
+  "plansDirectory": "./wip/00_overall_plan",
+  "autoCompactWindow": 600000
+}

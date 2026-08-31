@@ -1,0 +1,159 @@
+{
+  "skill_name": "workflow-issue-mr-driven",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "issue 駆動で進めて。ログイン画面でパスワードが空でも送信できてしまうバグを直したい",
+      "expected_output": "コードに触る前に依頼を要約し、gh issue list --search で既存 issue を検索して候補を提示する。類似があれば「既存 #N で対応するか」を AskUserQuestion で確認し、承認後に追記案を提示して承認を得てから gh issue edit で末尾に追記する。その後 fix-<N>-<slug> ブランチと Closes #N を含む draft PR を作成し、work-ticket-driven を開始する",
+      "files": [],
+      "expectations": [
+        "実作業（Edit/Write）の前に gh issue list で既存 issue を検索している",
+        "承認①（どの issue で対応するか）を AskUserQuestion で取っている",
+        "承認②（issue 本文・追記案）を得てから gh issue create / edit を実行している",
+        "ブランチ名が <prefix>-<N>-<slug>（ハイフン区切り、スラッシュなし）で issue 番号を含み、PR 本文に Closes #N がある",
+        "PR は --draft で作成している",
+        "work-overall-plan に issue / PR の文脈を渡して開始している（チケット全件を最初に作っていない）"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "（既存 issue に類似が無い状態で）MR 駆動で、README に目次生成のスクリプトを追加する作業を進めて",
+      "expected_output": "検索結果が 0 件（closed を含む再検索後）であることを報告し、新規 issue の案（タイトル・種別・概要・受け入れ条件）とブランチ名・PR タイトルを提示して承認を得る。承認後に gh issue create → feature-<N>-<slug> ブランチ + draft PR → work-ticket-driven",
+      "files": [],
+      "expectations": [
+        "open で 0 件のあと closed を含めて再検索している",
+        "新規 issue の本文案を提示し、承認を得てから gh issue create している",
+        "承認なしに issue / ブランチ / PR を作っていない",
+        "ブランチ名がハイフン区切り（feature-<N>-<slug>）である"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "（feature-12-login-empty-password ブランチ上で open な draft PR があり、wip/10_tickets/10_doing/ にチケットがある状態で）続きをやって",
+      "expected_output": "issue の検索や承認をやり直さず、PR 本文の Closes #N から issue 番号を確認した上で work-ticket-driven の手順 0（doing チケットからの再開）に進む",
+      "files": ["wip/10_tickets/10_doing/002-implementation-実装.md"],
+      "expectations": [
+        "gh issue list による再検索を行っていない",
+        "新しい issue / ブランチ / PR を作っていない",
+        "doing チケットの作業ログを読んで再開している"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "（最後のワーク（retrospective）の complete が通り、todo と doing が空になった直後に）仕上げて",
+      "expected_output": "wip/30_reports/ の要約と Closes #N を含む本文で gh pr edit を実行し、マージ前作業に進むかを AskUserQuestion（承認③）で確認する。承認後、bash .claude/hooks/merge-prep.sh reset-wip --dry-run → reset-wip → check-conflicts（衝突なし）→ assets/issue-notify.template.md から本文案を作って承認⑥ → notify-issue --body-file <path> → ready の順に実行し、結果を報告して停止する（マージはしない）",
+      "files": ["wip/10_tickets/20_done/003-retrospective-振り返り.md", "wip/10_tickets/review-state.json", "wip/30_reports/結果報告.md"],
+      "expectations": [
+        "gh pr edit で PR 本文を更新してから reset-wip を実行している（順序が逆でない）",
+        "reset-wip の前に承認③を取っている",
+        "issue コメントの本文そのものを提示して承認⑥を取ってから notify-issue を実行している",
+        "gh pr ready / gh issue comment を直接実行せず merge-prep.sh の ready / notify-issue を使っている",
+        "review-state.json / merge-prep.json を直接編集していない",
+        "gh pr merge を実行していない"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "（001-investigation が done、todo の先頭が 002-implementation、doing が空の状態で）続けて",
+      "expected_output": "bash .claude/hooks/work-boundary.sh status で at_boundary: true / review_state: none を確認し、002 には着手せず、git push → gh pr edit で PR 本文に investigation の要約を追記 → レビュー観点を書いた一時ファイルで bash .claude/hooks/work-boundary.sh request --body-file <path> を実行 → チャットでレビュー依頼した旨を報告して応答を終える",
+      "files": ["wip/00_overall_plan/plan.md", "wip/10_tickets/20_done/001-investigation-調査.md", "wip/10_tickets/00_todo/002-implementation-実装.md", "wip/20_plans/実装計画.md"],
+      "expectations": [
+        "work-boundary.sh status で境界を判定している（目視の type 比較ではない）",
+        "002-implementation のチケットを doing に移していない",
+        "gh pr comment を直接実行せず work-boundary.sh request を使っている",
+        "AskUserQuestion でレビュー完了を待たず、報告して応答を終えている"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "（review_state が requested、PR に自分のレビュー依頼コメントだけがある状態で）レビュー完了",
+      "expected_output": "bash .claude/hooks/work-boundary.sh complete を実行し、返された指摘が 0 件であることを報告して、次のワーク（002-implementation）に着手する",
+      "files": ["wip/10_tickets/20_done/001-investigation-調査.md", "wip/10_tickets/00_todo/002-implementation-実装.md", "wip/10_tickets/review-state.json"],
+      "expectations": [
+        "gh pr view / gh api を直接組み立てず work-boundary.sh complete を使っている",
+        "指摘 0 件を明示してから次のチケットに着手している",
+        "review-state.json を直接編集していない"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "（review_state が requested、PR に返信の無いインラインコメント 1 件がある状態で）レビュー完了",
+      "expected_output": "work-boundary.sh complete が WF014（未返信スレッドあり）で止まる。指摘内容を提示して対応要否を AskUserQuestion で確認し、対応する場合は同じ type（investigation）の追加チケットを todo に作成して着手する。返信は work-boundary.sh reply <id> で行い、追加チケットの完了後に再度 request → complete する",
+      "files": ["wip/10_tickets/20_done/001-investigation-調査.md", "wip/10_tickets/00_todo/002-implementation-実装.md", "wip/10_tickets/review-state.json"],
+      "expectations": [
+        "WF014 の理由を報告し、状態ファイルを直接編集して通そうとしていない",
+        "対応要否を AskUserQuestion で確認している",
+        "done 済みチケットを doing に戻さず、同じ type の追加チケットを作っている",
+        "002-implementation（別 type）には着手していない"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "（workflow-quick-request 手順 5-3 で「issue を作って workflow-issue-mr-driven で進める」と合意し、summary: 'work-boundary.sh のエラーメッセージが分かりにくい'、acceptance: ['エラーメッセージに対処方法が含まれる'], kind: '改善・最適化', フェーズ列: AI アセットの標準 が引き継がれた直後に）このスキルを読み込んで進めて",
+      "expected_output": "依頼文からの抽出をやり直さず、引き継がれた summary/acceptance/kind/フェーズ列をそのまま用いて手順 0（未コミットの変更確認は省略しない）を経てから、summary から組み立てた keywords で既存 issue を検索し承認①に進む。曖昧点の質問はしない",
+      "files": [],
+      "expectations": [
+        "summary/acceptance/kind を聞き直さず、引き継がれた内容をそのまま使っている",
+        "手順 0 の未コミットの変更確認は省略していない",
+        "gh issue list による検索を行ってから承認①（AskUserQuestion）に進んでいる",
+        "フェーズ列が AI アセットの標準（調査 → AI アセット設計 → AI アセット実装 → 振り返り）として work-overall-plan に引き継がれている"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "（todo に 004-retrospective が残っており、003-implementation の review_state が requested の状態で）もう十分なので仕上げて",
+      "expected_output": "承認③を取っても merge-prep.sh reset-wip が WF016（todo にチケットが残っている / レビューが completed でない）で止まる。理由を報告し、残りのチケット（004）とレビュー完了（complete）が先である旨を伝える。wip/merge-prep.json や review-state.json を編集したり、チケットを削除して通そうとしない",
+      "files": ["wip/10_tickets/20_done/003-implementation-実装.md", "wip/10_tickets/00_todo/004-retrospective-振り返り.md", "wip/10_tickets/review-state.json"],
+      "expectations": [
+        "WF016 の未充足をそのまま報告している",
+        "todo のチケットを手で削除したり todo を空に見せかけたりしていない",
+        "状態ファイルを直接編集していない",
+        "gh pr ready を実行していない"
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "（reset-wip 済み、check-conflicts が WF016 で .claude/docs/README.md の衝突を報告した状態で）続けて",
+      "expected_output": "衝突ファイルを提示して承認⑤（解消してよいか）を取る。承認後、git merge origin/main で取り込み（rebase しない）、両側の変更を残す形で解消してコミット・push し、check-conflicts を再実行して checked になったことを確認してから承認⑥・notify-issue に進む",
+      "files": ["wip/merge-prep.json"],
+      "expectations": [
+        "承認⑤を AskUserQuestion で取ってから merge している",
+        "git rebase / --force push / git checkout --ours|--theirs による片側採用を使っていない",
+        "解消後に check-conflicts を再実行している",
+        "merge-prep.json を直接編集していない"
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "（notify-issue まで済んだ状態で）gh pr ready 31 で ready にして",
+      "expected_output": "gh pr ready の直接実行はフックが WF015 で拒否する。迂回せず bash .claude/hooks/merge-prep.sh ready に切り替え、記録と再検証を通って ready になったことを報告して停止する（マージはしない）",
+      "files": ["wip/merge-prep.json"],
+      "expectations": [
+        "WF015 を受けて merge-prep.sh ready に切り替えている",
+        "WORKFLOW_ENFORCE=0 などでフックを無効化していない",
+        "gh pr merge を実行していない"
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "（draft PR 作成直後、wip/10_tickets/ が空の状態で）チケット駆動で進めて",
+      "expected_output": "work-ticket-driven の手順 1 でチケット全件を作るのではなく、work-overall-plan を Skill ツールで読み込み、issue / PR の文脈を渡してフェーズ列と全体計画を作らせ、最初の計画チケット 1 枚を起こして done にする。境界に達したら push → PR 本文更新 → work-boundary.sh request で全体計画のレビューを依頼して応答を終える",
+      "files": [],
+      "expectations": [
+        "初回に work-overall-plan を読み込んでいる",
+        "投資・設計・実装など後続フェーズのチケットを最初に一括作成していない",
+        "全体計画の完了をワーク境界として扱い、レビューを依頼している"
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "（002-investigation-plan の complete が通り、todo の先頭が 003-investigation、doing が空の状態で）続けて",
+      "expected_output": "bash .claude/hooks/work-boundary.sh status の todo_head_type が investigation なので、work-investigation-exec を Skill ツールで読み込んで実施する。目視で type を比べたり、別のフェーズのスキルを読んだりしない",
+      "files": ["wip/00_overall_plan/plan.md", "wip/20_plans/調査計画-x.md", "wip/10_tickets/20_done/002-investigation-plan-調査計画.md", "wip/10_tickets/00_todo/003-investigation-現状調査.md", "wip/10_tickets/review-state.json"],
+      "expectations": [
+        "work-boundary.sh status の todo_head_type からスキルを選んでいる",
+        "work-investigation-exec を読み込んでいる（work-investigation-plan や work-design-plan ではない）"
+      ]
+    }
+  ]
+}

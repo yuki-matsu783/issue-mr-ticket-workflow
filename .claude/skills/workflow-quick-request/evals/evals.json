@@ -1,0 +1,100 @@
+{
+  "skill_name": "workflow-quick-request",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "README の「インストール」が「インストロール」になってるので直して",
+      "expected_output": "軽作業と判定（1 ファイル・振る舞いの変更なし）し、やること・触るファイル・やらないことを宣言してから README.md を Edit で修正し、変更箇所を報告する。issue やブランチは作らない",
+      "files": [
+        "README.md"
+      ],
+      "expectations": [
+        "手順 0 の判定結果を 1 行で述べている",
+        "作業前に触るファイルを宣言している",
+        "issue / ブランチ / PR を作っていない",
+        "変更したファイルと確認内容を報告している"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "このリポジトリのフックはどういう順番で判定してる？教えて",
+      "expected_output": "質問のみ（ファイル変更なし）と判定し、手順 1 を省略して .claude/hooks/workflow-lib.sh の判定順序を読んで説明する",
+      "files": [],
+      "expectations": [
+        "ファイルを変更していない",
+        "軽作業（回答のみ）と判定している",
+        "根拠となるファイルを読んで答えている"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "ちょっとログイン処理で空パスワードを弾くようにして",
+      "expected_output": "「ちょっと」と言われても振る舞いの変更（バグ修正）なので issue-pr 側と判定し、workflow-issue-mr-driven を Skill ツールで読み込んで切り替える。このスキルの手順 1 以降には進まない",
+      "files": [
+        "src/login.ts"
+      ],
+      "expectations": [
+        "振る舞いの変更を理由に workflow-issue-mr-driven へ切り替えている",
+        "軽作業として src/login.ts を編集していない"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "設定ファイルのコメントを直して。あと同じディレクトリの他のファイルも同じ表記ゆれがあるかも",
+      "expected_output": "コメント修正は軽作業と判定して宣言し、作業中に対象が 4 ファイル以上に広がると分かった時点で止め、AskUserQuestion で範囲を広げるか workflow-issue-mr-driven に切り替えるか確認する",
+      "files": [
+        "config/app.yaml",
+        "config/db.yaml",
+        "config/cache.yaml",
+        "config/mail.yaml"
+      ],
+      "expectations": [
+        "宣言した範囲を超えた時点で作業を止めている",
+        "AskUserQuestion で扱いを確認している",
+        "黙って範囲を広げていない"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "CONTRIBUTING.md のコマンド例が古いので直して",
+      "expected_output": "軽作業として修正・報告したあと、手順 5 で使ったアセット（workflow-quick-request、発火したフック、参照したルール）を棚卸しして振り返り、修正・新規作成の要否を AskUserQuestion で確認する。候補が無くても「候補なし」として確認する",
+      "files": [
+        "CONTRIBUTING.md"
+      ],
+      "expectations": [
+        "報告のあとに使った AI アセットを列挙している",
+        "各アセットについて足りなかった / 邪魔だった / 無かった / 問題なし のいずれかを述べている",
+        "AskUserQuestion で修正・新規作成の要否を確認している",
+        "承認なしにアセットを修正・新規作成していない"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "（軽作業の完了後、振り返りで「workflow-guard.sh が git stash を許可していないのが邪魔だった」と気付いた状態で）振り返りをして",
+      "expected_output": "フックのロジック変更 = 振る舞いが変わる候補なので、「軽作業として続ける」の選択肢は出さず、「新規 issue を作って workflow-issue-mr-driven で進める / 今回は不要」で確認する。選ばれたらその場で workflow-issue-mr-driven を Skill で読み込み、振り返りの内容を summary / acceptance として手順 1 から始める（issue の内容の承認は同スキルの承認①②で改めて取る）",
+      "files": [
+        ".claude/hooks/workflow-guard.sh"
+      ],
+      "expectations": [
+        "フックのロジック変更を「振る舞いが変わる」候補として扱っている",
+        "軽作業として続けて修正する選択肢を提示していない",
+        "issue を作って workflow-issue-mr-driven で進めることを AskUserQuestion で合意している",
+        "合意後、次のプロンプトに先送りせず workflow-issue-mr-driven を Skill ツールで読み込んでいる",
+        "合意だけで gh issue create を実行していない（issue 本文の承認は workflow-issue-mr-driven 側で取る）"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "空パスワードを拒否するフックを新しく作って",
+      "expected_output": "手順 0 の判定表の「対象」観点により、.claude/ 配下のアセット（フック）の新規作成は振る舞いが変わる作業なので issue-pr 側と判定し、workflow-issue-mr-driven を Skill ツールで読み込んで切り替える。このスキルの手順 1 以降には進まない",
+      "files": [
+        ".claude/hooks/reject-empty-password.sh"
+      ],
+      "expectations": [
+        "判定表の「対象」観点で workflow-issue-mr-driven 側と判定している",
+        "軽作業としてフックを新規作成していない",
+        "workflow-issue-mr-driven への切り替えを明示している"
+      ]
+    }
+  ]
+}

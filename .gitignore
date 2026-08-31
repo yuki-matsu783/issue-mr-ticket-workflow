@@ -37,3 +37,6 @@ go.work.sum
 # 一時ファイル置き場（issue / MR 本文・作業用スクリプト）。.gitkeep 以外は追跡しない
 wip/tmp/*
 !wip/tmp/.gitkeep
+
+# 機構の記録（MR・マージ前作業の進行状態・前回 push 時点・フックの判定記録・セッション内の承認記憶）。ローカル限りで追跡しない（DDR i0001-28）
+logs/

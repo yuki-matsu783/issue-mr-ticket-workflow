@@ -52,9 +52,10 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh ready
 3. **衝突解消**: `git fetch origin` して default との衝突を確認する。無ければ承認なしで次へ。あれば衝突ファイルと解消方針を提示して承認を得てから `git merge origin/<default>` で取り込み、解消してコミットする（方針が一意でなければ両側の意図を要約して判断を仰ぐ）
 4. **統括レポート**: `wip/30_reports/` に md + HTML（report-view の手順）で 1 つ作る。内容: 受け入れ条件との対応（どのタスク・テストで満たしたか）/ 各タスクのレビュー結果（省略はその旨）/ フィードバック計画の対応（この MR / 別 issue / 対応しない）/ 残課題
 5. **MR 本文の最終化**: 統括レポートの要約（受け入れ条件との対応・残課題・別 issue 一覧）を MR 本文に書き写す。GitHub は `gh pr edit --body-file`、GitLab は issue 仕様「GitLab の長文送信」の API 経由（`wip/` 配下のパスを恒久参照として書かない）
-6. **HTML 添付**: 環境判定の上、作業領域の全 HTML レポートを MR の先頭コメントに添付する:
-   - GitLab: `glab api "projects/:id/uploads" --form "file=@<ファイル>"` でアップロードし、返された markdown リンクを列挙したコメントを先頭コメントとして投稿する
-   - GitHub: PR コメントへのファイル添付を CLI / API から行う手段が無いため「添付できない環境」と判定し、省略の事実と本文の要約で代替していることを MR 本文に書く
+6. **HTML 添付**: 作業領域の全 HTML レポートをアップロードし、リンクを列挙したコメントを MR の先頭コメントとして投稿する:
+   - GitLab: `glab api "projects/:id/uploads" --form "file=@<ファイル>"` でアップロードし、返された markdown リンクを使う
+   - GitHub: 非公式エンドポイント `POST https://uploads.github.com/user-attachments/assets?name=<ファイル名>&content_type=text/html&repository_id=<ID>`（`Authorization: Bearer $(gh auth token)`、ボディはファイルのバイナリ）でアップロードし、返された URL を使う。`repository_id` は `gh api "repos/<owner>/<repo>" --jq .id`。`.html` は添付として許可されたファイル種別（2025-08 の GitHub changelog で拡大済み）。この curl 実行は「CLI 不在時の curl 代替の禁止」の例外とする（gh に相当機能が無い、添付のためだけの限定用途）
+   - どちらの経路でもアップロードが失敗した場合（GitHub の非公式エンドポイントの廃止・4xx を含む）は再試行せず、「添付できない環境」として省略の事実と本文の要約で代替していることを MR 本文に書く（要件の代替フロー）
 7. **（レビュー要の場合のみ）** ここで push してレビューを依頼し、完了連絡（未解決スレッドの確認込み）を受けてから次へ
 8. **片付け**: `finalize.sh cleanup` を実行する（下記）
 9. **push**: `push.sh` で push する（チケットが無い状態でも拒否されない）
@@ -116,7 +117,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh ready
 | メイン: 衝突確認・承認 → merge・rebase 禁止 | 処理フロー 3、禁止事項 |
 | メイン: 統括レポート（md + HTML・内容 4 点） | 処理フロー 4 |
 | メイン: MR 本文の最終化（書き写し） | 処理フロー 5 |
-| メイン: HTML 添付 | 処理フロー 6（GitLab uploads / GitHub 不可判定） |
+| メイン: HTML 添付 | 処理フロー 6（GitLab uploads / GitHub 非公式アップロードエンドポイント。失敗時は省略に縮退） |
 | メイン: 作業中 issue へ書き込まない | 禁止事項 |
 | メイン: 書き写しは MR 本文と添付に限る・未反映は別 issue | 処理フロー 2・5、禁止事項 |
 | メイン: 片付け（提供コマンド・完了内包・logs は対象外） | finalize.sh cleanup |

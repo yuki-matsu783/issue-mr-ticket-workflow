@@ -17,7 +17,15 @@ keywords: [調査結果, 参考実装, 流用, 改変, 新規, テスト方式, 
 
 ## 要約
 
-（全チケット完了時に記入）
+| 問い | 結論 |
+|---|---|
+| Q1 流用範囲 | フック lib: 43 単位で流用 12 / 改変 20 / 新規 11。`CommandPosition.sh` の正規化部（`:106-470`）と `UsageTracking.sh` のカーソル付き集計が最大の流用資産。segment 列 API・`redirects[]`・PowerShell 前処理・`redact`・`decisions.jsonl`・fail-closed・ヘッドレスは新規。提供コマンド: `ticket.sh` は 5 サブコマンドすべて新規（部品は流用）、`commit.sh` はパス指定 add 流用 + 検査新規、`push.sh` は骨格のみ、`check-html.sh` は 7 検査中 5 流用・RV006 新規 |
+| Q2 テスト方式 | 素の bash 踏襲 + 共通ヘルパ `test-lib.sh` + ランナー `run-tests.sh`。ID 付き `PASS <ID>` 出力で仕様表と突合。bats は導入しない |
+| Q3 T5 | 前提どおり（`tool_input.command` は Bash と同一、matcher は既に `Bash\|PowerShell`）。実機確認は settings.json 変更が拒否され未実施 → 2/3 で確認 |
+| Q4 logger / redact | 参考に共通 logger も redact も無い → 新規。置き場は仕様どおり、読み込みはフォールバック鎖（BASH_SOURCE 上向き探索 → CLAUDE_PROJECT_DIR → git）。`printf '%(%:z)T'` は使えない |
+| Q5 HTML テンプレート | 土台は `reports-clean.template.html` と `plans.template.html`。`data-required` は必須節 5 + 格上げ 2（レポート）、5 + 新設 2（計画書）。参考固有の記述の削除箇所を行番号で特定済み |
+
+仕様と食い違う点は **D1〜D19**（下表）。うち「仕様を直す / 補う」が 12 件（D2・D3・D4・D5・D8・D10・D11・D12・D13・D15・D16・D17・D19）で、AI アセット設計計画（0006）が採否を決める。
 
 ## Q1 参考実装の流用範囲（チケット 0003）
 
@@ -102,16 +110,22 @@ Windows Git Bash の実測（付録 A §4）: **jq が Windows ネイティブ�
 
 ## Q3 TBD T5 — PowerShell ツールのフック入力（チケット 0005）
 
-### 答え（公式ドキュメント確認分。実機確認はチケット 0005 で追記）
+### 答え
 
 - `tool_name` は `"PowerShell"`。`tool_input` のキーは `command` / `timeout` / `run_in_background` で **Bash ツールと同じ構造**。matcher は `"Bash|PowerShell"` と書け、ドキュメント自身が「`Bash` だけでは不十分（Windows では PowerShell がネイティブに動く）」と明記している（出典: https://code.claude.com/docs/en/tools-reference.md「PowerShell Tool Reference」）
-- **T5 の結論（暫定）: 前提どおり**。`hook-common.sh` / `cmdpos.sh` は `tool_input.command` をそのまま読めばよい。フックの登録 matcher は Bash 系フック（workflow-guard / block-direct-git / block-chmod / post-push-*）で `Bash|PowerShell` にする（共通仕様 §1 の登録表は既に `Bash|PowerShell`（行 29〜36）で、設計差分なし）
+- **T5 の結論: 前提どおり**（出典は公式ドキュメント。実機確認は下記のとおり本 issue では実施できず、2/3 のフック登録時のテストで確認する）。`hook-common.sh` / `cmdpos.sh` は `tool_input.command` をそのまま読めばよい。フックの登録 matcher は Bash 系フック（workflow-guard / block-direct-git / block-chmod / post-push-*）で `Bash|PowerShell` にする（共通仕様 §1 の登録表は既に `Bash|PowerShell`（行 29〜36）で、設計差分なし）
 - 付随して確定した事項（他の TBD・仕様に効く。出典: https://code.claude.com/docs/en/hooks-guide.md「Common Input Fields」「Structured JSON output」）
   - 共通入力フィールド: `session_id` / `prompt_id` / `transcript_path` / `cwd` / `permission_mode`（`default|plan|acceptEdits|auto|dontAsk|bypassPermissions`）/ `effort` / `hook_event_name`。**サブエージェント実行中のみ `agent_id` / `agent_type`** が付く（T2・`subagent-*` の実装材料）
   - ヘッドレス（`claude -p`）を判別するフィールドは記載なし → **T3 は前提どおり**（`WORKFLOW_HEADLESS` / `CI` で明示）。ただし `permissionDecision: "ask"` は非対話モードでは拒否として扱われ、`"defer"` という値（`-p` で SDK ラッパーが入力を集めて再開）が存在する
   - `permissionDecision` は `allow | deny | ask | defer`。exit 2 + stderr と exit 0 + JSON は併用しない
   - `SubagentStart` / `SubagentStop` イベントは存在し、matcher はエージェント種別。入力の固有フィールド（`model` の有無等）と、SubagentStop の出力がメインに届くかは**記載なし**（T1・T4 は 2/3 で実機確認）
   - settings.json のフック設定はセッション開始時に読まれ、**実行中の直接編集もファイル監視で通常は自動反映**される（`/hooks` は閲覧専用）。→ 一時フックによる実機確認は再起動なしで可能な見込み
+
+### 実機確認（一時フック）の結果
+
+- 一時フック `wip/tmp/dump-hook-input.sh`（stdin をそのまま `logs/tmp/` に保存するだけ）を用意し、`.claude/settings.json` に `PreToolUse` matcher `Bash|PowerShell` で一時登録しようとしたが、**Claude Code の auto モードの分類器が `.claude/settings.json` への書き込みを Bash・Edit の両方で拒否**した（「Blocked by classifier」）。迂回はしない
+- したがって実機の JSON は取得していない。T5 の結論は公式ドキュメント（`tool_input` のキーが Bash と同一、matcher `Bash|PowerShell` を推奨）に基づく。実機確認は 2/3 でフックを正式に登録した直後の最初の PowerShell ツール呼び出し（`decisions.jsonl` に `tool: PowerShell` が残る）で自然に得られるので、2/3 のテスト観点（HK-T05 の PowerShell ケース）に含める
+- 副産物の知見（2/3 の設計に効く）: **auto モードでは AI 自身が `settings.json` を書けない**。フック登録（2/3 の「設定・定義」ステップ）は人間が適用するか、権限ルールを明示的に許可した上で行う必要がある。共通仕様 §8 の `common.confirm`（`settings.json` は毎回 ask）と方向は同じで、機構の想定と矛盾しない
 
 ### 根拠
 
@@ -145,6 +159,7 @@ Windows Git Bash の実測（付録 A §4）: **jq が Windows ネイティブ�
 
 ## 残課題
 
+- T5 の実機確認（PowerShell ツールのフック入力 JSON の実物）: settings.json の変更が auto モードで拒否されたため未実施。2/3 のフック登録直後に `decisions.jsonl` で確認する
 - 参考テストの未解明の失敗 2 件（`test_block_direct_git_commit.sh` の改行を挟んだ `commit` 1 件、`test_install_to_project.sh` のタイムアウト）は原因未調査。新機構のテストで同種のケースを書くときに再現を確認する
 - HTML テンプレートのブラウザでの実表示は参考実装側でも未確認。初版作成時に目視する
 - shellcheck が本環境に無く、shell-script 仕様の規約検査は「省略の事実を記録」の分岐に常に入る。CI（Linux）で shellcheck を回す案は 2/3 以降で検討

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0031 AI アセット実装・テスト計画（2 回目）</title>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif; line-height: 1.8; font-size: 15px; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px; font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace; }
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) { .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh; overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); } }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  :root { --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8; --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec; --warn: #a35a00; --warn-soft: #fdf1e0; --code-bg: #f0f2f5; --radius: 10px; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038; --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d; --warn: #f0b866; --warn-soft: #2a2113; --code-bg: #1d222a; } }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装計画 / 計画書</p>
+  <h1 id="title" data-required>0031 AI アセット実装・テスト計画（2 回目）— 設計で仕様に書いた実装 9 件とテスト</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#decisions">判断点の決着</a></li>
+      <li><a href="#verify">検証（テスト方針）</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧（ロックアウト対策）</a></li>
+      <li><a href="#pending">保留した点</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/6">#6</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/7">#7</a></dd></div>
+    <div><dt>チケット</dt><dd>0031（本計画）→ 0033 / 0034 / 0035 / 0036 実装 → 0037 全体まとめ</dd></div>
+    <div><dt>起点</dt><dd>設計結果報告 0028（チケット 0028〜0032）</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">設計 0028〜0032 が仕様に書いた「実装を伴う変更」9 件 — 識別子 CP007 / CP008 / RV008 / TK008 の付け替え、<code>ticket.sh</code> の完了検査（見出し重複）と <code>create</code> の YAML エスケープ、<code>hook_payload --session</code>、HK-T15 の付番、SC-E への改名、テンプレート 2 本のガイド、SKILL.md 4 本のエラー表 — を固定順（テンプレート → 中核 → 中核のテスト → スキル・eval → 参照更新）のステップに割り、テスト ID を割り付け、<b>自分が使っている提供コマンドを自分で変える</b>ときの復旧手順を決めて、実装チケット 4 枚と全体まとめチケットを起こす。</p>
+  <ul>
+    <li>前回（0011）との違い: 提供コマンドとテストランナーは稼働中で切り替え境目は無い。代わりに各チケットで「変更後の自分のコマンドで自分をコミット・完了させる」最初の操作を決めた</li>
+    <li>実行者は全チケットともメインエージェント。人間レビューは実装の切れ目 1 回（承認④により opus 自己レビューで代替）、敵対的レビュー 1 回</li>
+  </ul>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <table>
+    <thead><tr><th>#</th><th>アセット</th><th>変更</th><th>仕様書の節</th></tr></thead>
+    <tbody>
+      <tr><td>A1</td><td><code>ai-asset-creator/assets/skill.template.md</code></td><td>更新</td><td>OUT ひな形（frontmatter 2 項目・冒頭段落は禁止事項の要約）</td></tr>
+      <tr><td>A2</td><td><code>requirement/assets/requirements.template.md</code></td><td>更新</td><td>処理フロー 3（小節の許容のガイド 1 行）</td></tr>
+      <tr><td>A3</td><td><code>commit.sh</code></td><td>更新</td><td>commit.sh 2・5（CP007 3 か所・CP008 2 か所）</td></tr>
+      <tr><td>A4</td><td><code>push.sh</code></td><td>更新</td><td>push.sh 0（CP007 5 か所。CP005 / CP006 を本来の条件に）</td></tr>
+      <tr><td>A5</td><td><code>ticket.sh</code></td><td>更新</td><td>create 1・3、complete 3、TK008（TK004 転用 16 か所）</td></tr>
+      <tr><td>A6</td><td><code>check-html.sh</code></td><td>更新</td><td><code>RV008:</code>（<code>RV:</code> 4 か所）</td></tr>
+      <tr><td>A7</td><td><code>test-lib.sh</code></td><td>更新</td><td><code>hook_payload [--session]</code></td></tr>
+      <tr><td>A8</td><td>テスト 6 本</td><td>更新</td><td>CP-T03 / T06 / T08、TICKET-T03 / T05 / T12、RV-T07、HK-T15、<code>--session</code></td></tr>
+      <tr><td>A9</td><td>SKILL.md 4 本（commit-push / ticket / report-view / shell-script）</td><td>更新</td><td>エラー識別子表・処理フロー・test-lib の関数一覧</td></tr>
+      <tr><td>A10</td><td>eval 2 本（spec / ai-asset-creator）</td><td>更新</td><td>SC-E01〜03、AC-E04</td></tr>
+      <tr><td>A11</td><td><code>wip/30_reports/0033-ai-asset-implementation.md</code>（+ HTML）</td><td>新規</td><td>実装結果レポート（0033 が作り以後追記）</td></tr>
+    </tbody>
+  </table>
+  <p>対象外: フック本体・<code>settings.json</code>（2/3）、<code>finalize.sh</code>（3/3。全体まとめは手作業代替）、ルール本文の残り 11 本（3/3）、<code>.claude/docs/**</code>（実装チケットでは書けない。食い違いは作業ログに記録して全体まとめへ）。</p>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <table>
+    <thead><tr><th>順</th><th>ステップ</th><th>内容</th><th>依存</th><th>チケット</th></tr></thead>
+    <tbody>
+      <tr><td>S1</td><td>テンプレート</td><td>A1・A2</td><td>—</td><td>0033</td></tr>
+      <tr><td>S2-1 / S3-1</td><td>中核 + テスト</td><td><code>commit.sh</code> / <code>push.sh</code>（テスト先行: CP-T08 を先に書く）→ CP-T08 / T03 / T06</td><td>S1</td><td>0033</td></tr>
+      <tr><td>S2-2 / S3-2</td><td>中核 + テスト</td><td><code>ticket.sh</code>（TK008・エスケープ・見出し重複）→ TICKET-T12 / T03 / T05。0034 自身の <code>complete</code> が最初の実機確認</td><td>S3-1</td><td>0034</td></tr>
+      <tr><td>S2-3 / S3-3</td><td>中核 + テスト</td><td><code>check-html.sh</code>・<code>test-lib.sh</code> → RV-T07、HK-T15 の付け替え、HK-T07 / T08 の <code>--session</code>。<code>run-tests.sh --ids</code> 全件</td><td>S3-1</td><td>0035</td></tr>
+      <tr><td>S4</td><td>スキル・eval</td><td>SKILL.md 4 本、eval 2 本</td><td>S3-1〜3</td><td>0036</td></tr>
+      <tr><td>S5</td><td>参照更新</td><td>検索語 7 種の再実行（<code>SP-E</code> 0 件・<code>RV: </code> 0 件・CP004 のコミット失敗 0 件・push.sh の 005 / 006 転用 0 件・ticket.sh の終了 2 の TK004 0 件・SKILL.md の旧範囲表記 0 件・<code>HK-T11</code> 20 件）、全件テスト、レポート HTML の検査</td><td>S4</td><td>0036</td></tr>
+      <tr><td>—</td><td>全体まとめ</td><td>統括レポート → PR 本文の最終整形 → 承認③ → 片付け → 衝突確認 → issue コメント（承認⑥は本文を提示して停止）→ draft 解除</td><td>0033〜0036</td><td>0037</td></tr>
+    </tbody>
+  </table>
+  <p>許可範囲（宣言）: 0033 = ai-asset-creator / requirement の assets・commit-push 配下、0034 = ticket 配下、0035 = report-view・shell-script・<code>hooks/lib/tests</code>、0036 = SKILL.md 4 本・<code>evals</code>、0037 = <code>wip/**</code> + <code>remote-write:pr</code> / <code>issue</code>。ops はテストを回すチケットすべてに <code>build-test</code> と <code>hook-test</code>（<code>run-tests.sh</code> が宣言を検査する）。</p>
+</section>
+
+<section id="decisions">
+  <h2>判断点の決着（設計からの申し送り）</h2>
+  <table>
+    <thead><tr><th>判断点</th><th>決定</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td><code>ticket.sh</code> の現在地判定からコロン無しの <code>- 次</code> を外すか（G-6）</td><td>外さない</td><td>書き方で避けられる。緩めると未完了行を見逃す</td></tr>
+      <tr><td><code>command -v git</code> を read にするか（G-9）</td><td>変えない</td><td><code>which</code> / <code>type</code> で代替。フック本体は 2/3 で実機ログを見て決める</td></tr>
+      <tr><td>CP001 の終了コード</td><td>2（実装どおり）</td><td>対象の指定の誤りは呼び方を直すもの</td></tr>
+      <tr><td><code>create</code> のエスケープ対象</td><td>frontmatter に入る値だけ（理由 2 つ・allow の要素・predecessors）</td><td>frontmatter は二重引用符の規則で読まれる。本文は Markdown</td></tr>
+      <tr><td>見出し重複の判定</td><td><code>^### 見出し$</code> の行数が 2 以上で未充足（見出し名を列挙）</td><td>仕様 complete 3。完了済みは遡らない</td></tr>
+      <tr><td><code>--session</code> の検証先</td><td><code>test_hook_common.sh</code> のセッション状態のケース</td><td>test-lib 自体はテスト ID を持たない</td></tr>
+      <tr><td>eval の改名の範囲</td><td>spec の SP-E → SC-E（本文の参照 3 か所も）、ai-asset-creator に AC-E04</td><td>台帳と仕様に合わせる</td></tr>
+      <tr><td>全体まとめの実施方法</td><td><code>finalize.sh</code> 未作成のため仕様の手順を手作業代替。完了は片付けコミットに内包</td><td>全体計画の「手作業代替」。<code>complete</code> は TK005 で拒否する</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証（テスト方針）</h2>
+  <p>テスト先行。<code>run-tests.sh --ids</code> で回し、契約（最終行・終了コード）は <code>assert_eq</code> で exact に固定する。</p>
+  <table>
+    <thead><tr><th>テスト ID</th><th>チケット</th><th>種別</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>CP-T08（新）</td><td>0033</td><td>機械</td><td><code>-m</code> 値なし・不明オプション → <code>CP007:</code> 終了 2 / pre-commit 失敗 → <code>CP008:</code> 終了 1 / logger 退避でも契約 / <code>push.sh --foo</code>・<code>git</code> / <code>jq</code> 不在・detached HEAD → <code>CP007:</code></td></tr>
+      <tr><td>CP-T03 / T06（追記）</td><td>0033</td><td>機械</td><td>実パスの除外 → <code>CP003:</code>、スキップ記録は HEAD の版だけ（0025 のケースの ID を揃える）</td></tr>
+      <tr><td>TICKET-T12（新）</td><td>0034</td><td>機械</td><td>不明サブコマンド・引数・種類・番号 → <code>TK008:</code> 終了 2。<code>find_ticket</code> 失敗は <code>TK004:</code> のまま</td></tr>
+      <tr><td>TICKET-T03 / T05（追記）</td><td>0034</td><td>機械</td><td>見出し重複が TK003 で列挙 / 記号入りの理由・glob が往復で壊れない</td></tr>
+      <tr><td>RV-T07（新）</td><td>0035</td><td>機械</td><td>引数なし・不在・<code>.html</code> 以外 → <code>RV008:</code> 終了 2。導出元不明 → <code>RV006:</code> 終了 1</td></tr>
+      <tr><td>HK-T15（付け替え）</td><td>0035</td><td>機械</td><td><code>test_scope.sh</code> の glob 以外 94 assert を HK-T15 に。<code>--ids</code> で HK-T11 が 20 件</td></tr>
+      <tr><td>HK-T07 / T08（<code>--session</code>）</td><td>0035</td><td>機械</td><td>2 つの <code>session_id</code> で状態が分かれる。既定 <code>testsession</code> は不変</td></tr>
+      <tr><td>SC-E01〜03・AC-E04</td><td>0036</td><td>eval</td><td>定義のみ（実行しない）</td></tr>
+      <tr><td>規約検査</td><td>各</td><td>機械</td><td><code>bash -n</code>・shellcheck（あれば）・全件 14 本 / 55 件 + 新規</td></tr>
+    </tbody>
+  </table>
+  <p>受け入れ条件 4（SKILL.md と assets の 1:1）は 0036 が「仕様の識別子表・処理フロー × SKILL.md の行」の対応表を作業ログに残す。完了前の検査はテンプレート（<code>assets/*.template.*</code>）をプレースホルダ検査の対象外にする。</p>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <table>
+    <thead><tr><th>チケット</th><th>種類</th><th>ステップ</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0033</td><td>ai-asset-implementation</td><td>S1・S2-1・S3-1（テンプレート、commit.sh / push.sh、CP-T08 / T03 / T06。レポート 0033 を作る）</td><td>0031</td></tr>
+      <tr><td>0034</td><td>ai-asset-implementation</td><td>S2-2・S3-2（ticket.sh、TICKET-T12 / T03 / T05）</td><td>0033</td></tr>
+      <tr><td>0035</td><td>ai-asset-implementation</td><td>S2-3・S3-3（check-html.sh、test-lib.sh、RV-T07、HK-T15、<code>--session</code>）</td><td>0034</td></tr>
+      <tr><td>0036</td><td>ai-asset-implementation</td><td>S4・S5（SKILL.md 4 本、eval 2 本、参照更新、全件テスト）</td><td>0035</td></tr>
+      <tr><td>0037</td><td>overall-summary</td><td>統括レポート・PR 本文・片付け・issue コメント・draft 解除</td><td>0033〜0036</td></tr>
+    </tbody>
+  </table>
+  <p>依存欄はチケットの <code>predecessors</code> と同じ値。全チケット main、人間レビューは切れ目 1 回（opus 代替）、敵対的レビュー 1 回。</p>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧（ロックアウト対策）</h2>
+  <p>フックは未登録でロックアウトの経路は無い。残る経路は<b>自分が使っている提供コマンドを自分で変える</b>こと。</p>
+  <table>
+    <thead><tr><th>チケット</th><th>変更するコマンド</th><th>最初の操作</th><th>復旧</th></tr></thead>
+    <tbody>
+      <tr><td>0033</td><td><code>commit.sh</code> / <code>push.sh</code></td><td>テスト全通過 → 成果物を新版の <code>commit.sh</code> でコミット → <code>push.sh</code></td><td><code>git checkout &lt;base_sha&gt; -- &lt;path&gt;</code> で戻し、原因をテストに足す</td></tr>
+      <tr><td>0034</td><td><code>ticket.sh</code></td><td>テスト全通過 → 0034 自身を新版で <code>complete</code></td><td>誤判定なら戻して直す。正しい判定なら作業ログを直す</td></tr>
+      <tr><td>0035</td><td><code>check-html.sh</code> / <code>test-lib.sh</code></td><td>レポート HTML を新版で検査、<code>run-tests.sh --ids</code> 全件</td><td>既存テストが落ちたら <code>hook_payload</code> の既定値を先に疑う</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><code>complete</code> の見出し重複検査が 0034 自身の作業ログを落とすリスク → 見出しを 1 回ずつだけ持つ形で書く</li>
+    <li><code>--session</code> の引数解析が <code>key=value</code> と衝突するリスク → 第 3 引数位置に限定</li>
+    <li>全体まとめの手作業代替で手順を飛ばすリスク → 0037 の DoD に仕様の手順を 1 項目ずつ。承認⑥は本文を提示して停止</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <table>
+    <thead><tr><th>項目</th><th>決める時期</th></tr></thead>
+    <tbody>
+      <tr><td><code>bash-script</code> ルールとテストの書き方（規約）の正の置き場</td><td>3/3</td></tr>
+      <tr><td>frontmatter キー名の正を <code>ルール体系.md</code> から読み手の仕様へ移すか</td><td>3/3</td></tr>
+      <tr><td>§12 T7 / T8 の実機確認</td><td>2/3</td></tr>
+      <tr><td>別 issue 候補 16 件と「ルール 14 本」の注記</td><td>0037 の issue コメント</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>issue #6 / PR #7 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

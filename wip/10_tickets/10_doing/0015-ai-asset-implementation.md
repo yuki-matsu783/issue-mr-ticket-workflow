@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/hooks/lib/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T13:55:42+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "d36cfea"
 ---
 
 # 0015 AI アセット実装 S2-2: hooks/lib 5 本（hook-common / cmdpos / scope / push-detect / transcript）

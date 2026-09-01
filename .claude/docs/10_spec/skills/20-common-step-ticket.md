@@ -58,7 +58,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 | 節 | 内容 | 記入者 |
 |----|------|--------|
-| 記載事項（frontmatter・YAML） | `ticket_type` / `predecessors` / `executor` / `human_review`（required・reason）/ `allow`（write・ops）/ `started_at` / `completed_at` / `base_sha`。機械可読の正で、フックと提供コマンドはここを読む（形式の正は `10_spec/フック共通仕様.md` §9。表への転記はしない） | 作成時に AI（時刻・基準点はスクリプト） |
+| 記載事項（frontmatter・YAML） | `ticket_type` / `predecessors` / `executor` / `human_review`（required・reason）/ `adversarial_review`（required・reason。切れ目の前の敵対的レビュー要否。既定は `rules/work-defaults.md`）/ `allow`（write・ops）/ `started_at` / `completed_at` / `base_sha`。機械可読の正で、フックと提供コマンドはここを読む（形式の正は `10_spec/フック共通仕様.md` §9。表への転記はしない） | 作成時に AI（時刻・基準点はスクリプト） |
 | 目的 | 1〜3 行 | AI |
 | DoD | `- [ ]` 形式のチェックリスト（各項目に根拠を書く欄） | 作成時に AI、完了までにチェック |
 | 作業内容 | 実施ステップの箇条書き | AI |
@@ -66,11 +66,13 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | 備考 | 自由記述 | 任意 |
 
 - プレースホルダは `{{名前}}` 形式。`create` が値を埋め、残存があれば作成を拒否する
-- ファイル名は `<連番 4 桁>-<種類>.md`。連番は全チケット（取り消し含む）を通して単調増加
+- ファイル名は `<連番 4 桁>-<種類>.md`。連番は全チケット（取り消し含む）を通して単調増加。ファイル名の `<種類>` は表示用で、機械可読の正は frontmatter の `ticket_type`（食い違ったときは frontmatter を正とし、`next` と `start` は frontmatter を読む。`create` はファイル名を `ticket_type` から作るので通常は一致する）
 
 ## 参照ナレッジ
 
 - タスクの種類 → スキル名の対応表: `10_spec/skills/00-workflow-issue-mr-driven.md`（正。実体は `.claude/hooks/config/task-types.tsv`）。`next` がそのファイルを読んで `skill` を返す唯一の箇所（`boundary.sh status` は透過）
+- frontmatter の読み取り: `20-common-step-shell-script` の `frontmatter.sh`（`fm_get` / `fm_list`。入れ子の `allow.write` とインラインマップの `human_review.required` をドット区切りで引く）。`ticket.sh` は自前の解析（`sed` / `grep` による切り出し）を持たない
+- 状態変更のコミット: `20-common-step-commit-push` の `commit.sh`（`ticket.sh` が内部から呼ぶ）
 - 種類ごとの宣言の上限・既定判断基準: 機構の設定と `rules/work-defaults.md`
 - 成果物のコミット手順: `20-common-step-commit-push`
 
@@ -78,14 +80,14 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
-状態変更のコミットは各サブコマンドが内部で `git` を直接実行して行う（メッセージ規約に従う。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし**全体計画チケット（`overall-plan`）の作成・着手は現在のブランチによらずコミットを行わず**、その旨を出力する（feature ブランチはこの後に切られる。default 上でも、別の作業の feature ブランチ上で新しい依頼を始めた場合でも、ファイルは未追跡のまま新しい feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様・DDR i0004-04）。機構（entry の継続判定・guard の宣言範囲の強制・session-start の現在地）のチケット判定はチケットファイルの存在（作業領域の配置）で行い、git の追跡状態やコミットの有無を見ないため、未追跡のまま持ち越したチケットも作業中として扱われる。
+状態変更のコミットは各サブコマンドが内部から `commit.sh`（`20-common-step-commit-push`）を呼んで行う（`commit.sh -m "<件名>" -- <チケットファイル>` の形。メッセージ規約の検査・除外パターンの突合・除外一覧の出力を 1 箇所に集める。`commit.sh` が拒否したときは、その最終行をそのまま `ticket.sh` の失敗として返し、チケットの移動は行わない — 移動とコミットを分離しない。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし**全体計画チケット（`overall-plan`）の作成・着手は現在のブランチによらずコミットを行わず**、その旨を出力する（feature ブランチはこの後に切られる。default 上でも、別の作業の feature ブランチ上で新しい依頼を始めた場合でも、ファイルは未追跡のまま新しい feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様・DDR i0004-04）。機構（entry の継続判定・guard の宣言範囲の強制・session-start の現在地）のチケット判定はチケットファイルの存在（作業領域の配置）で行い、git の追跡状態やコミットの有無を見ないため、未追跡のまま持ち越したチケットも作業中として扱われる。
 
 ### create <種類> --field 値 ...
 
 1. `wip/10_tickets/{00_todo,10_doing,20_done,30_cancelled}` を無ければ作成する
 2. 全ディレクトリを走査して既存の最大連番 + 1 を採番する
 3. テンプレートをコピーし、渡された記載事項を埋める。`{{ }}` の残存が 1 つでもあれば TK001 で拒否する
-4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`）を行う（コミットの方式と default 上の例外は冒頭の規定に従う）
+4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`。`commit.sh` 経由）を行う（コミットの方式と `overall-plan` の例外は冒頭の規定に従う）
 
 ### start <番号>
 
@@ -142,6 +144,8 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | TICKET-T06 | 正常系 | next の JSON（current / next / type / skill）と空のときの null |
 | TICKET-T08 | 正常系 | 先行が未完了の小さい連番を飛ばして、着手できる最小連番を返す。全部が待ちなら `next: null` + `blocked` |
 | TICKET-T09 | 正常系 | overall-plan の create / start が default 上でも feature ブランチ上でもコミットしない（他の種類はコミットする） |
+| TICKET-T10 | 異常系 | `commit.sh` が拒否する状況（件名の規約違反を強制した場合・除外パターンに一致するファイルが同時にステージされている場合）で `ticket.sh` が同じ最終行で失敗し、チケットが移動していない |
+| TICKET-T11 | 境界 | ファイル名の種類と `ticket_type` が食い違うチケットで `next` / `start` が frontmatter の値を使う |
 | TICKET-T07 | 異常系 | 先行チケット未完了の start が TK006 |
 
 ## 要件との対応
@@ -150,6 +154,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 |--------------------|---------|
 | メイン: テンプレートをコピーして記載事項を埋め連番を付ける・雛形の痕跡を残さない | create 1〜4、OUT ひな形（TK001） |
 | メイン: 着手はスクリプトで、同時 1 枚、開始時刻と差分基準点の記録 | start 1〜4（TK002） |
+| メイン: 成果物・状態変更のコミットは `20-common-step-commit-push` の手順 | Script 処理 冒頭（`commit.sh` 経由）、TICKET-T10 |
 | メイン: 完了はスクリプトで、DoD・作業ログ・コミット済みの検査と完了時刻 | complete 1〜4（TK003） |
 | メイン: 次のチケットはスクリプトの提示に従う | next |
 | メイン: 取り消しは理由を記録し完了と区別 | cancel（30_cancelled/ と TK007） |

@@ -92,9 +92,26 @@ tags: [report, ai-asset-implementation, issue-6]
 | `20-common-step-spec/SKILL.md` | 同仕様 禁止事項・処理フロー 1〜6・種別ごとの節構成・OUT ひな形（持たない）・参照ナレッジ | 手順 3 に節構成の表とエラー識別子の規則を転記。テンプレートは仕様どおり持たない |
 | `.claude/evals/20-common-step-{ai-asset-creator,feature-mr,issue,requirement,spec}.md` | 各仕様 Script 処理「テスト観点（eval）」、ai-asset-creator 仕様 OUT ひな形（eval.template） | `eval.template.md` のコピー + プレースホルダ置換で生成。AC-E / FM-E / IS-E / RQ-E / SP-E 各 3 行、with / without × 3 回、実行状況 **未実行** |
 
+### 0015 S2-2: hooks/lib 5 本（hook-common / cmdpos / scope / push-detect / transcript）
+
+| アセット | 仕様の節 | 備考 |
+|---|---|---|
+| `.claude/hooks/lib/hook-common.sh` | フック共通仕様 §2（入力・`tool_class`）・§3（deny / ask / additionalContext の出力、`redact`、`trap ERR` の fail-closed）・§4（`hook_enforce_enabled`・`disabled` 記録）・§5（`decisions.jsonl` のスキーマ、`logs/sessions/<session_id>/` の原子的更新）・§10（ヘッドレスで ask → deny） | 提供: `hook_init` / `hook_read_input`（1 回の jq で共通フィールドを US 区切りで取得）/ `hook_field` / `tool_class` / `hook_enforce_enabled` / `hook_headless` / `redact` / `hook_jq` / `hook_record` / `hook_deny` / `hook_ask` / `hook_notify` / `hook_inject` / `hook_allow` / `hook_disabled` / `hook_fail` / `hook_fail_closed` / `hook_require_jq` / `hook_session_read` / `hook_session_write` / `hook_rel_path` / `hook_doing_ticket`。JSON の組み立て・redact・時刻は純 bash（fork なし） |
+| `.claude/hooks/lib/cmdpos.sh` | §7-1〜7-8（前処理・分割・ラッパー・正規化・opaque・PowerShell・縮退・提供コマンド） | 正規化部は参考実装 `CommandPosition.sh` から流用、走査部はセグメント列 API（`CP_EXE` / `CP_ARGS` / `CP_SUBCMD` / `CP_REDIRECTS` / `CP_WRITE_TARGETS` / `CP_OPAQUE` / `CP_PROVIDED` / `CP_GITLIKE`、`CP_DEGRADED`）に書き直し。`2>&1` の fd 複製と `&>` を保護してから分割。PowerShell はヒアストリング除去・バッククォート継続の結合・`\` → `/`・呼び出し演算子 `&` の除去を前処理 |
+| `.claude/hooks/lib/scope.sh` | §8（`scope-limits.json` の検査と読み込み、判定順 (1)〜(7)、glob 規則、宣言の絞り込み、ops の分類）・§9（`frontmatter.sh` で `ticket_type` / `allow.write` / `allow.ops`） | 提供: `scope_load` / `scope_load_ticket` / `scope_load_approvals` / `scope_match` / `scope_resolve` / `scope_op_declared` / `scope_classify`。glob は正規表現に変換（`*` → `[^/]*`、`**/` → `(.*/)?`）してキャッシュ。設定の検査（common 5 キー必須・`ops` 必須・未知キー拒否）は 1 回の jq |
+| `.claude/hooks/lib/push-detect.sh` | `post-push-compact-prompt` 仕様「push 検知」1〜3、§11 HK-T13 | `push_detect <cmd> <tool_response> [shell] [root]`。前置フィルタ（fork ゼロ）→ cmdpos（提供コマンド `push.sh` か実行位置の `git push`。縮退時は部分一致）→ 終了コード → HEAD == `@{upstream}` → `origin/<b>` → 終了コード 0 の縮退 → `push-state.json[b].sha` != HEAD |
+| `.claude/hooks/lib/transcript.sh` | `post-push-usage-report` 仕様 `--accumulate` 2・5、§11 HK-T14 | `transcript_aggregate <path> [cursor]`。カーソル（行数）以降を 1 回の jq で集計（4 指標・`tool_calls`・`responses`・タイムスタンプ列・`parse_errors`・`new_offset`）。ファイルパスを jq に渡し中身を引数に載せない。エポック変換は strptime に依存しない自前実装 |
+| `.claude/hooks/lib/tests/test_{hook_common,cmdpos,scope,push_detect,transcript}.sh` | §11 HK-T03（lib 部分）/ T04 / T05 / T06 / T07 / T08 / T10 / T11 / T12 / T13 / T14 | 雛形 `test.template.sh` 由来。ドライバ sh を一時リポジトリに置いて別プロセスで実行（fail-closed・fork ゼロ・PATH 制限を観察できる形）。フック本体が要る HK-T01・T09・T03 の登録部分は 2/3 |
 ## テスト結果
 
-### 0020
+### 0015
+
+- `run-tests.sh --ids` → `OK: 14 本 / 55 件`（新規 PASS ID: HK-T03 / T04 / T05 / T06 / T07 / T08 / T10 / T11 / T12 / T13 / T14。既存の 44 件も PASS、重複なし）。個別実行の assert 数: hook_common 79 / cmdpos 135 / scope 105 / push_detect 26 / transcript 21
+- テスト先行の記録: 初回は 5 本すべてで FAIL（hook_common は無限ループでタイムアウト）→ 実装側の修正 4 件: (1) `redact` の `Bearer <語>` パターンが置換後の `***` に再一致して無限ループ（HK-T10 が捕まえた。除外文字に `*` を追加）。(2) `scope_classify` の `local i="$1" exe="${CP_EXE[$i]}"` が `set -u` で未定義参照（`local` の全語が代入前に展開される。2 文に分割）。(3) `ln -s a b` の `-s` を truncate 用の値付きオプションとして読み飛ばし宛先を落とした（値付きオプションをコマンドごとに分けた）。(4) Windows の jq 1.6 では `fromdateiso8601`（strptime）が使えずタイムスタンプが全部 null になった（参考実装と同じ自前の暦計算に置換。HK-T14 が捕まえた）。テスト側の誤り 6 件（エポック定数・`parse_errors` の期待値・`env PATH="" bash` は bash 自体が見つからない・上流のテストの順序・サブシェルで解析した状態を親で参照・`git 'commit'` は既知の制約）
+- 性能の観点: 前置フィルタと cmdpos は外部プロセスを起動しない（PATH を空にしても `command not found` が出ないことを HK-T13 で確認）
+- `bash -n`: 10 ファイル全て通過。shellcheck は本環境に無く省略
+- eval: なし
+- 2/3 送り: HK-T01（`settings.json` の登録照合）・HK-T09（登録ラッパーの deny）・HK-T03 の登録部分（フック本体の停止経路）はフック本体と登録が要るため書いていない### 0020
 
 - 機械テスト: なし（SKILL.md・テンプレート・eval 定義は指示文。`run-tests.sh` の対象に変更なし）
 - eval: 5 本を定義（AC-E01〜03 / FM-E01〜03 / IS-E01〜03 / RQ-E01〜03 / SP-E01〜03）。実行はしていない（定義のみ。人間の明示的な依頼時に実行）
@@ -142,7 +159,14 @@ tags: [report, ai-asset-implementation, issue-6]
 
 ## 検査結果
 
-### 0020
+### 0015
+
+- プレースホルダ（`{{ }}` / `TODO` / `TBD`）: 0 件（対象 10 ファイル）
+- frontmatter: 対象なし（sh のみ）
+- 参照更新の再検索: 新規 10 ファイルに旧名（`workflow-lib.sh` / `work-boundary.sh` / `merge-prep.sh` / `10-work-` / `20-task-gh-`）と参考固有の記述（`.claude/hooks/.state`・`shell-script-style`）なし。CR なし
+- H1（redact を通す前にログへ書く経路が無い）: `hook-common.sh` の `log_*` 呼び出しは `hook_record` 内の 1 か所だけで、`target` は `__hc_redact_to_reply` 済み。deny / ask / additionalContext の本文と `decisions.jsonl` の `target` / `note` はすべてヘルパの内側で redact を通る（HK-T06 が記録と出力の両方を検査）
+- H2（無視リストは `logs/**`）: `scope_resolve` の (1) で `logs/**` を対象外にし、`state_files` だけ除外しない（HK-T11 で `logs/sh/x.log` = skip、`logs/mr.json` = 判定続行を確認）
+- 許可範囲: `git diff --name-only d36cfea` は `.claude/hooks/lib/**` と `wip/` のみ### 0020
 
 - プレースホルダ（`{{ }}` / `TODO` / `TBD`。`assets/*.template.*` 4 本は対象外）: 0 件（対象 10 ファイル。規約の説明文中の語を除く）
 - frontmatter: SKILL.md 5 本の `name` がディレクトリ名と一致、description に `Use when`。eval 5 本は `type: eval` + title / description / tags / keywords。`requirements.template.md` は `type: requirement`（D-20）
@@ -211,12 +235,21 @@ tags: [report, ai-asset-implementation, issue-6]
 | D-2 | 0013 | `task-types.tsv` の 1 行目をヘッダ（`#` 始まり）にした | 仕様は 6 列を定めるがヘッダの有無を定めない。`#` 始まりなら読み手がコメントとして飛ばせる | 0022（仕様に 1 行追記の候補） |
 | D-20 | 0020 | `requirements.template.md` の frontmatter を `type: requirement` にした（仕様 requirement 処理フロー 2 は `type: requirements`） | 既存の要件書 42 本がすべて `type: requirement`。テンプレート由来の新規文書が既存と揃わない害の方が大きい | 0022 → 仕様の表記を `requirement` に修正 |
 | D-21 | 0020 | `issue-addendum.template.md` に「受け入れ条件（追加分）」の小節（任意。不要なら削る）を置いた | 仕様 OUT ひな形は 4 項目（区切り・日付・経緯・内容）だが、追記した依頼を DoD に落とす鍵が要る | 0022 → 仕様 OUT ひな形に「受け入れ条件（任意）」を追加 |
+| D-22 | 0015 | `cmdpos.sh` の出力を bash の配列（`CP_EXE[i]` / `CP_ARGS[i]`（US 区切り）/ `CP_SUBCMD[i]` / `CP_REDIRECTS[i]` / `CP_WRITE_TARGETS[i]` / `CP_OPAQUE[i]` / `CP_PROVIDED[i]` / `CP_GITLIKE[i]`、`CP_DEGRADED`）にし、git の第 1 サブコマンドと「実行体は不明だが git を含む」（PowerShell の判定不能）を足した | §7 は項目（exe / args / redirects / write_targets / opaque）を定めるが受け渡しの形を定めない。純 bash・fork なしで呼び手が判定できる形にした | 0022 → §7 に出力の形（変数名）を明記 |
+| D-23 | 0015 | `push-detect.sh` の終了コードは `tool_response` の `exit_code` / `exitCode` / `returnCode` / `code` の順に読み、どれも無ければ 0（`interrupted: true` は失敗）とみなす | 仕様は「`tool_response` の終了コード」とだけ定め、Claude Code の PostToolUse の実際の形（フィールド名・終了コードの有無）が未確認 | 0022 → 実機で `tool_response` の形を確認して仕様に明記（T5 と同種の TBD） |
+| D-24 | 0015 | `transcript.sh` のカーソル（`last_offset`）は「処理済みの行数」（空行を含む総行数）にした | 仕様は `last_offset` の単位を定めない。行数なら jq 1 回で `[inputs]` の添字で切れる | 0022 → 仕様に単位を明記 |
+| D-25 | 0015 | `redact` の「40 文字以上の 16 進 / base64 様の語」は `/` を含む語を対象外にした（`[A-Za-z0-9+=_-]{40,}`） | `/` を含めると `.claude/skills/20-common-step-shell-script/scripts/logger.sh` のようなパスの一部（`/` で区切られた 40 文字超の並び）がマスクされ HK-T10 の「通常のパスを壊さない」と両立しない | 0022 → §3 のパターンに注記 |
+| D-26 | 0015 | `scope.sh` の判定順・宣言の絞り込み・ops の分類・設定の検査のテストを HK-T11 の ID で書いた（§11 には glob と confirm の優先だけ） | §11 に該当する ID が無く、実装計画が「テスト ID の無いアセット」を起こせないため、最も近い ID に付けた（D-6 と同じ運用） | 0022 → §11 に HK-T15（判定順と ops 分類）の追加を検討 |
+| D-27 | 0015 | `scope.sh` は `frontmatter.sh` を読み込み行の `deny` ポリシーで source する（チケットの DoD どおり）。案内側フック（diff-check / subagent-stop-check）が source したときも読めなければ deny JSON を出して終了 0 になる | 読み込み行のポリシーはファイル単位で固定。案内側の「何も出さずに通す」と食い違うが、frontmatter.sh が無い状態は機構全体の破損であり、PostToolUse の permissionDecision は無視される | 0022 → 2/3 で案内側の挙動を確認し、必要なら scope.sh を `nop` にして呼び手が判定 |
 
 ## 想定と異なった点
 
 - 0014: 読み込み行の関数内で `BASH_SOURCE[1]` が呼び手のスクリプトを指すことを利用したが、`bash -c` から直接呼ぶと空になる（テストは必ずファイルから実行する）
 - 0014: ログの出どころは `{{NAME}}` ではなく `$0` の basename（仕様どおり）。テストの期待を先に誤った
 - 0020: Bash ツールで複数ファイルを 1 回のヒアドキュメントの列で書くと unexpected EOF で落ちた（3 回とも。小さな単体は通る）。Write ツールで 1 ファイルずつ書いて回避。生成物への影響なし
+- 0015: Windows の jq 1.6 では `fromdateiso8601`（strptime）が動かず、タイムスタンプが全部 null になった。参考実装が自前の暦計算を持っていた理由がこれ（H6 に追加すべき事項）
+- 0015: `redact` の `Bearer` パターンが置換後の `***` に再一致して無限ループになり、テストがタイムアウトした。置換結果が再び当たらないことをパターンごとに確かめる必要がある
+- 0015: 参考実装の走査部（真偽値を返す述語）はそのままでは使えず、セグメント列を積む形に全面的に書き直した（正規化部は無改造で流用）。付録 A の見立てどおり
 
 ## 残課題
 

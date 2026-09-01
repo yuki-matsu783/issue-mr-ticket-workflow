@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T04:28:36+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "495adce"
 ---
 
 # 0002 フック 11 本の仕様の洗い出しと実装フェーズの検証項目の整理（調査計画）

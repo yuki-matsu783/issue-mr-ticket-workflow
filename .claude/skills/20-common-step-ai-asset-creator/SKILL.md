@@ -14,7 +14,7 @@ description: >
 仕様書が無い・未決のままのアセットは作らない。仕様に無い構造は発明せず、必要になったら仕様書への追記を呼び出し元に返す。テストの無効化・期待値の書き換えで合格にしない。eval は定義まで（実行は人間の明示的な依頼時のみ）。リファクタリングと仕様変更を 1 つの変更に混ぜない。
 
 - 要件: `.claude/docs/00_requirement/skills/20-common-step-ai-asset-creator.md`
-- 仕様（正。置き場と標準構成の表・OUT ひな形・eval ID AC-E01〜03）: `.claude/docs/10_spec/skills/20-common-step-ai-asset-creator.md`
+- 仕様（正。置き場と標準構成の表・OUT ひな形・eval ID AC-E01〜04）: `.claude/docs/10_spec/skills/20-common-step-ai-asset-creator.md`
 
 ## 手順
 

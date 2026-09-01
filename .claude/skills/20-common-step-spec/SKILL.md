@@ -14,7 +14,7 @@ description: >
 対応する要件定義書が無い仕様書を先に作らない。要件側の誤り・不足を仕様側の辻褄合わせで吸収しない（要件の修正を呼び出し元に返す）。共有される内部構造は 1 つの仕様書に置き、他は参照する。経緯・変更履歴を本文に書かない。「関連するドキュメント」「レビュー記録」の節を置かない。未決事項を黙って省略しない（TBD は理由付きで明示）。書く内容の合意は呼び出し元が担う。
 
 - 要件: `.claude/docs/00_requirement/skills/20-common-step-spec.md`
-- 仕様（正。種別ごとの節構成・エラー識別子の規則・eval ID SP-E01〜03）: `.claude/docs/10_spec/skills/20-common-step-spec.md`
+- 仕様（正。種別ごとの節構成・エラー識別子の規則・eval ID SC-E01〜03）: `.claude/docs/10_spec/skills/20-common-step-spec.md`
 
 ## 手順
 

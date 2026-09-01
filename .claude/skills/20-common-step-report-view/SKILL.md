@@ -5,7 +5,7 @@ description: >
   埋めて作り、検査スクリプト check-html.sh（プレースホルダ・外部依存・id 重複・破断リンク・style 数・必須節・
   負のコントロール）に通す共通ステップ。正文は Markdown で、HTML はその視覚化。
   Use when a plan or report .md has been written or updated and its .html pair is needed ("HTML を作って",
-  "HTML ビュー"), when push.sh reports an md/html pair mismatch (CP005 項目 3), or when check-html.sh fails (RV001〜007).
+  "HTML ビュー"), when push.sh reports an md/html pair mismatch (CP005 項目 3), or when check-html.sh fails (RV001〜008).
 ---
 
 # 20-common-step-report-view — HTML はテンプレートのコピーを埋め、検査を通す
@@ -13,7 +13,7 @@ description: >
 Markdown を正文とし、同じベース名の `.html` をテンプレートから作る。HTML にだけある情報を作らず、md を更新したら HTML も同じ変更で追随させる。全体計画書（`wip/00_overall_plan/`）には作らない。
 
 - 要件: `.claude/docs/00_requirement/skills/20-common-step-report-view.md`
-- 仕様（正。テンプレートの規約・検査 7 項目・エラー識別子 RV001〜007）: `.claude/docs/10_spec/skills/20-common-step-report-view.md`
+- 仕様（正。テンプレートの規約・検査 7 項目・エラー識別子 RV001〜008）: `.claude/docs/10_spec/skills/20-common-step-report-view.md`
 
 ## 手順
 
@@ -47,4 +47,4 @@ Markdown を正文とし、同じベース名の `.html` をテンプレート�
 | `RV005:` `<style>` が 1 つでない | 追加した `<style>` を統合する（テンプレートの 1 つだけ） |
 | `RV006:` 必須節が無い / テンプレートを特定できない | 削った必須節を戻す（無ければ「無し」と 1 行）。`<body data-template="report|plan">` を残す |
 | `RV007:` id・リンク 0 件 | テンプレートから作っていない（白紙・スクリプト生成）。テンプレートのコピーからやり直す |
-| 引数・ファイル不正（終了 2） | `.html` のパスを 1 つ渡す |
+| `RV008:` 引数・ファイル不正（終了 2。検査には入っていない） | 存在する `.html` のパスを 1 つだけ渡す |

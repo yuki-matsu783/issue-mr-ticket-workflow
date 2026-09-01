@@ -22,8 +22,8 @@ sh は白紙から書かず、このスキルの雛形をコピーして作る�
 2. **雛形をコピーする**: `assets/script.template.sh` を置き場所（スキルなら `scripts/`、フックならイベントディレクトリ）へコピーし、`{{名前}}` を埋める。雛形は shebang・`set -euo pipefail`・共通ライブラリの読み込み行・引数解析の骨格・結果出力の型（`OK:` / `<接頭辞><番号>:`）・終了コードの規約（0 / 1 / 2）を含む。フックも同じ雛形から作る（結果出力の型は使わず、フック共通仕様の制御方式に従う）
    - 読み込み行は `__ss_load <lib> <policy>` の 1 行。`<lib>` = `logger` / `frontmatter` / `test-lib`、`<policy>` = `nop` / `fatal` / `deny`。引数だけを変え、行の中身を改変しない。呼び手ごとのポリシーは仕様「読み込み行」の表が正（提供コマンドは `logger nop` + `frontmatter fatal`、拒否側フックは `frontmatter deny`（先に `HOOK_DENY_ID=WFx09` を設定）、テストは `test-lib fatal`）
 3. **実装する**: bash 規約（`rules/` の bash-script）と logger ルール（`.claude/rules/logger.md`）に従う。ログは `log_debug` / `log_info` / `log_warn` / `log_error`（ファイルにのみ書かれ、stdout / stderr には出ない）。frontmatter は `fm_get` / `fm_list` / `fm_has` で読み、自前の解析を持たない。Windows（Git Bash）対策は `test-lib.sh` と共通ライブラリに集約されているので個別に書かない
-4. **テストを書く**: `assets/test.template.sh` から `scripts/tests/test_<名前>.sh`（フックは `<イベントディレクトリ>/tests/test_<名前>.sh`）を作り、仕様のテスト ID ごとにケースを書く。assert の第 1 引数にテスト ID を渡す（`assert_eq` / `assert_exit` / `assert_contains` / `assert_not_contains`。直前の `run_cmd` の `R_EXIT` / `R_OUT` / `R_ERR` に対して）。一時リポジトリは `make_tmp_repo`（`TMP_REPO`）、PATH を絞るなら `make_restricted_path`、フック入力 JSON は `hook_payload`。テストは `set -uo pipefail`（`-e` なし）で書き、`finish` で締める。テストは失敗を先に確認してから実装する
-5. **実行する**: `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids`（`--filter '<glob>'` で絞る、`--timeout <秒>`）。作業中チケットの `allow.ops` に `build-test`（`.claude/hooks/**` のテストを含むなら `hook-test` も）が無いと TR006 で止まる — 計画で宣言してから実行する。結果（`OK: N 本 / M 件` と PASS ID の一覧）を作業ログに残し、ID を仕様の「テスト観点」表と突合する
+4. **テストを書く**: `assets/test.template.sh` から `scripts/tests/test_<名前>.sh`（フックは `<イベントディレクトリ>/tests/test_<名前>.sh`）を作り、仕様のテスト ID ごとにケースを書く。assert の第 1 引数にテスト ID を渡す（`assert_eq` / `assert_exit` / `assert_contains` / `assert_not_contains`。直前の `run_cmd` の `R_EXIT` / `R_OUT` / `R_ERR` に対して）。一時リポジトリは `make_tmp_repo`（`TMP_REPO`）、git 無しなら `make_tmp_dir`（`TMP_DIR`）、PATH を絞るなら `make_restricted_path`（`RESTRICTED_PATH`）、fork ゼロ・呼び出し回数の約束は `make_counting_path` + `counted_calls`（`COUNTING_PATH` / `COUNTING_LOG`）で数える、フック入力 JSON は `hook_payload <event> <tool> [--session <id>] key=value...`（`session_id` の既定は `testsession`）、jq の出力は `tl_jq`（CR 除去）。テストは `set -uo pipefail`（`-e` なし）で書き、`finish` で締める。テストは失敗を先に確認してから実装する。書き方は仕様「テストの書き方（規約）」に従う（表は全要素を踏む / 負のケースに正の期待値 / 回数は数える / 最終行と終了コードは exact / 秘密の実例を置かない / 一時リポジトリで実行）
+5. **実行する**: `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids`（`--filter '<glob>'` で絞る（glob はルート相対パスに当たる。例 `'*check_html*'`。ファイル名だけの `test_x*` は 0 本 = TR001）、`--timeout <秒>`）。作業中チケットの `allow.ops` に `build-test`（`.claude/hooks/**` のテストを含むなら `hook-test` も）が無いと TR006 で止まる — 計画で宣言してから実行する。結果（`OK: N 本 / M 件` と PASS ID の一覧）を作業ログに残し、ID を仕様の「テスト観点」表と突合する
 6. **検査する**: `bash -n <file>` を全 sh に行う。`shellcheck` があれば静的検査、無ければ省略の事実を作業ログに書く
 7. 既存 sh の変更では 2 を行わず、既存の構成に合わせて差分を小さくする
 
@@ -44,5 +44,5 @@ sh は白紙から書かず、このスキルの雛形をコピーして作る�
 | `TR002:` FAIL がある | 列挙されたファイルと ID を直す。`bash <test>` を直接実行して詳細を見る |
 | `TR003:` タイムアウト | 無限ループか外部待ち。`--timeout` を伸ばす前にテストを直す |
 | `TR001:` 対象 0 本 | 置き場（`.claude/hooks/**/tests/test_*.sh`・`.claude/skills/*/scripts/tests/test_*.sh`）と `--filter` を確認する |
-| `TR004:` / `TR005:` | 引数の誤り / `timeout`・`jq` の不在。環境を直す |
+| `TR004:` / `TR005:`（終了 2） | 引数の誤り（`usage` を見る）/ `timeout`・`jq` の不在。呼び方か環境を直す |
 | ログが書かれない | `logs/sh/<出どころ>.log`（出どころは `$0` の basename か `LOGGER_NAME`）。`LOG_LEVEL=DEBUG` で DEBUG も出る。書けなくても本体は止まらない設計 |

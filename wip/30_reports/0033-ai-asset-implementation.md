@@ -19,6 +19,8 @@ tags: [report, ai-asset-implementation, issue-6]
 
 このレポートは 0033 が作り、0034〜0036 が節を追記する。
 
+0036 で 4 チケットすべて完了。実装 9 件（設計 0028〜0032 の反映）はすべて実施し、`run-tests.sh --ids` は 14 本 / 59 件 PASS（前回 55 件 + CP-T08 + TICKET-T12 + RV-T07 + HK-T15）、参照更新の 11 検索語は計画の期待どおり。逸脱は D2-1〜D2-4 の 4 件で、いずれも仕様の振る舞いを変えない（設計への書き戻しは 3/3 へ）。
+
 ## 確かめられなかったこと
 
 - shellcheck は環境に無く、静的検査は `bash -n` のみ（前回と同じ）
@@ -62,6 +64,22 @@ tags: [report, ai-asset-implementation, issue-6]
 | `shell-script/scripts/tests/test_run_tests.sh` | TR-T04 追記: `timeout` を外した PATH で `TR005:` 終了 2（`TR004` を含まず、テストを実行しない） | TR-T04 |
 | `shell-script/scripts/tests/test_frontmatter.sh` | FR-T05 追記: 計数 PATH で 4 関数を通して 0 回（正のコントロール `cat` 1 回）。`predecessors` / `human_review` への `fm_get` は生の文字列、`allow` は空で 1 | FR-T05 |
 
+### 0036
+
+仕様の行 × SKILL.md の行の対応表（行番号付き）はチケット 0036 の作業ログ「備考」にある。
+
+| アセット | 変更 | 仕様の節 |
+|---|---|---|
+| `20-common-step-commit-push/SKILL.md` | 範囲 `CP001〜008`。手順 2 を**ファイル単位**・ディレクトリは CP001・`-m` の値なし / 不明オプションは CP007 に。手順 3 に CP003 の 2 条件（全対象が除外 / ステージ後の実パスに一致）と CP008。push 手順 0（引数・環境の誤り = CP007。スキップ記録では解消しない）。スキップ記録は **`HEAD` にある版**。エラー表: CP001 にディレクトリ・終了 2、CP004 は差分なしだけ、CP006 から環境の誤りを除き、CP007 / CP008 の行を追加 | commit-push 仕様 Script 処理 commit.sh 2〜5・push.sh 0〜2・エラー識別子表 CP001〜008 |
+| `20-common-step-ticket/SKILL.md` | 範囲 `TK001〜008`。作成に TK008（不明な引数・種類・必須引数）と記号入りの値の扱い（YAML エスケープはコマンド）。完了検査の 3 条件（行頭 `- 次`・行頭 `- 未着手`・節内の `未着手`）、根拠欄なしの `- [x]`、固定見出しの重複。エラー表に TK008 | ticket 仕様 create 1・3、complete 3、エラー識別子表 TK008 |
+| `20-common-step-report-view/SKILL.md` | 範囲 `RV001〜008`（description と仕様参照の 2 か所）。エラー表の最終行に `RV008:`（検査に入る前・終了 2） | report-view 仕様 Script 処理・検査表の `—` 行（RV008） |
+| `20-common-step-shell-script/SKILL.md` | 手順 4 に test-lib の関数一覧（`make_tmp_dir` / `make_restricted_path` / `make_counting_path` + `counted_calls` / `hook_payload --session` / `tl_jq`）と「テストの書き方（規約）」6 項目への参照。手順 5 の `--filter` はルート相対パスの glob（例と TR001 の注意）。TR004 / TR005 の行に終了 2 | shell-script 仕様 OUT ひな形 test-lib.sh・テストの書き方（規約）・run-tests.sh・エラー識別子表 TR004 / TR005 |
+| `20-common-step-spec/SKILL.md` | eval ID の範囲 `SP-E01〜03` → `SC-E01〜03` | spec 仕様 テスト観点（eval）SC-E01〜03 |
+| `20-common-step-ai-asset-creator/SKILL.md` | eval ID の範囲 `AC-E01〜03` → `AC-E01〜04` | ai-asset-creator 仕様 テスト観点（eval）AC-E04 |
+| `20-common-step-feature-mr/SKILL.md` | エラー表の `push.sh` の行に `CP007:`（引数・環境の誤り。スキップ記録では解消しない） | commit-push 仕様 エラー識別子表 CP007 |
+| `.claude/evals/20-common-step-spec.md` | `SP-E` → `SC-E`（7 か所: 表 3 行 + 行内参照 1 + 判定基準 3）。frontmatter `type: eval` のまま | spec 仕様 SC-E01〜03 |
+| `.claude/evals/20-common-step-ai-asset-creator.md` | AC-E04 の行（入力 / 期待 / 判定 / 添付）を AC-E01 の次（仕様の並び）に追加、判定基準に AC-E04 を追加し「4 シナリオのうち 3 つ以上」に | ai-asset-creator 仕様 AC-E04 |
+
 ## テスト結果
 
 ### 0033
@@ -85,6 +103,12 @@ tags: [report, ai-asset-implementation, issue-6]
 - 全件（`run-tests.sh --ids`、置き換え後）: `OK: 14 本 / 59 件`（前回 57 件 + RV-T07 + HK-T15。一覧に RV-T07 / HK-T15 / HK-T11 が各 1 回）。重複 ID の報告: CP-T08（0033 から。上記の訂正のとおり）。3/3 の設計で「1 つのテスト ID を 2 ファイルに置いてよいか（置くなら CP-T08a/b のように分けるか）」を決める
 - `bash -n` OK（check-html.sh / test-lib.sh）
 
+### 0036
+
+- 機械テストの変更なし（SKILL.md と eval だけ）。全件: `run-tests.sh --ids` → `OK: 14 本 / 59 件`。FAIL / TIMEOUT なし。重複 ID の報告は CP-T08 のみ（0033 から）
+- eval 定義: SC-E01〜03（改名。定義済み・未実行）、AC-E04（新。定義済み・未実行）。実行していない
+- 全チケットの機械テスト ID × 結果: TICKET-T01〜T12 / CP-T01〜T08 / RV-T01〜T07 / SS-T01〜T04 / TR-T01〜T05 / FR-T01〜T05 / LG-T*（logger）/ HK-T03〜T15（lib 分）/ 設定整合（`test_config_integrity.sh`）— すべて PASS（`run-tests.sh --ids` の PASS ID 一覧）
+
 ## 検査結果
 
 ### 0033
@@ -105,6 +129,38 @@ tags: [report, ai-asset-implementation, issue-6]
 - 参照更新: `check-html.sh` の `"RV: ` は 0 件、`test_scope.sh` の `HK-T11` は 21 件（case_glob 20 + 冒頭コメント 1）、`HK-T15` 93 件 — 計画の期待どおり
 - ロックアウト対策の最初の操作: 変更後の `check-html.sh` で実装結果レポートの HTML を検査 → `OK: 検査 7 項目すべて通過（id 16 件 / リンク 9 件）`。引数なし → `RV008: 引数は HTML ファイル 1 つ` 終了 2、存在しないファイル → `RV008: ファイルが無い: …` 終了 2
 
+### 0036（S5: 参照更新一覧の再実行）
+
+`grep -rnE "<語>" .claude --include='*.md' --include='*.sh' --exclude-dir=docs` で計画の参照更新一覧を再実行した結果（すべて期待どおり）:
+
+| 検索語 | 件数 | 計画の期待 |
+|---|---|---|
+| `SP-E` | 0 | 0 |
+| `AC-E01〜03` | 0 | 0 |
+| `"RV: ` | 0 | 0 |
+| `result_ng 001 "(-m に\|.* は存在しないオプション\|不明なオプション\|リポジトリルート)` | 0 | 0 |
+| `result_ng 004 "git commit が失敗` | 0 | 0 |
+| `result_ng 005 "引数` / `result_ng 006 "(git が無い\|リポジトリルート\|現在ブランチ\|jq が無い)` | 0 / 0 | 0 |
+| ticket.sh の `result_ng 004`（全件 / 終了 2 の行） | 6 / 0 | 6 / 0 |
+| `result_ng 001 "--title` | 0 | 0 |
+| SKILL.md の旧表記 `CP004:\` 差分なし・コミット失敗` / `CP001〜006` / `TK001〜007` / `RV001〜007` / feature-mr の `push.sh\` が \`CP005:\` \`CP006:\` \|` | 0 / 0 / 0 / 0 / 0 | 0 |
+| `HK-T11` | 21 | 21 |
+
+- プレースホルダ: 9 本のうち `report-view/SKILL.md` 2・`shell-script/SKILL.md` 1・`ai-asset-creator/SKILL.md` 1 は二重波括弧の表記に言及する既存の指示文（HEAD と同数。変更していない）。TODO / TBD: `spec/SKILL.md` 3・`ai-asset-creator/SKILL.md` 2・`evals/20-common-step-spec.md` 1 は「TBD の明示」の指示文（HEAD と同数）。新たな残存 0 件
+- frontmatter: eval 2 本は `type: eval` のまま。SKILL.md 7 本の frontmatter（`name` / `description`）は report-view の description（`RV001〜008`）以外に変更なし
+
+## 受け入れ条件との対応
+
+issue #6 の受け入れ条件のうち、この実装（2 回目）が担う 3〜7 との対応。1・2 は前回（0013 の結果報告）と 0033〜0036 のテスト全件で変わらず PASS。
+
+| # | 受け入れ条件 | この回の実装 | 根拠（テスト ID・検査） |
+|---|---|---|---|
+| 3 | `task-types.tsv` / `scope-limits.json` が種別表と一致し、3 データの整合テストが通る | 変更なし | `test_config_integrity.sh`（HK-T02）が全件 PASS に含まれる |
+| 4 | 共通ステップスキル 9 本の SKILL.md と assets が仕様と 1:1 | 0033（`skill.template.md` / `requirements.template.md`）、0036（SKILL.md 7 本・eval 2 本） | チケット 0036 作業ログの対応表（仕様の行 × SKILL.md の行）、プレースホルダ・frontmatter 検査（新たな残存 0） |
+| 5 | `ticket.sh` / `commit.sh` / `push.sh` / `check-html.sh` が仕様どおりに動き TICKET-T\* / CP-T\* / RV-T\* が通る | 0033（CP007 / CP008、CP-T08）、0034（TK008・`yaml_escape`・見出し重複、TICKET-T12）、0035（RV008、RV-T07） | TICKET-T01〜T12 / CP-T01〜T08 / RV-T01〜T07 全 PASS（`run-tests.sh --ids`） |
+| 6 | シェルスクリプトが `20-common-step-shell-script` の規約に従う | 0035（test-lib `--session`、SS-T04 / TR-T04 / FR-T05、HK-T15 の付番） | SS-T01〜T04 / TR-T01〜T05 / FR-T01〜T05 / HK-T15 全 PASS。`bash -n` 全 sh OK（shellcheck 不在） |
+| 7 | 仕様との食い違いは仕様書へ書き戻し DDR に残す | 実装フェーズは `.claude/docs/**` に書けないため、逸脱 D2-1〜D2-4 と申し送り（残課題）を 3/3 の設計へ | 「仕様からの逸脱」表・「残課題」 |
+
 ## 仕様からの逸脱
 
 | # | チケット | 逸脱 | 理由 | 送り先 |
@@ -124,7 +180,10 @@ tags: [report, ai-asset-implementation, issue-6]
 
 ## 残課題
 
-- （0033）SKILL.md（commit-push）のエラー表に CP007 / CP008 の行が無い状態が 0036 まで続く（計画どおり）
+- （0033 → 0036 で解消）SKILL.md（commit-push）のエラー表に CP007 / CP008 の行を追加した
 - （0034）0035 へ: `frontmatter.sh` の `__fm_unquote` で二重引用符内の `\"` → `"`、`\\` → `\` を解除し、TICKET-T05 の期待値を元の値に戻す（FR-T05 の追記と一緒に）
 - （0034）3/3 へ: shell-script 仕様 `fm_get` の「クォートは外す」にエスケープ解除を含めることを明記
 - （0035）3/3 へ: `frontmatter.sh` の `__fm_unquote` で二重引用符内の `\"` → `"`、`\\` → `\` を解除し、TICKET-T05 の期待値を元の値に戻す（書き手と読み手を同じチケットの許可範囲に置く）
+- （0036）3/3 の設計へ（仕様・DDR の書き戻し）: (a) `fm_get` の「クォートは外す」にエスケープ解除を含める / (b) `check-html.sh` が awk を使う前提（純 bash の記述を改める）と `strip_comments` の置き換え（D2-4）/ (c) 1 つのテスト ID を 2 ファイルに置いてよいか（CP-T08。分けるなら `CP-T08` を commit / push で別 ID に）/ (d) `10-task-ai-asset-implementation-plan` に「値の往復が要る修正は書き手と読み手を同じチケットの許可範囲に置く」/ (e) `run-tests.sh` の対象本数の数え方（`.claude/hooks/tests/` も拾うので「14 本」= lib 5 + hooks/tests 1 + skills 8）
+- （0036）2/3 へ（機構の続き）: 片付けの提供コマンド（全体まとめの `complete` 代替）が無く、0037 は仕様の処理フロー 2〜9 を手作業で代替する。`work-boundary.sh` / `merge-prep.sh` 相当が無いため、レビュー依頼・完了・draft 解除の記録は PR コメントと本文で残す
+- （0036）別 issue 候補: `check-html.sh` の残りの所要時間（1 検査 2.5〜3 秒 = fork 約 20 回）と `run-tests.sh` の全件 5 分（直列実行）。テストが増えるほど 1 本 120 秒・全件 10 分の上限に近づく

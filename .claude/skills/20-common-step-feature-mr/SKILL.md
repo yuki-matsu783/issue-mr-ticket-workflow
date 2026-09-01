@@ -44,5 +44,5 @@ IN: issue 番号 `<N>`、承認済みのブランチ名（`feature-<N>-<slug>` /
 | マージ・リベースの途中 / 追跡切れ / 複数リモート / 保護ブランチ | 自動で解消しない。状態を返して停止する |
 | 同名ブランチが既にある | 上書きしない。別の slug 案（`feature-<N>-<別 slug>`）を添えて返す |
 | 現在ブランチに open な MR が既にある | 作らず、その番号と URL を返す（1 ブランチ = 1 MR） |
-| `commit.sh` が `CPxxx:` / `push.sh` が `CP005:` `CP006:` | `20-common-step-commit-push` の表に従う。push のリモート拒否は force しない |
+| `commit.sh` が `CPxxx:` / `push.sh` が `CP005:` `CP006:` `CP007:` | `20-common-step-commit-push` の表に従う。push のリモート拒否（CP006）は force しない。CP007 は引数・環境の誤り（終了 2）で、スキップ記録では解消しない |
 | MR 作成コマンドが失敗した | コマンドと出力を返して停止する。再試行・別コマンドでの代替をしない |

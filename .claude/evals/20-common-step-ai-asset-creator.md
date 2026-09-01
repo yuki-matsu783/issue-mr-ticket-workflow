@@ -19,6 +19,7 @@ keywords: [eval, 20-common-step-ai-asset-creator, with-without, 効果測定]
 | eval ID | 入力プロンプトと状況 | 期待する振る舞い | 判定方法 | 添付ファイル |
 |---------|--------------------|-----------------|---------|-------------|
 | AC-E01 | 「新しいフックを追加して」。対象フックの仕様書がレビュー済みで存在し、ai-asset-implementation チケットが作業中（`allow.write` にフックの置き場、`allow.ops` に `build-test` / `hook-test`） | 種別ごとの置き場（`.claude/hooks/<イベント番号ディレクトリ>/`）と標準構成に従い、`20-common-step-shell-script` の雛形からスクリプトを作り、テストを書いて `run-tests.sh` で実行し、プレースホルダ・frontmatter の検査を通してから対応表を作業ログに残す | 作成物の配置が表どおりで雛形由来（読み込み行が `__ss_load` の 1 行）であること、`run-tests.sh --ids` の実行記録があること、検査 0 件 | 対象フックの仕様書（`.claude/docs/10_spec/hooks/20-PreToolUse/workflow-guard.md` 相当）、作業中チケット |
+| AC-E04 | 「新しいスキルを追加して」。対象スキルの仕様書がレビュー済みで存在し、ai-asset-implementation チケットが作業中（`allow.write` にスキルの置き場） | `assets/skill.template.md` から SKILL.md を作り、frontmatter は `name` / `description` の 2 キーだけ、冒頭段落が禁止事項の要約になっている。ひな形のガイド（コメント・二重波括弧のプレースホルダ）が残っていない | frontmatter のキーが 2 つであること、冒頭段落が「しない」の列挙（禁止事項）の要約であること、ガイドコメントとプレースホルダが 0 件であること | 対象スキルの仕様書（`.claude/docs/10_spec/skills/20-common-step-issue.md` 相当）、`assets/skill.template.md`、作業中チケット |
 | AC-E02 | 「このルールの効果を確かめたい」（対象: `.claude/rules/work-defaults.md`） | eval 定義を `assets/eval.template.md` から `.claude/evals/work-defaults.md` に作り、実行しない。「実行状況」が未実行のまま | eval 定義ファイルの存在と 5 節（目的 / 評価シナリオ / 比較条件 / 判定基準 / 実行状況）の充足、eval を実行した痕跡（サブエージェント起動・比較ログ）が無いこと | `.claude/rules/work-defaults.md`、`.claude/docs/00_requirement/rules/work-defaults.md` |
 | AC-E03 | 「`.claude/agents/reviewer.md` を作って」。対応する仕様書が `.claude/docs/10_spec/agents/` に無い | 作らず「設計が先」として、要る情報（仕様書の作成）を添えて呼び出し元に返す | `.claude/agents/` に作成物が無いこと、返答に設計が先である旨と仕様書の置き場が含まれること | なし |
 
@@ -33,7 +34,8 @@ keywords: [eval, 20-common-step-ai-asset-creator, with-without, 効果測定]
 - AC-E01: with の 3 回すべてで判定方法の 3 点（配置・雛形由来 / テスト実行記録 / 検査 0 件）を満たし、without で 1 回以上いずれかを欠く
 - AC-E02: with の 3 回すべてで eval 定義が未実行のまま作られ、without で 1 回以上「実行してしまう」か「定義を作らない」
 - AC-E03: with の 3 回すべてで作成物が無く「設計が先」を返し、without で 1 回以上仕様書なしで作成に進む
-- 3 シナリオのうち 2 つ以上で上記を満たせば効果あり。差が出ないシナリオは SKILL.md の該当手順の文言を見直す対象として記録する
+- AC-E04: with の 3 回すべてで frontmatter が 2 キー・冒頭段落が禁止事項の要約・ガイドの残存 0 件で、without で 1 回以上 frontmatter に余分なキーを足す・冒頭段落が目的の説明になる・ガイドが残る
+- 4 シナリオのうち 3 つ以上で上記を満たせば効果あり。差が出ないシナリオは SKILL.md の該当手順の文言を見直す対象として記録する
 
 ## 実行状況
 

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/skills/20-common-step-report-view/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T13:16:22+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b0ac4f0"
 ---
 
 # 0018 AI アセット実装 S2-5: check-html.sh と report / plan テンプレート（切り替え境目 C）

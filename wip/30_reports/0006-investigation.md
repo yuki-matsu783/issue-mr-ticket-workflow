@@ -67,9 +67,9 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 
 ### f2. `tool_class` の振り分けスキル判定が `entry-skills.txt` と二重定義になる △注意
 
-根拠: `hook-common.sh:156-166`（`tool_class`）と `workflow-entry` 仕様「呼出条件」・WE-T07
+根拠: `hook-common.sh:156-165`（`tool_class`）と `workflow-entry` 仕様「呼出条件」・WE-T07
 
-- `tool_class` は `Skill` ツールのとき `case "${2:-}" in 00-workflow-*) declare ;; *) read ;; esac` と、**`00-workflow-` の接頭辞をコードに持っている**
+- `tool_class` は `Skill` ツールのとき `case "${2:-}" in 00-workflow-*) printf 'declare\n' ;; *) printf 'read\n' ;; esac` と、**`00-workflow-` の接頭辞をコードに持っている**
 - 一方 `workflow-entry` 仕様は、振り分けスキル名の正を `assets/entry-skills.txt`（`00-workflow-issue-mr-driven` / `00-workflow-quick-request`）に置き、WE-T07 で `CLAUDE.md` の表との一致を検査すると定める
 - したがって「振り分けスキルかどうか」の判定が lib（接頭辞）とファイル（列挙）の 2 か所にある。将来 `00-workflow-` で始まる別のスキル（例: `00-workflow-hotfix`）が増えると、`tool_class` は `declare` を返すが `entry-skills.txt` には無い、という食い違いが起こる
 - 実測への依存: 無し
@@ -78,9 +78,9 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 
 ### f3. 案内側フックが frontmatter を読む経路が未定（§12 T8 そのもの）△注意
 
-根拠: `scope.sh:20`（`__ss_load frontmatter deny`）、`20-common-step-shell-script` 仕様「読み込み行」、`subagent-start-check` / `subagent-stop-check` / `workflow-diff-check` 仕様
+根拠: `scope.sh:18`（`__ss_load frontmatter deny`。読み込み行の定義は `:17`）、`20-common-step-shell-script` 仕様「読み込み行」、`subagent-start-check` / `subagent-stop-check` / `workflow-diff-check` 仕様
 
-- `scope.sh` はファイル先頭で `__ss_load frontmatter deny` を実行する。`frontmatter.sh` が見つからないと **deny JSON（`${HOOK_DENY_ID:-WF009}`）を出して `exit 0`** する
+- `scope.sh` はファイル先頭（`:18`）で `__ss_load frontmatter deny` を実行する。`frontmatter.sh` が見つからないと **deny JSON（`${HOOK_DENY_ID:-WF009}`）を出して `exit 0`** する
 - `scope.sh` を `source` するのは `workflow-guard`（拒否側 = deny で正しい）に加えて、**案内側の `workflow-diff-check` と `subagent-stop-check`**。案内側の禁止事項は「判定できないときに何かを伝えない（黙って通す）」なので、deny JSON を吐くのは矛盾する（PostToolUse では `permissionDecision` は無視されるため実害は小さいが、出力としては誤り）
 - `subagent-start-check` は frontmatter を読むが `scope.sh` は要らない。`__ss_load frontmatter nop`（読めなければ `fm_*` が空を返すスタブ）を自前で使えば、案内側の方針と一致する
 - 実測への依存: **あり**（T8 は「実機で害があるか」を確かめる項目）。ただし**経路の設計**は実測を待たずに決められる
@@ -89,9 +89,9 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 
 ### f4. `HOOK_DENY_ID` はライブラリの `source` より前に設定する必要がある △注意
 
-根拠: `scope.sh:20` の読み込み行（`${HOOK_DENY_ID:-WF009}` を `source` 時に評価）、`hook-common.sh:23`・`hook_init` の第 3 引数
+根拠: `scope.sh:17-18` の読み込み行（`${HOOK_DENY_ID:-WF009}` を `source` 時に評価）、`hook-common.sh:23`・`hook_init` の第 3 引数
 
-- `hook_init <名前> <side> <識別子>` で `HOOK_DENY_ID` を設定できるが、`scope.sh` の読み込み行は **`source` した瞬間**に `${HOOK_DENY_ID:-WF009}` を参照する。`. scope.sh` を `hook_init` より前に書くと、`frontmatter.sh` が読めない場合の deny が `WF009`（台帳に無い番号。0005 の f2）になる
+- `hook_init <名前> <side> <識別子>` で `HOOK_DENY_ID` を設定できるが、`scope.sh` の読み込み行（`:18`）は **`source` した瞬間**に `${HOOK_DENY_ID:-WF009}` を参照する。`. scope.sh` を `hook_init` より前に書くと、`frontmatter.sh` が読めない場合の deny が `WF009`（台帳に無い番号。0005 の f2）になる
 - したがって拒否側フックの冒頭は「`HOOK_DENY_ID=WF209` を代入 → `. hook-common.sh` → `. scope.sh` → `hook_init ... deny WF209`」の順になる。この順序は `20-common-step-shell-script` 仕様の「識別子は呼び手が読み込み行より前に `HOOK_DENY_ID` で設定する」と一致する
 - 実測への依存: 無し
 
@@ -127,7 +127,7 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 | 状態ファイル | `.claude/hooks/.state/<session_id>.entry`（key=value） | `logs/sessions/<session_id>/entry.json`（JSON） | 本仕様に従う |
 | 宣言の記録 | **PostToolUse**（matcher `Skill`）で記録 | **PreToolUse**（matcher `Skill`）で記録 | 本仕様に従う（読み込み前に記録するので、Skill の実行が失敗しても宣言は立つ） |
 | 設定 | `workflow-types.json`（種別ごとの許可範囲） | `.claude/hooks/config/scope-limits.json` + `task-types.tsv` | 本仕様に従う（#6 で実装済み） |
-| フックの本数 | 6 本（entry / guard / boundary / diff-check / block-chmod / merge-prep・work-boundary は提供コマンド） | 11 本 | 参考にできるのは 4 本（entry / guard / diff-check / block-chmod）。`session-start` / `subagent-*` / `post-push-*` / `state-guard` に相当するものは**無い**（7 本は新規） |
+| フックの本数 | `hooks/` 直下の `.sh` は 7 本（lib を除く）。`settings.json` に登録されているのは **4 ファイル / 6 登録**（`workflow-entry.sh` を 3 回・`workflow-guard.sh`・`workflow-boundary.sh`・`workflow-diff-check.sh`）。`block-chmod.sh` は**未登録**、`merge-prep.sh` / `work-boundary.sh` は提供コマンド相当 | 11 本 | 参考にできるのは 4 本（entry / guard / diff-check / block-chmod）。`session-start` / `subagent-start-check` / `subagent-stop-check` / `post-push-compact-prompt` / `post-push-usage-report` / `workflow-state-guard` / `block-direct-git` に相当するものは**無い**（この 7 本が新規） |
 | テスト | 一時ディレクトリをプロジェクトルートに見立て、stdin に JSON を与えて終了コード・stdout・stderr を検証（6 本 879 行） | `test-lib.sh` の `hook_payload` + `run-tests.sh`（#6 で実装） | **骨格は同じ**。`cygpath -m` による Windows パスの扱いは参考になる |
 
 - ファイル単位の判定: `workflow-lib.sh`（使わない。lib に置き換え済み）/ `workflow-entry.sh`・`workflow-guard.sh`・`workflow-diff-check.sh`・`block-chmod.sh`（**参考**。判定の骨格は流用できるが、終了方式・設定・状態ファイルが違うので写経はしない）/ `workflow-boundary.sh`・`work-boundary.sh`・`merge-prep.sh`（**使わない**。本仕様では `workflow-state-guard` と提供コマンド `boundary.sh` / `finalize.sh` に再編され、後者は 3/3）

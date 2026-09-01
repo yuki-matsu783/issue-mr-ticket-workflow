@@ -10,7 +10,7 @@ keywords: [フック仕様, 判定順, エラー識別子, 終了方式, テス�
 
 ## サマリ
 
-11 本のフック仕様は、判定順・エラー識別子・終了方式・テスト ID・依存のすべてが仕様に書かれており、**そのまま実装に落とせる状態にある**。エラー識別子は 11 本とも共通仕様 §6 の台帳の範囲に収まっていて重複も無い。一方で、**実装を始める前に決めておくべき食い違いが 7 件**見つかった。最も重いのは `session-start` と `workflow-entry` の一部テストが 3/3 の `boundary.sh` に依存していて、この issue の中では通せないこと。次に、`hooks/lib` の `HOOK_DENY_ID` の既定 `WF009` が台帳に無い番号であること（issue #9 の G7）と、フックが読む設定・アセットのファイル 3 本が未作成で、置き場の規約が仕様間で揺れていること。
+11 本のフック仕様は、判定順・エラー識別子・終了方式・テスト ID・依存のすべてが仕様に書かれており、**そのまま実装に落とせる状態にある**。エラー識別子は 11 本とも共通仕様 §6 の台帳の範囲に収まっていて重複も無い。一方で、**実装を始める前に決めておくべき食い違いが 4 件**（f2〜f5）見つかった。最も重いのは `session-start` と `workflow-entry` の一部テストが 3/3 の `boundary.sh` に依存していて、この issue の中では通せないこと。次に、`hooks/lib` の `HOOK_DENY_ID` の既定 `WF009` が台帳に無い番号であること（issue #9 の G7）と、フックが読む設定・アセットのファイル 3 本が未作成で、置き場の規約が仕様間で揺れていること。
 
 - ◎良 3 件 / △注意 3 件 / ✕問題 1 件
 
@@ -97,10 +97,10 @@ keywords: [フック仕様, 判定順, エラー識別子, 終了方式, テス�
 | ファイル | 読むフック | 仕様上の置き場 | 現状 | 初期値 |
 |---|---|---|---|---|
 | `blocked-commands.txt` | `block-chmod` | `.claude/hooks/config/` | **無し** | `chmod`（`#` はコメント） |
-| `entry-skills.txt` | `workflow-entry` | `assets/`（フック配下） | **無し** | `00-workflow-issue-mr-driven` / `00-workflow-quick-request` |
-| `model-aliases.txt` | `subagent-start-check` | `assets/`（フック配下） | **無し** | `claude-sonnet-4-5-…` → `sonnet` などの族名対応 |
+| `entry-skills.txt` | `workflow-entry` | `assets/…`（基準ディレクトリ未定） | **無し** | `00-workflow-issue-mr-driven` / `00-workflow-quick-request` |
+| `model-aliases.txt` | `subagent-start-check` | `assets/…`（基準ディレクトリ未定） | **無し** | `claude-sonnet-4-5-…` → `sonnet` などの族名対応 |
 
-- 同じ「フックが読む外部データ」なのに、1 本は `config/`、2 本は各フックの `assets/` に置くことになっている。共通仕様 §1 は `.claude/hooks/<NN-Event>/<name>.sh` と `lib/`・`config/` しか定義していないため、`assets/` の位置づけ（フックのディレクトリ直下か、`<NN-Event>/assets/` か）が未定
+- 同じ「フックが読む外部データ」なのに、1 本は `config/`、2 本は `assets/…` と書かれている。共通仕様 §1 は `.claude/hooks/<NN-Event>/<name>.sh` と `lib/`・`config/` しか定義していないため、`assets/` の**基準ディレクトリが未定**。仕様の表記は相対パスだけで「フック配下」とは書かれておらず（2 巡目レビュー S10）、実際にリポジトリに存在する `assets/` 9 個は**すべてスキル配下**（フック配下は 0 個）。同じ `subagent-start-check` 仕様が `assets/subagent-prompt.template.md` をスキル配下の意味で使っている箇所もあるため、どちらの `assets/` かは設計・実装計画で決める
 - `.claude/hooks/config/**` は `scope-limits.json` の `common.confirm` に入るため、作成時に毎回 WF203 の確認が入る（`assets/` 側は `.claude/hooks/**` の許可範囲で確認なし）
 - 実測への依存: **無し**
 

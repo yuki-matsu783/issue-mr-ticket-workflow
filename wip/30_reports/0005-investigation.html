@@ -179,7 +179,7 @@
 
 <!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
 <section id="overview" data-required>
-  <p class="lead">11 本のフック仕様は判定順・識別子・終了方式・テスト ID・依存がそろっており、<strong>そのまま実装に落とせる状態</strong>。識別子は §6 台帳の範囲内で重複 0 件、§1 の登録表 16 行も各仕様と一致する。一方で実装前に決めるべき食い違いが 7 件見つかった。最も重いのは <code>session-start</code> と <code>workflow-entry</code> のテストが 3/3 の <code>boundary.sh</code> に依存し、この issue では通せないこと。次に <code>HOOK_DENY_ID</code> の既定 <code>WF009</code> が台帳に無いこと（G7）、フックが読む設定・アセット 3 本が未作成であること、そして <code>SS-H*</code> が <code>run-tests.sh</code> の ID 正規表現に一致しないこと。</p>
+  <p class="lead">11 本のフック仕様は判定順・識別子・終了方式・テスト ID・依存がそろっており、<strong>そのまま実装に落とせる状態</strong>。識別子は §6 台帳の範囲内で重複 0 件、§1 の登録表 16 行も各仕様と一致する。一方で実装前に決めるべき食い違いが 4 件（f2〜f5）見つかった。最も重いのは <code>session-start</code> と <code>workflow-entry</code> のテストが 3/3 の <code>boundary.sh</code> に依存し、この issue では通せないこと。次に <code>HOOK_DENY_ID</code> の既定 <code>WF009</code> が台帳に無いこと（G7）、フックが読む設定・アセット 3 本が未作成であること、そして <code>SS-H*</code> が <code>run-tests.sh</code> の ID 正規表現に一致しないこと。</p>
   <ul class="kpis">
     <li class="kpi good"><b>3</b><span>◎良</span></li>
     <li class="kpi warn"><b>3</b><span>△注意</span></li>
@@ -199,7 +199,7 @@
       <p class="label">◇承認が欲しい</p>
       <p class="sub">方針は決めた</p>
       <ul>
-        <li><strong>f4</strong>: 未作成のファイル 3 本を実装フェーズで作る。<code>assets/</code> の階層は仕様に記述が無いため実装計画で決める</li>
+        <li><strong>f4</strong>: 未作成のファイル 3 本を実装フェーズで作る。<code>assets/</code> の基準ディレクトリは仕様に記述が無く、実在する <code>assets/</code> はすべてスキル配下なので、どちらかを実装計画で決める</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -315,14 +315,14 @@ run-tests.sh:110  if [[ "$line" =~ ^(PASS|FAIL)\ ([A-Z]{2,6}-[TE][0-9]{2}[a-z]?)
     <li class="tl-item">
       <span class="tl-dot warn">4</span>
       <h3 id="f4">フックが読む設定・アセットのファイルが 3 本未作成で、置き場の規約が揺れている <span class="chip warn">△注意</span> <span class="basis">根拠: 各仕様の参照先 / ls .claude/hooks/config/</span></h3>
-      <p>同じ「フックが読む外部データ」なのに 1 本は <code>config/</code>、2 本は各フックの <code>assets/</code> に置くことになっている。共通仕様 §1 は <code>lib/</code> と <code>config/</code> しか定義しておらず、<code>assets/</code> の位置づけ（<code>&lt;NN-Event&gt;/assets/</code> か別か）が未定。<code>config/</code> 配下は <code>common.confirm</code> に当たるため作成時に毎回 WF203 の確認が入る。</p>
+      <p>同じ「フックが読む外部データ」なのに 1 本は <code>config/</code>、2 本は <code>assets/…</code> と書かれている。共通仕様 §1 は <code>lib/</code> と <code>config/</code> しか定義しておらず、<code>assets/</code> の<strong>基準ディレクトリが未定</strong>。仕様の表記は相対パスだけで「フック配下」とは書かれておらず（2 巡目レビュー S10）、実際にリポジトリに存在する <code>assets/</code> 9 個は<strong>すべてスキル配下</strong>（フック配下は 0 個）。同じ <code>subagent-start-check</code> 仕様が <code>assets/subagent-prompt.template.md</code> をスキル配下の意味で使っている箇所もあるため、どちらの <code>assets/</code> かは設計・実装計画で決める。<code>config/</code> 配下は <code>common.confirm</code> に当たるため作成時に毎回 WF203 の確認が入る。</p>
       <div class="tablewrap">
       <table>
         <thead><tr><th>ファイル</th><th>読むフック</th><th>仕様上の置き場</th><th>現状</th><th>初期値</th></tr></thead>
         <tbody>
           <tr><td><code>blocked-commands.txt</code></td><td>block-chmod</td><td><code>.claude/hooks/config/</code></td><td><strong>無し</strong></td><td><code>chmod</code>（<code>#</code> はコメント）</td></tr>
-          <tr><td><code>entry-skills.txt</code></td><td>workflow-entry</td><td><code>assets/</code>（フック配下）</td><td><strong>無し</strong></td><td><code>00-workflow-issue-mr-driven</code> / <code>00-workflow-quick-request</code></td></tr>
-          <tr><td><code>model-aliases.txt</code></td><td>subagent-start-check</td><td><code>assets/</code>（フック配下）</td><td><strong>無し</strong></td><td><code>claude-sonnet-4-5-…</code> → <code>sonnet</code> などの族名対応</td></tr>
+          <tr><td><code>entry-skills.txt</code></td><td>workflow-entry</td><td><code>assets/…</code>（基準ディレクトリ未定）</td><td><strong>無し</strong></td><td><code>00-workflow-issue-mr-driven</code> / <code>00-workflow-quick-request</code></td></tr>
+          <tr><td><code>model-aliases.txt</code></td><td>subagent-start-check</td><td><code>assets/…</code>（基準ディレクトリ未定）</td><td><strong>無し</strong></td><td><code>claude-sonnet-4-5-…</code> → <code>sonnet</code> などの族名対応</td></tr>
         </tbody>
       </table>
       </div>
@@ -438,7 +438,7 @@ openssl is /mingw64/bin/openssl</code></pre>
   <h2>残課題</h2>
   <ul>
     <li><code>boundary.sh status --offline</code> の出力スキーマはこの issue では実装されない。スタブを作る場合の忠実度は未決（f5 の案 (a)）</li>
-    <li><code>assets/</code> をフックのどの階層に置くかは仕様に記述が無く、実装計画で決める（f4）</li>
+    <li><code>assets/</code> の基準ディレクトリ（フック配下かスキル配下か）は仕様に記述が無く、実装計画で決める（f4）</li>
     <li><code>HOOK_DENY_ID</code> を設定必須にした場合、共通の読み込み行（23 ファイル）と提供コマンド側への影響（0006 が確認）</li>
     <li>テスト ID の総数 93 本は仕様の表から数えたもので、実装時に観点が分割・統合されれば増減する</li>
     <li><strong>issue #9 の申し送り G8</strong>（作業中チケットが 2 枚以上のときの提供コマンドの非対称）の事実確認をこの調査では行っていない。0008 で設計に入る前に読むか、未確認のまま方針を決めることを計画書に明示する</li>

@@ -277,13 +277,13 @@
     </li>
     <li class="tl-item">
       <span class="tl-dot warn">2</span>
-      <h3 id="f2"><code>tool_class</code> の振り分けスキル判定が <code>entry-skills.txt</code> と二重定義になる <span class="chip warn">△注意</span> <span class="basis">根拠: <code>hook-common.sh:156-166</code>（<code>tool_class</code>）と <code>workflow-entry</code> 仕様「呼出条件」・WE-T07</span></h3>
-      <p><code>tool_class</code> は <code>Skill</code> ツールのとき <code>case "${2:-}" in 00-workflow-*) declare ;; *) read ;; esac</code> と、<strong><code>00-workflow-</code> の接頭辞をコードに持っている</strong>。一方 <code>workflow-entry</code> 仕様は、振り分けスキル名の正を <code>assets/entry-skills.txt</code>（<code>00-workflow-issue-mr-driven</code> / <code>00-workflow-quick-request</code>）に置き、WE-T07 で <code>CLAUDE.md</code> の表との一致を検査すると定める。したがって「振り分けスキルかどうか」の判定が lib（接頭辞）とファイル（列挙）の 2 か所にある。将来 <code>00-workflow-</code> で始まる別のスキル（例: <code>00-workflow-hotfix</code>）が増えると、<code>tool_class</code> は <code>declare</code> を返すが <code>entry-skills.txt</code> には無い、という食い違いが起こる。</p>
+      <h3 id="f2"><code>tool_class</code> の振り分けスキル判定が <code>entry-skills.txt</code> と二重定義になる <span class="chip warn">△注意</span> <span class="basis">根拠: <code>hook-common.sh:156-165</code>（<code>tool_class</code>）と <code>workflow-entry</code> 仕様「呼出条件」・WE-T07</span></h3>
+      <p><code>tool_class</code> は <code>Skill</code> ツールのとき <code>case "${2:-}" in 00-workflow-*) printf 'declare\n' ;; *) printf 'read\n' ;; esac</code> と、<strong><code>00-workflow-</code> の接頭辞をコードに持っている</strong>。一方 <code>workflow-entry</code> 仕様は、振り分けスキル名の正を <code>assets/entry-skills.txt</code>（<code>00-workflow-issue-mr-driven</code> / <code>00-workflow-quick-request</code>）に置き、WE-T07 で <code>CLAUDE.md</code> の表との一致を検査すると定める。したがって「振り分けスキルかどうか」の判定が lib（接頭辞）とファイル（列挙）の 2 か所にある。将来 <code>00-workflow-</code> で始まる別のスキル（例: <code>00-workflow-hotfix</code>）が増えると、<code>tool_class</code> は <code>declare</code> を返すが <code>entry-skills.txt</code> には無い、という食い違いが起こる。</p>
       <p class="basis">実測への依存: 無し</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
         <pre><code>hook-common.sh:156-166 tool_class()
-  Skill) case "${2:-}" in 00-workflow-*) echo declare ;; *) echo read ;; esac ;;
+  Skill) case "${2:-}" in 00-workflow-*) printf 'declare\n' ;; *) printf 'read\n' ;; esac ;;
 workflow-entry 仕様: 振り分けスキル名の正は assets/entry-skills.txt（WE-T07 で CLAUDE.md と照合）</code></pre>
       </details>
       <div class="box warn">
@@ -293,12 +293,12 @@ workflow-entry 仕様: 振り分けスキル名の正は assets/entry-skills.txt
     </li>
     <li class="tl-item">
       <span class="tl-dot warn">3</span>
-      <h3 id="f3">案内側フックが frontmatter を読む経路が未定（§12 T8 そのもの） <span class="chip warn">△注意</span> <span class="basis">根拠: <code>scope.sh:20</code>（<code>__ss_load frontmatter deny</code>）、<code>20-common-step-shell-script</code> 仕様「読み込み行」、<code>subagent-start-check</code> / <code>subagent-stop-check</code> / <code>workflow-diff-check</code> 仕様</span></h3>
-      <p><code>scope.sh</code> はファイル先頭で <code>__ss_load frontmatter deny</code> を実行する。<code>frontmatter.sh</code> が見つからないと <strong>deny JSON（<code>${HOOK_DENY_ID:-WF009}</code>）を出して <code>exit 0</code></strong> する。<code>scope.sh</code> を <code>source</code> するのは <code>workflow-guard</code>（拒否側 = deny で正しい）に加えて、<strong>案内側の <code>workflow-diff-check</code> と <code>subagent-stop-check</code></strong>。案内側の禁止事項は「判定できないときに何かを伝えない（黙って通す）」なので、deny JSON を吐くのは矛盾する（PostToolUse では <code>permissionDecision</code> は無視されるため実害は小さいが、出力としては誤り）。<code>subagent-start-check</code> は frontmatter を読むが <code>scope.sh</code> は要らないため、<code>__ss_load frontmatter nop</code> を自前で使えば案内側の方針と一致する。</p>
+      <h3 id="f3">案内側フックが frontmatter を読む経路が未定（§12 T8 そのもの） <span class="chip warn">△注意</span> <span class="basis">根拠: <code>scope.sh:18</code>（<code>__ss_load frontmatter deny</code>。読み込み行の定義は <code>:17</code>）、<code>20-common-step-shell-script</code> 仕様「読み込み行」、<code>subagent-start-check</code> / <code>subagent-stop-check</code> / <code>workflow-diff-check</code> 仕様</span></h3>
+      <p><code>scope.sh</code> はファイル先頭（<code>:18</code>）で <code>__ss_load frontmatter deny</code> を実行する。<code>frontmatter.sh</code> が見つからないと <strong>deny JSON（<code>${HOOK_DENY_ID:-WF009}</code>）を出して <code>exit 0</code></strong> する。<code>scope.sh</code> を <code>source</code> するのは <code>workflow-guard</code>（拒否側 = deny で正しい）に加えて、<strong>案内側の <code>workflow-diff-check</code> と <code>subagent-stop-check</code></strong>。案内側の禁止事項は「判定できないときに何かを伝えない（黙って通す）」なので、deny JSON を吐くのは矛盾する（PostToolUse では <code>permissionDecision</code> は無視されるため実害は小さいが、出力としては誤り）。<code>subagent-start-check</code> は frontmatter を読むが <code>scope.sh</code> は要らないため、<code>__ss_load frontmatter nop</code> を自前で使えば案内側の方針と一致する。</p>
       <p class="basis">実測への依存: <strong>あり</strong>（T8 は「実機で害があるか」を確かめる項目）。ただし<strong>経路の設計</strong>は実測を待たずに決められる</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
-        <pre><code>scope.sh:20  __ss_load frontmatter deny
+        <pre><code>scope.sh:17-18  __ss_load() { … ${HOOK_DENY_ID:-WF009} … }; __ss_load frontmatter deny
 読み込み行の失敗時: deny JSON（${HOOK_DENY_ID:-WF009}）を出して exit 0
 scope.sh を source するフック: workflow-guard / workflow-diff-check / subagent-stop-check / workflow-state-guard</code></pre>
       </details>
@@ -309,8 +309,8 @@ scope.sh を source するフック: workflow-guard / workflow-diff-check / suba
     </li>
     <li class="tl-item">
       <span class="tl-dot warn">4</span>
-      <h3 id="f4"><code>HOOK_DENY_ID</code> はライブラリの <code>source</code> より前に設定する必要がある <span class="chip warn">△注意</span> <span class="basis">根拠: <code>scope.sh:20</code> の読み込み行（<code>${HOOK_DENY_ID:-WF009}</code> を <code>source</code> 時に評価）、<code>hook-common.sh:23</code>・<code>hook_init</code> の第 3 引数</span></h3>
-      <p><code>hook_init &lt;名前&gt; &lt;side&gt; &lt;識別子&gt;</code> で <code>HOOK_DENY_ID</code> を設定できるが、<code>scope.sh</code> の読み込み行は <strong><code>source</code> した瞬間</strong>に <code>${HOOK_DENY_ID:-WF009}</code> を参照する。<code>. scope.sh</code> を <code>hook_init</code> より前に書くと、<code>frontmatter.sh</code> が読めない場合の deny が <code>WF009</code>（台帳に無い番号。0005 の f2）になる。したがって拒否側フックの冒頭は「<code>HOOK_DENY_ID=WF209</code> を代入 → <code>. hook-common.sh</code> → <code>. scope.sh</code> → <code>hook_init ... deny WF209</code>」の順になる。</p>
+      <h3 id="f4"><code>HOOK_DENY_ID</code> はライブラリの <code>source</code> より前に設定する必要がある <span class="chip warn">△注意</span> <span class="basis">根拠: <code>scope.sh:17-18</code> の読み込み行（<code>${HOOK_DENY_ID:-WF009}</code> を <code>source</code> 時に評価）、<code>hook-common.sh:23</code>・<code>hook_init</code> の第 3 引数</span></h3>
+      <p><code>hook_init &lt;名前&gt; &lt;side&gt; &lt;識別子&gt;</code> で <code>HOOK_DENY_ID</code> を設定できるが、<code>scope.sh</code> の読み込み行（<code>:18</code>）は <strong><code>source</code> した瞬間</strong>に <code>${HOOK_DENY_ID:-WF009}</code> を参照する。<code>. scope.sh</code> を <code>hook_init</code> より前に書くと、<code>frontmatter.sh</code> が読めない場合の deny が <code>WF009</code>（台帳に無い番号。0005 の f2）になる。したがって拒否側フックの冒頭は「<code>HOOK_DENY_ID=WF209</code> を代入 → <code>. hook-common.sh</code> → <code>. scope.sh</code> → <code>hook_init ... deny WF209</code>」の順になる。</p>
       <p class="basis">実測への依存: 無し</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
@@ -365,7 +365,7 @@ scope.sh を source するフック: workflow-guard / workflow-diff-check / suba
           <tr><td>状態ファイル</td><td><code>.claude/hooks/.state/&lt;session_id&gt;.entry</code>（key=value）</td><td><code>logs/sessions/&lt;session_id&gt;/entry.json</code>（JSON）</td><td>本仕様に従う</td></tr>
           <tr><td>宣言の記録</td><td><strong>PostToolUse</strong>（matcher <code>Skill</code>）で記録</td><td><strong>PreToolUse</strong>（matcher <code>Skill</code>）で記録</td><td>本仕様に従う（読み込み前に記録するので、Skill の実行が失敗しても宣言は立つ）</td></tr>
           <tr><td>設定</td><td><code>workflow-types.json</code>（種別ごとの許可範囲）</td><td><code>.claude/hooks/config/scope-limits.json</code> + <code>task-types.tsv</code></td><td>本仕様に従う（#6 で実装済み）</td></tr>
-          <tr><td>フックの本数</td><td>6 本（entry / guard / boundary / diff-check / block-chmod / merge-prep・work-boundary は提供コマンド）</td><td>11 本</td><td>参考にできるのは 4 本（entry / guard / diff-check / block-chmod）。<code>session-start</code> / <code>subagent-*</code> / <code>post-push-*</code> / <code>state-guard</code> に相当するものは<strong>無い</strong>（7 本は新規）</td></tr>
+          <tr><td>フックの本数</td><td><code>hooks/</code> 直下の <code>.sh</code> は 7 本（lib を除く）。<code>settings.json</code> に登録されているのは <strong>4 ファイル / 6 登録</strong>（<code>workflow-entry.sh</code> を 3 回・<code>workflow-guard.sh</code>・<code>workflow-boundary.sh</code>・<code>workflow-diff-check.sh</code>）。<code>block-chmod.sh</code> は<strong>未登録</strong>、<code>merge-prep.sh</code> / <code>work-boundary.sh</code> は提供コマンド相当</td><td>11 本</td><td>参考にできるのは 4 本（entry / guard / diff-check / block-chmod）。<code>session-start</code> / <code>subagent-start-check</code> / <code>subagent-stop-check</code> / <code>post-push-compact-prompt</code> / <code>post-push-usage-report</code> / <code>workflow-state-guard</code> / <code>block-direct-git</code> に相当するものは<strong>無い</strong>（この 7 本が新規）</td></tr>
           <tr><td>テスト</td><td>一時ディレクトリをプロジェクトルートに見立て、stdin に JSON を与えて終了コード・stdout・stderr を検証（6 本 879 行）</td><td><code>test-lib.sh</code> の <code>hook_payload</code> + <code>run-tests.sh</code>（#6 で実装）</td><td><strong>骨格は同じ</strong>。<code>cygpath -m</code> による Windows パスの扱いは参考になる</td></tr>
         </tbody>
       </table>
@@ -374,7 +374,8 @@ scope.sh を source するフック: workflow-guard / workflow-diff-check / suba
       <p class="basis">実測への依存: 無し</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
-        <pre><code>参考ディレクトリ/agent-workflow/.claude/hooks/ 8 本 => 2013 行
+        <pre><code>参考ディレクトリ/agent-workflow/.claude/hooks/ 8 本 => 2013 行（lib を除くと 7 本）
+settings.json の登録: 4 ファイル / 6 登録（block-chmod.sh は未登録）
 そのテスト 6 本 => 879 行
 grep -c cygpath .claude/skills/20-common-step-shell-script/scripts/test-lib.sh => 0</code></pre>
       </details>

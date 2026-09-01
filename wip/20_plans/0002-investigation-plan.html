@@ -142,6 +142,8 @@
       <li><code>.claude/**</code> への一時的な変更（<code>settings.json</code> へのフックの一時登録を含む）は計画しない（<code>10-task-investigation-plan</code> 仕様「調査計画の固有手順」）</li>
       <li>既存のテスト・ビルドの実行は計画しない（<code>build-test</code> はどのチケットにも宣言しない）</li>
       <li>次の計画チケットは <code>0008-ai-asset-design-plan</code>。<code>predecessors</code> に 0005・0006・0007 を入れる</li>
+      <li>実装フェーズの検証項目（8 件）は<strong>この計画書が表として持つ</strong>。調査チケットは作らない</li>
+      <li>仕様の矛盾の「設計で直す / 実装で扱う」の振り分けは <code>0008</code> が行う。0005 は列挙と「実測に依存するか」の注記まで</li>
     </ul>
   </div>
 </section>
@@ -155,8 +157,8 @@
     <tbody>
       <tr><td>観点 Q1: 11 本のフック仕様の実装可能性</td><td>各仕様の判定順・エラー識別子・終了方式・テスト ID を 1 枚の表に落とし、仕様どうしの矛盾・欠落（識別子の重複、§6 台帳に無い番号、テスト ID の重複、判定順の相互矛盾）を洗い出す</td><td>フック共通仕様 §1・§6・§11 / 受け入れ条件 1</td></tr>
       <tr><td>観点 Q2: <code>hooks/lib</code> との結線</td><td>#6 で作った 5 本（hook-common / cmdpos / scope / push-detect / transcript）の公開関数・引数・戻り値と、各フック仕様が前提にする呼び出しの対応。欠けている関数・食い違いを列挙する</td><td>フック共通仕様 §1「共有ライブラリ」・§7・§8</td></tr>
-      <tr><td>観点 Q3: 参考実装の流用可否</td><td><code>参考ディレクトリ/agent-workflow/.claude/hooks/</code> の構造・終了方式（<code>exit 2</code> + stderr）・テストの書き方のうち、本仕様（<code>permissionDecision</code> + 終了 0）に使える部分と書き直す部分</td><td>フック共通仕様 §3・§12 T6</td></tr>
-      <tr><td>観点 Q4: 公式リファレンスの入力・出力フィールド</td><td><code>SubagentStart</code> の実在と <code>model</code> / <code>agent_id</code>、<code>agent_type</code>、<code>permissionDecision: "defer"</code>、<code>tool_response</code> の終了コードのフィールド名、<code>Stop</code> の入力。<strong>外部技術調査</strong>（<code>web</code>）</td><td>フック共通仕様 §2・§12 T3・T4・T7 / 受け入れ条件 5</td></tr>
+      <tr><td>観点 Q3: 参考実装との差分</td><td><code>参考ディレクトリ/agent-workflow/.claude/hooks/</code> の構造・終了方式（<code>exit 2</code> + stderr）・入出力・テストの書き方が本仕様（<code>permissionDecision</code> + 終了 0）とどう違うか。流用可否の決定は実装計画へ送る</td><td>フック共通仕様 §3・§12 T6</td></tr>
+      <tr><td>観点 Q4: 公式リファレンスの入力・出力フィールド</td><td><code>SubagentStart</code> の実在と <code>model</code> / <code>agent_id</code>、<code>agent_type</code>、<code>permissionDecision: "defer"</code>、<code>tool_response</code> の終了コードのフィールド名、<code>Stop</code> の入力、<strong>PreToolUse の matcher が <code>WebFetch</code> / <code>WebSearch</code> を対象にできるか</strong>（D3 の材料）。<strong>外部技術調査</strong>（<code>web</code>）</td><td>フック共通仕様 §2・§8・§12 T3・T4・T7 / 受け入れ条件 5</td></tr>
       <tr><td>観点 Q5: §12 T5 の扱いと <code>git 'commit'</code> の判定</td><td>T5（PowerShell ツールの stdin 固有フィールド）が #6 で解決済みか（DDR・#6 の作業ログ・実装を読む）。クォートで割った語のサブコマンド判定を <code>cmdpos.sh</code> と <code>block-direct-git</code> 仕様がどう扱うか</td><td>issue 詳細 D2 / 全体計画の問い 4・5</td></tr>
       <tr><td>範囲外</td><td>フックの実装・テストの作成、<code>settings.json</code> への登録、<code>.claude/**</code> への書き込み、TBD の実測</td><td>全体計画フェーズ 4 / <code>10-task-investigation-plan</code> 禁止事項</td></tr>
     </tbody>
@@ -181,7 +183,7 @@
     <li class="step">
       <span class="step-no">3</span>
       <h3>Q3 の参考実装（0006 に同居）</h3>
-      <p><code>参考ディレクトリ/agent-workflow/.claude/hooks/</code> を読み、流用できる構造とテストの書き方を挙げる。終了方式の差は §12 T6 の予備知識として整理する。</p>
+      <p><code>参考ディレクトリ/agent-workflow/.claude/hooks/</code> を読み、構造・終了方式・入出力・テストの書き方の差分をファイル単位で列挙する。流用するかどうかの決定は実装計画（フェーズ 4）に送る。</p>
     </li>
     <li class="step">
       <span class="step-no">4</span>
@@ -195,17 +197,34 @@
     </li>
     <li class="step">
       <span class="step-no">6</span>
-      <h3>実装フェーズの検証項目の整理（0005 の成果物）</h3>
-      <p>§12 の T1〜T4・T6〜T8 と <code>agent_type</code> について「何を・どの記録で・いつ（段階登録のどの段で）確かめるか」の表を作る。この調査では実施しない。</p>
+      <h3>実装フェーズの検証項目</h3>
+      <p>下の表（この計画書が持つ）が実装計画（フェーズ 4）の入力になる。<strong>この調査では実施も再整理もしない</strong>。</p>
     </li>
     <!-- ステップの数だけ li.step を繰り返す（番号は連番） -->
   </ol>
+  <h3>実装フェーズの検証項目（この調査では実施しない）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>何を</th><th>どの記録で確かめるか</th><th>どの段で</th></tr></thead>
+    <tbody>
+      <tr><td>T6</td><td>PreToolUse の deny が <code>permissionDecision</code> + 終了 0 で効くか</td><td>拒否側 1 本目（<code>block-chmod</code>）の登録直後に禁止コマンドを実行して deny されるか</td><td>段階登録 ②-1</td></tr>
+      <tr><td>T1</td><td><code>SubagentStop</code> の出力がメインエージェントに届くか</td><td>サブエージェントを 1 つ起動し、出力がメインの文脈に現れるか</td><td>① の後</td></tr>
+      <tr><td>T2</td><td>サブエージェント内のツール呼び出しの <code>session_id</code> が親と同じか</td><td><code>logs/hooks/decisions.jsonl</code> の <code>session_id</code> を親子で比較</td><td>① の後</td></tr>
+      <tr><td>T4</td><td><code>SubagentStart</code> イベントと <code>model</code> / <code>agent_id</code> の実在</td><td>① 登録後のサブエージェント起動で <code>logs/</code> に記録が残るか</td><td>① の後</td></tr>
+      <tr><td>—</td><td><code>agent_type</code> の実物（<code>subagent-stop-check</code> が読む値。受け入れ条件 5）</td><td>T4 と同じ起動で <code>logs/</code> に残る値</td><td>① の後</td></tr>
+      <tr><td>T7</td><td><code>tool_response</code> の終了コードのフィールド名</td><td><code>post-push-*</code> が読む値を <code>logs/</code> に落として実物を見る</td><td>① の後</td></tr>
+      <tr><td>T3</td><td><code>claude -p</code> を入力から判別できるか / <code>defer</code> の実在</td><td>ヘッドレス実行時の入力（<code>permission_mode</code> 等）を <code>decisions.jsonl</code> で比較</td><td>② の後</td></tr>
+      <tr><td>T8</td><td>案内側フックが <code>scope.sh</code> を <code>source</code> したとき <code>frontmatter.sh</code> が読めない場合の挙動</td><td><code>frontmatter.sh</code> を一時リネーム（<code>mv</code>）して案内側フックの挙動を見る</td><td>② の後</td></tr>
+    </tbody>
+  </table>
+  </div>
+
   <h3>許可範囲（やってよいこと）</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
     <tbody>
-      <tr><td>1・2・3・6（0005 / 0006）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code></td></tr>
+      <tr><td>1・2・3（0005 / 0006）</td><td><code>wip/**</code></td><td><code>read</code>（リポジトリ内の読み取りだけで閉じる）</td></tr>
       <tr><td>4・5（0007）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code>, <code>web</code>（公式 hooks リファレンスの閲覧）</td></tr>
       <tr><td>この計画チケット（0002）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code></td></tr>
     </tbody>
@@ -221,12 +240,11 @@
     <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
     <tbody>
       <tr><td>11 本の実装可能性</td><td>フック × 判定順・識別子・終了方式・テスト ID・依存の表が埋まり、空欄が「仕様に記載なし」として残課題に挙がっている</td><td><code>wip/30_reports/0005-investigation.md</code></td></tr>
-      <tr><td>仕様の矛盾・欠落</td><td>識別子の重複・§6 台帳との不一致・テスト ID の重複が件数付きで列挙され、「実装で決める / 設計で直す」の振り分けが付いている</td><td>同上（AI アセット設計の入力）</td></tr>
+      <tr><td>仕様の矛盾・欠落</td><td>識別子の重複・§6 台帳との不一致・テスト ID の重複が件数付きで列挙され、「実測に依存するか」の注記が付いている（設計 / 実装への振り分けは 0008）</td><td>同上（AI アセット設計の入力）</td></tr>
       <tr><td>lib との結線</td><td>仕様が呼ぶ関数 × lib の定義の対応表が埋まり、欠けている関数・食い違いが列挙されている</td><td><code>wip/30_reports/0006-investigation.md</code></td></tr>
-      <tr><td>参考実装の流用可否</td><td>ファイル単位で「流用 / 参考 / 使わない」と理由が付いている</td><td>同上</td></tr>
+      <tr><td>参考実装との差分</td><td>終了方式・入出力・テストの書き方の差分がファイル単位で列挙されている（流用可否の決定は実装計画）</td><td>同上</td></tr>
       <tr><td>公式リファレンスとの一致</td><td>前提 7 項目が「一致 / 相違 / 記載なし」で判定され、出典 URL が添えられている</td><td><code>wip/30_reports/0007-investigation.md</code></td></tr>
       <tr><td>T5 の扱い</td><td>#6 で解決済みかの結論と根拠（DDR 番号またはコミット）。未解決なら実装フェーズの検証項目に追加</td><td>同上</td></tr>
-      <tr><td>実装フェーズの検証項目</td><td>T1〜T4・T6〜T8・<code>agent_type</code> の 8 項目が「何を・どの記録で・どの段で」の表になっている</td><td><code>wip/30_reports/0005-investigation.md</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -239,8 +257,8 @@
   <table>
     <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
     <tbody>
-      <tr><td>0005</td><td><code>investigation</code></td><td>ステップ 1・6（Q1: 11 本の仕様の洗い出しと矛盾の検出、実装フェーズの検証項目の整理）</td><td>なし</td></tr>
-      <tr><td>0006</td><td><code>investigation</code></td><td>ステップ 2・3（Q2: lib との結線、Q3: 参考実装の流用可否）</td><td>なし</td></tr>
+      <tr><td>0005</td><td><code>investigation</code></td><td>ステップ 1（Q1: 11 本の仕様の洗い出しと矛盾の検出）</td><td>なし</td></tr>
+      <tr><td>0006</td><td><code>investigation</code></td><td>ステップ 2・3（Q2: lib との結線、Q3: 参考実装との差分）</td><td>なし</td></tr>
       <tr><td>0007</td><td><code>investigation</code></td><td>ステップ 4・5（Q4: 公式リファレンスの確認 — 外部技術調査、Q5: T5 の扱いと <code>git 'commit'</code> の判定）</td><td>なし</td></tr>
       <tr><td>0008</td><td><code>ai-asset-design-plan</code></td><td>次の計画チケット（フェーズ 3 の計画）</td><td>0005, 0006, 0007</td></tr>
     </tbody>
@@ -255,7 +273,7 @@
   <table>
     <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
     <tbody>
-      <tr><td>調査が実装の細部に踏み込み、フェーズ 4 の判断を先取りする</td><td>実装計画の自由度が下がり、レビューの対象が二重になる</td><td>成果物を「表と列挙」に限り、実装順・チケット分割は保留した点に送る</td></tr>
+      <tr><td>調査が実装の細部に踏み込み、フェーズ 4 の判断を先取りする</td><td>実装計画の自由度が下がり、レビューの対象が二重になる</td><td>成果物を「表と列挙」に限り、実装順・チケット分割・流用可否は保留した点と実装計画に送る</td></tr>
       <tr><td>公式リファレンスに記載が無く、前提の裏が取れない</td><td>§12 の TBD が減らないまま実装に入る</td><td>「記載なし」として実装フェーズの検証項目に格上げし、0008 が扱いを決める</td></tr>
     </tbody>
   </table>
@@ -281,7 +299,7 @@
   <table>
     <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
     <tbody>
-      <tr><td>仕様の矛盾が見つかった場合、設計フェーズ（3）で直すか実装フェーズ（4）の作業ログで扱うか</td><td>0005 の結果を見て <code>0008-ai-asset-design-plan</code> が判断する</td></tr>
+      <tr><td>仕様の矛盾が見つかった場合、設計フェーズ（3）で直すか実装フェーズ（4）で扱うか</td><td><code>0008-ai-asset-design-plan</code> が判断する（0005 は列挙と「実測に依存するか」の注記まで）</td></tr>
       <tr><td>公式リファレンスに記載が無い項目の扱い（前提のまま進めるか、実装フェーズの検証項目に格上げするか）</td><td>0007 の結果を見て <code>0008</code> が判断する</td></tr>
       <tr><td>11 本の実装順とチケットの分割</td><td>フェーズ 4 の実装計画（<code>ai-asset-implementation-plan</code>）</td></tr>
     </tbody>

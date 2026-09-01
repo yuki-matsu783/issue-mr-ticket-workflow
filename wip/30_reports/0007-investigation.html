@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0007 調査結果 — 公式 hooks リファレンスとの照合・T5 の扱い・クォート付き git の判定</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
+  <p class="kind">調査結果レポート / issue #9 フェーズ 2</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>0007 調査結果 — 公式 hooks リファレンスとの照合・T5 の扱い・クォート付き git の判定</h1>
+
+  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 4</span>
+    <span class="chip warn">△注意 4</span>
+    <span class="chip stop">✕問題 1</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. SubagentStart の実在と agent_id / agent_type は仕様どおり</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. model は SubagentStart の入力に含まれない（公式は SessionStart のみ）</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. permissionDecision: "defer" は実在するが、機構では使わない</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. tool_response の構造は公式に記載が無い</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. matcher は tool 名の完全一致または正規表現で、WebFetch / WebSearch を対象にできる</a></li>
+          <li><a href="#f6"><span class="mk warn">△</span> 6. 仕様に無いフックイベントが 7 種類ある</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. exit 2 は JSON より優先し、PreToolUse をブロックする</a></li>
+          <li><a href="#f8"><span class="mk warn">△</span> 8. §12 T5 は #6 で「文書上は前提どおり・実機確認は未了」と結論づけられていた</a></li>
+          <li><a href="#f9"><span class="mk warn">△</span> 9. git 'commit' は bash 経路では素通りする（仕様の穴）</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-9-hook-bodies-settings</code></dd></div>
+    <div><dt>チケット</dt><dd>0007-investigation</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
+<section id="overview" data-required>
+  <p class="lead">8 項目のうち <strong>5 項目は公式と一致</strong>、<strong>1 項目は明確に相違</strong>、<strong>2 項目は記載なし</strong>。相違は <code>subagent-start-check</code> の要である <code>model</code> フィールドで、公式は「model を受け取れるのは SessionStart だけ」と明記している。<code>SubagentStart</code>・<code>agent_id</code> / <code>agent_type</code>・<code>defer</code> は実在を確認、matcher は tool 名に対する完全一致 / 正規表現なので <code>WebFetch</code> / <code>WebSearch</code> を強制対象にできる。§12 T5 は #6 で「文書上は前提どおり・実機未確認」と結論づけられており、この issue で閉じる申し送りがある。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi warn"><b>4</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>f2</strong>: <code>model</code> は SubagentStart の入力に含まれない。WF801 を仕様の縮退案（PostToolUse <code>Agent</code> の <code>tool_input.model</code> との事後比較）へ切り替える設計判断が要る</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><strong>f3</strong>: <code>defer</code> は実在するが機構では<strong>採用しない</strong>（用途が違う）</li>
+        <li><strong>f5</strong>: <code>WebFetch</code> / <code>WebSearch</code> は matcher に書ける。D3 は方針判断だけが残る</li>
+        <li><strong>f8</strong>: T5 は登録直後の PowerShell 実行 1 回で確認する（4c の検証項目に追加）</li>
+        <li><strong>f9</strong>: <code>git 'commit'</code> は bash 経路でも「特定できない」として拒否側に倒す</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><strong>f1</strong>: SubagentStart / agent_id / agent_type は仕様どおり</li>
+        <li><strong>f4</strong>: <code>tool_response</code> は公式に記載なし（T7 は実測へ）</li>
+        <li><strong>f6</strong>: 仕様に無いイベント 7 種類（この issue では扱わない）</li>
+        <li><strong>f7</strong>: <code>exit 2</code> は JSON より優先（T6 の裏付け）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><code>tool_response</code> の実フィールド名（公式に記載が見つからず、<strong>実測はフェーズ 4c</strong>）</li>
+      <li>Stop / SubagentStop / PostToolUse / SubagentStart の<strong>完全な入力スキーマ</strong>（断片のみ確認）</li>
+      <li><code>permissionDecision: "deny"</code> + 終了 0 が実機で効くか（§12 T6。実測はフェーズ 4b）</li>
+      <li>ドキュメントの版と実行中の Claude Code の版の一致（公式ページに版の記載なし）</li>
+      <li><code>git 'commit'</code> の実挙動（cmdpos.sh を実行せず、コードと HK-T05 の期待値からの読み取り）</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>公式: <code>code.claude.com/docs/en/hooks</code>（docs.claude.com から 301）・<code>hooks.md</code>・<code>agent-sdk/hooks</code>（2026-09-02 取得）</li>
+    <li>リポジトリ: フック共通仕様 §2・§7・§8・§12、<code>cmdpos.sh</code>、<code>test_cmdpos.sh</code></li>
+    <li>#6 の履歴: コミット <code>bb2a527</code>（<code>wip/30_reports/0003-investigation.md</code> の Q3 = T5 の節）</li>
+    <li>実行はしていない（Web 閲覧と git show / grep のみ）</li>
+  </ul>
+</section>
+
+<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">SubagentStart の実在と agent_id / agent_type は仕様どおり <span class="chip good">◎良</span> <span class="basis">根拠: 公式 hooks リファレンス（イベント一覧・matcher 表）/ Agent SDK hooks</span></h3>
+      <p><code>SubagentStart</code> は「When a subagent is spawned」として実在し、matcher は <strong>agent type</strong>（general-purpose・Explore・Plan・カスタム名）に対して評価される。§1 の登録は matcher 無しなので問題ない。<code>agent_id</code> / <code>agent_type</code> はサブエージェント内で入る共通フィールドで、Python SDK では SubagentStart / SubagentStop の<strong>必須フィールド</strong>。agent_type の値はエージェント名（例 "Explore"）。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>| `SubagentStart` | When a subagent is spawned |
+| `SubagentStart` | agent type | `general-purpose`, `Explore`, `Plan`, custom agent names … |
+agent_id / agent_type: 「required fields on `SubagentStart` and `SubagentStop`」（Python SDK）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>§12 T4 のうち「SubagentStart イベントの実在」「agent_id」は確認済みとして消せる。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">model は SubagentStart の入力に含まれない（公式は SessionStart のみ） <span class="chip stop">✕問題</span> <span class="basis">根拠: 公式 hooks リファレンス「Only SessionStart hooks can receive a model field」</span></h3>
+      <p>仕様 §2 と <code>subagent-start-check</code> 制御方式 4 は、SubagentStart の入力の <code>model</code> とチケットの <code>executor</code> を比較して WF801 を出す設計。しかし公式は <strong>model を受け取れるのは SessionStart だけ</strong>と明記し、「常に含まれるとは限らない」とも断っている。SDK 側にも SubagentStart の model は現れない。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>公式: 「Only `SessionStart` hooks can receive a `model` field, and Claude Code doesn't always include it.」
+仕様 §2: 「agent_id / agent_type / model（SubagentStart。model が無い版では実行者の比較を行わない）」
+hook-common.sh: .tool_input.model // .model → PostToolUse Agent の tool_input.model は読める</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>WF801 は仕様の縮退（PostToolUse Agent の tool_input.model と executor の事後比較）を本線にする。(a) 一本化 / (b) SubagentStart では model があれば使う、は排他ではなく (b) を残して (a) を足すのが確実。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">permissionDecision: "defer" は実在するが、機構では使わない <span class="chip good">◎良</span> <span class="basis">根拠: Agent SDK hooks ドキュメント（値の列挙と優先順位）</span></h3>
+      <p>値は <code>allow</code> / <code>deny</code> / <code>ask</code> / <code>defer</code> の 4 つで確定し、優先順位は <code>deny &gt; defer &gt; ask &gt; allow</code>。<code>defer</code> は「クエリを終了して後で再開する」ためのもので、フックが判断を保留する意味ではない。機構が使う場面は無い。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>「For `PreToolUse` hooks, this is where you set `permissionDecision` ("allow", "deny", "ask", or "defer")…
+ If you return "defer", the query ends so you can resume it later.」
+「`deny` takes priority over `defer`, which takes priority over `ask`, which takes priority over `allow`.」</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>§12 T3 の「defer の採用は別途判断」への答えは「採用しない」。理由を 1 行書いて TBD を閉じられる。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">tool_response の構造は公式に記載が無い <span class="chip warn">△注意</span> <span class="basis">根拠: 公式 hooks リファレンス（PostToolUse の節が取得範囲外）/ Agent SDK hooks</span></h3>
+      <p>3 つの URL を読んだが、PostToolUse の入力例も <code>tool_response</code> のフィールド定義も見つからなかった。<code>exit_code</code> / <code>exitCode</code> / <code>returnCode</code> / <code>code</code> のどれが来るかは公式からは決められない。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>取得した URL: code.claude.com/docs/en/hooks / hooks.md / agent-sdk/hooks
+いずれも PostToolUse の入力例なし（PreToolUse の例のみ提示）
+検索結果に「tool_response は plan と filePath を持つ」= Plan ツール固有の記述のみ</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>仕様の現行方針（4 候補を順に読む・どれも無ければ 0・interrupted は失敗）を維持し、実測後に 1 つへ絞る。§12 T7 は残す。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">matcher は tool 名の完全一致または正規表現で、WebFetch / WebSearch を対象にできる <span class="chip good">◎良</span> <span class="basis">根拠: 公式 hooks リファレンスの matcher 評価表</span></h3>
+      <p>PreToolUse / PostToolUse / PostToolUseFailure / PermissionRequest / PermissionDenied は <strong>tool 名</strong>に対して評価される。<code>WebFetch|WebSearch</code> と書けば強制対象にできる。§1 の登録表の matcher も、この規則で正しく評価される（<code>mcp__.*</code> は <code>.</code> を含むので正規表現）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>matcher の値</th><th>評価</th></tr></thead>
+        <tbody>
+          <tr><td><code>"*"</code> / <code>""</code> / 省略</td><td>すべてに一致</td></tr>
+          <tr><td>英数字・<code>_</code>・<code>-</code>・空白・<code>,</code>・<code>|</code> だけ</td><td>完全一致、または <code>|</code> / <code>,</code> 区切りの完全一致リスト</td></tr>
+          <tr><td>それ以外の文字を含む</td><td>JavaScript の正規表現（アンカーなし）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>| `PreToolUse`, `PostToolUse`, … | tool name | `Bash`, `Edit|Write`, `mcp__.*` |</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>D3「web の強制の可否」は技術的には可能で、残るのは方針判断（強制するか、宣言の記録に留めるか）だけ。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">6</span>
+      <h3 id="f6">仕様に無いフックイベントが 7 種類ある <span class="chip warn">△注意</span> <span class="basis">根拠: 公式 hooks リファレンスのイベント一覧</span></h3>
+      <p>仕様 §1 が扱う 7 イベントのほかに <code>PostToolUseFailure</code> / <code>PostToolBatch</code> / <code>PreCompact</code> / <code>PostCompact</code> / <code>PreModelSwitch</code> / <code>PostModelSwitch</code> / <code>PermissionRequest</code> / <code>PermissionDenied</code> / <code>Notification</code> / <code>SessionEnd</code> がある。機構に効きそうなのは PostToolUseFailure（push 検知の終了コード判定を分けられる）と PermissionRequest（<code>21-PermissionRequest/</code> が空のまま用意されている）。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>| `PostToolUseFailure` | No | Shows stderr to Claude; the tool already failed… |
+| `PostToolBatch` | … | A full batch of tool calls resolves … |
+| `PermissionDenied` | … | Auto mode denies a tool call … |</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>この issue では扱わない（スコープは 11 本）。PostToolUseFailure の活用と 21-PermissionRequest の空ディレクトリは 3/3 の検討事項へ。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">exit 2 は JSON より優先し、PreToolUse をブロックする <span class="chip good">◎良</span> <span class="basis">根拠: 公式 hooks リファレンス（exit code 2 の説明とイベント別の表）</span></h3>
+      <p><code>exit 2</code> は JSON 出力より強く、PreToolUse ではツール呼び出しをブロックする。公式の例（block-rm.sh）は <code>permissionDecision: "deny"</code> の JSON を返す形で、JSON による deny も正規の経路として示されている。加えて「PreToolUse でフックがタイムアウトで打ち切られるとツール呼び出しをブロックする」ことも明記されている。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>「exit 2 means a blocking error. On events that can block, exit 2 blocks whether or not you print JSON:
+ even a JSON `permissionDecision` of "allow" can't override it.」
+「`PreToolUse` | Yes | Blocks the tool call」
+「On `PreToolUse`, a hook canceled at its timeout blocks the tool call.」</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>§12 T6 は「効く」方に傾くが明示はされていないので実測は残す。外れた場合の縮退（exit 2 + stderr）は公式が保証しており、手戻りは終了方式の書き換えに限られる。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">8</span>
+      <h3 id="f8">§12 T5 は #6 で「文書上は前提どおり・実機確認は未了」と結論づけられていた <span class="chip warn">△注意</span> <span class="basis">根拠: git show bb2a527 -- wip/30_reports/0003-investigation.md（#6 の Q3）</span></h3>
+      <p>#6 の結論は「tool_input のキーは Bash と同じ構造」で前提どおり。ただし実機確認は行われていない（一時フックの settings.json 登録を auto モードの分類器が拒否したため）。「2/3 でフックを登録した直後の最初の PowerShell 呼び出しで確認する」という申し送りがある。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>#6 の 0003-investigation.md Q3:
+「一時フック … を .claude/settings.json に登録しようとしたが、auto モードの分類器が拒否した。迂回はしない」
+「実機確認は 2/3 でフックを正式に登録した直後の最初の PowerShell ツール呼び出し
+（decisions.jsonl に tool: PowerShell が残る）で自然に得られる」</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>T5 は「文書上は解決済み・実機確認をこの issue で行う」。実装フェーズの検証項目に T5 を 1 行足す。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">9</span>
+      <h3 id="f9">git 'commit' は bash 経路では素通りする（仕様の穴） <span class="chip warn">△注意</span> <span class="basis">根拠: 共通仕様 §7-9 / block-direct-git 制御方式 3 / cmdpos.sh / test_cmdpos.sh:226</span></h3>
+      <p>共通仕様 §7-9 は「クォートで割った語（<code>git 'commit'</code>）は <code>_</code> になり、呼び出し側は『特定できない』として扱う」と定める。実装もそのとおりで <code>exe=git</code> / <code>subcmd=_</code> になる（<code>CP_GITLIKE</code> は実行体が <code>_</code> のときだけ立つ）。ところが block-direct-git は「特定できないときに拒否側へ倒す」を <strong>PowerShell 経路にしか書いていない</strong>ため、現状の仕様どおりに実装すると bash では許可される。</p>
+      <details>
+        <summary>根拠を見る（引用と出力）</summary>
+        <pre><code>§7-9: 「クォートで割った語（git 'commit'）は `_` になり、呼び出し側は「特定できない」として扱う」
+block-direct-git 制御方式 3: 「PowerShell の入力で … 特定できないときだけ拒否側に倒す」
+test_cmdpos.sh:226  run_cmd dump "'git' commit" → exe=_ / gitlike=1（git 'commit' は gitlike=0）</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>制御方式 3 に「実行体が git で第 1 サブコマンドが `_` → deny WF403」を bash 経路にも足すのが §7-9 と D2 の意図に沿う。テストは BG-T01 に 1 ケース追加。</p>
+      </div>
+    </li>
+    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+  </ol>
+</section>
+
+<!-- 任意: 検証の結果を一覧で示す場合。各章で示しているなら削除 -->
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>1. <code>SubagentStart</code> イベントの実在</td><td><strong>一致</strong>（matcher は agent type）</td></tr>
+      <tr><td>2. SubagentStart の入力に <code>model</code></td><td><strong>相違</strong>（SessionStart のみ。f2）</td></tr>
+      <tr><td>3. <code>agent_id</code></td><td><strong>一致</strong>（SubagentStart / SubagentStop では必須）</td></tr>
+      <tr><td>4. <code>agent_type</code></td><td><strong>一致</strong>（値はエージェント名）</td></tr>
+      <tr><td>5. <code>permissionDecision: "defer"</code></td><td><strong>一致</strong>（4 値の 1 つ。採用しない）</td></tr>
+      <tr><td>6. <code>tool_response</code> の終了コードのフィールド名</td><td><strong>記載なし</strong>（f4。T7 は実測へ）</td></tr>
+      <tr><td>7. <code>Stop</code> の入力（<code>stop_hook_active</code>）</td><td><strong>一致</strong>（完全なスキーマは未取得）</td></tr>
+      <tr><td>8. matcher が <code>WebFetch</code> / <code>WebSearch</code> を取れるか</td><td><strong>一致</strong>（f5）</td></tr>
+      <tr><td>§12 T5（PowerShell の入力）</td><td>#6 で文書上は解決・実機未確認 → この issue の 4c で確認（f8）</td></tr>
+      <tr><td><code>git 'commit'</code> の扱い</td><td><strong>仕様の穴</strong>（§7-9 と block-direct-git の規定が食い違う。f9）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>WF801 の判定経路</strong>（f2）: SubagentStart の model に依存しない形へ。§2・§12 T4・subagent-start-check の制御方式 4 を書き換える</li>
+    <li><strong><code>defer</code> を採用しない</strong>（f3）: §12 T3 に結論を書いて TBD を閉じる</li>
+    <li><strong><code>web</code> の強制の可否</strong>（f5 / D3）: 強制するなら §1 に <code>WebFetch|WebSearch</code> の行を足し、しないなら §8 の記述を確定文にする</li>
+    <li><strong><code>tool_response</code> は実測待ち</strong>（f4）: 4 候補読みを維持し §12 T7 を残す</li>
+    <li><strong>T5 を実装フェーズの検証項目に追加</strong>（f8）: 登録直後の PowerShell 実行 1 回で確認</li>
+    <li><strong><code>git 'commit'</code> の穴を塞ぐ</strong>（f9）: bash 経路の <code>subcmd == "_"</code> → WF403 を制御方式に足し、BG-T01 にケース追加</li>
+    <li><strong>仕様に無いイベント</strong>（f6）: この issue では扱わず、3/3 の検討事項として残す</li>
+  </ol>
+</section>
+
+<!-- 必須: 想定と異なった点。無ければ「無し」 -->
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>公式ドキュメントで 8 項目すべてに白黒が付く</td><td>5 項目は確定したが、tool_response と完全な入力スキーマは該当節を取得できなかった</td><td>f4 として「記載なし」を明示し、T7 を実測に残した</td></tr>
+      <tr><td>model は「無い版がある」程度の話</td><td>公式が「SessionStart だけが受け取れる」と明記しており、SubagentStart では構造的に来ない</td><td>f2 を ✕問題にし、設計への反映の 1 番目に置いた</td></tr>
+      <tr><td>defer は採否を実測で決める</td><td>用途が明文化されており、実測を待たずに「採用しない」と決められた</td><td>f3 として TBD を閉じる提案にした</td></tr>
+      <tr><td>git 'commit' は仕様どおりに実装すれば拒否される</td><td>§7-9 は「特定できないとして扱う」と書くが、block-direct-git は PowerShell 経路にしか規定が無い</td><td>f9 として設計への反映に挙げた</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 残課題。無ければ「無し」 -->
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><code>tool_response</code> の実フィールド名（T7）と Stop / SubagentStop / PostToolUse の完全な入力スキーマ → <strong>フェーズ 4c の実測</strong></li>
+    <li>ドキュメントの版と実行中の Claude Code の版の対応（公式ページに版の記載が無い）</li>
+    <li><code>WebFetch</code> / <code>WebSearch</code> を強制対象にした場合、<code>scope.sh</code> の <code>web</code> 分類が PreToolUse の入力（tool_name だけ）で判定できるか</li>
+    <li><code>PostToolUseFailure</code> を使うと post-push-* の終了コード判定を簡略化できる可能性（3/3 の検討事項）</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

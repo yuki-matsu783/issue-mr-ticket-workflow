@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: overall-summary
-predecessors: ["0033", "0034", "0035", "0036"]
+predecessors: ["0033", "0034", "0035", "0036", "0039"]
 executor: main
 human_review: {required: true, reason: "片付け・draft 解除の前の最終確認（work-defaults の既定。承認③と⑥は人間）"}
 adversarial_review: {required: false, reason: "統括のみ（work-defaults の既定）"}

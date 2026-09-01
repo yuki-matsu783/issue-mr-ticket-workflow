@@ -35,10 +35,6 @@
   li { margin: 4px 0; }
   .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
   footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
-  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
-  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
-  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
-  .chip.muted { background: var(--code-bg); color: var(--muted); border-color: var(--line); }
   .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
   .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
   .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
@@ -67,13 +63,14 @@
   <h1 id="title" data-required>0022 フィードバック計画 — issue #6 の振り返りと後続フェーズの決定</h1>
 
   <nav class="toc" id="toc" data-required>
-    <p class="toc-title">目次</p>
+    <p class="toc-title">目次（md と同じ節順。必須節は括弧内）</p>
     <ol>
-      <li><a href="#goal">この計画で何をするか</a></li>
-      <li><a href="#target">対象と範囲</a></li>
-      <li><a href="#approach">方法とステップ</a></li>
-      <li><a href="#candidates">改善候補の一覧（54 件）</a></li>
-      <li><a href="#agreement">合意と後続フェーズの決定</a></li>
+      <li><a href="#goal">対象（この計画で何をするか）</a></li>
+      <li><a href="#target">確認した記録の範囲（対象と範囲）</a></li>
+      <li><a href="#approach">改善候補の一覧（方法とステップ）</a></li>
+      <li><a href="#agreement">合意</a></li>
+      <li><a href="#issues">起票した issue</a></li>
+      <li><a href="#next">後続フェーズの決定</a></li>
       <li><a href="#verify">検証</a></li>
       <li><a href="#tickets">チケット</a></li>
       <li><a href="#pending">保留した点</a></li>
@@ -83,7 +80,7 @@
   <dl class="meta" id="meta" data-required>
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/6">#6</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/7">#7</a></dd></div>
-    <div><dt>チケット</dt><dd>0022（本計画）→ 0026 AI アセット設計計画</dd></div>
+    <div><dt>チケット</dt><dd>0022（本計画）+ 0027（追加: 自己レビューの反映）→ 0026 AI アセット設計計画</dd></div>
     <div><dt>起点</dt><dd>AI アセット実装 0013〜0021 + 0025 の完了</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -92,26 +89,25 @@
 <main class="main">
 
 <section id="goal" data-required>
-  <h2>この計画で何をするか</h2>
-  <p class="lead">issue #6 の全チケット 24 枚の作業ログ・レポート 3 本・計画書の保留・PR のレビュー指摘から改善候補 54 件を機械的に洗い出し、観点・類型・反映先の 2 軸で分類して、候補ごとの対応先（この MR / 別 issue / 対応しない）を決めた。結論: <strong>後続フェーズとして AI アセット設計（仕様・要件・DDR への書き戻し）を含める</strong>。この MR 行きの 26 件を対象に AI アセット設計計画チケット 0026 を 1 枚起こす。改善の実施はここでは行わない。</p>
+  <h2>対象（この計画で何をするか）</h2>
+  <p class="lead">issue #6 の全チケット 24 枚の作業ログ・レポート 3 本・計画書の保留・PR のコメントから改善候補 54 件（A 11 / B 9 / C 4 / D 6 / E 5 / F 1 / G 12 / H 6）を機械的に洗い出し、観点・類型・反映先の 2 軸で分類して、候補ごとの対応先（この MR / 別 issue / 対応しない）を決めた。結論: <strong>後続フェーズとして AI アセット設計（仕様・要件・DDR への書き戻し）を含める</strong>。この MR 行きの 27 件（うち docs のみ 20 件、docs + アセット本体 7 件）を対象に AI アセット設計計画チケット 0026 を 1 枚起こす。改善の実施はここでは行わない。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>26</b><span>この MR</span></li>
+    <li class="kpi good"><b>27</b><span>この MR</span></li>
     <li class="kpi warn"><b>16</b><span>別 issue</span></li>
-    <li class="kpi"><b>10</b><span>対応しない</span></li>
-    <li class="kpi"><b>2</b><span>済（確認のみ）</span></li>
+    <li class="kpi"><b>11</b><span>対応しない</span></li>
   </ul>
 </section>
 
 <section id="target" data-required>
-  <h2>対象と範囲</h2>
+  <h2>確認した記録の範囲（対象と範囲）</h2>
   <div class="tablewrap">
   <table>
     <thead><tr><th>入力</th><th>範囲</th></tr></thead>
     <tbody>
-      <tr><td>チケットの作業ログ</td><td><code>20_done/</code> の 24 枚（0001〜0025。0022 を除く全件。取り消しは 0 枚）。固定見出し 7 項目を <code>awk</code> で抜き出した（<code>wip/tmp/fb-inputs.md</code>）</td></tr>
+      <tr><td>チケットの作業ログ</td><td><code>20_done/</code> の 24 枚（0001〜0025。0022 を除く全件。取り消しは 0 枚）。固定見出し 7 項目を <code>awk</code> で抜き出した（<code>wip/tmp/fb-inputs.md</code>）。0025 は完了後に直接読んだ</td></tr>
       <tr><td>レポート</td><td>0003 調査 / 0008 設計 / 0013 実装の「想定と異なった点」「残課題」、0013 の逸脱 D-1〜D-34</td></tr>
       <tr><td>計画書</td><td>0011 実装計画の「保留した点」7 行、全体計画の保留</td></tr>
-      <tr><td>PR のレビュー指摘</td><td><code>gh pr view 7 --json comments</code> 全 13 件。人間のコメント・インラインスレッドは 0 件。opus 自己レビュー（承認④）の指摘は 0007 / 0012 / 0023 / 0025 で処理済み。仕様の判断が要る残りを G 節に載せた</td></tr>
+      <tr><td>PR のレビュー指摘</td><td><code>gh api --paginate</code> で issue コメント 14 件・インラインコメント 0 件・レビュー 0 件を取得。人間のコメントは 0 件。opus 自己レビュー（承認④）の指摘は 0007 / 0012 / 0023 / 0025 で処理済み。仕様の判断が要る残りと 0025 の気づきを G 節に載せた</td></tr>
       <tr><td>使った AI アセット</td><td>CLAUDE.md、旧ワークフロースキル、<code>.claude/docs/</code> の仕様・要件、この issue で作った提供コマンド・テンプレート・SKILL.md 9 本</td></tr>
     </tbody>
   </table>
@@ -120,62 +116,72 @@
 </section>
 
 <section id="approach" data-required>
-  <h2>方法とステップ</h2>
-  <h3>1. 洗い出し（記録から機械的に）</h3>
-  <p>全チケットの固定見出しをチケット番号順になぞり、レポート・計画書・PR コメントを加えて 54 件を列挙した。各行に出どころ（チケット番号 + 見出し、またはレポート名 + 節名）を付けた。</p>
-  <h3>2. 分類（観点 × 類型 × 反映先の 2 軸）</h3>
-  <p>観点: 足りなかった / 邪魔だった / 無かった / 問題なし。類型: (a) 無かった / (b) 誤っていた / (c) 罠（形・条件）が書かれていなかった / (d) 辿り着けなかった。反映先: いつ効くか（常時読込 / スキル呼び出し時 / レビュー時 / 操作のたび）× 守らせ方（読ませる / 手順化する / 機械的に拒否する）。常時読込を増やす候補（F1 ルール 11 本）にはコストの注記を付けた。</p>
-  <h3>3. 対応先の決定（既定「この MR」）</h3>
-  <p>大きすぎるもの（ルール 11 本）と、フック本体・ワークフロースキルが要るもの（2/3・3/3）だけを別 issue にした。承認④の自律運用のため、決定はメインエージェントが行い PR #7 のコメントで人間がいつでも覆せる形にした。<strong>別 issue の起票は行わない</strong>（外部への書き込みは自律運用の範囲外。全体まとめで一覧にする）。</p>
-  <h3>4. 後続の確定</h3>
-  <p>AI アセット設計計画チケット 0026 を 1 枚起こす。実装を伴う候補（HK-T15・SP-E 改名・test-lib・skill.template・識別子・SKILL.md）は 0026 が実装チケットの要否を判断する。</p>
-  <h3>許可範囲（やってよいこと）</h3>
-  <p>0022: <code>wip/**</code> への書き込み、read / remote-read。ソースコード・設計文書・<code>.claude/</code> 配下は書かない。</p>
-</section>
-
-<section id="candidates">
-  <h2>改善候補の一覧（54 件）</h2>
-  <p>各行の詳細（出どころ・観点・類型・2 軸・提案の理由）は同名の md。ここでは区分ごとの要約。</p>
+  <h2>改善候補の一覧（方法とステップ）</h2>
+  <p>洗い出し → 分類 → 対応先の決定の順。観点: 足りなかった / 邪魔だった / 無かった / 問題なし。類型: (a) 無かった / (b) 誤っていた / (c) 罠（形・条件）が書かれていなかった / (d) 辿り着けなかった。反映先: いつ効くか（常時読込 / スキル呼び出し時 / レビュー時 / 操作のたび）× 守らせ方（読ませる / 手順化する / 機械的に拒否する）。振り分けの基準: 本 issue で作った / 使ったアセットの仕様・要件の書き戻しは「この MR」、フック本体は 2/3、未実装のタスクスキル・エージェントの仕様への機能追加は 3/3、要件書の無いルール 11 本は独立した issue。各行の詳細は同名の md。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>区分</th><th>件数</th><th>主な候補</th><th>対応先</th></tr></thead>
     <tbody>
-      <tr><td>A. 仕様の書き戻し（逸脱 D-1〜D-28 由来）</td><td>11</td><td>ルール frontmatter のキー（A1）、読み込み行の FATAL / HOOK_DENY_ID（A3）、CP007 とスキップ記録の形（A4）、ticket 仕様の create オプション・cancel 記録・判定語（A5）、data-template と計画書の節（A6）、<code>type: requirement</code>・追記の受け入れ条件・glab draft（A7）、cmdpos の出力の形・redact 注記・HK-T15・H6（A8）</td><td>この MR 9 / 別 issue（2/3 実機確認）1 / 対応しない 2</td></tr>
-      <tr><td>B. 横断的な食い違い</td><td>8</td><td>ルール体系の本数と logger の glob（B1）、§1 lib 一覧の HK-Txx（B2）、SP- 接頭辞の重複（B3）、build-test / hook-test の優先（B4）、プレースホルダ表記（B5）、計画タスクの自律運用の帰結（B7）</td><td>この MR 6 / 対応しない 2</td></tr>
+      <tr><td>A. 仕様の書き戻し（逸脱 D-1〜D-28 由来。D-29〜D-34 は G6）</td><td>11</td><td>ルール frontmatter のキー（A1）、読み込み行の FATAL / HOOK_DENY_ID（A3）、CP007 とスキップ記録の形（A4）、ticket 仕様の create オプション・cancel 記録・判定語（A5）、data-template と計画書の節（A6）、<code>type: requirement</code>・追記の受け入れ条件・glab draft（A7）、cmdpos の出力の形・redact 注記・HK-T15・H6（A8）、§12 の TBD 2 行（A9）</td><td>この MR 9 / 対応しない 2</td></tr>
+      <tr><td>B. 横断的な食い違い</td><td>9</td><td>ルール体系の本数と logger の glob（B1）、§1 lib 一覧（B2）、SP- 接頭辞の重複（B3）、build-test / hook-test の優先（B4）、プレースホルダ表記（B5）、計画タスクの自律運用の帰結（B7）、OUT ひな形と plan テンプレートの節の不一致（B9）</td><td>この MR 6 / 3/3 1 / 対応しない 2</td></tr>
       <tr><td>C. 小さな実装</td><td>4</td><td>test-lib の <code>hook_payload --session</code>（C1）、skill.template のガイド（C2）</td><td>この MR 2 / 対応しない 2</td></tr>
-      <tr><td>D. 2/3（フック本体）へ</td><td>6</td><td>HK-T01 / T09 / T03 の登録部分、tool_response の形、scope.sh の読み込みポリシー、web の強制、agent_type、§12 の TBD、settings.json は人間が適用、shellcheck の CI</td><td>別 issue 6</td></tr>
-      <tr><td>E. 3/3（ワークフロースキル）へ</td><td>5</td><td>旧名の置換と重複テンプレート（E1）、実装計画スキルの手順（E2）、敵対的レビューのプロンプトテンプレート（E3）、計画書・レポートのテンプレート実体（E4）、設計チケットの DoD に参照先の再読（E5）</td><td>別 issue 5</td></tr>
+      <tr><td>D. 2/3（フック本体）へ</td><td>6</td><td>HK-T01 / T09 / T03 の登録部分、tool_response の形、scope.sh の読み込みポリシー、web の強制、agent_type、§12 の TBD、settings.json は人間が適用（現状 hooks が無く強制ゼロ）、shellcheck の CI</td><td>別 issue 6</td></tr>
+      <tr><td>E. 3/3（ワークフロー・タスクスキル）へ</td><td>5</td><td>旧名の置換と重複テンプレート（E1）、実装計画スキルの手順（E2）、敵対的レビューのプロンプトテンプレート（E3）、計画書・レポートのテンプレート実体（E4）、設計チケットの DoD に参照先の再読（E5）</td><td>別 issue 5</td></tr>
       <tr><td>F. ルール残り 11 本</td><td>1</td><td>成果物 5 + 行動 6。要件書が無く常時読込のコスト見積もりが要る</td><td>別 issue 1</td></tr>
-      <tr><td>G. 敵対的レビュー・0025 由来</td><td>11</td><td>read / remote-read は常に可（G1）、識別子 CP007 / RV008 / TK008（G2）、feature-mr の glab（G3）、正史 3 本の節順（G4）、TR004 / TR005 と build-test 判定（G5）、D-29〜D-34（G6）、テストの書き方の規約と <code>make_counting_path</code>（G10 / G11）。HOOK_DENY_ID の既定・doing 2 枚目・check-html の速度は別 issue</td><td>この MR 8 / 別 issue 3</td></tr>
-      <tr><td>H. 作法・環境の気づき</td><td>5</td><td>Bash ツールの長文失敗、差し込み後の見出し検査、手作業期間の完了検査事故、redact の再一致（H4 は A8 に 1 文）</td><td>この MR 1 / 対応しない 4</td></tr>
+      <tr><td>G. 敵対的レビュー・0025 由来</td><td>12</td><td>read / remote-read / provided は常に可（G1）、識別子 CP007 / RV008 / TK008（G2）、feature-mr の glab（G3）、正史 4 本の節順と関連ドキュメント節（G4）、TR004 / TR005 と build-test 判定（G5）、D-29〜D-34（G6）、テストの書き方の規約と罠の実例・<code>make_counting_path</code>（G10 / G11）、作業ログの重複見出しの完了検査（G12）。HOOK_DENY_ID の既定・doing 2 枚目・check-html の速度は別 issue</td><td>この MR 9 / 別 issue 3</td></tr>
+      <tr><td>H. 作法・環境の気づき</td><td>6</td><td>Bash ツールの長文失敗、差し込み後の見出し検査、手作業期間の完了検査事故、redact の再一致（H4 は A8 に 1 文）、日本語パスと native jq</td><td>この MR 1 / 対応しない 5</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
 <section id="agreement">
-  <h2>合意と後続フェーズの決定</h2>
+  <h2>合意</h2>
+  <div class="box warn">
+    <p class="label">合意の形（承認④）</p>
+    <p>対応先の決定はメインエージェントが上表のとおり行い、PR #7 の <code>boundary:request feedback-plan:0022</code> で人間がいつでも覆せる。別 issue の起票はここでは行わず、別 issue 行き 16 件（2/3: 8、3/3: 6、小改善: 1、ルール 11 本: 1）は全体まとめの「別 issue 一覧」と issue #6 への通知本文に載せる。</p>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>区分</th><th>件数</th><th>決定</th></tr></thead>
+    <tbody>
+      <tr><td>この MR</td><td>27（docs のみ 20 / docs + アセット本体 7: A8・B3・C1・C2・G2・G11・G12）</td><td>後続フェーズ「AI アセット設計」を含める。実装を伴う 7 件は設計計画が実装チケットの要否を判断</td></tr>
+      <tr><td>別 issue（2/3）</td><td>8（D1〜D6・G7・G8）</td><td>起票せず記録</td></tr>
+      <tr><td>別 issue（3/3）</td><td>6（B7・E1〜E5）</td><td>起票せず記録</td></tr>
+      <tr><td>別 issue（小改善 / ルール 11 本）</td><td>1 / 1（G9 / F1）</td><td>起票せず記録</td></tr>
+      <tr><td>対応しない</td><td>11</td><td>理由は各行</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>0027（追加チケット）: 自己レビュー指摘 1〜12 を反映した（件数の訂正、A9 の二重計上、B7 の振り分け基準、HTML の節構成 B9、D-34、G4 の 4 本目、G1 の provided、G10 の罠、D4・B2 の追記、H 表の 2 軸、重複見出し G12、取得手段、0026 の宣言）。</p>
+</section>
+
+<section id="issues">
+  <h2>起票した issue</h2>
+  <p>なし（起票は行わない。別 issue 行きの候補 16 件は全体まとめで一覧にする）。</p>
+</section>
+
+<section id="next">
+  <h2>後続フェーズの決定</h2>
   <div class="box ok">
     <p class="label">決定</p>
     <ul>
-      <li><strong>AI アセット設計を含める</strong>: この MR 行き 26 件はすべて <code>.claude/docs/**</code> の仕様・要件・DDR の変更で、実装フェーズは type の上限で書けない（全体計画の受け入れ条件 7）</li>
-      <li><strong>AI アセット実装（追加）は 0026 が判断</strong>: HK-T15 / SP-E 改名 / test-lib / skill.template / 識別子の出力 / SKILL.md は小さい実装。設計 → 実装計画 → 実装の連鎖で起こすか、実装計画チケットを直接起こすかを決める</li>
+      <li><strong>AI アセット設計を含める</strong>: この MR 行き 27 件のうち 20 件は <code>.claude/docs/**</code> だけの変更で、実装フェーズは type の上限で書けない（全体計画の受け入れ条件 7）。残り 7 件は docs に加えてアセット本体の変更を伴う</li>
+      <li><strong>AI アセット実装（追加）は 0026 が判断</strong>: HK-T15 / SP-E 改名 / test-lib / skill.template / 識別子の出力 / SKILL.md / 完了検査は小さい実装。設計 → 実装計画 → 実装の連鎖で起こす</li>
       <li>設計反映（<code>design-feedback-*</code>）は含めない（<code>docs/</code> の変更なし）。全体まとめは連鎖の末尾</li>
     </ul>
   </div>
-  <div class="box warn">
-    <p class="label">合意の形（承認④）</p>
-    <p>対応先の決定はメインエージェントが上表のとおり行い、PR #7 の <code>boundary:request feedback-plan:0022</code> で人間がいつでも覆せる。別 issue の起票はここでは行わず、別 issue 行き 16 件（2/3: 9、3/3: 5、小改善: 1、ルール 11 本: 1）は全体まとめの「別 issue 一覧」と issue #6 への通知本文に載せる。</p>
-  </div>
+  <p>作成したチケット: 0026 <code>ai-asset-design-plan</code>（先行 0022）。見直した未着手チケット: 0026 の <code>allow.ops</code> に <code>remote-read</code> を追加（0027）。</p>
 </section>
 
 <section id="verify" data-required>
   <h2>検証</h2>
   <ul>
-    <li>洗い出しの網羅: <code>fb-inputs.md</code> の <code>##</code> 見出し 23 + 0025 の直読 = <code>20_done/</code> 24 枚（0022 を除く）</li>
+    <li>洗い出しの網羅: <code>fb-inputs.md</code> の <code>##</code> 見出し 23 + 0025 の直読 = <code>20_done/</code> 24 枚（0022 を除く）。<code>###</code> 見出し 189 = 7 × 27（23 枚 + 完了済み 4 枚の末尾の空の複製 = G12）</li>
+    <li>件数: 各表の行を grep した実数（A 11 / B 9 / C 4 / D 6 / E 5 / F 1 / G 12 / H 6 = 54。この MR 27 + 別 issue 16 + 対応しない 11 = 54）</li>
     <li>候補の追跡性: 各行の「出どころ」がチケット番号 + 固定見出し、またはレポート名 + 節名</li>
     <li>分類の文言: 観点 4 語・類型 (a)〜(d)・2 軸の語は <code>10-task-feedback-plan</code> 仕様 3 と同一</li>
-    <li>後続チケット: <code>ticket.sh create ai-asset-design-plan</code> で作成し、<code>ticket.sh next</code> が 0022 完了後に 0026 を返す</li>
+    <li>後続チケット: <code>ticket.sh create ai-asset-design-plan</code> で作成し、<code>ticket.sh next</code> が 0027 完了後に 0026 を返す</li>
   </ul>
 </section>
 
@@ -185,12 +191,12 @@
   <table>
     <thead><tr><th>番号</th><th>種類</th><th>実行者</th><th>人間レビュー</th><th>敵対的レビュー</th><th>やってよいこと</th></tr></thead>
     <tbody>
-      <tr><td>0022（本チケット）</td><td><code>feedback-plan</code></td><td>main</td><td>要（承認④により opus 自己レビューで代替。切れ目の note で報告）</td><td>不要</td><td><code>wip/**</code>、read / remote-read</td></tr>
-      <tr><td>0026</td><td><code>ai-asset-design-plan</code></td><td>main</td><td>不要（全体計画の方針: 設計計画は結果報告で示し実施側でレビュー）</td><td>不要</td><td><code>wip/**</code>、read</td></tr>
+      <tr><td>0022（本チケット）</td><td><code>feedback-plan</code></td><td>main</td><td>要（承認④により opus 自己レビューで代替）</td><td>不要</td><td><code>wip/**</code>、read / remote-read</td></tr>
+      <tr><td>0027（追加）</td><td><code>feedback-plan</code></td><td>main</td><td>要（同上。切れ目の note に追記）</td><td>不要</td><td><code>wip/**</code>、read / remote-read</td></tr>
+      <tr><td>0026</td><td><code>ai-asset-design-plan</code></td><td>main（既定はサブエージェント opus。全体計画の方針: 提供コマンドが main に無い間はメインエージェントが一貫して実施）</td><td>不要（全体計画の方針: 設計計画は結果報告で示し実施側でレビュー）</td><td>不要</td><td><code>wip/**</code>、read / remote-read</td></tr>
     </tbody>
   </table>
   </div>
-  <p>見直した未着手チケット: なし（0022 の完了時点で未着手は 0026 のみ）。</p>
 </section>
 
 <section id="pending" data-required>
@@ -199,8 +205,8 @@
   <table>
     <thead><tr><th>項目</th><th>決める時期</th></tr></thead>
     <tbody>
-      <tr><td>別 issue 行き 16 件 + ルール 11 本の起票</td><td>全体まとめの「別 issue 起票」で本文案を提示し、人間が承認したときだけ起票（自律運用では報告のみ）</td></tr>
-      <tr><td>A8 / B3 / C1 / C2 / G2 / G11 の実装を本 issue で行うか</td><td>0026（AI アセット設計計画）</td></tr>
+      <tr><td>別 issue 行き 16 件の起票</td><td>全体まとめの「別 issue 起票」で本文案を提示し、人間が承認したときだけ起票（自律運用では報告のみ）</td></tr>
+      <tr><td>A8 / B3 / C1 / C2 / G2 / G11 / G12 の実装を本 issue で行うか</td><td>0026（AI アセット設計計画）</td></tr>
       <tr><td>HTML のブラウザ表示・eval 19 件の実行</td><td>人間が行う（本 issue の残課題として全体まとめに記載）</td></tr>
     </tbody>
   </table>

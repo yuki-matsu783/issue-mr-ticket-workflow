@@ -7,7 +7,7 @@ human_review: {required: false, reason: "全体計画の方針: 設計計画は�
 adversarial_review: {required: false, reason: "計画書 1 枚"}
 allow:
   write: ["wip/**"]
-  ops: ["read"]
+  ops: ["read", "remote-read"]
 started_at: ""
 completed_at: ""
 base_sha: ""

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の定義�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T07:34:48+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "20ca0bb"
 ---
 
 # 0014 フック共通仕様の横断決定（§1・§2・§3・§6・§8・§12 と登録表の行数の確定）

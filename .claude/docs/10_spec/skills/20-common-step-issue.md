@@ -82,7 +82,7 @@ glab の issue / mr 系サブコマンドは本文のファイル渡しフラグ
 ## OUT ひな形
 
 - `assets/issue.template.md`: 新規 issue の本文（種別 / 概要 / 詳細 / 受け入れ条件（後で DoD に落とせる粒度の箇条書き）/ スコープ外 / 優先度）
-- `assets/issue-addendum.template.md`: 追記セクション（区切り・日付・追記の経緯・追記内容）
+- `assets/issue-addendum.template.md`: 追記セクション（区切り・日付・追記の経緯・追記内容・受け入れ条件（追加分）。最後の小節は任意で、追記で増えた受け入れ条件を後で DoD に落とすためのもの。追加が無ければ削る）
 
 ## 参照ナレッジ
 

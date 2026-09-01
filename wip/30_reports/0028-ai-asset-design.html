@@ -120,7 +120,7 @@
   <h1 id="title" data-required>AI アセット設計 結果報告（チケット 0028〜0030）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 3</span>
+    <span class="chip good">◎良 4</span>
     <span class="chip warn">△注意 2</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -138,6 +138,7 @@
           <li><a href="#f3"><span class="mk good">◎</span> 3. 受け入れ条件との対応</a></li>
           <li><a href="#f4"><span class="mk good">◎</span> 4. 0029: 共通ステップ仕様 5 本と DDR 2 件</a></li>
           <li><a href="#f5"><span class="mk warn">△</span> 5. 0029: 決定と根拠（CP008 の新設・規約節の置き場）</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 0030: 要件 4 本の節順・ルール体系・仕様 4 本・プレースホルダ・用語辞書</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -161,7 +162,7 @@
 <section id="overview" data-required>
   <p class="lead">実装（0013〜0021・0025）が仕様と違う形で確定した振る舞い（逸脱 D-1〜D-34）と、実装レビューで欠陥とされた仕様の穴を、<b>実装を正として仕様に書き戻す</b>。中核（フック本体・<code>settings.json</code>）は変えない。実装を変える設計は 5 件だけ（<code>read</code> / <code>remote-read</code> / <code>provided</code> を常に可、識別子 CP007 / RV008 / TK008、完了検査の重複見出し、eval 接頭辞 SC-E、HK-T15）で、0031 の実装計画に渡す。このレポートは 0028 が作り、0029・0030 が節を追記する。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
     <li class="kpi warn"><b>2</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -180,6 +181,7 @@
       <ul>
         <li>DDR i0006-07（承認単位）・08（redact の除外）・09（read / remote-read / provided 常に可）・12（識別子の新設）の決定と却下した案（<a href="#f1">1</a>）</li>
         <li>0029: DDR i0006-10（提供コマンドの保証は HEAD の版で担保）・11（計画書の必須 6 節と固有節）、テストの書き方の規約 6 項目を shell-script 仕様の Script 処理のサブ節に置いたこと（<a href="#f4">4</a>・<a href="#f5">5</a>）</li>
+        <li>0030: <code>自己改善ワークフロー機構.md</code> の A〜J を「メインフロー」の小節（<code>####</code>）に降格したこと、ルール frontmatter のキー名（<code>category</code> / <code>applies_when</code>）を要件に書いたこと（<a href="#f6">6</a>）</li>
         <li>§12 に T7・T8 を「実機未確認」として置いたこと（<a href="#next">設計への反映</a>）</li>
       </ul>
     </div>
@@ -289,6 +291,26 @@
       </table>
       <p>受け入れ条件との対応（0029 分）: 条件 5 → CP-T03・CP-T06・CP-T08（新）、TICKET-T03・T05・T06・T10・T12（新）、RV-T02・RV-T06・RV-T07（新）、SS-T04・FR-T05・TR-T04 / 条件 6 → 「テストの書き方（規約）」と test-lib の関数 / 条件 4 → <code>skill.template.md</code> と AC-E04。</p>
     </li>
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">0030: 要件 4 本の節順・ルール体系・仕様 4 本・プレースホルダ・用語辞書 <span class="chip good">◎良</span> <span class="basis">根拠: 節の移動は行の集合の一致で内容不変を確認。プレースホルダは grep の一覧で 13 か所</span></h3>
+      <table>
+        <thead><tr><th>文書</th><th>主な変更</th><th>由来</th></tr></thead>
+        <tbody>
+          <tr><td><code>rules/design-docs.md</code> / <code>rules/ai-asset-design-docs.md</code>（要件）</td><td>「例外フロー」を「メインフロー」の直後へ（内容不変）</td><td>G4、F-23(a)</td></tr>
+          <tr><td><code>自己改善ワークフロー機構.md</code></td><td>A〜J を「### メインフロー」下の <code>####</code> に。「関連するドキュメント」節を削除</td><td>G4、F-23(a)</td></tr>
+          <tr><td><code>skills/10-task-overall-plan.md</code>（要件）</td><td>変更なし（規定文言 + 補足の後置は仕様が許容）</td><td>G4</td></tr>
+          <tr><td><code>rules/ルール体系.md</code>（要件）</td><td>frontmatter の <code>category</code> / <code>applies_when</code>、成果物ルール 8 本、<code>logger</code> の glob</td><td>A1、B1、D-1、D-28</td></tr>
+          <tr><td><code>20-common-step-spec.md</code></td><td>SP-E → SC-E</td><td>B3</td></tr>
+          <tr><td><code>20-common-step-requirement.md</code></td><td><code>type: requirement</code>、章名はテンプレートの文言、先頭 3 節の文言と補足・小節の許容</td><td>A7、D-20</td></tr>
+          <tr><td><code>20-common-step-issue.md</code></td><td>追記テンプレートの「受け入れ条件（追加分）」</td><td>A7、D-21</td></tr>
+          <tr><td><code>20-common-step-feature-mr.md</code></td><td>GitLab は <code>glab api</code> + ファイル渡し + <code>Draft: </code></td><td>G3、F-16</td></tr>
+          <tr><td>計画タスク仕様 6 本 + <code>10-task-ai-asset-implementation-exec.md</code></td><td>DoD の型の 山括弧の <code>&lt;名前&gt;</code> → 二重波括弧のテンプレート形式（13 か所）、完了前検査の形式。usage 表記（<code>&lt;番号&gt;</code> 等）は残す</td><td>B5</td></tr>
+          <tr><td><code>90_glossary/ワークフロー用語.md</code></td><td>「承認単位」を追加</td><td>横断整合</td></tr>
+        </tbody>
+      </table>
+      <p>決定: 要件の節順は文書を直す（緩めない）/ 機構要件は小節への降格（各見出しへの前置より読みやすい）/ overall-plan は違反ではない / frontmatter のキー名は <code>markdown-docs</code> ルールを待たず要件に書く / プレースホルダの統一は DoD の型だけ / 用語辞書に「承認単位」（「自己強制」は使っていないので追加しない）/ ticket 要件に見出し重複の条件は足さない（検査条件は仕様の範囲）。受け入れ条件: 条件 4 → SC-E01〜03・FM-E01・IS-E03・RQ-E01 / 条件 1 → ルール 8 + 7 本と frontmatter / 条件 7 → 節順・禁止節・SKILL.md との一致・用語辞書。</p>
+    </li>
   </ol>
 </section>
 
@@ -315,6 +337,8 @@
       <tr><td>（0029）スキップ記録は <code>HEAD</code> の版だけ</td><td>記録をコミットしないまま push すると項目 1 で止まる。記録 → <code>commit.sh</code> → <code>push.sh</code> の順が必須</td></tr>
       <tr><td>（0029）<code>complete</code> の見出し重複検査</td><td>テンプレートの見出しを残したまま追記したチケットは完了できない（止まる）。既存の完了済み 4 枚は遡って直さない</td></tr>
       <tr><td>（0029）<code>create</code> の種類不正は TK008・終了 2</td><td>種類名を誤ると止まる。<code>task-types.tsv</code> の名前が正</td></tr>
+      <tr><td>（0030）要件の節順・禁止節</td><td>直接の帰結は無い。将来の設計文書検査が入ったとき 3 本は通る</td></tr>
+      <tr><td>（0030）feature-mr の GitLab 作成コマンド</td><td><code>glab api</code> は対話しない。<code>Draft: </code> 接頭辞が無いと draft にならず全体まとめの解除が空振りするため仕様に固定</td></tr>
     </tbody>
   </table>
 </section>
@@ -327,6 +351,9 @@
     <li>仕様 §8 に DDR 番号を書いてしまい、DoD「仕様から DDR を参照しない」に照らして削った</li>
     <li>（0029）計画 0026 の CP007 は 2 原因を 1 番号に寄せていた。CP008 を足し、0028 で確定した台帳を 1 行改めた（後続が先行の台帳を直す形）</li>
     <li>（0029）テストの書き方の規約は「テスト観点」の中ではなく Script 処理のサブ節にした</li>
+    <li>（0030）F-23(a) の 3 本のうち <code>10-task-overall-plan.md</code> は違反ではなかった。直したのは 2 本 + 機構要件の見出し構造</li>
+    <li>（0030）B5 のプレースホルダは計画タスク仕様の DoD の型に集中していた（6 文書 13 か所）</li>
+    <li>（0030）issue #6 の受け入れ条件 1「ルール 14 本」と要件の 15 本（成果物 8 + 行動 7）が食い違う。要件は 15 本のまま、全体まとめで issue に注記</li>
   </ul>
 </section>
 
@@ -337,7 +364,8 @@
     <li>2/3 へ: §12 T7・T8 の実機確認</li>
     <li><code>workflow-guard.md</code> の WF204 / WF206 の対象から <code>read</code> / <code>remote-read</code> / <code>provided</code> が外れている文言は 0030 の横断整合で見る（0028 は §8 と WF202 の文言だけ直した）</li>
     <li>（0029）0031 の実装計画へ: 実装 7 件に CP008・CP-T08 / TICKET-T12 / RV-T07 のテスト・push.sh の手順 0 の識別子付け替え・AC-E04 の eval 定義を加える（計 8 件 + テスト）</li>
-    <li>（0029）<code>20-common-step-ticket</code> の要件書に見出し重複の受け入れ条件を足すかは 0030 で判断</li>
+    <li>（0029）<code>20-common-step-ticket</code> の要件書に見出し重複の受け入れ条件を足すかは 0030 で判断 → 足さない</li>
+    <li>（0030）全体まとめへ: issue #6 の受け入れ条件 1「ルール 14 本」は要件の 15 本が正と issue コメントで注記する</li>
   </ul>
 </section>
 

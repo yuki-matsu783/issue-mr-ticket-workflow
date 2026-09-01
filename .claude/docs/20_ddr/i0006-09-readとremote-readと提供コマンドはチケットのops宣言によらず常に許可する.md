@@ -33,5 +33,5 @@ keywords: [allow.ops, read, remote-read, provided, 提供コマンド, 宣言漏
 ## 影響
 
 - `10_spec/フック共通仕様.md` §8（宣言 `d` の説明）と §11 HK-T15
-- `10_spec/hooks/12-PreToolUse/workflow-guard.md`（WF203 の対象から read / remote-read / provided が外れる）
+- `10_spec/hooks/20-PreToolUse/workflow-guard.md` 制御方式 6（提供コマンド・読み取り系・`remote-read` を無条件に許可する分岐がこの決定の実現箇所。ops 未宣言の拒否は WF204 / WF206 で、これらの分類はその対象にならない）
 - `10_spec/skills/20-common-step-ticket.md`（`--allow-ops` の説明。0029 で反映）

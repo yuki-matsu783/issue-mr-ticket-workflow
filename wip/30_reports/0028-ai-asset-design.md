@@ -11,11 +11,12 @@ tags: [report, ai-asset-design, issue-6]
 - PR: #7 https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/7
 - 対象チケット: 0028（フック共通仕様・post-push 2 仕様・DDR 07/08/09/12）、0029（共通ステップ仕様 5 本・DDR 10/11）、0030（requirement / issue / feature-mr / spec・ルール体系・要件 4 本の節順・横断整合）
 - 計画: `wip/20_plans/0026-ai-asset-design-plan.md`
-- 入力: `wip/20_plans/0022-feedback-plan.md`（候補 A〜H）、`wip/30_reports/0013-ai-asset-implementation.md`（逸脱 D-1〜D-34）、`wip/tmp/review-impl-findings.md`（F-1〜F-23）
+- 入力: `wip/20_plans/0022-feedback-plan.md`（候補 A〜H）、`wip/30_reports/0013-ai-asset-implementation.md`（逸脱 D-1〜D-34）、`wip/tmp/review-impl-findings.md`（F-1〜F-25）
+- 切れ目の敵対的レビュー: `wip/tmp/review-design2-findings.md`（G-1〜G-21。確度 0.5 以上 15 件を 0032 で反映）
 
 ## 要約
 
-実装（0013〜0021・0025）が仕様と違う形で確定した振る舞い（逸脱 D-1〜D-34）と、実装レビューで欠陥とされた仕様の穴を、実装を正として仕様に書き戻す。中核（フック本体・`settings.json`）は変えない。実装を変える設計は 5 件だけ（`read` / `remote-read` / `provided` を常に可、識別子 CP007 / RV008 / TK008、完了検査の重複見出し、eval 接頭辞 SC-E、HK-T15）で、それらは 0031 の実装計画に渡す。
+実装（0013〜0021・0025）が仕様と違う形で確定した振る舞い（逸脱 D-1〜D-34）と、実装レビューで欠陥とされた仕様の穴を、実装を正として仕様に書き戻す。中核（フック本体・`settings.json`）は変えない。仕様側だけを直したもの（`read` / `remote-read` / `provided` を常に可 — 実装は既にそうなっている）を除き、実装を変える設計は 9 件（識別子 CP007 / CP008 / RV008 / TK008 の付け替え、`ticket.sh complete` の重複見出し検査、`ticket.sh create` の YAML エスケープ、eval 接頭辞 SC-E、HK-T15 の付番、`hook_payload --session`、`skill.template.md` の冒頭段落、shell-script SKILL.md の `make_counting_path`、各 SKILL.md のエラー表）で、0031 の実装計画に渡す。
 
 このレポートは 0028 が作り、0029・0030 が節を追記する。
 
@@ -74,6 +75,22 @@ tags: [report, ai-asset-design, issue-6]
 | `10_spec/skills/10-task-{ai-asset-implementation,design-feedback,implementation,investigation,ai-asset-design,design}-plan.md` | DoD の型のプレースホルダ `<名前>` → `{{名前}}`（6 文書 13 か所） | B5 |
 | `10_spec/skills/10-task-ai-asset-implementation-exec.md` | 完了前の検査のプレースホルダ形式を `{{名前}}`（テンプレート由来）に | B5 |
 | `90_glossary/ワークフロー用語.md` | 「承認単位」を追加（0028 の §8・DDR i0006-07 で使う語） | 横断整合 |
+
+### 0032（切れ目の敵対的レビュー G-1〜G-21 の反映）
+
+| 文書 | 主な変更 | 由来 |
+|---|---|---|
+| `10_spec/フック共通仕様.md` §7-3 / §7-5 | 語彙表を実装の集合に合わせる（透過ラッパーに `doas` `ionice` `setsid` `stdbuf` `timeout`、不透明な実行系を無条件 6 語 + `find -exec` 系と、コード文字列オプション付きのときだけの 14 語に分ける） | G-8 |
+| 同 §7-9 | `CP_ARGS` / `CP_WRITE_TARGETS` の区切りバイトを 0x1E（RS）に | G-1 |
+| 同 §8 | `read` の一覧を `_SC_READ_ONLY_CMDS` / `_SC_GIT_READ_SUBCMDS` の名前で参照し `command -v` を落とす、`build-test` / `hook-test` の実行体に `sh` を含める、入れ子のテスト置き場の案内、`hook-test` 先行判定と workflow-guard 制御方式 6 の関係 | G-9、G-16、G-18、G-19 |
+| `10_spec/skills/20-common-step-report-view.md` | 導出元テンプレート不明は RV006・終了 1、RV008 は引数・ファイル不正（`.html` 以外を含む）だけ。RV-T07 も同じ | G-2 |
+| `10_spec/skills/20-common-step-shell-script.md` | `fm_get`: フロー配列・インラインマップは生の文字列、ブロックマッピングは戻り値 1 | G-5 |
+| `10_spec/skills/20-common-step-ticket.md` | 現在地の判定語を実装どおり（行頭 `- 次` / `- 未着手`、節内の `未着手`）、TK008 に `commit.sh` 不在、テスト観点表の行順 | G-6、G-14、G-20 |
+| `10_spec/skills/20-common-step-commit-push.md` | CP001 の終了 2、CP003 の 2 条件 | G-15、G-10 |
+| `20_ddr/i0006-07` / `09` / `12` | 影響のパス `20-PreToolUse`、i0006-09 の影響（WF203 ではなく制御方式 6 の無条件許可が根拠）、i0006-12 の背景の識別子名 | G-3、G-4、G-17 |
+| このレポート | 要約（実装を変える件数と内訳。`create` の YAML エスケープを追加）、入力範囲 F-25、残課題 | G-7、G-11、G-12、G-13、G-21 |
+
+0.5 未満で反映しなかったもの: G-18（`build-test` の但し書きの書き方 — §8 に入れ子置き場の案内を 1 文足すに留めた）、G-19（workflow-guard 制御方式 6 との順序 — §8 に注記）、G-21（frontmatter キー名の正の置き場 — 残課題へ）。
 
 プレースホルダ表記の一覧（B5、`grep -nE '<[^>]{1,20}>' 10_spec/skills/10-task-*.md`）: DoD の型に使う `<アセット>` `<節>` `<ID>` `<対象>` `<コマンド>` `<行>` `<問い>` `<X>` の 13 か所を `{{名前}}` に置換。コマンドの usage 表記（`ticket.sh start <番号>`、`git diff --stat <基準点>`、`<連番>-<種類>.md`、`glab api ... @<ファイル>`、`https://<ホスト>/...`）はテンプレートのプレースホルダではなくシェルの慣習表記なので残す（機械的に置換すると usage の意味が変わる）。
 
@@ -165,7 +182,9 @@ tags: [report, ai-asset-design, issue-6]
 - （0029）テストの書き方の規約は「テスト観点」の中ではなく Script 処理のサブ節にした
 - （0030）F-23(a) が「正史 3 本が節順に違反」としたうち `10-task-overall-plan.md` は違反ではなかった（補足の後置は仕様が許容）。直したのは 2 本 + 機構要件の見出し構造
 - （0030）B5 のプレースホルダは「exec 仕様」ではなく計画タスク仕様の DoD の型に集中していた（6 文書 13 か所）。exec 側は完了前の検査の 1 か所
-- （0030）issue #6 の受け入れ条件 1 は「ルール 14 本」だが、`ルール体系.md` の表は成果物 8 + 行動 7 = 15 本。本数の食い違いは issue 側（起票時の数え）で、要件は 15 本のまま。全体まとめで issue に注記する（`20-common-step-spec` の固定節構成と両立）
+- （0030）issue #6 の受け入れ条件 1 は「ルール 14 本」だが、`ルール体系.md` の表は成果物 8 + 行動 7 = 15 本。本数の食い違いは issue 側（起票時の数え）で、要件は 15 本のまま。全体まとめで issue に注記する
+- （0032）敵対的レビューで、実装から写したはずの記述に誤りが 5 件あった（区切りバイト 0x1F、`fm_get` のマップキー、`次:` のコロン、語彙表の欠落、RV008 の範囲）。いずれも実装のコードではなくテストや記憶から書いた箇所。「実装を正として写す」ときは該当行を開いて写す
+- （0032）`create` の YAML エスケープは仕様に書いた時点で実装を変える件と気づくべきだった（`sed_escape` は `set_field` と `cancel` だけ）。0031 送りの一覧に追加（`20-common-step-spec` の固定節構成と両立）
 
 ## 残課題
 
@@ -176,3 +195,5 @@ tags: [report, ai-asset-design, issue-6]
 - （0029）`20-common-step-ticket` の要件書に見出し重複の受け入れ条件を足すかは 0030 で判断 → 足さない（0030 の決定と根拠）
 - （0030）`.claude/rules/ai-asset-design-docs.md`（ルール本体）と要件の文言は一致している。ルール `work-defaults` の前文（F-23(b)）は 0025 で反映済み
 - （0030）全体まとめへ: issue #6 の受け入れ条件 1「ルール 14 本」は要件の 15 本と食い違う。issue コメントで「要件の 15 本が正。ルール本文の作成は 3/3」と注記する
+- （0032）0031 へ追加: `ticket.sh create` の理由・glob の YAML エスケープ（G-7）。実装を変える案として判断を渡すもの: `ticket.sh` の現在地判定からコロン無しの `次` を外すか（G-6。仕様は実装どおりに書いた）、`scope.sh` の git 分岐で「サブコマンドが空なら read」にして `command -v git` を通すか（G-9。仕様は `command -v` を読み取りから外した）
+- （0032）3/3 へ: `bash-script` ルールを作るとき、shell-script 仕様「テストの書き方（規約）」と重なる項目（負のコントロール・抽出 0 件の疑い・秘密情報）はルール側を正にして仕様は参照に変える（`ルール体系.md` の重複禁止。G-13）。`markdown-docs` ルールと読み手の仕様ができたら、frontmatter キー名（`category` / `applies_when`）の正を `ルール体系.md` からそちらへ移すか決める（G-21）

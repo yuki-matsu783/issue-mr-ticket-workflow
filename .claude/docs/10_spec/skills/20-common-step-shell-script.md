@@ -108,7 +108,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | 関数 | 入出力 |
 |------|--------|
 | `fm_extract <file>` | frontmatter 本文を `FM_BLOCK` に格納（CR 除去済み）。frontmatter が無ければ空で戻り値 1 |
-| `fm_get <file> <key>` | スカラー値を標準出力に返す。`key` は `ticket_type` のようなトップレベルか、`human_review.required` / `allow.write` のようなドット区切り（入れ子マッピング・インラインマップの両方を同じキーで引く）。クォートは外す。無ければ空で戻り値 1。マッピングやフロー配列のキー（`allow` / `predecessors`）を指定したときは生の文字列（`["a", "b"]` 等）を返す（呼び手が形を確かめる用途。エラーにしない） |
+| `fm_get <file> <key>` | スカラー値を標準出力に返す。`key` は `ticket_type` のようなトップレベルか、`human_review.required` / `allow.write` のようなドット区切り（入れ子マッピング・インラインマップの両方を同じキーで引く）。クォートは外す。無ければ空で戻り値 1。フロー配列（`predecessors`）とインラインマップ（`human_review`）のキーを指定したときは生の文字列（`["a", "b"]` / `{required: true, ...}`）を返す（呼び手が形を確かめる用途）。ブロックマッピングのキー（`allow`）は値を持たないので空で戻り値 1 |
 | `fm_list <file> <key>` | フロー配列の要素を 1 行 1 要素で返す（クォート除去）。無ければ空で戻り値 1 |
 | `fm_has <file> <key>` | 存在すれば 0 |
 

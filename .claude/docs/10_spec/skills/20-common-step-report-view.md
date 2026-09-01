@@ -76,7 +76,7 @@ bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_repo
 
 ### check-html.sh <file.html>
 
-検査は**全項目を実行して**未充足を全件列挙する。終了コードは成功 0 / 検査不合格 1 / 引数・ファイル不正 2（RV008。引数が 1 つでない・ファイルが無い・読めない・導出元テンプレートが無い。最終行は `RV008:`）。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
+検査は**全項目を実行して**未充足を全件列挙する。終了コードは成功 0 / 検査不合格 1 / 引数・ファイル不正 2（RV008。引数が 1 つでない・ファイルが無い・読めない・`.html` でない。検査に入る前に判定し、最終行は `RV008:`）。導出元テンプレートを特定できない（`data-template` が無く置き場からも推定できない、またはテンプレートファイルが無い）ときは検査 6 の不合格 RV006（終了 1）として他の項目と一緒に列挙する。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
 | # | 検査 | 不合格の識別子 |
 |---|------|---------------|
@@ -103,7 +103,7 @@ bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_repo
 | RV-T04 | 異常系 | 空に近い HTML（id/リンク 0 件）が RV007（出力なし＝合格にしない） |
 | RV-T05 | 境界 | ページ内アンカー・`data:` URI・`<a href>` の外部リンクは外部リソースと数えない |
 | RV-T06 | 境界 | `data-required` が `<section>` 以外（サイドバーの `dl`・`h1`）に付いていても検査 6 が拾い、削られていれば RV006。`data-template` の値で導出元が変わり、属性が無ければ置き場で推定する |
-| RV-T07 | 異常系 | 引数なし・存在しないファイル・導出元テンプレート不在が RV008・終了 2（最終行は `RV008:`） |
+| RV-T07 | 異常系 | 引数なし・存在しないファイル・`.html` 以外が RV008・終了 2（最終行は `RV008:`）。導出元テンプレートを特定できない HTML は RV006・終了 1 |
 
 ## 要件との対応
 

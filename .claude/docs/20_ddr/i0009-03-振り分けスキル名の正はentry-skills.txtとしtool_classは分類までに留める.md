@@ -14,7 +14,7 @@ keywords: [tool_class, entry-skills.txt, 00-workflow-, 二重定義, declare, WE
 
 ## 決定
 
-- **振り分けスキル名の正は `assets/entry-skills.txt`** とし、名前の照合は `workflow-entry` が行う
+- **振り分けスキル名の正は `.claude/hooks/config/entry-skills.txt`** とし、名前の照合は `workflow-entry` が行う
 - `tool_class` は「ツールの種類の分類」に徹する。`Skill` に対する戻り値の意味は「宣言の候補になり得るツール」であり、スキル名の照合の根拠には使わない
 - この役割分担を `workflow-entry` 仕様の呼出条件に明記する。`hook-common` 側の記述（`20-common-step-shell-script` 仕様）の更新は 0015 が行う
 
@@ -34,4 +34,4 @@ keywords: [tool_class, entry-skills.txt, 00-workflow-, 二重定義, declare, WE
 
 - `10_spec/hooks/10-UserPromptSubmit/workflow-entry.md` 呼出条件（`Skill` の行）
 - `10_spec/skills/20-common-step-shell-script.md`（`tool_class` の責務。0015 が書く）
-- `assets/entry-skills.txt` の基準ディレクトリは 0014（フック共通仕様 §1）で確定するまで暫定
+- `entry-skills.txt` の基準ディレクトリは 0014（フック共通仕様 §1）で `.claude/hooks/config/` に確定した（DDR i0009-10）。この DDR の決定（名前の正を外部ファイルに置く）自体は置き場に依存しない

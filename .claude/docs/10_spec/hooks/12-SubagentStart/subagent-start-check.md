@@ -25,7 +25,7 @@ keywords: [SubagentStart, 実行者, executor, model, 不一致, 通知, 注入,
 
 - **SubagentStart（全サブエージェント）**: 対象チケットの要点の注入（WF802）。`adversarial-reviewer` の起動でも働くが、注入する内容は同じ（レビュー対象の範囲を知る材料になる）
 - **PreToolUse、matcher `Agent`**: 実行者の不一致（WF801）の検知。同じスクリプトを 2 つのイベントに登録し、イベント名（`hook_event_name`）で処理を分ける。`SubagentStart` の入力に `model` は来ない（公式は「`model` を受け取れるのは `SessionStart` だけ」と明記）ため、比較の材料が取れるのは `Agent` ツールの `tool_input.model` を読める PreToolUse だけ（DDR i0009-06）
-- この 2 行目の登録により、フック共通仕様 §1 の登録表は **16 行 → 17 行**になる（確定は 0014）
+- この 2 行目の登録により、フック共通仕様 §1 の登録表は **17 行**になった（PreToolUse の 7 行目。0014 で確定）
 
 ## 入出力
 
@@ -37,7 +37,7 @@ keywords: [SubagentStart, 実行者, executor, model, 不一致, 通知, 注入,
 1. 停止中 → `disabled` を記録して何もしない
 2. 対象チケットを決める。無ければ何もしない
 3. frontmatter が読めない・`executor` が解釈できない → 何もしない
-4. **不一致（PreToolUse `Agent` のときだけ）**: `executor` が `main` 以外で、`tool_input.model` が特定でき、正規化（`claude-sonnet-4-5-...` → `sonnet` のように族名で比較。対応表は `assets/model-aliases.txt`。基準ディレクトリは 0014 が確定するまで暫定）した値が異なる → **WF801** を additionalContext に書き、`decisions.jsonl` に `notify` で記録（`note` にチケット・実行者・起動モデル）。**起動は止めない**（通知であり `permissionDecision` は出さない）
+4. **不一致（PreToolUse `Agent` のときだけ）**: `executor` が `main` 以外で、`tool_input.model` が特定でき、正規化（`claude-sonnet-4-5-...` → `sonnet` のように族名で比較。対応表は `.claude/hooks/config/model-aliases.txt`。フックが読む外部データの置き場はフック共通仕様 §1）した値が異なる → **WF801** を additionalContext に書き、`decisions.jsonl` に `notify` で記録（`note` にチケット・実行者・起動モデル）。**起動は止めない**（通知であり `permissionDecision` は出さない）
    - **限界**: `Agent` ツールの `model` は任意引数で、省略時は「エージェント定義のモデル」が使われる。省略された起動では `tool_input.model` が空になり**比較そのものができない**（何も出さない）。この限界は経路（PreToolUse / SubagentStart / PostToolUse）を変えても解消しない
    - SubagentStart のときは不一致の判定を行わない（`model` が来ないため）
 5. **注入（SubagentStart のときだけ）**: `WF802` として、チケット名（`<連番>-<種類>`）/ タスクの種類 / やってよいこと（`allow.write` と `allow.ops` をそのまま）/ DoD（`- [ ]` 行だけ。根拠欄は除く）を注入する。合計 4 KB を超える DoD は件数と先頭 10 件にする

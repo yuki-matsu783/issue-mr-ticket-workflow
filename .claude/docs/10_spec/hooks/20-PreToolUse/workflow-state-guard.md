@@ -23,7 +23,7 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 
 ## 呼出条件（イベント・matcher・登録）
 
-- PreToolUse、matcher: 書き込み / 実行 / **`mcp__.*`**（共通仕様 §1 の登録表の 3 行。entry の直後、block-* の前）。`mcp__.*` は MCP 経由の draft 解除（`draft:false`）と置き場宛の書き込みを捕まえるために要る
+- PreToolUse、matcher: 書き込み / 実行 / **`mcp__.*`**（共通仕様 §1 の登録表 PreToolUse の 3 行目。entry の直後、block-* の前）。`mcp__.*` は MCP 経由の draft 解除（`draft:false`）と置き場宛の書き込みを捕まえるために要る
 - 作業中チケットの有無・レビュー状態を問わず判定する
 
 ## 入出力

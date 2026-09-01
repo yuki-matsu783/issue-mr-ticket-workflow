@@ -7,7 +7,7 @@ human_review: {required: true, reason: "中核（提供コマンド・lib）を�
 adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/skills/20-common-step-report-view/**", "wip/**"]
-  ops: ["read", "build-test"]
+  ops: ["read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""
@@ -26,9 +26,10 @@ HTML テンプレート 2 本と `check-html.sh` を仕様どおりに作り、�
 - [ ] `scripts/check-html.sh` が RV001〜007 を全項目実行して列挙し、RV006 の必須節一覧をテンプレートから導出し、RV002 が `<a href>`・`#` アンカー・`data:` を除外する（H4・H5）（根拠: ）
 - [ ] RV-T01〜06 が通る（根拠: ）
 - [ ] 0003 のレポートと 0011 の計画書を試し埋めした HTML が `check-html.sh` で `OK:` になる（境目 C の確認。ファイルは 0021 で正式に作るため `wip/tmp/` に置く）（根拠: ）
-- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`）と frontmatter の検査が 0 件（根拠: ）
+- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`。テンプレート `assets/*.template.*` は対象外）と frontmatter の検査が 0 件（根拠: ）
 - [ ] 参照更新一覧の検索語で新規アセットに旧名が持ち込まれていない（0 件）（根拠: ）
 - [ ] `git diff --stat <base_sha>` が許可範囲内（根拠: ）
+- [ ] 実装結果レポート `wip/30_reports/0013-ai-asset-implementation.md` に担当ステップの節（作成・更新したアセットと仕様の節・テスト結果・検査結果・逸脱）を追記した（根拠: ）
 
 ## 作業内容
 

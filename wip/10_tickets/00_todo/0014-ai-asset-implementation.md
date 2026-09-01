@@ -7,7 +7,7 @@ human_review: {required: true, reason: "中核（提供コマンド・lib）を�
 adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/skills/20-common-step-shell-script/**", ".claude/hooks/tests/**", "wip/**"]
-  ops: ["read", "build-test"]
+  ops: ["read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""
@@ -28,13 +28,14 @@ base_sha: ""
 - [ ] `scripts/run-tests.sh` が仕様「run-tests.sh」の 5 手順・TR001〜006 を実装し、TR-T01〜05 が通る（根拠: ）
 - [ ] `.claude/hooks/tests/test_config_integrity.sh` で HK-T02（tsv × json × work-defaults の type 集合・件数）が通る（根拠: ）
 - [ ] すべての sh が `bash -n` を通り、logger を通したログが `logs/sh/` に書かれ stdout に混ざらない（受け入れ条件 6）（根拠: ）
-- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`）と frontmatter の検査が 0 件（根拠: ）
+- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`。テンプレート `assets/*.template.*` は対象外）と frontmatter の検査が 0 件（根拠: ）
 - [ ] 参照更新一覧の検索語で新規アセットに旧名が持ち込まれていない（0 件）（根拠: ）
 - [ ] `git diff --stat <base_sha>` が許可範囲内（根拠: ）
+- [ ] 実装結果レポート `wip/30_reports/0013-ai-asset-implementation.md` に担当ステップの節（作成・更新したアセットと仕様の節・テスト結果・検査結果・逸脱）を追記した（根拠: ）
 
 ## 作業内容
 
-- 順: test-lib → logger → 雛形 2 本 → frontmatter → run-tests → HK-T02。各 sh はテスト先行（失敗確認 → 実装 → 成功）
+- 順: 雛形 2 本（`script.template.sh` / `test.template.sh`）→ test-lib → logger → frontmatter → run-tests → HK-T02。以降の sh は雛形からコピーする。各 sh はテスト先行（失敗確認 → 実装 → 成功）
 - run-tests.sh 完成後は `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids` で全件を回し、ID 一覧を仕様の表と突合して作業ログに残す
 - Windows 対策（H6）は test-lib と logger に集約する
 

@@ -24,14 +24,15 @@ base_sha: ""
 - [ ] `.gitattributes` が `*.sh` `*.tsv` `*.json` `*.html` に `text eol=lf` を宣言し、追加後の `git status` に既存ファイルの再正規化が出ない（根拠: ）
 - [ ] `.claude/hooks/config/task-types.tsv` が `00-workflow-issue-mr-driven` 仕様 OUT ひな形の 6 列・対応表の 15 行と一致している（根拠: ）
 - [ ] `.claude/hooks/config/scope-limits.json` がフック共通仕様 §8 の構造（`common` 5 キー・`types` 15 種すべてに `ops`・`commands`）と初期値表のとおりで、`jq .` を通る（根拠: ）
-- [ ] `.claude/rules/work-defaults.md` が要件 `rules/work-defaults.md` の必須項目（15 種 × 既定の実行者・人間レビュー・敵対的レビュー・理由・調整条件）を持ち、行動ルールとして frontmatter に効くタイミングを宣言している（根拠: ）
-- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`）と frontmatter の検査が 0 件（根拠: ）
+- [ ] `.claude/rules/work-defaults.md` が要件 `rules/work-defaults.md` の必須項目（15 種 × 既定の実行者・人間レビュー・敵対的レビュー・理由・調整条件。1 type 1 行）を持ち、行動ルールとして frontmatter に効くタイミングを宣言している（根拠: ）
+- [ ] 実装結果レポート `wip/30_reports/0013-ai-asset-implementation.md` を exec 仕様 OUT ひな形の節で作成し、S1 の節を書いた（HTML は境目 C 以降、0021 で遡及）（根拠: ）
+- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`。テンプレート `assets/*.template.*` は対象外）と frontmatter の検査が 0 件（根拠: ）
 - [ ] 参照更新一覧の検索語で新規アセットに旧名が持ち込まれていない（0 件）（根拠: ）
 - [ ] `git diff --stat <base_sha>` が許可範囲内（根拠: ）
 
 ## 作業内容
 
-- 計画書 S1-1〜S1-3。`.gitattributes` → 設定 2 本 → `work-defaults.md` の順
+- 計画書 S1。`.gitattributes` → 設定 2 本（`commands.build-test` は空配列）→ `work-defaults.md`（15 行）→ 実装結果レポートの作成 の順
 - `work-defaults.md` の初期値は計画書の案。タスク種の文言は対応表と同じ
 - HK-T02 の機械テストは 0014（test-lib 完成後）。ここでは `jq` と目視で 3 データの type 集合が一致することを確認して作業ログに残す
 

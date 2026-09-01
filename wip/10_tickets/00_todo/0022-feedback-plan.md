@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: feedback-plan
-predecessors: ["0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "0021"]
+predecessors: ["0013", "0014", "0015", "0016", "0017", "0018", "0019", "0020", "0021", "0023", "0024"]
 executor: main
 human_review: {required: true, reason: "後続フェーズの要否は人間の判断（承認④により opus 自己レビューで代替）"}
 adversarial_review: {required: false, reason: "計画書"}

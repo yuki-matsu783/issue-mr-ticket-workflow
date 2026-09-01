@@ -7,7 +7,7 @@ human_review: {required: true, reason: "中核（提供コマンド・lib）を�
 adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/skills/20-common-step-commit-push/**", "wip/**"]
-  ops: ["read", "build-test"]
+  ops: ["read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""
@@ -25,15 +25,16 @@ base_sha: ""
 - [ ] `scripts/commit.sh` が仕様「commit.sh」の 1〜6（メッセージ規約 CP002・対象指定 CP001・除外 CP003・差分なし CP004・フック失敗時の出力・SHA と一覧の出力）を実装し、CP-T01〜04 が通る（根拠: ）
 - [ ] `scripts/push.sh` が仕様「push.sh」の 1〜4（4 項目の全件検査 CP005・`wip/push-check-skip.md` による項目 1〜3 のスキップと項目 4 の非スキップ・`--set-upstream`・CP006・push 範囲の出力）を実装し、CP-T05〜07 が通る。項目 3 は `*-appendix-*.md` を対の対象外にする（根拠: ）
 - [ ] `wip/push-check-skip.md` に項目 3 のスキップ理由（`check-html.sh` 未完成。0021 で遡及作成）が書かれコミットされている（根拠: ）
-- [ ] このチケットの完了コミットが `commit.sh` で行われ、最終行 `OK:` を作業ログに残している（境目 A の確認）（根拠: ）
-- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`）と frontmatter の検査が 0 件（根拠: ）
+- [ ] 完了直前の成果物のコミットを `commit.sh` で行い、最終行 `OK:` と SHA を作業ログに残した（境目 A の確認。以降のコミットは `commit.sh`、push は `push.sh`）（根拠: ）
+- [ ] プレースホルダ（`{{ }}`・`TODO`・`TBD`。テンプレート `assets/*.template.*` は対象外）と frontmatter の検査が 0 件（根拠: ）
 - [ ] 参照更新一覧の検索語で新規アセットに旧名が持ち込まれていない（0 件）（根拠: ）
 - [ ] `git diff --stat <base_sha>` が許可範囲内（根拠: ）
+- [ ] 実装結果レポート `wip/30_reports/0013-ai-asset-implementation.md` に担当ステップの節（作成・更新したアセットと仕様の節・テスト結果・検査結果・逸脱）を追記した（根拠: ）
 
 ## 作業内容
 
 - 順: exclude-patterns → commit.sh → push.sh。テストは一時リポジトリ + bare リモートで実物の git を使う
-- 完了前に `wip/push-check-skip.md` を作り、完了コミットを `commit.sh` で行う。止まったら計画書「ロックアウト対策」境目 A の手順
+- 完了前に `wip/push-check-skip.md` を作り、成果物のコミットを `commit.sh` で行う。止まったら計画書「ロックアウト対策」境目 A の手順（報告して停止。`git commit` に戻さない）
 
 ## 作業ログ
 

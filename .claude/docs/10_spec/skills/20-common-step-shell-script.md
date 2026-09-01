@@ -56,7 +56,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 2. `assets/script.template.sh` を置き場所へコピーし、雛形の `{{名前}}` を埋める（雛形は shebang・`set -euo pipefail`・logger の読み込み行・引数解析の骨格・`OK:` / `<ID>:` の結果出力の型・終了コードの規約を含む）。フックのスクリプトも同じ雛形から作る（結果出力の型は使わず、フック共通仕様の制御方式に従う）
 3. bash 規約（`rules/` bash-script）と logger ルールに従って実装する。ログはレベルの使い分けに従う
 4. `assets/test.template.sh` からテストを作り、仕様書のテスト ID ごとにケースを書く（正常系・境界・異常系。`test-lib.sh` の assert の第 1 引数にテスト ID を渡し、出力は `PASS <ID>` / `FAIL <ID>: <理由>` の 1 行 1 ケース）。実行して結果を作業ログに残す。既存テストは `run-tests.sh` で回帰させる
-5. 検査: `bash -n` による構文検査、`shellcheck` が導入されていれば静的検査。結果を作業ログに残す（shellcheck 不在なら省略の事実を記録）
+5. 検査: `bash -n` による構文検査、`shellcheck` が導入されていれば静的検査。結果を作業ログに残す（shellcheck 不在なら省略の事実を記録）。**`shellcheck` は CI で回さず、`run-tests.sh` にも組み込まない**（テストランナーは振る舞いを見るもので、静的検査は別軸。CI 設定の変更はリポジトリ設定の変更に当たりこの機構のスコープ外 — DDR i0009-19）。記録は省略できない（「実行した / 不在で省略した」のどちらかを必ず作業ログに書く）
 6. 既存 sh の変更では 2 を行わず、既存構成に合わせて差分を小さくする
 
 ## OUT ひな形
@@ -91,9 +91,31 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | 提供コマンド | `frontmatter` | `fatal` | 環境の誤りとして最終行 `FATAL: <理由>` を出し終了コード 2（判定に使う値が読めないまま続行しない）。共有の 1 行は呼び手の識別子を知らないので `<接頭辞><番号>:` の形は取らない |
 | フック（拒否側） | `frontmatter` | `deny` | フック共通仕様 §3「判定できなければ拒否側に倒す」に従い `WFx09` の deny JSON を出して終了 0。識別子は呼び手が読み込み行より前に `HOOK_DENY_ID` で設定する（未設定なら `WF009`。番号はフックごとの仕様が決める） |
 | フック（案内側） | `frontmatter` | `nop` | 何も出さずに通す（§3 の案内側の原則） |
+| 共有ライブラリ（`.claude/hooks/lib/scope.sh`） | `frontmatter` | `nop` | **`scope.sh` 自身は何も出力しない**。失敗をどう扱うかは呼び手のフックが決める（拒否側は自分で deny に倒し、案内側は通す）。ライブラリが一律のポリシーを持つと、同じ `scope.sh` を使う拒否側と案内側のどちらかで §3 の原則に反する（フック共通仕様 §12 T8・DDR i0009-14） |
 | テスト | `test-lib` | `fatal` | テスト自身が理由を出して非 0 で終了 |
 
+`nop` で `frontmatter` を読めなかったときは、`fm_extract` / `fm_get` / `fm_list` / `fm_has` を**出力なし・戻り値 2** のスタブとして定義し、`FM_AVAILABLE=0` を設定する（読めたときは `FM_AVAILABLE=1`）。戻り値で 3 つの状態を区別する（DDR i0009-16）:
+
+| 戻り値 | 意味 | 拒否側フックの扱い |
+|---|---|---|
+| 0 | 値を読めた | 判定を続ける |
+| 1 | frontmatter は読めたがキーが無い・対象外の形 | **チケットの記載不正 → WF211**（復旧は記載の修正・`ticket.sh cancel`） |
+| 2 | ライブラリを読み込めていない（スタブ） | **機構の破損 → WFx09**（`workflow-guard` なら WF209。復旧は `.claude/` の状態確認とユーザーへの報告） |
+
+`scope.sh` は `fm_*` の戻り値 2 を自分の戻り値 2 としてそのまま呼び手に返す（1 と 2 を潰さない）。案内側のフックは 1 と 2 のどちらでも何も出さずに通すので区別を使わないが、区別できる形にしておくのは記録（`decisions.jsonl` の `note`）で原因を書き分けるため。
+
 `git rev-parse` だけに頼らないのは、フックが毎ツール呼び出しで git を起動することになる（Git Bash で約 95 ms/回）ことと、git 不在・リポジトリ外で `set -e` により即死することを避けるため。
+
+### ライブラリの責務の境界（分類まで / 照合は呼び手）
+
+`source` 専用のライブラリと `.claude/hooks/lib/` の共有ライブラリは、**入力を機械的に分類するところまで**を担い、「その値がプロジェクトの規約に照らして正しいか」の照合は呼び手が行う。同じ規約が 2 か所に書かれると、片方だけ更新されて食い違うため（DDR i0009-17）。
+
+| ライブラリの関数 | やること（分類） | やらないこと（照合。呼び手の責務） |
+|---|---|---|
+| `hook-common.sh` の `tool_class` | ツール名から種類（書き込み / 実行 / 読み取り / プランモード / 起動 / 宣言）を返す。`Skill` は `tool_input.skill` の値を見ずに**常に「宣言」**に分類する | 「その名前が振り分けスキルか」の照合。正は `.claude/hooks/config/entry-skills.txt` で、照合するのは `workflow-entry`（`00-workflow-` の接頭辞判定をライブラリに持たせない） |
+| `cmdpos.sh` | コマンド列を実行位置のセグメントに分け、実行体・第 1 サブコマンドを返す | 「そのコマンドを許してよいか」の判断（`workflow-guard` / `block-*` が行う） |
+| `scope.sh` の `scope_classify` | 操作の分類（`read` / `build-test` / `hook-test` / `remote-read` / `remote-write:*` / `merge-base` / `provided`）を返す | 「その分類がチケットに宣言されているか」の判断（呼び手が `allow.ops` と突き合わせる） |
+| `frontmatter.sh` | frontmatter の値を返す（戻り値で「読めた / 無い / ライブラリ不在」を区別） | 値が仕様どおりかの検証（`ticket_type` が `types` にあるか等） |
 
 ### 終了コード
 
@@ -120,9 +142,9 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 
 `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh [--filter <glob>] [--ids] [--timeout <秒>]`
 
-1. 作業中チケット（`wip/10_tickets/10_doing/`）があれば、その `allow.ops` に `build-test`（対象に `.claude/hooks/**` のテストを含むなら `hook-test` も）が無ければ TR006 で拒否する（提供コマンドは分類を問わずフックが許可するため、宣言の検査をコマンド側で行う — フック共通仕様 §8）。作業中チケットが無いとき（切れ目・実装計画外の実行）は検査しない
+1. 作業中チケット（`wip/10_tickets/10_doing/` の `.md` を名前順に並べた **1 枚目**。複数枚あっても件数では止めない — 「作業中は 1 枚」を前提に動き、2 枚以上の検知は `workflow-guard` の WF207 が担う。DDR i0009-18）があれば、その `allow.ops` に `build-test`（対象に `.claude/hooks/**` のテストを含むなら `hook-test` も）が無ければ TR006 で拒否する（提供コマンドは分類を問わずフックが許可するため、宣言の検査をコマンド側で行う — フック共通仕様 §8）。作業中チケットが無いとき（切れ目・実装計画外の実行）は検査しない
 2. `.claude/hooks/**/tests/test_*.sh` と `.claude/skills/*/scripts/tests/test_*.sh` を列挙する（`--filter` で絞る）。0 本なら TR001
-3. 各テストを `timeout`（既定 120 秒）付きで `bash <test>` として実行し、最終行（集計行）と終了コードを集める。`PASS <ID>` / `FAIL <ID>: ...` 行から ID を抽出する
+3. 各テストを `timeout`（既定 120 秒）付きで `bash <test>` として実行し、最終行（集計行）と終了コードを集める。`PASS <ID>` / `FAIL <ID>: ...` 行から ID を抽出する。**抽出は `^(PASS|FAIL) ([A-Z]{2,6}-[TE][0-9]{2}[a-z]?)` に一致する行だけ**を対象にする（一致しない行は本文の一部として読み飛ばす）。この形に合わない ID を仕様のテスト観点に書くと、テストが通っていても `--ids` に現れず突合できないので、**新しい接頭辞は必ずこの形に合わせる**（接頭辞は大文字 2〜6 文字、続くセグメントは `T`（機械テスト）か `E`（eval）で始まり 2 桁 + 任意の小文字 1 文字）。`session-start` のテスト ID が `SS-H` から `SE-T` に変わったのはこの制約による（DDR i0009-08）
 4. ファイルごとの結果（PASS / FAIL / TIMEOUT）を表で出し、`--ids` なら PASS / FAIL した ID の一覧も出す（仕様書の「テスト観点」表との突合用。同じ ID が複数のテストに現れたら重複として報告する）
 5. すべて PASS なら `OK: <N> 本 / <ID 数> 件` で 0。FAIL があれば TR002、TIMEOUT があれば TR003（両方あれば両方列挙）で 1。宣言不足は TR006 で 1。引数不正は TR004、`timeout` コマンド不在等の環境不備は TR005 で **2**（引数・環境の誤り。Script 処理「終了コード」の規約）
 
@@ -169,7 +191,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | SS-T01 | 正常系 | 雛形からコピーした sh が `bash -n` を通り、logger を source して結果出力の型で終了する |
 | SS-T02 | 異常系 | テスト雛形が失敗ケースを検出して非 0 で終了する |
 | SS-T03 | 正常系 | 読み込み行が、スキルの `scripts/`・フックのイベントディレクトリ・両者の `tests/` の 4 通りの深さから logger を解決する（fork なしの経路） |
-| SS-T04 | 異常系 | git 不在・リポジトリ外・`CLAUDE_PROJECT_DIR` 未設定でも読み込み行が失敗せず、logger が no-op になって本体が続行する。`nop` でも `LOGGER_ROOT` が設定される。`fatal` の最終行は `FATAL: <理由>` で終了 2、`deny` は `HOOK_DENY_ID`（未設定なら `WF009`）の deny JSON で終了 0 |
+| SS-T04 | 異常系 | git 不在・リポジトリ外・`CLAUDE_PROJECT_DIR` 未設定でも読み込み行が失敗せず、logger が no-op になって本体が続行する。`nop` でも `LOGGER_ROOT` が設定される。`fatal` の最終行は `FATAL: <理由>` で終了 2、`deny` は `HOOK_DENY_ID`（未設定なら `WF009`。台帳の持ち主は共通ライブラリの読み込み行 — フック共通仕様 §6・DDR i0009-15）の deny JSON で終了 0。`frontmatter` の `nop` は `FM_AVAILABLE=0` とスタブ（出力なし・**戻り値 2**）を定義し、キー不在の戻り値 1 と区別できる |
 | FR-T01 | 正常系 | フラットなスカラーとフロー配列（`ticket_type` / `predecessors`）を読める |
 | FR-T02 | 正常系 | 入れ子マッピング（`allow.write` / `allow.ops`）をドット区切りで読める |
 | FR-T03 | 正常系 | インラインマップ（`human_review.required` / `.reason`）をドット区切りで読める。クォート内の `:` と `,` を区切りにしない |
@@ -179,7 +201,8 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | TR-T02 | 異常系 | FAIL を含むテストで TR002 とファイル・ID の列挙、非 0 |
 | TR-T03 | 異常系 | 無限ループするテストが TR003 で止まる |
 | TR-T04 | 境界 | `--filter` の絞り込みと 0 本のときの TR001、`--ids` の一覧と重複 ID の報告。不明な引数が TR004・終了 2、`timeout` 不在が TR005・終了 2 |
-| TR-T05 | 異常系 | `allow.ops` に `build-test` の無い作業中チケットがあるときは TR006 で実行しない。作業中チケットが無ければ実行する |
+| TR-T05 | 異常系 | `allow.ops` に `build-test` の無い作業中チケットがあるときは TR006 で実行しない。作業中チケットが無ければ実行する。作業中チケットが 2 枚あっても件数では止めず、名前順の 1 枚目の `allow.ops` で判定する |
+| TR-T06 | 境界 | ID の抽出が `^(PASS\|FAIL) ([A-Z]{2,6}-[TE][0-9]{2}[a-z]?)` に一致する行だけを拾い、一致しない行（`PASS ss-h01` / `PASS SS-X01` / 本文中の `PASS` を含む行）を ID として数えない。`SE-T01` のような新しい接頭辞は拾う |
 
 ## 要件との対応
 

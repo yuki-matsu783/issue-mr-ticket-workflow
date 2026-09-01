@@ -150,7 +150,7 @@
         <ol class="toc-sub">
           <li><a href="#f1"><span class="mk good">◎</span> 1. 11 本の仕様は判定順・識別子・終了方式・テスト ID がそろっている</a></li>
           <li><a href="#f2"><span class="mk warn">△</span> 2. エラー識別子は台帳と一致するが、lib の既定値 WF009 だけが台帳に無い</a></li>
-          <li><a href="#f3"><span class="mk warn">△</span> 3. テスト ID の重複は無いが、命名に 2 か所の揺れがある</a></li>
+          <li><a href="#f3"><span class="mk warn">△</span> 3. テスト ID の重複は無いが、SS-H はランナーの検出網の外にある</a></li>
           <li><a href="#f4"><span class="mk warn">△</span> 4. フックが読む設定・アセットのファイルが 3 本未作成で、置き場の規約が揺れている</a></li>
           <li><a href="#f5"><span class="mk stop">✕</span> 5. session-start と workflow-entry の一部テストが 3/3 の boundary.sh に依存する</a></li>
           <li><a href="#f6"><span class="mk good">◎</span> 6. §1 の登録表 16 行と各仕様の呼出条件は一致している</a></li>
@@ -169,7 +169,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a></dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-9-hook-bodies-settings</code></dd></div>
-    <div><dt>チケット</dt><dd>0005-investigation</dd></div>
+    <div><dt>チケット</dt><dd>0005-investigation（指摘反映: 0010）</dd></div>
     <div><dt>作成日</dt><dd>2026-09-02</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -179,7 +179,7 @@
 
 <!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
 <section id="overview" data-required>
-  <p class="lead">11 本のフック仕様は判定順・識別子・終了方式・テスト ID・依存がそろっており、<strong>そのまま実装に落とせる状態</strong>。識別子は §6 台帳の範囲内で重複 0 件、§1 の登録表 16 行も各仕様と一致する。一方で実装前に決めるべき食い違いが 7 件見つかった。最も重いのは <code>session-start</code> と <code>workflow-entry</code> の 7 テストが 3/3 の <code>boundary.sh</code> に依存し、この issue では通せないこと。</p>
+  <p class="lead">11 本のフック仕様は判定順・識別子・終了方式・テスト ID・依存がそろっており、<strong>そのまま実装に落とせる状態</strong>。識別子は §6 台帳の範囲内で重複 0 件、§1 の登録表 16 行も各仕様と一致する。一方で実装前に決めるべき食い違いが 7 件見つかった。最も重いのは <code>session-start</code> と <code>workflow-entry</code> のテストが 3/3 の <code>boundary.sh</code> に依存し、この issue では通せないこと。次に <code>HOOK_DENY_ID</code> の既定 <code>WF009</code> が台帳に無いこと（G7）、フックが読む設定・アセット 3 本が未作成であること、そして <code>SS-H*</code> が <code>run-tests.sh</code> の ID 正規表現に一致しないこと。</p>
   <ul class="kpis">
     <li class="kpi good"><b>3</b><span>◎良</span></li>
     <li class="kpi warn"><b>3</b><span>△注意</span></li>
@@ -190,16 +190,16 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li><strong>f5</strong>: <code>session-start</code> の 6 テストと <code>workflow-entry</code> の WE-T10 が <code>boundary.sh</code>（3/3・未実装）に依存する。受け入れ条件 1 をこの issue でどう満たすか（スタブ / 3-3 へ送る / 偽実装）を決める必要がある</li>
+        <li><strong>f5</strong>: <code>session-start</code> の 9 テスト中 8 本（うち SS-H05 は前半のみ）と <code>workflow-entry</code> の WE-T10 が <code>boundary.sh</code>（3/3・未実装）に依存する。受け入れ条件 1 をこの issue でどう満たすか（最小スタブ / 3/3 に送る / テスト用の偽実装）を決める必要がある</li>
+        <li><strong>f3</strong>: <code>SS-H01</code>〜<code>H09</code> は <code>run-tests.sh</code> の ID 正規表現に一致せず <code>--ids</code> に現れない。<strong>受け入れ条件 2 に直結するため、この issue で解消が必要</strong></li>
+        <li><strong>f2</strong>: <code>HOOK_DENY_ID</code> の既定 <code>WF009</code> をどう扱うか（台帳に登録 / 既定を廃す / WF209 に寄せる）。本文の結論は「(a) が最小」だが未決</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
       <p class="label">◇承認が欲しい</p>
       <p class="sub">方針は決めた</p>
       <ul>
-        <li><strong>f2</strong>: <code>HOOK_DENY_ID</code> の既定 <code>WF009</code> を台帳に登録する（最小の変更）方針</li>
-        <li><strong>f4</strong>: 未作成の 3 ファイルを実装フェーズで作り、置き場は仕様の記述どおりにする</li>
-        <li><strong>f3</strong>: テスト ID の命名の揺れ（<code>SS-H</code>・<code>BG-T09b</code>）は現状維持で、規約の統一は 3/3 へ</li>
+        <li><strong>f4</strong>: 未作成のファイル 3 本を実装フェーズで作る。<code>assets/</code> の階層は仕様に記述が無いため実装計画で決める</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -245,23 +245,23 @@
   <ol class="tl">
     <li class="tl-item">
       <span class="tl-dot good">1</span>
-      <h3 id="f1">11 本の仕様は判定順・識別子・終了方式・テスト ID がそろっている <span class="chip good">◎良</span> <span class="basis">根拠: 11 本の仕様書の「制御方式」「識別子」「テスト観点」節</span></h3>
+      <h3 id="f1">11 本の仕様は判定順・識別子・終了方式・テスト ID がそろっている <span class="chip good">◎良</span> <span class="basis">根拠: 11 本の仕様書の「制御方式」「エラー識別子とメッセージ」「テスト観点」節</span></h3>
       <p>11 本すべてが「判定順の番号付きリスト」「エラー識別子の表」「テスト観点の表」を持ち、実装に必要な粒度がある。空欄（仕様に記載が無い項目）は無かった。下の表は 11 本 × 5 項目の一覧。</p>
       <div class="tablewrap">
       <table>
-        <thead><tr><th>#</th><th>フック</th><th>側</th><th>登録</th><th>識別子</th><th>終了方式</th><th>テスト ID</th><th>依存</th></tr></thead>
+        <thead><tr><th>#</th><th>フック</th><th>側</th><th>登録</th><th>判定順の要点</th><th>識別子</th><th>終了方式</th><th>テスト ID</th><th>依存</th></tr></thead>
         <tbody>
-          <tr><td>1</td><td><code>session-start</code></td><td>案内</td><td>SessionStart（全 source）</td><td>WF701〜704</td><td>stdout に注入 / 失敗時は無出力・終了 0</td><td>SS-H01〜H09</td><td><strong>boundary.sh（3/3）</strong>・git</td></tr>
-          <tr><td>2</td><td><code>workflow-entry</code></td><td>拒否 + 記録</td><td>UserPromptSubmit / PreToolUse <code>Skill</code> / PreToolUse 書き込み系</td><td>WF101・102・109</td><td>deny JSON + 終了 0</td><td>WE-T01〜T11</td><td>entry.json・<strong>entry-skills.txt（未作成）</strong>・review-state / merge-state</td></tr>
-          <tr><td>3</td><td><code>workflow-state-guard</code></td><td>拒否</td><td>PreToolUse 書き込み・実行・<code>mcp__.*</code></td><td>WF301〜304・309</td><td>deny JSON + 終了 0</td><td>SG-T01〜T08</td><td>cmdpos.sh・common.state_files</td></tr>
-          <tr><td>4</td><td><code>block-chmod</code></td><td>拒否</td><td>PreToolUse <code>Bash|PowerShell</code></td><td>WF501・509</td><td>deny JSON + 終了 0</td><td>BC-T01〜T06</td><td>cmdpos.sh・<strong>blocked-commands.txt（未作成）</strong></td></tr>
-          <tr><td>5</td><td><code>block-direct-git</code></td><td>拒否</td><td>PreToolUse <code>Bash|PowerShell</code></td><td>WF401〜403・409</td><td>deny JSON + 終了 0</td><td>BG-T01〜T10（11 本）</td><td>cmdpos.sh（このフックが正）</td></tr>
-          <tr><td>6</td><td><code>workflow-guard</code></td><td>拒否</td><td>PreToolUse 書き込み・実行・プランモード・起動</td><td>WF201〜213</td><td>deny / ask JSON + 終了 0</td><td>WG-T01〜T14</td><td>scope.sh・cmdpos.sh・scope-limits.json・approvals.json</td></tr>
-          <tr><td>7</td><td><code>workflow-diff-check</code></td><td>案内</td><td>PostToolUse 書き込み・実行</td><td>WF601〜604</td><td>additionalContext・終了 0</td><td>DC-T01〜T07</td><td>scope.sh・git status/diff/show・approvals.json</td></tr>
-          <tr><td>8</td><td><code>post-push-compact-prompt</code></td><td>案内</td><td>PostToolUse <code>Bash|PowerShell</code></td><td>WF901〜903</td><td>additionalContext・終了 0</td><td>PP-T01〜T08</td><td>push-detect.sh・git・mr.json・push-state.json・sha256sum</td></tr>
-          <tr><td>9</td><td><code>post-push-usage-report</code></td><td>案内</td><td>PostToolUse / SubagentStop / Stop（<code>--accumulate</code>）</td><td>WF911〜913</td><td>additionalContext + logs/usage への書き出し</td><td>UR-T01〜T07</td><td>transcript.sh・push-detect.sh・logs/usage</td></tr>
-          <tr><td>10</td><td><code>subagent-start-check</code></td><td>案内</td><td>SubagentStart（全サブエージェント）</td><td>WF801・802</td><td>additionalContext・終了 0</td><td>SA-T01〜T06</td><td>チケット frontmatter・<strong>model-aliases.txt（未作成）</strong></td></tr>
-          <tr><td>11</td><td><code>subagent-stop-check</code></td><td>案内</td><td>SubagentStop / PostToolUse <code>Agent</code></td><td>WF811〜813</td><td>additionalContext + subagent-&lt;id&gt;.json</td><td>SP-T01〜T06</td><td>scope.sh・git status・チケット frontmatter</td></tr>
+          <tr><td>1</td><td><code>session-start</code></td><td>案内</td><td>SessionStart（全 source）</td><td>停止中 → 古い <code>logs/sessions/</code> の掃除 → <code>boundary.sh status --offline</code> → 注入テキスト組み立て（6 行）→ 8 KB 超で警告</td><td>WF701 情報 / 702 破損 / 703 MR 未記録 / 704 スキル不在</td><td>stdout に注入。失敗時は無出力・終了 0</td><td>SS-H01〜H09（9 本）</td><td><strong>boundary.sh（3/3）</strong>・merge-state.json・git</td></tr>
+          <tr><td>2</td><td><code>workflow-entry</code></td><td>拒否 + 記録</td><td>UserPromptSubmit / PreToolUse <code>Skill</code> / PreToolUse 書き込み・実行・プランモード・起動</td><td>停止中 → 継続条件（チケット / review-state / merge-state）→ <code>entry.json</code> → 宣言の有無</td><td>WF101 未宣言 / 102 記録破損 / 109 判定不能</td><td>deny JSON + 終了 0</td><td>WE-T01〜T11（11 本）</td><td>entry.json・<strong>entry-skills.txt（未作成）</strong>・review-state / merge-state・（WE-T10 のみ <strong>boundary.sh</strong>）</td></tr>
+          <tr><td>3</td><td><code>workflow-state-guard</code></td><td>拒否</td><td>PreToolUse 書き込み・実行・<code>mcp__.*</code></td><td>停止中 → 書き込みツール（state_files / 10_doing 新規 / 20_done）→ 実行ツール（提供コマンド → state_files の書き込み位置 → 置き場宛の mv・cp → draft 解除 → opaque）→ 入力不正</td><td>WF301〜304 / 309</td><td>deny JSON + 終了 0</td><td>SG-T01〜T08（8 本）</td><td>cmdpos.sh・common.state_files</td></tr>
+          <tr><td>4</td><td><code>block-chmod</code></td><td>拒否</td><td>PreToolUse <code>Bash|PowerShell</code></td><td>停止中 → 前置判定（語を含まなければ即許可）→ cmdpos.sh で実行体の basename 照合 → opaque / degraded → 入力不正</td><td>WF501 / 509</td><td>deny JSON + 終了 0</td><td>BC-T01〜T06（6 本）</td><td>cmdpos.sh・<strong>blocked-commands.txt（未作成）</strong></td></tr>
+          <tr><td>5</td><td><code>block-direct-git</code></td><td>拒否</td><td>PreToolUse <code>Bash|PowerShell</code></td><td>停止中 → cmdpos.sh → セグメントごとに提供コマンド除外・<code>git commit</code> / <code>push</code> / コミット生成系の判定 → opaque → degraded → 入力不正</td><td>WF401 commit / 402 push / 403 縮退 / 409 入力不正</td><td>deny JSON + 終了 0</td><td>BG-T01〜T08・T09b・T09・T10（11 本）</td><td>cmdpos.sh（このフックが正）</td></tr>
+          <tr><td>6</td><td><code>workflow-guard</code></td><td>拒否</td><td>PreToolUse 書き込み・実行・プランモード・起動</td><td>停止中 / 0 枚 → 2 枚以上 → 設定不正 → チケット不正 → 書き込み（チケット自身の改変 → scope.sh 判定順 (1)〜(7)）→ 実行（提供コマンド → opaque → コマンド書き込み → read → remote-read → ops 分類）→ プランモード → 起動 → ヘッドレス → 入力不正</td><td>WF201〜213（13 個）</td><td>deny / ask JSON + 終了 0</td><td>WG-T01〜T14（14 本）</td><td>scope.sh・cmdpos.sh・scope-limits.json・approvals.json・チケット frontmatter</td></tr>
+          <tr><td>7</td><td><code>workflow-diff-check</code></td><td>案内</td><td>PostToolUse 書き込み・実行</td><td>停止中 / 0 枚 / 2 枚以上 → <code>base_sha</code> 無し → 承認の記憶 → 差分の範囲判定 → 先行チケット → 種類の改変 → 取得失敗</td><td>WF601〜604</td><td>additionalContext（無ければ無出力）・終了 0</td><td>DC-T01〜T07（7 本）</td><td>scope.sh・git status/diff/show・approvals.json</td></tr>
+          <tr><td>8</td><td><code>post-push-compact-prompt</code></td><td>案内</td><td>PostToolUse <code>Bash|PowerShell</code></td><td>停止中 → push 検知（push-detect.sh。このフックが正）→ ホスト判定 → リンク組み立て → push-state.json 更新 → 注入</td><td>WF901 情報 / 902 初回 / 903 MR 未記録</td><td>additionalContext・終了 0</td><td>PP-T01〜T08（8 本）</td><td>push-detect.sh・cmdpos.sh・git・mr.json・push-state.json・sha256sum</td></tr>
+          <tr><td>9</td><td><code>post-push-usage-report</code></td><td>案内</td><td>PostToolUse / SubagentStop / Stop（<code>--accumulate</code>）</td><td><code>--accumulate</code>: transcript を last_offset 以降だけ集計 → 加算。既定: push 検知 → 未蓄積分の取り込み → 合算 → 本文生成 → ファイル出力 → 注入</td><td>WF911 情報 / 912 記録読めず / 913 状態破損</td><td>additionalContext + logs/usage への書き出し・終了 0</td><td>UR-T01〜T07（7 本）</td><td>transcript.sh・push-detect.sh・logs/usage</td></tr>
+          <tr><td>10</td><td><code>subagent-start-check</code></td><td>案内</td><td>SubagentStart（全サブエージェント）</td><td>停止中 → 対象チケット決定（doing 1 枚 → todo 最小連番）→ frontmatter 読めない → 実行者の不一致 → 要点の注入（4 KB 上限）→ 入力不正</td><td>WF801 不一致（通知）/ 802 注入（情報）</td><td>additionalContext・終了 0</td><td>SA-T01〜T06（6 本）</td><td>チケット frontmatter・<strong>model-aliases.txt（未作成）</strong></td></tr>
+          <tr><td>11</td><td><code>subagent-stop-check</code></td><td>案内</td><td>SubagentStop / PostToolUse <code>Agent</code></td><td>停止中 → 検査（doing 残り → 未コミット差分 → 範囲外差分）→ PostToolUse で伝達（対処 3 点）→ 取得失敗 → 入力不正</td><td>WF811 / 812 / 813（通知）</td><td>additionalContext + subagent-&lt;id&gt;.json・終了 0</td><td>SP-T01〜T06（6 本）</td><td>scope.sh・git status・チケット frontmatter</td></tr>
         </tbody>
       </table>
       </div>
@@ -274,44 +274,59 @@ wc -l .claude/docs/10_spec/hooks/*/*.md => 1179 total</code></pre>
       </details>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>そのまま実装に落とせる。実装の作業単位は「1 フック = 1 本体 + 1 テストファイル」で分割できる。</p>
+        <p>11 本とも「判定順の番号付きリスト」「識別子の表」「テスト観点の表」を持ち、実装に必要な粒度がある。空欄（仕様に記載がない項目）は無かった。</p>
       </div>
     </li>
     <li class="tl-item">
       <span class="tl-dot warn">2</span>
       <h3 id="f2">エラー識別子は台帳と一致するが、lib の既定値 WF009 だけが台帳に無い <span class="chip warn">△注意</span> <span class="basis">根拠: 各仕様の識別子表 / フック共通仕様 §6 / hook-common.sh:23</span></h3>
-      <p>11 本が使う識別子はすべて §6 台帳の範囲内で、重複は 0 件。一方 <code>hook-common.sh:23</code> の <code>HOOK_DENY_ID="${HOOK_DENY_ID:-WF009}"</code> は台帳に持ち主のいない番号を既定にしている（台帳は「x09 は拒否側のフック 1xx〜5xx だけが持つ」と定める）。変更するなら共通仕様 §6 と 20-common-step-shell-script 仕様 L92・SS-T04 が連動する。</p>
+      <p>11 本が使う識別子はすべて §6 台帳の範囲内で、<strong>重複は 0 件</strong>。一方 <code>hook-common.sh:23</code> の <code>HOOK_DENY_ID="${HOOK_DENY_ID:-WF009}"</code> は台帳に持ち主のいない番号を既定にしている（台帳は「x09 は拒否側のフック 1xx〜5xx だけが持つ」と定める）。<code>WF009</code> のリテラルは <strong>23 ファイル</strong>にあり（<code>hook-common.sh</code> の 1 か所と、共通の読み込み行 <code>__ss_load</code> のコピー 22 — 提供コマンド 5 本と雛形 2 本を含む）、この行は仕様が「中身を改変しない」と定めているため、既定を廃す案は <code>scope.sh</code> 側の <code>${HOOK_DENY_ID:-WF009}</code> が独立に残る。</p>
+      <p class="basis">実測への依存: 無し（設計で決められる）</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
         <pre><code>.claude/hooks/lib/hook-common.sh:23:HOOK_DENY_ID="${HOOK_DENY_ID:-WF009}"
 .claude/docs/10_spec/skills/20-common-step-shell-script.md:92: … 未設定なら `WF009`
+grep -rl ':-WF009' --include='*.sh' .claude | wc -l  =>  23
 台帳（§6）: WF101–109 / 201–219 / 301–309 / 401–409 / 501–509 …（WF009 の行は無い）</code></pre>
       </details>
       <div class="box warn">
         <p class="label">結論</p>
-        <p>issue #9 の G7 のとおり。(a) 台帳に WF009 を登録 / (b) 既定を廃して設定必須 / (c) WF209 に寄せる の 3 案。最小の変更は (a)。実測に依存しないので設計で決められる。</p>
+        <p>issue #9 の G7 のとおり。(a) 台帳に WF009 を登録 / (b) 既定を廃して設定必須 / (c) WF209 に寄せる の 3 案。<strong>(a) が最小の変更</strong>で hook-common.sh を変えずに済む。</p>
       </div>
     </li>
     <li class="tl-item">
       <span class="tl-dot warn">3</span>
-      <h3 id="f3">テスト ID の重複は無いが、命名に 2 か所の揺れがある <span class="chip warn">△注意</span> <span class="basis">根拠: 各仕様のテスト観点表 / 既存テストの grep</span></h3>
-      <p>新規に増える ID は 93 本（SS-H 9 / WE-T 11 / SG-T 8 / BC-T 6 / BG-T 11 / WG-T 14 / DC-T 7 / PP-T 8 / UR-T 7 / SA-T 6 / SP-T 6）で、既存 60 本との文字列の重複は 0 件。揺れは 2 つ: session-start だけ <code>SS-H</code>（他は <code>-T</code>。SS-T は shell-script が使用済み）、block-direct-git に枝番 <code>BG-T09b</code> があり T09 より前に並ぶ。HK-T01（登録照合）と HK-T09（ラッパーの deny）は未実装で、この issue が作る。</p>
+      <h3 id="f3">テスト ID の重複は無いが、SS-H はランナーの検出網の外にある <span class="chip warn">△注意</span> <span class="basis">根拠: 各仕様のテスト観点表 / 既存テストの grep / run-tests.sh:110</span></h3>
+      <p>新規に増える ID は 93 本（SS-H 9 / WE-T 11 / SG-T 8 / BC-T 6 / BG-T 11 / WG-T 14 / DC-T 7 / PP-T 8 / UR-T 7 / SA-T 6 / SP-T 6）で、既存 60 本との文字列の重複は 0 件。揺れは 2 つ: <strong>session-start だけ <code>SS-H</code></strong>（他は <code>-T</code>）、block-direct-git に枝番 <code>BG-T09b</code>。さらに <code>run-tests.sh:110</code> の抽出正規表現 <code>^(PASS|FAIL) ([A-Z]{2,6}-[TE][0-9]{2}[a-z]?)</code> は <code>[TE]</code> が <code>H</code> を弾くため、<strong>SS-H* は <code>--ids</code> の一覧にも重複検出にも現れない</strong>。受け入れ条件 2 に直結する。</p>
+      <p class="basis">実測への依存: 無し</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
-        <pre><code>既存: AA-T01 BB-T01..02 CC-T01..03 CP-T01..08 FR-T01..05 HK-T02..T15 LG-T01..05
-      RV-T01..07 SS-T00..04 TR-T01..05 TICKET-T01..12
+        <pre><code>既存: AA-T01 BB-T01..02 CC-T01..03 CP-T01..08 FR-T01..05 HK-T02..T08 / T10..T15
+      LG-T01..05 RV-T01..07 SS-T00..04 TR-T01..05 TICKET-T01..12（HK-T09 は未作成）
 新規: SS-H01..09 WE-T01..11 SG-T01..08 BC-T01..06 BG-T01..08,T09b,T09,T10
-      WG-T01..14 DC-T01..07 PP-T01..08 UR-T01..07 SA-T01..06 SP-T01..06</code></pre>
+      WG-T01..14 DC-T01..07 PP-T01..08 UR-T01..07 SA-T01..06 SP-T01..06
+run-tests.sh:110  if [[ "$line" =~ ^(PASS|FAIL)\ ([A-Z]{2,6}-[TE][0-9]{2}[a-z]?) ]]; then</code></pre>
       </details>
       <div class="box warn">
         <p class="label">結論</p>
-        <p>実 ID が重ならないので実装は進められる。規約（-T への統一・SS 接頭辞の持ち主）の整理は 3/3 に送る。</p>
+        <p>実 ID の重複は無いが、<strong>SS-H はランナーに映らず受け入れ条件 2 を満たせない</strong>。この issue で (a) session-start の接頭辞を変える（例 SE-T01〜09。影響はフック 1 本のテストに閉じる）か、(b) run-tests.sh の正規表現を広げる（shell-script 仕様と TR 系テストが連動）を決める。<strong>(a) が影響範囲が狭い</strong>。BG-T09b は正規表現に合うので現状維持。</p>
       </div>
     </li>
     <li class="tl-item">
       <span class="tl-dot warn">4</span>
       <h3 id="f4">フックが読む設定・アセットのファイルが 3 本未作成で、置き場の規約が揺れている <span class="chip warn">△注意</span> <span class="basis">根拠: 各仕様の参照先 / ls .claude/hooks/config/</span></h3>
-      <p><code>blocked-commands.txt</code>（block-chmod・config 配下）、<code>entry-skills.txt</code>（workflow-entry・assets 配下）、<code>model-aliases.txt</code>（subagent-start-check・assets 配下）の 3 本が未作成。同じ「フックが読む外部データ」なのに置き場が config と assets に分かれており、共通仕様 §1 は assets の位置づけを定義していない。config 配下は common.confirm に当たるため作成時に毎回 WF203 の確認が入る。</p>
+      <p>同じ「フックが読む外部データ」なのに 1 本は <code>config/</code>、2 本は各フックの <code>assets/</code> に置くことになっている。共通仕様 §1 は <code>lib/</code> と <code>config/</code> しか定義しておらず、<code>assets/</code> の位置づけ（<code>&lt;NN-Event&gt;/assets/</code> か別か）が未定。<code>config/</code> 配下は <code>common.confirm</code> に当たるため作成時に毎回 WF203 の確認が入る。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>ファイル</th><th>読むフック</th><th>仕様上の置き場</th><th>現状</th><th>初期値</th></tr></thead>
+        <tbody>
+          <tr><td><code>blocked-commands.txt</code></td><td>block-chmod</td><td><code>.claude/hooks/config/</code></td><td><strong>無し</strong></td><td><code>chmod</code>（<code>#</code> はコメント）</td></tr>
+          <tr><td><code>entry-skills.txt</code></td><td>workflow-entry</td><td><code>assets/</code>（フック配下）</td><td><strong>無し</strong></td><td><code>00-workflow-issue-mr-driven</code> / <code>00-workflow-quick-request</code></td></tr>
+          <tr><td><code>model-aliases.txt</code></td><td>subagent-start-check</td><td><code>assets/</code>（フック配下）</td><td><strong>無し</strong></td><td><code>claude-sonnet-4-5-…</code> → <code>sonnet</code> などの族名対応</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="basis">実測への依存: 無し</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
         <pre><code>ls .claude/hooks/config/  => scope-limits.json  task-types.tsv
@@ -321,34 +336,33 @@ grep -rn "assets/" .claude/docs/10_spec/hooks/ =>
       </details>
       <div class="box warn">
         <p class="label">結論</p>
-        <p>3 本とも実装フェーズで作る。assets の階層は実装計画で決め、共通仕様 §1 への追記は書き戻しフェーズへ。</p>
+        <p>3 本とも実装フェーズで作る。<code>assets/</code> の階層は実装計画で決め、共通仕様 §1 への追記は書き戻しフェーズへ。</p>
       </div>
     </li>
     <li class="tl-item">
       <span class="tl-dot stop">5</span>
       <h3 id="f5">session-start と workflow-entry の一部テストが 3/3 の boundary.sh に依存する <span class="chip stop">✕問題</span> <span class="basis">根拠: session-start 仕様 制御方式 3 / WE-T10 / issue #9 スコープ外</span></h3>
-      <p>session-start は現在地の判定を丸ごと <code>boundary.sh status --offline</code> に委ね、スクリプトが無ければ「何も出さずに終了 0」。登録しても実質何も注入しない。影響するテストは SS-H01・H02・H03・H04・H06・H08 の 6 本と、workflow-entry の WE-T10（boundary.sh の position との一致）の計 7 本。</p>
+      <p>session-start は現在地の判定を丸ごと <code>boundary.sh status --offline</code> に委ね、スクリプトが無ければ「何も出さずに終了 0」。登録しても実質何も注入しない。影響するのは <strong>SS-H01〜04・06〜08 の 7 本</strong>（H07 は 8 KB の注入テキストを作れないため）と <strong>SS-H05 の前半</strong>、そして <code>workflow-entry</code> の <strong>WE-T10</strong>。<strong>SS-H09（CLI の有無で出力が変わらない）は両方とも無出力になるため、スタブ無しでは空同士の比較で無意味に通る</strong>。純粋に独立なのは SS-H05 の後半（jq 不在で無出力）だけ。</p>
+      <p class="basis">実測への依存: 無し（仕様の読み取りだけで確定する）</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
         <pre><code>session-start 仕様 制御方式 3:
   boundary.sh status --offline を実行する。失敗（jq / git 不在・スクリプト不在）→ 何も出さずに終了 0
-issue #9 スコープ外: finalize.sh / boundary.sh（3/3）
-依存しないテスト: SS-H05（jq 不在）・SS-H07（8KB）・SS-H09（CLI 非依存）</code></pre>
+issue #9 スコープ外: finalize.sh / boundary.sh（3/3）</code></pre>
       </details>
       <div class="box stop">
         <p class="label">結論</p>
-        <p>受け入れ条件 1 を満たすには 7 本の扱いを決める必要がある。(a) 最小スタブを作る / (b) 3/3 に送る / (c) テスト用の偽実装。SS-H08 は「本物と同じ判定か」を確かめるテストなので (c) では代替できず、3/3 に送るしかない。</p>
+        <p>受け入れ条件 1 を満たすには (a) 最小スタブ / (b) 3/3 に送る / (c) テスト用の偽実装 のどれを採るかを決める。SS-H08 は「本物と同じ判定か」を確かめるテストなので (c) では代替できず、3/3 に送るしかない。</p>
       </div>
     </li>
     <li class="tl-item">
       <span class="tl-dot good">6</span>
       <h3 id="f6">§1 の登録表 16 行と各仕様の呼出条件は一致している <span class="chip good">◎良</span> <span class="basis">根拠: フック共通仕様 §1 の登録表 / 11 本の呼出条件</span></h3>
-      <p>16 行の内訳は SessionStart 1 / UserPromptSubmit 1 / PreToolUse 6 / PostToolUse 4 / SubagentStart 1 / SubagentStop 2 / Stop 1。複数登録を持つのは workflow-entry（3）・post-push-usage-report（3）・subagent-stop-check（2）で、11 + 5 = 16 と一致する。PreToolUse の実行順（entry → state-guard → block-chmod → block-direct-git → guard）も各仕様の但し書きと矛盾しない。</p>
+      <p>16 行の内訳は SessionStart 1 / UserPromptSubmit 1 / PreToolUse 6 / PostToolUse 4 / SubagentStart 1 / SubagentStop 2 / Stop 1。複数登録を持つのは workflow-entry（3）・post-push-usage-report（3）・subagent-stop-check（2）で、11 + 5 = 16 と一致する。PreToolUse の実行順（entry → state-guard → block-chmod → block-direct-git → guard）も各仕様の但し書きと矛盾しない。唯一の差は、workflow-state-guard の呼出条件が matcher の <code>mcp__.*</code> に触れていないこと。</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
         <pre><code>§1 登録表の行数: 16（イベント別 1/1/6/4/1/2/1）
-唯一の表記の差: workflow-state-guard の呼出条件が matcher の mcp__.* に触れていない
-（制御方式の「外部委任モード」では MCP の draft 解除を拒否と明記）</code></pre>
+複数登録: workflow-entry 3 / post-push-usage-report 3 / subagent-stop-check 2 → 11 + 5 = 16</code></pre>
       </details>
       <div class="box ok">
         <p class="label">結論</p>
@@ -367,7 +381,7 @@ openssl is /mingw64/bin/openssl</code></pre>
       </details>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>post-push-compact-prompt の差分ページ内リンクは追加の依存なしに実装できる。</p>
+        <p>post-push-compact-prompt の差分ページ内リンク（sha256(path) / sha1(path)）は追加の依存なしに実装できる。</p>
       </div>
     </li>
     <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
@@ -383,10 +397,10 @@ openssl is /mingw64/bin/openssl</code></pre>
     <tbody>
       <tr><td>11 本の仕様に判定順・識別子・終了方式・テスト ID・依存がそろっているか</td><td>そろっている（f1 の表。空欄 0）</td></tr>
       <tr><td>エラー識別子の重複</td><td>0 件。台帳の範囲外は <code>HOOK_DENY_ID</code> の既定 <code>WF009</code> の 1 件のみ（f2）</td></tr>
-      <tr><td>テスト ID の重複（既存 ID との照合）</td><td>0 件（新規 93 本 vs 既存 60 本。f3）</td></tr>
+      <tr><td>テスト ID の重複（既存 ID との照合）</td><td>0 件（新規 93 本 vs 既存 60 本）。ただし <code>SS-H*</code> はランナーの正規表現に一致しない（f3）</td></tr>
       <tr><td>§1 の登録表と各仕様の呼出条件の一致</td><td>一致（16 行 = 11 本 + 複数登録 5 行。f6）</td></tr>
       <tr><td>未作成の設定・アセットファイル</td><td>3 本（f4）</td></tr>
-      <tr><td>3/3（boundary.sh）に依存して本 issue で通せないテスト</td><td>7 本（SS-H01〜04・06・08、WE-T10。f5）</td></tr>
+      <tr><td>3/3（boundary.sh）に依存して本 issue で通せないテスト</td><td>8 本（SS-H01〜04・06〜08、WE-T10）+ SS-H05 の前半。SS-H09 は無意味に通る（f5）</td></tr>
     </tbody>
   </table>
   </div>
@@ -396,10 +410,10 @@ openssl is /mingw64/bin/openssl</code></pre>
 <section id="next" data-required>
   <h2>設計への反映</h2>
   <ol>
-    <li><strong><code>HOOK_DENY_ID</code> の既定</strong>（f2 / G7）: 台帳に <code>WF009</code> を登録するか既定を廃するかを決め、共通仕様 §6 と 20-common-step-shell-script 仕様 L92・SS-T04 を同時に直す</li>
-    <li><strong><code>boundary.sh</code> 依存のテスト 7 本の扱い</strong>（f5）: 最小スタブ / 3-3 へ送る / テスト用の偽実装 のどれを採るか。受け入れ条件 1 の解釈とセットで決める</li>
+    <li><strong><code>HOOK_DENY_ID</code> の既定</strong>（f2 / G7）: 台帳に <code>WF009</code> を登録するか既定を廃すかを決め、共通仕様 §6 と 20-common-step-shell-script 仕様 L92・SS-T04、および共通の読み込み行（23 ファイル）への波及を確認する</li>
+    <li><strong><code>boundary.sh</code> 依存のテストの扱い</strong>（f5）: 最小スタブ / 3-3 へ送る / テスト用の偽実装 のどれを採るか。受け入れ条件 1 の解釈とセットで決める</li>
     <li><strong>設定・アセット 3 本の置き場</strong>（f4）: <code>assets/</code> の位置づけを共通仕様 §1 に足すか。実装は仕様の記述どおりに作る</li>
-    <li><strong>テスト ID の規約</strong>（f3）: 現状維持で進め、統一は 3/3 の課題として残す</li>
+    <li><strong>テスト ID の接頭辞</strong>（f3）: <code>SS-H*</code> はランナーに映らず受け入れ条件 2 に直結する。(a) 接頭辞を変える / (b) 正規表現を広げる を<strong>この issue で決める</strong></li>
     <li><strong><code>workflow-state-guard</code> の呼出条件に <code>mcp__.*</code> を明記</strong>（f6）: 1 行の追記を書き戻しフェーズで拾う</li>
   </ol>
 </section>
@@ -412,7 +426,7 @@ openssl is /mingw64/bin/openssl</code></pre>
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
       <tr><td>仕様どうしの矛盾が複数見つかる</td><td>識別子・登録表・判定順の矛盾は 0 件。見つかったのは「未確定の項目」（既定値・置き場・テストの依存）</td><td>「矛盾」ではなく「実装前に決めるべき項目」として設計への反映に挙げた</td></tr>
-      <tr><td>テスト ID の重複が起こり得る</td><td>重複 0 件。ただし SS 接頭辞が 2 アセットで共有され、片方が -H で回避していた</td><td>f3 に記録し、規約の統一は 3/3 へ</td></tr>
+      <tr><td>テスト ID の重複が起こり得る</td><td>重複 0 件。ただし SS 接頭辞が 2 アセットで共有され、片方が -H で回避しており、ランナーの正規表現に一致しない</td><td>f3 に記録し、この issue での解消を設計への反映に挙げた</td></tr>
       <tr><td>session-start は boundary.sh 不在でも部分的に動く</td><td>制御方式 3 で丸ごと無出力になる設計だった</td><td>f5 を ✕問題として挙げ、受け入れ条件 1 との関係を設計の論点にした</td></tr>
     </tbody>
   </table>
@@ -423,10 +437,11 @@ openssl is /mingw64/bin/openssl</code></pre>
 <section id="todo" data-required>
   <h2>残課題</h2>
   <ul>
-    <li><code>boundary.sh status --offline</code> の出力スキーマは <code>00-workflow-issue-mr-driven</code> 仕様にあるが、この issue では実装されない。スタブを作る場合の忠実度は未決（f5 の案 (a)）</li>
-    <li><code>assets/</code> をフックのどの階層に置くか（<code>&lt;NN-Event&gt;/assets/</code> か別か）は仕様に記述が無く、実装計画で決める（f4）</li>
-    <li><code>HOOK_DENY_ID</code> を設定必須にした場合、<code>hooks/lib</code> を読む提供コマンド側の挙動が変わらないかは未確認（0006 が確かめる）</li>
+    <li><code>boundary.sh status --offline</code> の出力スキーマはこの issue では実装されない。スタブを作る場合の忠実度は未決（f5 の案 (a)）</li>
+    <li><code>assets/</code> をフックのどの階層に置くかは仕様に記述が無く、実装計画で決める（f4）</li>
+    <li><code>HOOK_DENY_ID</code> を設定必須にした場合、共通の読み込み行（23 ファイル）と提供コマンド側への影響（0006 が確認）</li>
     <li>テスト ID の総数 93 本は仕様の表から数えたもので、実装時に観点が分割・統合されれば増減する</li>
+    <li><strong>issue #9 の申し送り G8</strong>（作業中チケットが 2 枚以上のときの提供コマンドの非対称）の事実確認をこの調査では行っていない。0008 で設計に入る前に読むか、未確認のまま方針を決めることを計画書に明示する</li>
   </ul>
 </section>
 

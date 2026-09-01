@@ -10,12 +10,13 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 
 ## サマリ
 
-仕様が前提にしている 8 項目のうち **5 項目は公式ドキュメントと一致**し、**1 項目は明確に相違**、**2 項目は記載が見つからなかった**。相違は `subagent-start-check` の要である **`model` フィールド**で、公式は「`model` を受け取れるのは `SessionStart` フックだけ」と明記している。したがって WF801（実行者の不一致）を SubagentStart の入力から判定する設計は成立せず、仕様が用意していた縮退（PostToolUse `Agent` の `tool_input.model` と比較）を既定にする判断が要る。一方 `SubagentStart` イベント・`agent_id` / `agent_type`・`permissionDecision: "defer"` は実在が確認でき、matcher は tool 名の完全一致または正規表現なので **`WebFetch` / `WebSearch` を強制対象にできる**（D3 の判断材料）。`tool_response` の構造は公式に記載が無く、T7 は実測に回す。あわせて §12 **T5 は #6 で「文書上は前提どおり、実機確認は未了」**と結論づけられており、この issue の登録直後に確かめる申し送りがあることを確認した。**`git 'commit'`（クォートで割ったサブコマンド）は、現状の仕様どおりに実装すると bash 経路で素通りする**。
+仕様が前提にしている 8 項目のうち **5 項目は公式ドキュメントと一致**し、**1 項目は明確に相違**、**2 項目は記載が見つからなかった**。相違は `subagent-start-check` の要である **`model` フィールド**で、公式は「`model` を受け取れるのは `SessionStart` フックだけ」と明記している。したがって WF801（実行者の不一致）を SubagentStart の入力から判定する設計は成立せず、仕様が用意していた縮退（PostToolUse `Agent` の `tool_input.model` と比較）を既定にする判断が要る。一方 `SubagentStart` イベント・`agent_id` / `agent_type`・`permissionDecision: "defer"` は実在が確認でき、matcher は tool 名の完全一致または正規表現なので **`WebFetch` / `WebSearch` を強制対象にできる**（D3 の判断材料）。`tool_response` の構造は公式に記載が無く、T7 は実測に回す。あわせて §12 **T5 は #6 で「文書上は前提どおり、実機確認は未了」**と結論づけられており、この issue の登録直後に確かめる申し送りがあることを確認した。**`git 'commit'`（クォートで割ったサブコマンド）は `block-direct-git` を素通りする**（作業中チケットがあれば `workflow-guard` の WF204 が受け止めるが、チケットが 0 枚の窓では抜ける）。さらにレビューで、**`command` 型フックはタイムアウトで打ち切られてもツール呼び出しをブロックしない**（出力も破棄される）ことが分かった — §1 の fail-closed ラッパーが効かないフェイルクローズドの穴で、仕様に `timeout` の記述が無い。
 
-- ◎良 4 件 / △注意 4 件 / ✕問題 1 件
+- ◎良 3 件 / △注意 5 件 / ✕問題 1 件（f7 はレビュー指摘 R1 により ◎良 → △注意 に格下げ）
 
 ### ◆特に見てほしい（判断に困っている）
 
+- **f7 の訂正（R1）**: `command` 型フックは**タイムアウトで打ち切られてもツール呼び出しをブロックしない**（出力も破棄）。§1 の fail-closed ラッパーも `trap ERR` も効かず、仕様に `timeout` の記述が無い。**フェイルクローズドの穴**をどう塞ぐか（`timeout` の明示・ホットパスの実行時間の上限）を設計で決める必要がある
 - **f2**: `model` は `SubagentStart` の入力に含まれない（公式は `SessionStart` のみと明記）。`subagent-start-check` の WF801 は仕様の縮退案（PostToolUse `Agent` の `tool_input.model` とチケットの `executor` を事後に比較）へ切り替える必要がある。§12 T4 の「実在する」という前提を書き換える設計判断
 
 ### ◇承認が欲しい（方針は決めた）
@@ -23,14 +24,14 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 - **f3**: `defer` は実在するが**機構では使わない**（クエリを終了して後で再開する用途で、フックの拒否・確認とは目的が違う）。§12 T3 の「`defer` の採用は別途判断」に対する答えとして「採用しない」を仕様に書く
 - **f5**: `WebFetch` / `WebSearch` は matcher に書ける（技術的な障害なし）。D3「`web` の強制の可否」は**強制する / しない**の方針判断だけが残る
 - **f8**: T5 は #6 の申し送りどおり、この issue の登録直後に `decisions.jsonl` の `tool: PowerShell` で確認する（実装フェーズ 4c の検証項目に追加）
-- **f9**: `git 'commit'` は bash 経路でも「特定できない」として拒否側に倒す（共通仕様 §7-9 の記述に合わせて `block-direct-git` の制御方式を補う）
+- **f9**: `git 'commit'` は bash 経路でも「特定できない」として拒否側に倒す（現状でも `workflow-guard` の WF204 で止まるが、メッセージが不適切でチケット 0 枚の窓では抜ける）（共通仕様 §7-9 の記述に合わせて `block-direct-git` の制御方式を補う）
 
 ### ・細かいレビューは不要（ほぼ確実）
 
 - **f1**: `SubagentStart` の実在と `agent_id` / `agent_type`（仕様どおり）
 - **f4**: `tool_response` の構造は公式に記載なし（T7 は実測へ。仕様の「4 候補を順に読む」を維持）
-- **f6**: 仕様に無いイベントが 7 種類ある（拡張の余地。この issue では扱わない）
-- **f7**: `exit 2` は JSON より優先する（T6 の裏付け）
+- **f6**: 仕様に無いイベントが 26 種類ある（拡張の余地。この issue では扱わない）
+
 
 ## 確かめられなかったこと（この結果が言っていないこと）
 
@@ -70,7 +71,8 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 - なお `hook-common.sh` の `hook_read_input` は `.tool_input.model // .model` を読むので、PostToolUse `Agent` の `tool_input.model` はそのまま `HOOK_MODEL` に入る（実装の準備はできている）
 - 実測への依存: **あり**（フェーズ 4c で `SubagentStart` の実物に `model` が無いことを確かめる）。ただし設計判断は公式の記述だけで決められる
 
-結論: §12 T4 の前提「`SubagentStart` イベントと `model` / `agent_id` フィールドの実在」は、**`model` について外れる**。設計で (a) WF801 を PostToolUse `Agent` 経由の事後通知に一本化する（仕様の縮退案）、(b) SubagentStart では `model` があれば使い、無ければ通知しない（現行の「`model` が無い版では比較しない」を既定にする）のどちらかを選ぶ。**(a) と (b) は排他ではなく、(b) を残したまま (a) を足すのが確実**。
+結論: §12 T4 の前提「`SubagentStart` イベントと `model` / `agent_id` フィールドの実在」は、**`model` について外れる**。案は 3 つ: (a) WF801 を PostToolUse `Agent` 経由の事後通知に一本化する（仕様の縮退案）/ (b) SubagentStart では `model` があれば使い、無ければ通知しない（現行の既定）/ **(c) PreToolUse `Agent` で `tool_input.model` と `executor` を比較する**（`workflow-guard` は既に `Agent` を matcher に持ち、`hook_read_input` は `tool_input.model` と `tool_input.subagent_type` を読む。起動**前**に気づけるので WF801 本来の性質が保てる）。
+**どの案にも共通の限界**: `Agent` ツールの `model` は任意引数で、省略時は「エージェント定義のモデル」が使われる。省略された起動では `tool_input.model` が空になり、比較そのものができない（`hook_read_input` の `.tool_input.model // .model` は空文字を返し、`subagent-start-check` の制御方式 4 も「`model` が特定でき」を条件にしているため何もしない）。この限界を仕様に明記したうえで、(c) を本線に (b) を残すのが妥当。
 
 ### f3. `permissionDecision: "defer"` は実在するが、機構では使わない ◎良
 
@@ -79,6 +81,7 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 - 値の集合は **`allow` / `deny` / `ask` / `defer`** の 4 つで確定。優先順位も明文化されている（`deny` > `defer` > `ask` > `allow`）
 - `defer` は「クエリを終了して後で再開する」ためのもので、SDK が入力を集め直す用途。フックが「判断を保留する」意味ではなく、**機構が使う場面は無い**（拒否は `deny`、確認は `ask`、ヘッドレスでは `ask` を `deny` に置き換える現行方針で足りる）
 - 補足: `updatedInput` を `defer` と併用すると入力が捨てられる（公式が明示）。機構は `updatedInput` を使わないので影響なし
+- あわせて確認: `last_assistant_message` は **hooks リファレンスの共通入力フィールド**として正式に定義されている（「Hooks that need the final assistant text of the current turn should use `last_assistant_message` on Stop and SubagentStop instead of reading the transcript」）。transcript を読まずに最終応答を得られるため、`post-push-usage-report` の設計に効く可能性がある
 - 実測への依存: 無し
 
 結論: §12 T3 の「`defer` の採用は別途判断」に対する答えは **「採用しない」**。理由（用途が違う・優先順位が `deny` の下）を仕様に 1 行書いて TBD を閉じられる。
@@ -109,28 +112,29 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 
 結論: D3「`WebFetch` / `WebSearch` を matcher に加えて `web` を強制するか」は**技術的には可能**で、残るのは方針判断（外部への問い合わせを機構で強制するか、宣言の記録に留めるか）だけ。設計で決める。
 
-### f6. 仕様に無いフックイベントが 7 種類ある △注意
+### f6. 仕様に無いフックイベントが 26 種類ある △注意
 
 根拠: 公式 hooks リファレンスのイベント一覧
 
-- 仕様（§1）が扱う 7 イベント（SessionStart / UserPromptSubmit / PreToolUse / PostToolUse / SubagentStart / SubagentStop / Stop）のほかに、公式には **`PostToolUseFailure` / `PostToolBatch` / `PreCompact` / `PostCompact` / `PreModelSwitch` / `PostModelSwitch` / `PermissionRequest` / `PermissionDenied` / `Notification` / `SessionEnd`** がある
+- 公式のイベント一覧は **33 種類**あり、仕様（§1）が扱う 7 イベント（SessionStart / UserPromptSubmit / PreToolUse / PostToolUse / SubagentStart / SubagentStop / Stop）を除くと **26 種類**が未使用。機構に関係しそうなものを挙げると `PostToolUseFailure` / `PostToolBatch` / `PreCompact` / `PostCompact` / `PreModelSwitch` / `PostModelSwitch` / `PermissionRequest` / `PermissionDenied` / `Notification` / `SessionEnd` など
 - このうち機構に効きそうなのは 2 つ:
   - **`PostToolUseFailure`**（ツール呼び出しが失敗したとき）: `post-push-*` が「終了コード 0 か」を `tool_response` から読む代わりに、失敗はこのイベントで分けられる可能性がある
-  - **`PermissionRequest` / `PermissionDenied`**: 機構のディレクトリには `21-PermissionRequest/` が用意されているが、§1 の登録表にフックは無い（空のまま）
+  - **`PermissionRequest` / `PermissionDenied`**: 機構のディレクトリには `21-PermissionRequest/` が用意されているが、§1 の登録表にフックは無い。空のまま残るディレクトリは **2 つ**（`01-PreCompact/` と `21-PermissionRequest/`。どちらも `.gitkeep` のみ）
 - 実測への依存: 無し
 
 結論: この issue では**扱わない**（issue #9 のスコープは 11 本）。`PostToolUseFailure` の活用と `21-PermissionRequest/` の空ディレクトリの扱いは、3/3 または別 issue の検討事項として残す。
 
-### f7. `exit 2` は JSON より優先し、PreToolUse をブロックする ◎良
+### f7. `exit 2` は JSON より優先するが、タイムアウトでは fail-open になる △注意
 
 根拠: 公式 hooks リファレンス「exit 2 means a blocking error. On events that can block, exit 2 blocks whether or not you print JSON: even a JSON `permissionDecision` of `"allow"` can't override it.」「`PreToolUse` | Yes | Blocks the tool call」「On `PreToolUse`, a hook canceled at its timeout blocks the tool call.」
 
 - `exit 2` は JSON 出力より強く、`PreToolUse` ではツール呼び出しをブロックする。公式の例（`block-rm.sh`）は `permissionDecision: "deny"` の JSON を返す形で、**JSON による deny も正規の経路**として示されている
 - したがって §12 T6（`permissionDecision` + 終了 0 の deny が効くか）は「効く」方に大きく傾く。ただし公式は「JSON deny が効く」と明示的に書いてはおらず、例示にとどまるので**実測は残す**
-- 副次的に分かったこと: **フックがタイムアウトで打ち切られると PreToolUse ではツール呼び出しがブロックされる**。fail-closed ラッパー（§1）と同じ方向で、機構の安全側に働く
+- **重要な訂正（レビュー指摘 R1）**: 当初「タイムアウトで打ち切られるとブロックされる」と書いたが、公式の原文は逆で、**`command` / `http` / `mcp_tool` のフックはタイムアウトで打ち切られてもツール呼び出しをブロックしない**（出力は破棄される）。ブロックするのは Agent SDK のコールバックフックだけ。原文: 「Claude Code cancels a `command`, `http`, or `mcp_tool` hook that reaches its `timeout`, discarding the hook's output, so on most events a timed-out hook renders no decision.」「A timed-out `command`, `http`, or `mcp_tool` hook doesn't block the tool call. The call continues through the normal permission flow, so don't count on a stalled hook to act as a gate.」
+- 本機構は `settings.json` に `type: "command"` で登録するので**ブロックしない側**。§1 の fail-closed ラッパー（`bash ... || printf deny`）も §3 の `trap ERR` も、打ち切られた場合には効かない（出力ごと破棄される）。**フェイルクローズドの穴**であり、仕様には `timeout` の記述が 1 行も無い
 - 実測への依存: **あり**（T6 の最終確認はフェーズ 4b の ②-1）
 
-結論: 段階登録 ②-1 で T6 を確かめる段取りはそのままでよい。外れた場合の縮退（`exit 2` + stderr）も公式が保証しているので、手戻りの内容は「11 本の終了方式の書き換え」に限られる。
+結論: 段階登録 ②-1 で T6 を確かめる段取りはそのままでよい。外れた場合の縮退（`exit 2` + stderr）も公式が保証しているので、手戻りの内容は「11 本の終了方式と §1 のラッパーの書き換え」に限られる。**あわせてタイムアウト時の fail-open に対処が要る**（各フックの `timeout` を明示するか、ホットパスの実行時間の上限を仕様に置く）。
 
 ### f8. §12 T5 は #6 で「文書上は前提どおり・実機確認は未了」と結論づけられていた △注意
 
@@ -151,9 +155,10 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 - `cmdpos.sh` の実装もそのとおり: `git 'commit'` は `exe=git` / `subcmd=_`。`CP_GITLIKE` は**実行体が `_` のときだけ** 1 になる（`'git' commit` は gitlike=1、`git 'commit'` は gitlike=0）
 - ところが `block-direct-git` の制御方式 3 で「サブコマンドが特定できないときに拒否側に倒す」と書いてあるのは **PowerShell の入力についてだけ**。bash 経路には `subcmd == "_"` の規定が無く、`opaque` でもないため、**現状の仕様どおりに実装すると `git 'commit'` は許可される**
 - issue #9 の詳細 D2 は「`git 'commit'` のようにクォートで割った語のサブコマンドが `_` になる制約（`block-direct-git` は『特定できない』として扱う）」と申し送っており、**「特定できない = 拒否側に倒す」という意図**と読める
+- **ただし機構全体では素通りしない**（レビュー指摘 R9）: 作業中チケットがある間は `workflow-guard` が止める。`scope_classify` は `exe == git` のとき `CP_SUBCMD` を読み取り系サブコマンドの一覧と照合し、`_` はどの分類にも当たらないため `unknown` → **WF204（分類外コマンド）**。真に素通りするのは「作業中チケットが 0 枚の窓」（§13 の意図的な緩和）と `workflow-guard` を止めているときだけ
 - 実測への依存: 無し
 
-結論: `block-direct-git` の制御方式 3 に「実行体が `git` で第 1 サブコマンドが `_`（特定できない）→ **deny WF403**」を bash 経路にも足すのが、§7-9 と D2 の意図に沿う。副作用として `git '状態確認用のエイリアス'` のような正当な用法も止まるが、`git status` などクォートしない書き方に言い換えれば通るため実害は小さい（WF403 のメッセージが言い換えを案内する）。テストは BG-T01 に 1 ケース足す。
+結論: `block-direct-git` の制御方式 3 に「実行体が `git` で第 1 サブコマンドが `_`（特定できない）→ **deny WF403**」を bash 経路にも足すのが、§7-9 と D2 の意図に沿う。現状でも作業中チケットがあれば `workflow-guard` の WF204 で止まるため、**修正の効果は「メッセージが適切になること」と「チケットが 0 枚の窓でも止まること」**の 2 点で、優先度は中。テストは BG-T01 に 1 ケース足す。
 
 ## 検証の結果
 
@@ -165,20 +170,22 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 | 4 | `agent_type` | 同上。値はエージェント名（`"Explore"` 等） | **一致** |
 | 5 | `permissionDecision: "defer"` の実在 | `allow` / `deny` / `ask` / `defer` の 4 値。`defer` はクエリを終了して後で再開 | **一致**（採用しない） |
 | 6 | `tool_response` の終了コードのフィールド名 | 記載が見つからない | **記載なし**（f4） |
-| 7 | `Stop` の入力（`stop_hook_active`） | SDK の例に `stop_hook_active` / `last_assistant_message` | **一致**（完全なスキーマは未取得） |
+| 7 | `Stop` の入力（`stop_hook_active`） | `stop_hook_active` は SDK ドキュメントの例に、`last_assistant_message` は hooks リファレンスの共通入力フィールドの説明に（別ページ由来） | **一致**（完全なスキーマは未取得） |
 | 8 | matcher が `WebFetch` / `WebSearch` を対象にできるか | matcher は tool 名の完全一致 or 正規表現 | **一致**（f5） |
 | — | §12 T5（PowerShell の入力） | #6 で文書上は解決・実機未確認 | この issue の 4c で確認（f8） |
-| — | `git 'commit'` の扱い | §7-9 は「特定できない」、block-direct-git は PowerShell だけ規定 | **仕様の穴**（f9） |
+| — | フックのタイムアウト時の挙動 | `command` / `http` / `mcp_tool` はブロックしない（出力も破棄）。ブロックするのは Agent SDK のコールバックのみ | **仕様に記述なし**（f7 / R1） |
+| — | `git 'commit'` の扱い | §7-9 は「特定できない」、block-direct-git は PowerShell だけ規定。`workflow-guard` の WF204 が受け止める | **仕様の穴**（f9） |
 
 ## 設計への反映
 
-1. **WF801 の判定経路**（f2）: `SubagentStart` の `model` に依存しない形へ。仕様の縮退（PostToolUse `Agent` の `tool_input.model` と `executor` の比較）を本線にし、§2・§12 T4・`subagent-start-check` 仕様の制御方式 4 を書き換える
+1. **WF801 の判定経路**（f2）: `SubagentStart` の `model` に依存しない形へ（案 (c) PreToolUse `Agent` を本線に、(b) を残す）。§2・§12 T4・`subagent-start-check` 仕様の制御方式 4 を書き換える。**発行するフックが変わるなら §6 台帳の `WF801–809` の持ち主欄（現在は `subagent-start-check`）も直す**（現状の `subagent-stop-check` は「再掲」なので台帳と矛盾しないが、本線化すると持ち主の定義が変わる）
 2. **`defer` を採用しない**（f3）: §12 T3 に「`defer` は用途が違うため採用しない」と結論を書いて TBD を閉じる
 3. **`web` の強制の可否**（f5 / D3）: 技術的には可能。強制する場合は §1 の登録表に `WebFetch|WebSearch` の行を足し、`scope.sh` の `web` 分類を PreToolUse で判定する。しない場合は §8 の「機構は強制せず宣言は意図の記録」を確定文にする
 4. **`tool_response` は実測待ち**（f4）: 現行の 4 候補読みを維持し、§12 T7 は残す
 5. **T5 を実装フェーズの検証項目に追加**（f8）: 登録直後の PowerShell 実行 1 回で確認する
 6. **`git 'commit'` の穴を塞ぐ**（f9）: `block-direct-git` の制御方式に bash 経路の `subcmd == "_"` → WF403 を足し、BG-T01 にケースを追加
-7. **仕様に無いイベント**（f6）: この issue では扱わない。`PostToolUseFailure` と `21-PermissionRequest/` の空ディレクトリは 3/3 の検討事項として残す
+7. **タイムアウト時の fail-open**（f7 / R1）: `command` 型フックはタイムアウトで打ち切られるとブロックせず出力も破棄される。§1 のラッパーも `trap ERR` も効かない。各フックの `timeout` を明示するか、ホットパス（`workflow-entry` / `block-*`）の実行時間の上限を仕様に置くかを決める
+8. **仕様に無いイベント**（f6）: この issue では扱わない。`PostToolUseFailure` と、空のまま残る 2 ディレクトリ（`01-PreCompact/`・`21-PermissionRequest/`）は 3/3 の検討事項として残す
 
 ## 想定と異なった点
 
@@ -188,6 +195,7 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 | `model` は「無い版がある」程度の話 | 公式が「`SessionStart` だけが受け取れる」と明記しており、`SubagentStart` では**構造的に来ない** | f2 を ✕問題にし、WF801 の設計変更を設計への反映の 1 番目に置いた |
 | `defer` は採否を実測で決める | 用途（クエリを終了して後で再開）が明文化されており、実測を待たずに「採用しない」と決められた | f3 として TBD を閉じる提案にした |
 | `git 'commit'` は仕様どおりに実装すれば拒否される | 共通仕様 §7-9 は「特定できないとして扱う」と書くが、`block-direct-git` は PowerShell 経路にしか規定が無く、bash では素通りする | f9 として設計への反映に挙げた |
+| `exit 2` とタイムアウトは同じ「安全側」の話 | タイムアウトは逆で、`command` 型フックは**ブロックしない**（出力も破棄）。最初の取得では要約が原文を取り違えており、レビュー（R1）で原文を確認して訂正した | f7 を △注意 に格下げし、設計への反映 7 として fail-open の対処を追加 |
 
 ## 残課題
 
@@ -195,3 +203,5 @@ keywords: [公式リファレンス, SubagentStart, model, agent_id, agent_type,
 - ドキュメントの版と実行中の Claude Code の版の対応。matcher の評価規則やイベントの追加は版に依存し得るが、公式ページに版の記載が無い
 - `WebFetch` / `WebSearch` を強制対象にした場合、`scope.sh` の `web` 分類が PreToolUse の入力（`tool_name` だけでコマンド文字列が無い）で判定できるか（`scope_classify` はコマンド列を前提にしている）。設計で確かめる
 - `PostToolUseFailure` を使うと `post-push-*` の終了コード判定を簡略化できる可能性。3/3 の検討事項
+- 各フックの `timeout` の既定値（`settings.json` の `timeout` フィールドの既定）と、ホットパス（`workflow-entry` / `block-chmod` / `block-direct-git`）の実測所要。fail-open の穴の大きさを見積もるにはこの 2 つが要る（フェーズ 4 で測る）
+- `last_assistant_message`（Stop / SubagentStop の共通入力）を使うと `post-push-usage-report` が transcript を読まずに済むか

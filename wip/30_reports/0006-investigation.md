@@ -31,7 +31,7 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 
 ## 確かめられなかったこと（この結果が言っていないこと）
 
-- lib の各関数が**仕様どおりに動くか**（#6 で HK-T03〜T15 が通っている前提を採った。この調査では実行していない）
+- lib の各関数が**仕様どおりに動くか**（#6 で HK-T02〜T08・T10〜T15 が通っている前提を採った（HK-T01 と HK-T09 はこの issue で作る）。この調査では実行していない）
 - 公式 hooks リファレンスとの整合（**0007 の担当**）
 - `permissionDecision` + 終了 0 の deny が実際に効くか（**§12 T6。実測はフェーズ 4**。この報告は「参考実装に実績が無い」ことまで）
 - 参考実装の `MR-driven-workflow` 側（提供コマンド相当）の流用可否。今回は `agent-workflow/.claude/hooks/` に限定した
@@ -52,7 +52,7 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 
 | lib | 公開関数 | 使うフック |
 |---|---|---|
-| `hook-common.sh` | `hook_init` / `hook_read_input` / `hook_field` / `tool_class` / `hook_enforce_enabled` / `hook_headless` / `redact` / `hook_jq` / `hook_require_jq` / `hook_record` / `hook_deny` / `hook_ask` / `hook_notify` / `hook_inject` / `hook_allow` / `hook_disabled` / `hook_fail` / `hook_fail_closed` / `hook_session_read` / `hook_session_write` / `hook_rel_path` / `hook_doing_ticket` | 11 本すべて |
+| `hook-common.sh` | 関数: `hook_init` / `hook_read_input` / `hook_field` / `tool_class` / `hook_enforce_enabled` / `hook_headless` / `redact` / `hook_jq` / `hook_require_jq` / `hook_record` / `hook_deny` / `hook_ask` / `hook_notify` / `hook_inject` / `hook_allow` / `hook_disabled` / `hook_fail` / `hook_fail_closed` / `hook_session_read` / `hook_session_write` / `hook_rel_path` / `hook_doing_ticket`<br>変数（`hook_read_input` が設定）: `HOOK_SESSION_ID` / `HOOK_TRANSCRIPT_PATH` / `HOOK_CWD` / `HOOK_EVENT` / `HOOK_PERMISSION_MODE` / `HOOK_TOOL` / `HOOK_AGENT_ID` / `HOOK_AGENT_TYPE` / `HOOK_PROMPT_ID` / `HOOK_COMMAND` / `HOOK_FILE_PATH` / `HOOK_SKILL` / `HOOK_SUBAGENT_TYPE` / **`HOOK_MODEL`** / **`HOOK_DOING_COUNT`**（`hook_doing_ticket`） | 11 本すべて |
 | `cmdpos.sh` | `cmdpos_parse` / `cmdpos_args` / `cmdpos_has_git_subcommand` / `cmdpos_has_provided`（+ 配列 `CP_EXE` / `CP_ARGS` / `CP_SUBCMD` / `CP_REDIRECTS` / `CP_WRITE_TARGETS` / `CP_OPAQUE` / `CP_PROVIDED` / `CP_GITLIKE` / `CP_DEGRADED` / `CP_LOWER`） | `block-direct-git`（正）/ `block-chmod` / `workflow-guard` / `workflow-state-guard` / `post-push-*`（`push-detect` 経由） |
 | `scope.sh` | `scope_load` / `scope_load_ticket` / `scope_load_approvals` / `scope_match` / `scope_resolve` / `scope_op_declared` / `scope_classify`（+ `SC_DECISION` / `SC_ID` / `SC_STAGE` / `SC_ASK_SCOPE` / `SC_CLASS` / `SC_TARGETS` / `SC_COMMON_*`） | `workflow-guard`（正）/ `workflow-diff-check` / `subagent-stop-check` / `workflow-state-guard`（`SC_COMMON_STATE_FILES` のみ） |
 | `push-detect.sh` | `push_detect`（+ `PD_BRANCH` / `PD_HEAD` / `PD_PREV_SHA` / `PD_COUNT` / `PD_REASON`） | `post-push-compact-prompt`（正）/ `post-push-usage-report` |
@@ -60,6 +60,7 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 
 - **仕様にあって lib に無い関数: 0 件**。各仕様が名前を挙げている呼び出し（`cmdpos.sh` でコマンド列を得る / `scope.sh` の判定順 / `push-detect.sh` の検知 / `transcript.sh` の集計）はすべて公開 API で足りる
 - **lib にあって誰も呼ばない関数: 0 件**。`hook_ask` は `workflow-guard` の WF202 / WF203 のみ、`hook_inject` は `session-start`（SessionStart は stdout・他は additionalContext の分岐を関数が内包）と `subagent-start-check` / `post-push-*`、`hook_jq` / `hook_require_jq` は jq を使う全フックが使う
+- 仕様が前提にする値は関数ではなく**変数**で渡る: `HOOK_MODEL`（`subagent-start-check` の WF801 の材料。ただし 0007 f2 のとおり `SubagentStart` の入力には `model` が来ない）/ `HOOK_DOING_COUNT`（`workflow-guard` の WF207）/ `HOOK_AGENT_TYPE`（`subagent-stop-check`。受け入れ条件 5）/ `HOOK_COMMAND`・`HOOK_FILE_PATH`・`HOOK_SKILL`・`HOOK_SUBAGENT_TYPE`（各判定の入力）
 - 出力の形（deny / ask JSON、additionalContext、SessionStart の stdout）と `redact` の適用は `hook_deny` / `hook_ask` / `hook_notify` / `hook_inject` の内側で完結しており、フック本体が JSON を組み立てる必要は無い
 
 結論: 結線は「`hook_init` → `hook_read_input` → 判定 → `hook_deny`/`hook_ask`/`hook_notify`/`hook_inject`/`hook_allow`」の型に収まる。11 本ともこの型で書ける。
@@ -84,7 +85,7 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 - `subagent-start-check` は frontmatter を読むが `scope.sh` は要らない。`__ss_load frontmatter nop`（読めなければ `fm_*` が空を返すスタブ）を自前で使えば、案内側の方針と一致する
 - 実測への依存: **あり**（T8 は「実機で害があるか」を確かめる項目）。ただし**経路の設計**は実測を待たずに決められる
 
-結論: 3 案 —（a）`scope.sh` の読み込みポリシーを `nop` にして、呼び手（拒否側）が自分で失敗を deny に倒す（§12 T8 の縮退案そのもの）／（b）案内側専用の薄いラッパを用意する／（c）現状のまま T8 の実測を待つ。**（a）が仕様の縮退案と一致**し、拒否側は `scope_load` の戻り値で deny に倒せるので実装できる。
+結論: 3 案 —（a）`scope.sh` の読み込みポリシーを `nop` にして、呼び手（拒否側）が自分で失敗を deny に倒す（§12 T8 の縮退案そのもの）／（b）案内側専用の薄いラッパを用意する／（c）現状のまま T8 の実測を待つ。**（a）が仕様の縮退案と一致**する。ただし倒す材料は `scope_load` ではなく **`scope_load_ticket` の戻り値**（`scope_load` は `scope-limits.json` と `jq` しか見ず `fm_*` を呼ばない。frontmatter を使うのは `scope_load_ticket` の `fm_get` / `fm_list`）。さらに `nop` にすると、`scope_load_ticket` の失敗が「`frontmatter.sh` が無い（機構の破損 → WF209）」なのか「チケットに `ticket_type` が無い（記載不正 → WF211）」なのか**戻り値から区別できなくなる**（現行の `deny` ポリシーは前者を `source` 時点で捕まえている）。区別の付け方は設計の論点。
 
 ### f4. `HOOK_DENY_ID` はライブラリの `source` より前に設定する必要がある △注意
 
@@ -161,9 +162,11 @@ keywords: [hooks/lib, hook-common, cmdpos, scope, push-detect, transcript, 結�
 
 1. **`tool_class` と `entry-skills.txt` の二重定義**（f2）: 振り分けスキル名の正をファイルに一本化するか、lib の接頭辞判定を残すかを決める（決めたら `workflow-entry` 仕様と `hook-common` の役割分担を仕様に書く）
 2. **案内側の frontmatter 読み込み**（f3 / §12 T8）: `scope.sh` の読み込みポリシーを `nop` にして呼び手が失敗ポリシーを決める案を採るか。採るなら `scope.sh` のヘッダと共通仕様 §12 T8 を書き換える
-3. **実装の型**（f4）: 「`HOOK_DENY_ID` の代入 → lib の source → `hook_init`」を 11 本で統一する。実装計画のチェックリストに入れる
-4. **T6 を最初に確かめる**（f7）: 段階登録 ②-1（拒否側 1 本）で `permissionDecision` + 終了 0 の deny を確認してから残りを書く。外れた場合の手戻り（11 本 + §1 ラッパー）を保留した点に記録する
-5. **実装チケットの分割**（f5）: 重い 4 本（`workflow-guard` / `post-push-usage-report` / `session-start` / `workflow-state-guard`）と軽い 7 本で分ける
+（以下は設計ではなく **実装計画（フェーズ 4）への申し送り**。0008 は設計チケットに割り付けず、実装計画に渡す）
+
+- **実装の型**（f4）: 「`HOOK_DENY_ID` の代入 → lib の source → `hook_init`」を 11 本で統一する。実装計画のチェックリストに入れる
+- **T6 を最初に確かめる**（f7）: 段階登録 ②-1（拒否側 1 本）で `permissionDecision` + 終了 0 の deny を確認してから残りを書く。外れた場合の手戻り（11 本 + §1 ラッパー）を保留した点に記録する
+- **実装チケットの分割**（f5）: 重い 4 本（`workflow-guard` / `post-push-usage-report` / `session-start` / `workflow-state-guard`）と軽い 7 本で分ける
 
 ## 想定と異なった点
 

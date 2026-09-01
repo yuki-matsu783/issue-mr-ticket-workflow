@@ -26,7 +26,7 @@ keywords: [振り分け, 宣言, UserPromptSubmit, Skill, 拒否, 継続条件, 
 | 登録 | matcher | 役割 |
 |---|---|---|
 | UserPromptSubmit | — | `prompt_seq` を +1 し `declared_skill` を空にする。プロンプト 1 行目が `/00-workflow-issue-mr-driven` または `/00-workflow-quick-request`（引数付き可）なら宣言として記録する |
-| PreToolUse | `Skill` | `tool_input.skill` が振り分けスキル名（`assets/entry-skills.txt`: `00-workflow-issue-mr-driven` / `00-workflow-quick-request`。`CLAUDE.md`「作業の振り分け」の表と同一 — テスト WE-T07 で照合）なら `declared_skill` に記録する。Skill ツール自体は常に許可 |
+| PreToolUse | `Skill` | `tool_input.skill` が振り分けスキル名（`assets/entry-skills.txt`: `00-workflow-issue-mr-driven` / `00-workflow-quick-request`。`CLAUDE.md`「作業の振り分け」の表と同一 — テスト WE-T07 で照合）なら `declared_skill` に記録する。Skill ツール自体は常に許可。**振り分けスキル名の正はこのファイルで、照合を行うのはこのフック**。`hook-common.sh` の `tool_class` は「ツールの種類の分類」までを返す関数であり、スキル名の照合には使わない（`00-workflow-` の接頭辞判定を分類の根拠にすると、将来 `00-workflow-` で始まる別のスキルが増えたときにファイルとコードで判定が食い違う。DDR i0009-03）。`assets/entry-skills.txt` のパスの基準ディレクトリは 0014（フック共通仕様 §1）で確定するまで暫定 |
 | PreToolUse | 書き込み / 実行 / プランモード / 起動（共通仕様 §2 の分類） | 宣言と継続条件を判定し、未宣言なら拒否 |
 
 ## 入出力
@@ -84,7 +84,7 @@ PreToolUse（書き込み / 実行 / プランモード / 起動）での判定�
 | WE-T07 | 正常系 | `assets/entry-skills.txt` と `CLAUDE.md` の表のスキル名が一致する |
 | WE-T08 | 異常系 | `entry.json` 破損で WF102、`jq` 不在で WF109 |
 | WE-T09 | 正常系 | 別の `session_id` の宣言が効かない |
-| WE-T10 | 正常系 | 継続条件の判定が、同じ作業領域・`logs/` に対する `boundary.sh status --offline` の `position` と食い違わない |
+| WE-T10 | 正常系 | 継続条件の判定が、同じ作業領域・`logs/` に対する `boundary.sh status --offline` の `position` と食い違わない。**`boundary.sh` は 3/3 で実装するため、この観点は 3/3 に送る**（両方が無出力になる空同士の比較では意味が無く、偽実装で代えると「本物と一致するか」という観点そのものが失われる。issue #9 の受け入れ条件 1 の「テストが通る」は、この issue で実装するフックのテストを指す。DDR i0009-04） |
 | WE-T11 | 正常系 | `merge-state.state=cleaned` で宣言済みなら Write も通り、未宣言でも `boundary.sh status` は通る |
 
 ## 要件との対応

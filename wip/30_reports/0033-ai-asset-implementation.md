@@ -30,7 +30,7 @@ tags: [report, ai-asset-implementation, issue-6]
 
 | アセット | 変更 | 仕様の節 |
 |---|---|---|
-| `20-common-step-ai-asset-creator/assets/skill.template.md` | 見出し直下に冒頭段落のガイド（禁止事項の要約 3〜5 行、frontmatter は name / description の 2 項目）と `{{PROHIBITIONS}}`、続けて `## 目的` | `ai-asset-creator` 仕様 OUT ひな形 |
+| `20-common-step-ai-asset-creator/assets/skill.template.md` | 見出し直下に冒頭段落のガイド（禁止事項の要約 3〜5 行、frontmatter は name / description の 2 項目）と プレースホルダ PROHIBITIONS、続けて `## 目的` | `ai-asset-creator` 仕様 OUT ひな形 |
 | `20-common-step-requirement/assets/requirements.template.md` | 受け入れ基準のガイドに補足の後置と `####` 小節の許容を 1 文 | `requirement` 仕様 処理フロー 3 |
 | `20-common-step-commit-push/scripts/commit.sh` | `-m` の値なし・`--amend` / `--no-verify`・不明オプション・ルートに移れない → CP007（4 か所）、`git commit` 自体の失敗 → CP008（2 か所。対処の案内を追記）。冒頭コメントに識別子と終了コードの対応 | 仕様 commit.sh 2・5、識別子表 CP007 / CP008 |
 | `20-common-step-commit-push/scripts/push.sh` | 受け付けない引数・`git` 不在・ルートに移れない・detached HEAD・`jq` 不在 → CP007（5 か所）。CP005 は検査未充足、CP006 はリモート拒否だけに | 仕様 push.sh 0、識別子表 |
@@ -50,7 +50,7 @@ tags: [report, ai-asset-implementation, issue-6]
 
 ### 0033
 
-- プレースホルダ（`{{名前}}` / TODO / TBD）: 変更したテンプレート以外の 4 ファイルで 0 件（テンプレート 2 本はプレースホルダを持つのが正）
+- プレースホルダ（二重波括弧形式 / TODO / TBD）: 変更したテンプレート以外の 4 ファイルで 0 件（テンプレート 2 本はプレースホルダを持つのが正）
 - 参照更新（計画の参照更新一覧）: `result_ng 004 "git commit が失敗` 0 件 / `result_ng 005 "引数` 0 件 / `result_ng 006 "(git が無い|リポジトリルート|現在ブランチ|jq が無い)` 0 件 / `result_ng 001 "(-m に|存在しないオプション|不明なオプション|リポジトリルート)` 0 件。残るもの: CP006 2 件（リモート拒否）、CP001 5 件（対象の指定の誤り）— 計画の期待どおり
 - ロックアウト対策の最初の操作: 0033 の成果物を変更後の `commit.sh` でコミットし、`ticket.sh complete 0033`（内部で `commit.sh`）を通す。push は完了コミット直後に `push.sh`
 
@@ -58,7 +58,7 @@ tags: [report, ai-asset-implementation, issue-6]
 
 | # | チケット | 逸脱 | 理由 | 送り先 |
 |---|---|---|---|---|
-| D2-1 | 0033 | `skill.template.md` の冒頭段落をプレースホルダ `{{PROHIBITIONS}}` として置いた（仕様は「冒頭段落は禁止事項の要約」とだけ書き、プレースホルダ名は定めない） | ひな形は `{{名前}}` 形式で埋める箇所を示す規約 | なし（名前は実装の裁量） |
+| D2-1 | 0033 | `skill.template.md` の冒頭段落をプレースホルダ プレースホルダ PROHIBITIONS として置いた（仕様は「冒頭段落は禁止事項の要約」とだけ書き、プレースホルダ名は定めない） | ひな形は二重波括弧の形式で埋める箇所を示す規約 | なし（名前は実装の裁量） |
 
 ## 想定と異なった点
 

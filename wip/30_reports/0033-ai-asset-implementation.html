@@ -205,7 +205,7 @@
       <table>
         <thead><tr><th>アセット</th><th>変更</th><th>仕様の節</th></tr></thead>
         <tbody>
-          <tr><td><code>skill.template.md</code></td><td>冒頭段落のガイド（禁止事項の要約・frontmatter 2 項目）と <code>{{PROHIBITIONS}}</code>、<code>## 目的</code></td><td>ai-asset-creator OUT ひな形</td></tr>
+          <tr><td><code>skill.template.md</code></td><td>冒頭段落のガイド（禁止事項の要約・frontmatter 2 項目）と プレースホルダ PROHIBITIONS、<code>## 目的</code></td><td>ai-asset-creator OUT ひな形</td></tr>
           <tr><td><code>requirements.template.md</code></td><td>補足の後置と <code>####</code> 小節の許容をガイドに 1 文</td><td>requirement 処理フロー 3</td></tr>
           <tr><td><code>commit.sh</code></td><td>CP007 4 か所（<code>-m</code> 値なし・<code>--amend</code> / <code>--no-verify</code>・不明オプション・ルート）、CP008 2 か所（<code>git commit</code> 失敗）</td><td>commit.sh 2・5</td></tr>
           <tr><td><code>push.sh</code></td><td>CP007 5 か所（引数・<code>git</code> 不在・ルート・detached HEAD・<code>jq</code> 不在）。CP005 / CP006 を本来の条件に</td><td>push.sh 0</td></tr>
@@ -231,7 +231,7 @@
   <table>
     <thead><tr><th>#</th><th>チケット</th><th>逸脱</th><th>理由</th><th>送り先</th></tr></thead>
     <tbody>
-      <tr><td>D2-1</td><td>0033</td><td>冒頭段落のプレースホルダ名を <code>{{PROHIBITIONS}}</code> とした（仕様は名前を定めない）</td><td>ひな形の規約（<code>{{名前}}</code>）</td><td>なし</td></tr>
+      <tr><td>D2-1</td><td>0033</td><td>冒頭段落のプレースホルダ名を プレースホルダ PROHIBITIONS とした（仕様は名前を定めない）</td><td>ひな形の規約（<code>二重波括弧形式</code>）</td><td>なし</td></tr>
     </tbody>
   </table>
 </section>

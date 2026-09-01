@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0006 調査結果 — hooks/lib との結線の確認と参考実装との差分</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
+  <p class="kind">調査結果レポート / issue #9 フェーズ 2</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>0006 調査結果 — hooks/lib との結線の確認と参考実装との差分</h1>
+
+  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 5</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. lib の公開 API は 11 本の仕様の前提を満たす（欠け 0 / 未使用 0）</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. tool_class の振り分けスキル判定が entry-skills.txt と二重定義になる</a></li>
+          <li><a href="#f3"><span class="mk warn">△</span> 3. 案内側フックが frontmatter を読む経路が未定（§12 T8 そのもの）</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. HOOK_DENY_ID はライブラリの source より前に設定する必要がある</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. 各フックが自前で書く処理は 9 種類</a></li>
+          <li><a href="#f6"><span class="mk warn">△</span> 6. 参考実装は構造・状態ファイル・登録タイミングが本仕様と違う</a></li>
+          <li><a href="#f7"><span class="mk warn">△</span> 7. 参考実装の deny は exit 2 + stderr で、permissionDecision + 終了 0 の実績が無い</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-9-hook-bodies-settings</code></dd></div>
+    <div><dt>チケット</dt><dd>0006-investigation</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
+<section id="overview" data-required>
+  <p class="lead"><code>hooks/lib</code> 5 本の公開 API は 11 本のフック仕様の前提を<strong>ほぼそのまま満たす</strong>（欠け 0 / 未使用 0）。ただし結線の注意点が 4 件: <code>tool_class</code> の二重定義、案内側の frontmatter 読み込み経路（§12 T8）、<code>HOOK_DENY_ID</code> の設定順序、各フックが自前で書く 9 種類の処理。参考実装から流用できるのは<strong>テストの骨格まで</strong>で、本体 11 本（うち 7 本は相当物なし）は書き起こしになる。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>5</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>f3</strong>: 案内側フックが frontmatter を読む経路。<code>scope.sh</code> は deny ポリシーで <code>frontmatter.sh</code> を source するため、案内側の「黙って通す」と矛盾する（§12 T8）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><strong>f2</strong>: 振り分けスキル名の正を <code>entry-skills.txt</code> に一本化する</li>
+        <li><strong>f4</strong>: 「<code>HOOK_DENY_ID</code> の代入 → lib の source → <code>hook_init</code>」を 11 本で統一する</li>
+        <li><strong>f6・f7</strong>: 参考実装からはテストの骨格だけを流用し、本体は仕様どおりに書き直す</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><strong>f1</strong>: lib の公開 API × 11 フックの対応表</li>
+        <li><strong>f5</strong>: 各フックが自前で書く処理 9 種類の一覧</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>lib の各関数が<strong>仕様どおりに動くか</strong>（#6 で HK-T03〜T15 が通っている前提を採り、実行していない）</li>
+      <li>公式 hooks リファレンスとの整合（<strong>0007 の担当</strong>）</li>
+      <li><code>permissionDecision</code> + 終了 0 の deny が実際に効くか（<strong>§12 T6。実測はフェーズ 4</strong>）</li>
+      <li>参考実装の <code>MR-driven-workflow</code> 側（提供コマンド相当）の流用可否</li>
+      <li>提供コマンドが将来 <code>hook-common</code> を読むようになった場合の影響（現時点では読んでいないことを grep で確認済み）</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li><code>.claude/hooks/lib/*.sh</code> 5 本（1148 行）と <code>frontmatter.sh</code>（246 行）のヘッダと公開関数</li>
+    <li><code>.claude/docs/10_spec/hooks/**/*.md</code> 11 本（0005 で読んだもの。呼び出しの前提の抽出）</li>
+    <li><code>参考ディレクトリ/agent-workflow/.claude/hooks/</code> 8 本（2013 行）とそのテスト 6 本（879 行）</li>
+    <li>実行はしていない（grep / sed による読み取りのみ）</li>
+  </ul>
+</section>
+
+<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">lib の公開 API は 11 本の仕様の前提を満たす（欠け 0 / 未使用 0） <span class="chip good">◎良</span> <span class="basis">根拠: 各 lib のヘッダコメントと 11 本の仕様の入出力・制御方式</span></h3>
+      <p>仕様にあって lib に無い関数は 0 件、lib にあって誰も呼ばない関数も 0 件。出力の形（deny / ask JSON・additionalContext・SessionStart の stdout）と redact の適用はヘルパの内側で完結しており、フック本体が JSON を組み立てる必要は無い。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>lib</th><th>公開関数</th><th>使うフック</th></tr></thead>
+        <tbody>
+          <tr><td><code>hook-common.sh</code></td><td>hook_init / hook_read_input / hook_field / tool_class / hook_enforce_enabled / hook_headless / redact / hook_jq / hook_require_jq / hook_record / hook_deny / hook_ask / hook_notify / hook_inject / hook_allow / hook_disabled / hook_fail / hook_fail_closed / hook_session_read / hook_session_write / hook_rel_path / hook_doing_ticket</td><td>11 本すべて</td></tr>
+          <tr><td><code>cmdpos.sh</code></td><td>cmdpos_parse / cmdpos_args / cmdpos_has_git_subcommand / cmdpos_has_provided（+ CP_EXE / CP_ARGS / CP_SUBCMD / CP_REDIRECTS / CP_WRITE_TARGETS / CP_OPAQUE / CP_PROVIDED / CP_GITLIKE / CP_DEGRADED / CP_LOWER）</td><td>block-direct-git（正）/ block-chmod / workflow-guard / workflow-state-guard / post-push-*</td></tr>
+          <tr><td><code>scope.sh</code></td><td>scope_load / scope_load_ticket / scope_load_approvals / scope_match / scope_resolve / scope_op_declared / scope_classify（+ SC_DECISION / SC_ID / SC_STAGE / SC_ASK_SCOPE / SC_CLASS / SC_TARGETS / SC_COMMON_*）</td><td>workflow-guard（正）/ workflow-diff-check / subagent-stop-check / workflow-state-guard</td></tr>
+          <tr><td><code>push-detect.sh</code></td><td>push_detect（+ PD_BRANCH / PD_HEAD / PD_PREV_SHA / PD_COUNT / PD_REASON）</td><td>post-push-compact-prompt（正）/ post-push-usage-report</td></tr>
+          <tr><td><code>transcript.sh</code></td><td>transcript_aggregate</td><td>post-push-usage-report（正）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>grep -n '^[a-z_][a-zA-Z0-9_]*()' .claude/hooks/lib/*.sh
+=> hook-common 22 / cmdpos 4（公開）/ scope 7 / push-detect 1 / transcript 1
+wc -l .claude/hooks/lib/*.sh => 1148 total</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>結線は「hook_init → hook_read_input → 判定 → hook_deny / hook_ask / hook_notify / hook_inject / hook_allow」の型に収まり、11 本ともこの型で書ける。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">tool_class の振り分けスキル判定が entry-skills.txt と二重定義になる <span class="chip warn">△注意</span> <span class="basis">根拠: hook-common.sh:156-166 / workflow-entry 仕様 呼出条件・WE-T07</span></h3>
+      <p><code>tool_class</code> は Skill ツールのとき <code>case "${2:-}" in 00-workflow-*) declare</code> と接頭辞をコードに持つ。一方 workflow-entry 仕様は振り分けスキル名の正を <code>assets/entry-skills.txt</code> に置き、WE-T07 で CLAUDE.md の表との一致を検査する。判定が 2 か所にあり、<code>00-workflow-</code> で始まる別のスキルが増えると食い違う。</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>hook-common.sh:156 tool_class() {
+  Skill) case "${2:-}" in 00-workflow-*) printf 'declare\n' ;; *) printf 'read\n' ;; esac ;;
+workflow-entry 仕様: assets/entry-skills.txt（CLAUDE.md の表と同一 — WE-T07 で照合）</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>tool_class は分類に徹し、振り分けスキル名の照合は workflow-entry が entry-skills.txt で行うのが素直。lib を変えると HK-T03 系の期待値に影響し得るので設計で決める。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">3</span>
+      <h3 id="f3">案内側フックが frontmatter を読む経路が未定（§12 T8 そのもの） <span class="chip warn">△注意</span> <span class="basis">根拠: scope.sh:20 の読み込み行 / 20-common-step-shell-script 仕様「読み込み行」</span></h3>
+      <p><code>scope.sh</code> は先頭で <code>__ss_load frontmatter deny</code> を実行し、読めないと deny JSON を出して終了 0 する。これを source するのは拒否側の workflow-guard だけでなく、<strong>案内側の workflow-diff-check と subagent-stop-check</strong> も。案内側の「判定できないときは黙って通す」と矛盾する。subagent-start-check は scope.sh が要らないので <code>__ss_load frontmatter nop</code> で自前に読める。</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>scope.sh:20  __ss_load frontmatter deny
+読み込み行の deny ポリシー: deny JSON（${HOOK_DENY_ID:-WF009}）を出して exit 0
+案内側の禁止事項（diff-check）: 「判定できないときに何かを伝えないこと（黙って通す）」</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>(a) scope.sh のポリシーを nop にして呼び手が失敗を deny に倒す（§12 T8 の縮退案と一致）/ (b) 案内側専用ラッパ / (c) T8 の実測待ち。(a) を推す。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">HOOK_DENY_ID はライブラリの source より前に設定する必要がある <span class="chip warn">△注意</span> <span class="basis">根拠: scope.sh:20 の読み込み行 / hook-common.sh:23 / hook_init の第 3 引数</span></h3>
+      <p>読み込み行は source した瞬間に <code>${HOOK_DENY_ID:-WF009}</code> を参照するため、<code>. scope.sh</code> を <code>hook_init</code> より前に書くと、frontmatter が読めない場合の deny が台帳に無い <code>WF009</code> になる（0005 の f2 と同じ番号）。</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>順序の型:
+  HOOK_DENY_ID=WF209        # 代入（source より前）
+  . lib/hook-common.sh
+  . lib/scope.sh            # ← ここで ${HOOK_DENY_ID:-WF009} が評価される
+  hook_init workflow-guard deny WF209</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>「変数の代入 → lib の source → hook_init」を 11 本で統一し、実装計画のチェックリストに入れる。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">各フックが自前で書く処理は 9 種類 <span class="chip good">◎良</span> <span class="basis">根拠: 11 本の仕様の制御方式と lib の公開 API の差分</span></h3>
+      <p>lib に無く各フックが自前で書く処理は下表の 9 種類。<code>logs/sessions/</code> の 7 日より古いディレクトリの削除（session-start）は 1 行なので含めていない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>自前で書く処理</th><th>必要なフック</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>チケットの存在判定（00_todo / 20_done を含む。lib は 10_doing のみ）</td><td>workflow-entry・subagent-start-check</td></tr>
+          <tr><td>2</td><td><code>approvals.json</code> への<strong>追記</strong></td><td>workflow-diff-check（lib は読み取りのみ）</td></tr>
+          <tr><td>3</td><td><code>push-state.json</code> の更新</td><td>post-push-compact-prompt</td></tr>
+          <tr><td>4</td><td>logs/usage の加算・レポート本文の整形・ファイル出力</td><td>post-push-usage-report</td></tr>
+          <tr><td>5</td><td>注入テキストの組み立てと 8 KB 判定</td><td>session-start</td></tr>
+          <tr><td>6</td><td><code>model-aliases.txt</code> による起動モデルの正規化</td><td>subagent-start-check</td></tr>
+          <tr><td>7</td><td><code>blocked-commands.txt</code> の読み取りと前置フィルタ</td><td>block-chmod</td></tr>
+          <tr><td>8</td><td>draft 解除コマンドの検知（gh pr ready / glab mr update --ready / MCP の draft:false）</td><td>workflow-state-guard</td></tr>
+          <tr><td>9</td><td>ホスト判定とリンクの組み立て（GitHub / GitLab の URL 表）</td><td>post-push-compact-prompt</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>実装量の重心:
+  workflow-guard（判定順が長い）/ post-push-usage-report（集計と整形）
+  session-start（注入の組み立て）/ workflow-state-guard（3 系統の検知）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実装チケットの分割は、重い 4 本と軽い 7 本に分けるのが自然。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">6</span>
+      <h3 id="f6">参考実装は構造・状態ファイル・登録タイミングが本仕様と違う <span class="chip warn">△注意</span> <span class="basis">根拠: 参考ディレクトリ/agent-workflow/.claude/hooks/ 8 本（2013 行）のヘッダと本文</span></h3>
+      <p>流用できるのは<strong>テストの骨格</strong>（一時ディレクトリをルートに見立て、stdin に JSON を与えて終了コード・stdout・stderr を検証）だけ。本体は終了方式・状態ファイル・設定・登録タイミングがいずれも違うため書き起こす。session-start / subagent-* / post-push-* / state-guard に相当するフックは参考実装に無い（7 本が新規）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>観点</th><th>参考実装（agent-workflow）</th><th>本仕様</th><th>扱い</th></tr></thead>
+        <tbody>
+          <tr><td>ライブラリ</td><td><code>workflow-lib.sh</code> 1 本（240 行・14 関数）</td><td><code>hooks/lib/</code> 5 本（#6 で実装）</td><td>書き直し済み</td></tr>
+          <tr><td>状態ファイル</td><td><code>.claude/hooks/.state/&lt;id&gt;.entry</code>（key=value）</td><td><code>logs/sessions/&lt;id&gt;/entry.json</code>（JSON）</td><td>本仕様に従う</td></tr>
+          <tr><td>宣言の記録</td><td><strong>PostToolUse</strong>（matcher Skill）</td><td><strong>PreToolUse</strong>（matcher Skill）</td><td>本仕様に従う</td></tr>
+          <tr><td>設定</td><td><code>workflow-types.json</code></td><td><code>scope-limits.json</code> + <code>task-types.tsv</code></td><td>本仕様に従う</td></tr>
+          <tr><td>フックの本数</td><td>6 本（entry / guard / boundary / diff-check / block-chmod ほか）</td><td>11 本</td><td>相当物があるのは 4 本。<strong>7 本は新規</strong></td></tr>
+          <tr><td>テスト</td><td>一時ディレクトリ + stdin JSON + 終了コード / stdout / stderr（6 本 879 行）</td><td><code>test-lib.sh</code> の hook_payload + run-tests.sh</td><td><strong>骨格は同じ</strong>（流用する）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>wc -l 参考ディレクトリ/agent-workflow/.claude/hooks/*.sh => 2013 total（8 本）
+  block-chmod 22 / merge-prep 503 / work-boundary 352 / workflow-boundary 190
+  workflow-diff-check 123 / workflow-entry 242 / workflow-guard 341 / workflow-lib 240
+テスト 6 本 879 行（cygpath -m でパスを正規化。#6 の test-lib.sh には未導入 — grep -c cygpath => 0）</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>ファイル単位の判定: workflow-lib は使わない / entry・guard・diff-check・block-chmod は参考 / boundary 系は使わない（3/3 の提供コマンドに再編済み）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">7</span>
+      <h3 id="f7">参考実装の deny は exit 2 + stderr で、permissionDecision + 終了 0 の実績が無い <span class="chip warn">△注意</span> <span class="basis">根拠: workflow-guard.sh:15 / workflow-entry.sh:16 / block-chmod.sh:17-18 / workflow-boundary.sh:17</span></h3>
+      <p>参考実装は拒否を <code>exit 2</code> + stderr で行い、<code>permissionDecision</code> を使うのは ask だけ。block-chmod だけが deny JSON と <code>exit 2</code> を併用している（reason は無く systemMessage に理由）。本仕様（§3）は deny も permissionDecision + 終了 0 で統一し、§1 の fail-closed ラッパーもその形を前提にしている。</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>block-chmod.sh:17  echo '{"hookSpecificOutput":{…"permissionDecision":"deny"},"systemMessage":"🚫 …"}'
+block-chmod.sh:18  exit 2
+workflow-guard.sh:15  - ブロック時は exit 2 + stderr、確認時は stdout JSON（permissionDecision: ask）
+workflow-boundary.sh:17  - ask は使わず exit 2 のみ</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>T6（permissionDecision + 終了 0 の deny が効くか）は参考実装が回避していた点でもある。段階登録 ②-1 で最初に確かめる段取りは妥当で、外れると 11 本 + §1 ラッパーが変わるため後回しにできない。</p>
+      </div>
+    </li>
+    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+  </ol>
+</section>
+
+<!-- 任意: 検証の結果を一覧で示す場合。各章で示しているなら削除 -->
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>仕様が呼ぶ lib の関数が実在するか</td><td>実在する（欠け 0 件。f1）</td></tr>
+      <tr><td>lib にあって誰も呼ばない関数</td><td>0 件（f1）</td></tr>
+      <tr><td>引数・戻り値・出力先の食い違い</td><td>0 件。結線の制約が 2 件（f2・f4）</td></tr>
+      <tr><td>案内側フックの <code>scope.sh</code> 読み込みポリシー</td><td>矛盾あり（deny ポリシー。f3 = §12 T8）</td></tr>
+      <tr><td>各フックが自前で書く処理</td><td>9 種類（f5）</td></tr>
+      <tr><td>参考実装から流用できるもの</td><td>テストの骨格のみ。7 本は相当物なし（f6）</td></tr>
+      <tr><td>参考実装の終了方式</td><td><code>exit 2</code> + stderr。permissionDecision + 終了 0 の実績なし（f7）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong><code>tool_class</code> と <code>entry-skills.txt</code> の二重定義</strong>（f2）: 正をどちらに置くかを決め、役割分担を仕様に書く</li>
+    <li><strong>案内側の frontmatter 読み込み</strong>（f3 / T8）: <code>scope.sh</code> のポリシーを nop にする案を採るか。採るなら scope.sh のヘッダと §12 T8 を書き換える</li>
+    <li><strong>実装の型</strong>（f4）: 「代入 → source → hook_init」を 11 本で統一し、実装計画のチェックリストに入れる</li>
+    <li><strong>T6 を最初に確かめる</strong>（f7）: 段階登録 ②-1 で deny の効き方を確認してから残りを書く。外れた場合の手戻りを保留した点に記録</li>
+    <li><strong>実装チケットの分割</strong>（f5）: 重い 4 本（guard / usage-report / session-start / state-guard）と軽い 7 本に分ける</li>
+  </ol>
+</section>
+
+<!-- 必須: 想定と異なった点。無ければ「無し」 -->
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>lib に足りない関数が見つかる</td><td>欠け 0 件・未使用 0 件。#6 の実装が 11 本の仕様を正確に先取りしていた</td><td>f1 に記録。設計の対象は「結線の制約」に絞られた</td></tr>
+      <tr><td>参考実装のフックを部分的に流用できる</td><td>相当するのは 4 本だけで、終了方式・状態ファイル・設定がすべて違う</td><td>f6 に記録し、流用可否の決定は実装計画へ送る</td></tr>
+      <tr><td>scope.sh の読み込みポリシーは実測（T8）待ち</td><td>案内側 2 本が deny ポリシーの scope.sh を読む構造は、実測を待たずに矛盾と分かる</td><td>f3 として設計への反映に挙げた</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 残課題。無ければ「無し」 -->
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><code>tool_class</code> を変更する場合、既存テスト（HK-T03 系）の期待値に影響するかは未確認（テストを実行していない）</li>
+    <li><code>scope.sh</code> のポリシーを nop に変えた場合、workflow-guard が <code>scope_load</code> の戻り値だけで deny に倒せるかは実装時に確かめる</li>
+    <li>参考実装の <code>cygpath -m</code> は #6 の <code>test-lib.sh</code> に取り込まれていない（<code>grep -c cygpath</code> → 0）。Windows のパスで問題が出たら実装時に足す</li>
+    <li><code>MR-driven-workflow</code> 側の参考実装は今回読んでいない。3/3 の boundary.sh / finalize.sh の実装時に見る</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

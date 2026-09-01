@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（正史の変更�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T07:24:02+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3d55315"
 ---
 
 # 0013 案内側フック 5 本の判定の決定（WF801 の経路 / post-push の成功判定 / session-start のテスト）

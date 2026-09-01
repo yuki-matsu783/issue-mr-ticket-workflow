@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画の方針: 人間レ�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "web"]
-started_at: ""
+started_at: "2026-09-02T05:08:49+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "09ccde4"
 ---
 
 # 0007 公式 hooks リファレンスの確認と T5・クォート付き git の扱い（外部技術調査）

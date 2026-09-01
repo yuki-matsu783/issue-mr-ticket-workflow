@@ -70,13 +70,30 @@ tags: [report, ai-asset-implementation, issue-6]
 | `scripts/check-html.sh` | Script 処理 RV001〜007 | HTML コメントを純 bash で除いてから検査。RV006 はテンプレート（`data-template` 属性、無ければ置き場）の `data-required` 要素（id、無ければ tag@出現順）から導出。RV002 は `<a href>`・`data:`・コメント内を数えない |
 | `scripts/tests/test_check_html.sh` | テスト観点 RV-T01〜06 | 36 assert。テンプレートを埋めた HTML と壊した HTML |
 
+### 0019 S4-1: SKILL.md 4 本と ai-asset-creator のテンプレート 2 本
+
+| アセット | 仕様の節 | 備考 |
+|---|---|---|
+| `20-common-step-ai-asset-creator/assets/skill.template.md` | ai-asset-creator 仕様 OUT ひな形 | frontmatter（name / description に Use when）+ 目的 / 手順 / 参照 / エラー時の対処。`{{ }}` 10 個 |
+| `assets/eval.template.md` | 同 OUT ひな形 | 目的 / 評価シナリオ表（eval ID・入力・期待・判定・添付）/ 比較条件（with / without・回数）/ 判定基準 / 実行状況（未実行の明記）。`{{ }}` 11 個 |
+| `20-common-step-shell-script/SKILL.md` | 同仕様 処理フロー 1〜6・OUT ひな形・参照ナレッジ・Script 処理（読み込み行・run-tests） | 手順 1〜7 が処理フロー 1〜6 + 読み込み行の使い方。エラー表は TR001〜006 + FATAL |
+| `20-common-step-ticket/SKILL.md` | 同仕様 呼出条件・IN/OUT・OUT ひな形・参照ナレッジ・Script 処理 | 手順 1〜6 が next / create / start / complete / cancel / 再開。エラー表は TK001〜007 + CP の伝播 |
+| `20-common-step-commit-push/SKILL.md` | 同仕様 IN/OUT・OUT ひな形・参照ナレッジ・Script 処理 | 手順がコミット 1〜5・push 1〜4。エラー表は CP001〜006 |
+| `20-common-step-report-view/SKILL.md` | 同仕様 処理フロー 1〜6・OUT ひな形・参照ナレッジ・Script 処理 | 手順 1〜6 が処理フロー 1〜6。エラー表は RV001〜007 |
+
 ## テスト結果
+
+### 0019
+
+- 機械テスト: なし（SKILL.md とテンプレートは指示文。eval は 0020 で ai-asset-creator 分を定義）
+- 対応の確認: 各 SKILL.md の節（手順 / 参照 / エラー時の対処）と仕様の節（処理フロー / OUT ひな形 / 参照ナレッジ / Script 処理）の対応は上表。規約（bash・logger・frontmatter の中身）は再掲せず参照にした
+- Claude Code が 4 本のスキルを認識した（セッションの利用可能スキル一覧に `20-common-step-{commit-push,shell-script,ticket}` が現れた。report-view は次のプロンプトで反映）
 
 ### 0018
 
 - `run-tests.sh --ids` → `OK: 9 本 / 44 件`（RV-T01〜06 を含む全 ID PASS、重複なし）
 - テスト先行の記録: 初回 12 件 FAIL → (1) テンプレート冒頭コメントの `{{名前}}` の語が RV001 に当たった（コメント文言を変更）。(2) `@import url(...)` を url() と @import で二重に数えた（@import 文を除いてから url() を数える）。(3) `set -o pipefail` 下で data-required が 0 件の HTML に対し `grep` の非 0 が関数を落とし、RV-T04 で出力が空になった（`|| true` を追加。負のコントロールの経路そのものが壊れていたので RV-T04 が捕まえた実装バグ）
-- 境目 C の確認（試し埋め）: `wip/tmp/trial/0011-ai-asset-implementation-plan.html`（計画書、id 15 件 / リンク 8 件）と `wip/tmp/trial/0003-investigation.html`（レポート、id 16 件 / リンク 9 件）が `check-html.sh` で `OK:`。正式な HTML は 0021 で作る
+- 境目 C の確認（試し埋め）: `wip/tmp/trial/0011-ai-asset-implementation-plan.html`（計画書、id 11 件 / リンク 8 件。0018 のチケットには 15 件と誤記）と `wip/tmp/trial/0003-investigation.html`（レポート、id 16 件 / リンク 9 件）が `check-html.sh` で `OK:`。正式な HTML は 0021 で作る
 - ブラウザでの目視: この環境ではできない（レポート「確かめられなかったこと」に記録）
 - eval: なし
 
@@ -113,6 +130,13 @@ tags: [report, ai-asset-implementation, issue-6]
 - プレースホルダ（`{{ }}` / `TODO` / `TBD`）: 0 件（対象 4 ファイル）
 - frontmatter: `work-defaults.md` に `type` / `title` / `description` / `tags` / `keywords`
 - 参照更新の再検索: 新規ファイルに旧名なし
+
+### 0019
+
+- プレースホルダ: SKILL.md 4 本で `{{大文字}}` / TODO / TBD 0 件（テンプレート 2 本は対象外。`{{名前}}` の語は説明として使用）
+- frontmatter: 4 本とも `name` / `description`（Use when を含む）
+- 提供コマンドの起動はすべてルート相対表記（`grep -nE 'bash (\./|/)'` 0 件）
+- CR: 0 件。参照更新の再検索: 新規 6 ファイルに旧名なし
 
 ### 0018
 
@@ -158,6 +182,7 @@ tags: [report, ai-asset-implementation, issue-6]
 | D-16 | 0018 | テンプレートの種別を `<body data-template="report|plan">` 属性で持たせ、`check-html.sh` はそれで必須節の導出元を選ぶ（無ければ置き場のディレクトリで推定） | 仕様は「テンプレートの必須節」とだけ定め、対象 HTML がどのテンプレート由来かの識別方法を定めない | 0022 → 仕様 OUT ひな形に属性を明記 |
 | D-17 | 0018 | 計画書テンプレートの節を「この計画で何をするか / 対象と範囲 / 方法とステップ / 検証 / チケット / リスクと復旧（任意）/ スコープ外（任意）/ 保留した点・対象なし」に決めた（Q5 の案 + 計画タスク共通節） | 仕様は「計画タスクの要件に従う」とだけ定める。必須節の一覧はテンプレートだけが持つ規約どおり、判断の経緯は DDR が必要 | 0022 → DDR（必須節の判断）を起こす候補 |
 | D-18 | 0018 | 必須要素にはすべて `id` を付けた（サイドバーの `dl#meta`・`h1#title` を含む） | 仕様の「id が無ければ要素名と出現順」の経路はテンプレート側で使わない方が検査の誤差が無い。経路自体は実装してある | なし |
+| D-19 | 0019 | SKILL.md の frontmatter は `name` / `description` のみ（`type` / `title` 等の OKF 項目を付けない） | `ルール体系.md` の `markdown-docs`（未作成）が「SKILL.md の既存 description は上書きしない」「対象外」に言及し、既存の 2 スキルも name / description のみ。Claude Code のスキル発見は name / description を読む | なし（`markdown-docs` ルール作成時に再確認） |
 | D-1 | 0013 | 行動ルールの「効くタイミング」を frontmatter の `applies_when` キーで宣言した | 要件は「frontmatter で宣言する」とだけ定め、キー名を定める仕様（`markdown-docs` ルール・ルール体系の仕様）が未作成 | 0022 → `markdown-docs` ルールの要件、または `ルール体系.md` の仕様 |
 | D-2 | 0013 | `task-types.tsv` の 1 行目をヘッダ（`#` 始まり）にした | 仕様は 6 列を定めるがヘッダの有無を定めない。`#` 始まりなら読み手がコメントとして飛ばせる | 0022（仕様に 1 行追記の候補） |
 

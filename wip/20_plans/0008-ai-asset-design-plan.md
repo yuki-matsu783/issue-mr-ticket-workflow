@@ -18,11 +18,15 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 
 フェーズ 3（AI アセット設計）で `.claude/docs/` に書く決定の割り付け。対象は**実測に依存しない決定だけ**で、実測（§12 の T1・T2・T5・T6 の最終確認と実物の形）はフェーズ 4c、その結果の書き戻しはフェーズ 5 が要否を決めてフェーズ 6 で行う。
 
+**全体計画からの差分**: 全体計画のフェーズ 4c は T1〜T4 を実測項目に挙げているが、調査（0007）が公式ドキュメントの原本で **T3 の `defer` の側と T4 の `model` の側を解決した**ため、この 2 つはフェーズ 3 で閉じる。T3 のもう一方の問い（「`claude -p` を入力から判別できるか」）は実測が要るのでフェーズ 4c に残す。
+
 起点の内訳:
 
 - 調査結果の「設計への反映」: 0005 が 5 項目、0006 が 2 項目（＋実装計画への申し送り 3 件）、0007 が 8 項目 = **15 項目**
-- issue #9 の申し送りのうち全体計画がフェーズ 3 に置いたもの: G7（`HOOK_DENY_ID`）・G8（作業中チケット 2 枚以上）・D3（`web` の強制）・D5（`ops` 上限）・D6（`shellcheck` の CI）= **5 項目**（G7 と D3 は調査結果と重複）
-- 差し引き **16 件**を設計チケットに割り付ける（下表）。0006 の「実装計画への申し送り」3 件は設計チケットに割り付けず、次の計画チケット（`ai-asset-implementation-plan`）に渡す
+- issue #9 の申し送りのうち全体計画がフェーズ 3 に置いたもの: G7（`HOOK_DENY_ID`）・G8（作業中チケット 2 枚以上）・D2（`tool_response` の実物・案内側の `scope.sh` ポリシー・`git 'commit'` の制約）・D3（`web` の強制）・D5（`ops` 上限）・D6（`shellcheck` の CI）= **6 項目**
+- 16 件の導出: 15 + 6 − **3**（調査結果と重複する G7・D2・D3）− **2**（0007 の反映 5「T5 を 4c の検証項目に」と反映 8「仕様に無いイベント」をスコープ外へ）− **1**（D5 と D6 を 1 行 #16 に統合）+ **1**（0007 の反映 4 を「`post-push-*` の成功判定」#6 と「§12 T7 を閉じる」#12 の 2 決定に分割）= **16 件**
+- D2 は #1（`git 'commit'`）・#6・#12（`tool_response`）・#13（`scope.sh` のポリシー）の 4 件に展開される
+- 0006 の「実装計画への申し送り」3 件は設計チケットに割り付けず、次の計画チケット（`ai-asset-implementation-plan`）に渡す
 
 ## この計画で何をするか
 
@@ -30,7 +34,7 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 
 **中核（フック・`settings.json`）の変更は「要」**。根拠:
 
-1. 16 件のうち 6 件がフック共通仕様の **§1 登録表 / §3 制御方式 / §6 識別子台帳**という中核の定義そのものに触る（`assets/` の置き場・タイムアウト・`web` の強制・WF801 の持ち主・`WF009`・`defer`）
+1. 16 件のうち 6 件がフック共通仕様の中核の定義（**§1 登録表 / §3 制御方式 / §6 識別子台帳 / §8 許可範囲 / §12 TBD**）に触る（`assets/` の置き場 §1・タイムアウト §1・§3・`web` の強制 §8・WF801 の持ち主 §6・`WF009` §6・`defer` §12 T3）
 2. とくに **WF801 の判定経路で案 (c)（PreToolUse `Agent`）を採ると、§1 の登録表が 16 行 → 17 行になる**。登録表は `settings.json` に写す元であり、HK-T01（行単位の照合）・全体計画の段階登録の行数割り当て（① 11 行 / ② 5 行）・受け入れ条件 2 が連動する
 3. **`tool_response` の終了コード読みをやめる**決定は `post-push-*` 2 本の成功判定を変える。`PostToolUseFailure` を登録する案を採れば、ここでも §1 が 1 行増える
 
@@ -42,13 +46,13 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 |---|---|---|---|---|
 | 1 | `git 'commit'` の bash 経路を拒否側に倒す | 0007 f9 / D2 | 制御方式に `subcmd == "_"` → deny WF403 を追加 | 0012 |
 | 2 | `workflow-state-guard` の呼出条件に `mcp__.*` を明記 | 0005 f6 | 1 行の追記 | 0012 |
-| 3 | G8: 作業中チケットが 2 枚以上のときの扱い | issue G8 | WF207（機構の異常）で拒否。提供コマンド側の非対称は方針だけ決める | 0012 / 0015 |
+| 3 | G8: 作業中チケットが 2 枚以上のときの扱い | issue G8 | WF207（機構の異常）で拒否。提供コマンド 3 本（`run-tests.sh` / `push.sh` / `ticket.sh next`）側の方針は 0015 | 0012 / 0015 |
 | 4 | `entry-skills.txt` を振り分けスキル名の正にする | 0006 f2 | `workflow-entry` がファイルを読み、lib は分類のみ | 0012 / 0015 |
 | 5 | WF801 の判定経路（`model` が来ない） | 0007 f2 | (c) PreToolUse `Agent` を本線、(b) を残す | 0013 / 0014 |
 | 6 | `post-push-*` の成功判定 | 0007 f4 | 「PostToolUse に来た = 成功」に変える | 0013 / 0014 |
 | 7 | `SS-H*` がランナーの ID 正規表現に一致しない | 0005 f3 | (a) `session-start` の接頭辞を変える | 0013 / 0015 |
-| 8 | `boundary.sh` 依存テスト 8 本 + SS-H05 前半の扱い | 0005 f5 | 受け入れ条件 1 の解釈とセットで決める | 0013 |
-| 9 | `assets/` の基準ディレクトリ | 0005 f4 | §1 に置き場を定義する | 0014 + 各フック仕様 |
+| 8 | `boundary.sh` 依存テスト 8 本（`session-start` の 7 本 + `workflow-entry` の WE-T10）+ SS-H05 前半の扱い | 0005 f5 | 受け入れ条件 1 の解釈とセットで決める。**WE-T10 は 0012**（`workflow-entry` 仕様を持つ側）、残りは 0013 | 0012 / 0013 |
+| 9 | `assets/` の基準ディレクトリ | 0005 f4 | §1 に置き場を定義し、**0014 が確定後に個別フック仕様（`workflow-entry` / `subagent-start-check` / `block-chmod`）へ反映する**。0012・0013 はパスを暫定として書く | 0014 |
 | 10 | タイムアウト時の fail-open | 0007 f7 | §1 に `timeout` の既定、§3 に「打ち切りは fail-open」を明記 | 0014 |
 | 11 | `defer` を採用しない | 0007 f3 | §12 T3 を閉じる | 0014 |
 | 12 | §12 T7（`tool_response` の終了コード）を閉じる | 0007 f4 | 「フィールドは存在しない」で閉じる | 0014 |
@@ -64,7 +68,7 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 | 決定 | 触る文書 | 根拠 |
 |---|---|---|
 | 1・2 | `10_spec/hooks/20-PreToolUse/block-direct-git.md`（制御方式・テスト観点 BG-T01）、`.../workflow-state-guard.md`（呼出条件） | 0007 f9 / 0005 f6 |
-| 3 | `10_spec/hooks/20-PreToolUse/workflow-guard.md`（WF207）、`10_spec/skills/20-common-step-ticket.md`・`20-common-step-shell-script.md`（`next` と `run-tests.sh` が 1 枚目しか見ない） | issue G8。現物確認: `ticket.sh:334` の `DOING_FILES[0]`、`run-tests.sh:86` の `doing[0]`。`start`（`ticket.sh:208`）と `push.sh:95` は件数で見るので非対称 |
+| 3 | `10_spec/hooks/20-PreToolUse/workflow-guard.md`（WF207）、`10_spec/skills/20-common-step-ticket.md`・`20-common-step-shell-script.md`・`20-common-step-commit-push.md`（1 枚目しか見ない 3 本） | issue G8。現物確認: **1 枚目しか見ない** = `run-tests.sh:86` の `ticket="${doing[0]}"`・`push.sh:98` の同型・`ticket.sh:334`（`next`）の `DOING_FILES[0]`。**件数で見る** = `ticket.sh:208`（`start` は 1 枚でもあれば TK002）。**完了検査は番号引数で `find_ticket` するので非対称ではない** |
 | 4 | `10_spec/hooks/10-UserPromptSubmit/workflow-entry.md`、`10_spec/skills/20-common-step-shell-script.md`（`tool_class`） | 0006 f2 |
 | 5 | `10_spec/hooks/12-SubagentStart/subagent-start-check.md`・`13-SubagentStop/subagent-stop-check.md`、`10_spec/フック共通仕様.md` §1・§2・§3・§6・§12 T4 | 0007 f2 |
 | 6 | `10_spec/hooks/22-PostToolUse/post-push-compact-prompt.md`・`post-push-usage-report.md`、`フック共通仕様.md` §12 T7 | 0007 f4 |
@@ -113,17 +117,20 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 | フック共通仕様（横断） | — | `10_spec/フック共通仕様.md`（更新） | §1: 登録表の行数（WF801 の案次第で 16 or 17）・`assets/` の置き場・`timeout` の既定 / §2: `model` は SessionStart のみ / §3: 打ち切りは fail-open・PreToolUse の `additionalContext` / §6: `WF009` と WF801 の持ち主 / §8: `web` の扱い / §12: T3・T4・T7・T8 を閉じる |
 | `skills/20-common-step-shell-script` | `00_requirement/skills/20-common-step-shell-script.md`（更新） | `10_spec/skills/20-common-step-shell-script.md`（更新） | `HOOK_DENY_ID` の既定 / `scope.sh` の読み込みポリシー（`nop` にした場合の失敗の伝え方）/ `tool_class` の責務 / `run-tests.sh` の ID 正規表現 / G8 の提供コマンド側 |
 | `skills/20-common-step-ticket` | 同（更新。G8 の `next` の扱いだけ） | 同（更新） | `next` が `DOING_FILES[0]` を見る前提を「2 枚以上は機構の異常でフックが止める」と明記するか、件数で異常を返すか |
+| `skills/20-common-step-commit-push` | 同（更新。G8 の `push.sh` の扱いだけ） | 同（更新） | `push.sh:98` が `doing[0]` の `allow.ops` だけを見る前提を、`ticket.sh` と同じ方針でそろえる |
 
 **新規に作る文書は無い**（11 本のフックとライブラリの要件・仕様は #6 と 2/3 の設計で作成済み）。1:1:1 は既に成立しており、このフェーズは更新のみ。
 
+`assets/entry-skills.txt`・`assets/model-aliases.txt`・`config/blocked-commands.txt` のパスは、0012・0013 では**暫定**として書き、基準ディレクトリを確定した 0014 が個別フック仕様へ反映する。
+
 ### 横断整合
 
-| 文書 | 更新内容 |
-|---|---|
-| `00_requirement/自己改善ワークフロー機構.md` | `web` の強制の可否（D3）の結論、`ops` 上限の考え方（D5）の方針、`shellcheck` の CI 方針（D6） |
-| `00_requirement/rules/ルール体系.md` | 変更なしの見込み（ルールの追加・削除が無いため）。0014 が確認して、無ければ「対象なし」と書く |
-| `90_glossary/ワークフロー用語.md` | 「fail-open」「defer」「実行者の不一致（WF801）」の 3 語を追加するか確認する。`assets/` の基準ディレクトリを定義したら「アセット置き場」の項も |
-| `20_ddr/` | 決定ごとに `i0009-NN`。番号帯を先に割る: **0012 = i0009-01〜04 / 0013 = i0009-05〜09 / 0014 = i0009-10〜15 / 0015 = i0009-16〜19**（衝突を避けるため） |
+| 文書 | 担当 | 更新内容 |
+|---|---|---|
+| `00_requirement/自己改善ワークフロー機構.md` | 0014（D3）/ 0015（D5・D6） | `web` の強制の可否（D3）の結論、`ops` 上限の考え方（D5）の方針、`shellcheck` の CI 方針（D6）。直列（0015 ← 0014）なので同じ節に同時に触ることはない |
+| `00_requirement/rules/ルール体系.md` | 0014 | 変更なしの見込み（ルールの追加・削除が無いため）。0014 が確認して、無ければ「対象なし」と書く |
+| `90_glossary/ワークフロー用語.md` | 0014 | 「fail-open」「defer」「実行者の不一致（WF801）」の 3 語を追加するか確認する。`assets/` の基準ディレクトリを定義したら「アセット置き場」の項も |
+| `20_ddr/` | 4 枚が分担 | 決定ごとに `i0009-NN`。番号帯を先に割る: **0012 = i0009-01〜04 / 0013 = i0009-05〜09 / 0014 = i0009-10〜15 / 0015 = i0009-16〜19**（衝突を避けるため） |
 
 ### ヘッドレス実行の帰結
 
@@ -137,16 +144,27 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 | `session-start` | 案内側。`boundary.sh` が無ければ無出力・終了 0。ヘッドレスでも同じ |
 | 共通仕様 §3 | **打ち切り（timeout）は fail-open** で、ヘッドレスかどうかに関係なくツール呼び出しが通る。この事実を §3 に書き、`timeout` の設定で緩和する |
 
+### 許可範囲（やってよいこと）
+
+| チケット | write | ops |
+|---|---|---|
+| 0012・0013・0014・0015 | `.claude/docs/**`（`wip/**` は common で常時許可のため宣言しない） | `read`, `remote-read` |
+
+`ai-asset-design` の上限（`scope-limits.json`）どおり。`types.ai-asset-design.ops` は `["read", "remote-read"]` だけで **`web` を含まない**（`web` を持つのは `investigation` のみ）ので、外部への問い合わせは宣言の裁量ではなく**そもそも許されない**。必要になったら `investigation` チケットを別に起こす。
+
 ## 検証
 
-| 受け入れ条件（issue #9） | 満たす文書 | テスト ID の予定 |
-|---|---|---|
-| 1: フック本体 11 本が仕様どおり動きテストが通る | 各フック仕様のテスト観点（0012・0013 が更新） | BG-T01（`git 'commit'` を追加）、SG-T\*、WG-T\*（WF207）、WE-T07、SA-T\*、SP-T\*、PP-T\*、UR-T\*、`session-start` の 9 本（接頭辞を変更） |
-| 2: テスト ID が重複せず `run-tests.sh --ids` に現れる | `20-common-step-shell-script` 仕様（0015） | 接頭辞の変更後に `--ids` で 93 本すべてが並ぶことを実装フェーズで確認 |
-| 3: 実測の結果が仕様に反映されている | このフェーズの対象外（フェーズ 5 が要否を決める） | — |
-| 4: `settings.json` の登録が §1 の登録表と一致する | フック共通仕様 §1（0014） | HK-T01（登録表との行単位の照合）。**行数が 16 か 17 かは 0014 で確定する** |
-| 5: `subagent-stop-check` が `agent_type` を読める | `subagent-stop-check` 仕様（0013） | SP-T\*。値の実物はフェーズ 4c |
-| 6: 決定の経緯が DDR に残っている | `20_ddr/i0009-01`〜`i0009-19`（4 枚が分担） | — |
+issue #9 の受け入れ条件（原文の 6 条件）に対して、このフェーズが満たす部分を割り当てる。
+
+| # | 受け入れ条件（issue #9 の原文の要旨） | 満たす文書 | テスト ID の予定 |
+|---|---|---|---|
+| 1 | フック本体 11 本が各仕様の判定順・識別子・終了方式どおりに動き、テスト（HK-T01 / HK-T09 / HK-T03 の登録部分を含む）が失敗ケースを含めて通る | 各フック仕様のテスト観点（0012・0013 が更新） | BG-T01（`git 'commit'` を追加）、SG-T\*、WG-T\*（WF207）、WE-T07・WE-T10、SA-T\*、SP-T\*、PP-T\*、UR-T\*、`session-start` の 9 本（接頭辞を変更） |
+| 2 | `settings.json` への登録手順が書かれ、登録後に `run-tests.sh --ids` の**全件**と HK-T01 が通る | フック共通仕様 §1（0014。行数の確定）、`20-common-step-shell-script` 仕様（0015。ID 正規表現） | HK-T01（登録表との行単位の照合。**行数が 16 か 17 かは 0014 で確定**）。`--ids` は**既存の約 60 本と新規 93 本を含む全件**が並ぶことを実装フェーズで確認 |
+| 3 | §12 の TBD T1〜T4 の検証結果がフック共通仕様に反映され、経緯が DDR に残っている | T3 の `defer` と T4 の `model` は 0014 が設計で閉じる。T1・T2 と T3 の残り（`claude -p` の判別）はフェーズ 4c → 5 → 6 | — |
+| 4 | `HOOK_DENY_ID` の既定と「作業中チケット 2 枚以上」の扱いが仕様（§6・該当フック）に決まり、**テストで固定されている** | フック共通仕様 §6（0014）、`workflow-guard` 仕様（0012）、`20-common-step-shell-script` 仕様（0015） | WG-T\*（WF207 の拒否）、SS-T04（`HOOK_DENY_ID` の既定） |
+| 5 | `tool_response` / `agent_type` / `web` の強制 / `defer` の扱いが実物の確認に基づいて仕様に書かれている（扱わないものは理由つきで「扱わない」） | `post-push-*` 仕様と `subagent-stop-check` 仕様（0013）、§8 と §12 T3（0014） | PP-T\*・UR-T\*（成功判定）、SP-T\*（`agent_type`）。`web` と `defer` は「扱わない」の理由を仕様に書く |
+| 6 | 実装で判明した仕様との食い違いは仕様書へ書き戻し、経緯を DDR に残している | このフェーズの対象外（フェーズ 5 が要否を決め、フェーズ 6 が実施） | — |
+| — | 決定の経緯を DDR に残す（1〜5 に共通） | `20_ddr/i0009-01`〜`i0009-19`（4 枚が分担） | — |
 
 各設計チケットの DoD は次の型で書く（`10-task-ai-asset-design-plan` 仕様）:
 
@@ -156,13 +174,6 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 - 決定の経緯が DDR（割り当てられた番号帯）に残っている
 - ヘッドレス実行の帰結が書かれている
 
-### やってよいこと（チケットの `allow`）
-
-| チケット | write | ops |
-|---|---|---|
-| 0012・0013・0014・0015 | `.claude/docs/**`（`wip/**` は common で常時許可のため宣言しない） | `read`, `remote-read` |
-
-`ai-asset-design` の上限（`scope-limits.json`）どおり。外部への問い合わせ（`web`）は調査で済んでいるので宣言しない。
 
 ## チケット
 
@@ -174,7 +185,10 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 | 0015 | `ai-asset-design` | 共通ライブラリと提供コマンドの仕様（`20-common-step-shell-script` / `20-common-step-ticket`）と D5・D6 の方針。決定 3（提供コマンド側）・4（lib 側）・7（正規表現案の場合）・13・15・16。DDR i0009-16〜19 | 0014 |
 | 0016 | `ai-asset-implementation-plan` | 次の計画。0006 の「実装計画への申し送り」3 件（実装の型・T6 を最初に確かめる・実装チケットの分割）と、0014 が確定した登録表の行数を入力にする | 0012, 0013, 0014, 0015 |
 
-実行者・レビュー要否は全体計画の方針（全種類メインエージェント、人間レビューは opus の敵対的自己レビューで代替）に従う。`work-defaults.md` の既定（`ai-asset-design` = サブエージェント opus / 人間レビュー要 / 敵対的レビュー要）からの差分は**実行者だけ**で、理由は全体計画の ※1（サブエージェントの起動テンプレートが 3/3 で未実装、かつこの issue が実行者を検査するフックを作るため）。
+実行者・レビュー要否は全体計画の方針（全種類メインエージェント、人間レビューは opus の敵対的自己レビューで代替）に従う。
+
+- **0012〜0015（`ai-asset-design`）**: `work-defaults.md` の既定（サブエージェント opus / 人間レビュー要 / 敵対的レビュー要）からの差分は**実行者だけ**。理由は全体計画の ※1（サブエージェントの起動テンプレートが 3/3 で未実装、かつこの issue が実行者を検査するフックを作るため）
+- **0016（`ai-asset-implementation-plan`）**: 既定は敵対的レビュー**不要**だが、全体計画が「中核とロックアウト対策を含むため **要**」に上げている。0016 のチケットはこの方針に従う
 
 ## リスクと復旧
 

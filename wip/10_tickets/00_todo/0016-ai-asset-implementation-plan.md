@@ -4,7 +4,7 @@ ticket_type: ai-asset-implementation-plan
 predecessors: ["0012", "0013", "0014", "0015"]
 executor: main
 human_review: {required: true, reason: "基準どおり（許可範囲とロックアウト対策を実装前に見る。承認④により opus の敵対的自己レビューで代替）"}
-adversarial_review: {required: false, reason: "基準どおり"}
+adversarial_review: {required: true, reason: "全体計画の方針: 基準（不要）から要へ。中核（フック・settings.json）とロックアウト対策を含むため"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
@@ -21,12 +21,12 @@ base_sha: ""
 
 ## DoD
 
-- [ ] 実装チケット群が作られ、0006 の申し送り 3 件（HOOK_DENY_ID の代入 → lib の source → hook_init の型 / 段階登録 ②-1 で T6 を先に確かめる / 重い 4 本と軽い 7 本の分割）が計画書に反映されている（根拠: ）（根拠: ）
-- [ ] 0014 が確定した §1 の登録表の行数に合わせて段階登録の割り当て（① 記録・案内側 / ②-1 拒否側 1 本 / ②-2 残り）が組み直されている（根拠: ）（根拠: ）
-- [ ] 許可範囲とロックアウト対策（バックアップ・WORKFLOW_ENFORCE=0 と WORKFLOW_<NAME>_ENFORCE=0 の使い分け・起動不能時の復旧）が実装前に書かれている（根拠: ）（根拠: ）
-- [ ] フェーズ 4c の実測の検証項目（T1・T2・T5 の共通フィールド・T6・T7 の実物・agent_type）が、登録済みのフックの記録から確かめられる形で計画書に書かれている（根拠: ）（根拠: ）
-- [ ] 次の計画チケット（feedback-plan）を 1 枚起こし、その predecessors に実装チケットの全番号を入れた（根拠: ）（根拠: ）
-- [ ] 計画書 wip/20_plans/0016-ai-asset-implementation-plan.md と HTML ビューを作り、check-html.sh が OK を返した（根拠: ）（根拠: ）
+- [ ] 実装チケット群が作られ、0006 の申し送り 3 件（HOOK_DENY_ID の代入 → lib の source → hook_init の型 / 段階登録 ②-1 で T6 を先に確かめる / 重い 4 本と軽い 7 本の分割）が計画書に反映されている（根拠: ）
+- [ ] 0014 が確定した §1 の登録表の行数に合わせて段階登録の割り当て（① 記録・案内側 / ②-1 拒否側 1 本 / ②-2 残り）が組み直されている（根拠: ）
+- [ ] 許可範囲とロックアウト対策（バックアップ・WORKFLOW_ENFORCE=0 と WORKFLOW_<NAME>_ENFORCE=0 の使い分け・起動不能時の復旧）が実装前に書かれている（根拠: ）
+- [ ] フェーズ 4c の実測の検証項目（T1・T2・T5 の共通フィールド・T6・T7 の実物・agent_type）が、登録済みのフックの記録から確かめられる形で計画書に書かれている（根拠: ）
+- [ ] 次の計画チケット（feedback-plan）を 1 枚起こし、その predecessors に実装チケットの全番号を入れた（根拠: ）
+- [ ] 計画書 wip/20_plans/0016-ai-asset-implementation-plan.md と HTML ビューを作り、check-html.sh が OK を返した（根拠: ）
 
 ## 作業内容
 

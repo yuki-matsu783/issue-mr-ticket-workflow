@@ -5,7 +5,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 REAL="$LOGGER_ROOT/.claude/skills"
@@ -63,6 +63,27 @@ assert_exit "CP-T03" 0
 assert_contains "CP-T03" "除外: .env（.env）,conf/api-token.txt（*token*）"
 assert_contains "CP-T03" "OK: 1 ファイルをコミットした"
 if git show --pretty=format: --name-only HEAD | grep -q '\.env\|token'; then fail "CP-T03" "除外対象がコミットされた"; else pass "CP-T03"; fi
+# ディレクトリ（末尾 / 付き・symlink 経由を含む）は CP001。除外パターンはファイル単位でしか当たらないので、中の .env がすり抜けない
+before="$(count_commits)"
+mkdir -p src; echo t > src/.env; echo a > src/a.ts
+run_cmd bash "$COMMIT" -m "feat: ディレクトリを指定" src
+assert_exit "CP-T03" 2
+assert_contains "CP-T03" "CP001:"
+assert_contains "CP-T03" "ディレクトリ"
+run_cmd bash "$COMMIT" -m "feat: ディレクトリを指定" src/
+assert_exit "CP-T03" 2
+if ln -s src linkdir 2>/dev/null && [ -d linkdir ]; then
+  run_cmd bash "$COMMIT" -m "feat: symlink を指定" linkdir
+  assert_exit "CP-T03" 2
+fi
+rm -rf linkdir
+assert_eq "CP-T03" "$before" "$(count_commits)"
+if git ls-files --error-unmatch src/.env >/dev/null 2>&1; then fail "CP-T03" "src/.env がコミットされた"; else pass "CP-T03"; fi
+# ファイル単位で渡せば .env は除外され a.ts だけがコミットされる
+run_cmd bash "$COMMIT" -m "feat: src のファイルを指定" src/a.ts src/.env
+assert_exit "CP-T03" 0
+assert_contains "CP-T03" "除外: src/.env（.env）"
+assert_contains "CP-T03" "OK: 1 ファイルをコミットした"
 
 # CP-T04 全除外が CP003、差分なしが CP004、対象未指定・一括指定・glob が CP001、--allow-empty の空コミット
 run_cmd bash "$COMMIT" -m "chore: 秘密" .env
@@ -92,5 +113,22 @@ run_cmd bash "$COMMIT" --allow-empty -m "chore: start #1 x"
 assert_exit "CP-T04" 0
 assert_contains "CP-T04" "OK: 0 ファイルをコミットした"
 assert_eq "CP-T04" "$((before + 1))" "$(count_commits)"
+# -m の値が無いのは引数の誤り（CP001・終了 2）
+echo g > g.txt
+run_cmd bash "$COMMIT" g.txt -m
+assert_exit "CP-T04" 2
+assert_contains "CP-T04" "CP001:"
+
+# 読み込み行の nop: logger.sh が無くても LOGGER_ROOT が決まり、契約どおり OK: / CP<番号>: で終わる（コミット経路のロックアウト対策）
+mv .claude/skills/20-common-step-shell-script/scripts/logger.sh logger.sh.bak
+run_cmd env -u CLAUDE_PROJECT_DIR -u LOGGER_ROOT bash "$COMMIT" -m "docs: logger 不在でもコミットできる" g.txt
+assert_exit "CP-T01" 0
+assert_contains "CP-T01" "OK: 1 ファイルをコミットした"
+echo h > h.txt
+run_cmd env -u CLAUDE_PROJECT_DIR -u LOGGER_ROOT bash "$COMMIT" -m "bad subject" h.txt
+assert_exit "CP-T01" 1
+assert_contains "CP-T01" "CP002:"
+assert_eq "CP-T01" "" "$R_ERR"
+mv logger.sh.bak .claude/skills/20-common-step-shell-script/scripts/logger.sh
 
 finish

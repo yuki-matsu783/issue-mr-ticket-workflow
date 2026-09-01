@@ -5,7 +5,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 REAL="$LOGGER_ROOT/.claude"
@@ -64,7 +64,7 @@ assert_contains "TICKET-T02" "0002-design-plan.md"
 
 # TICKET-T03 DoD 未チェック・根拠欄が空・作業ログ欠け・未コミットありの complete が TK003 で全件列挙
 f=wip/10_tickets/10_doing/0002-design-plan.md
-sed -i 's/^- \[ \] d（根拠: ）$/- [ ] d（根拠: ）\n- [x] e（根拠: ）/' "$f"
+sed -i 's/^- \[ \] d（根拠: ）$/- [ ] d（根拠: ）\n- [x] e（根拠: ）\n- [x] g/' "$f"
 sed -i '/^### 判断と根拠$/d' "$f"
 echo x > stray.txt
 run_cmd bash "$T" complete 0002
@@ -76,10 +76,12 @@ assert_contains "TICKET-T03" "見出し「判断と根拠」が無い"
 assert_contains "TICKET-T03" "「現在地」に未完了の項目"
 assert_contains "TICKET-T03" "「AI アセットに反映すべき内容」が空"
 assert_contains "TICKET-T03" "未コミットの変更がある"
-assert_contains "TICKET-T03" "未充足 6 件"
+assert_contains "TICKET-T03" "根拠欄「（根拠: ）」そのものが無い"
+assert_contains "TICKET-T03" "未充足 7 件"
 if [ -f "$f" ]; then pass "TICKET-T03"; else fail "TICKET-T03" "拒否されたのに移動した"; fi
 rm -f stray.txt
 sed -i 's/^- \[ \] d（根拠: ）$/- [x] d（根拠: ok）/; s/^- \[x\] e（根拠: ）$/- [x] e（根拠: ok）/; s/^### 拒否・確認・迂回の記録$/### 判断と根拠\n\n### 拒否・確認・迂回の記録/' "$f"
+sed -i 's/^- \[x\] g$/- [x] g（根拠: ok）/' "$f"
 fulfill "$f"
 run_cmd bash "$T" complete 0002
 assert_exit "TICKET-T03" 0
@@ -98,9 +100,9 @@ assert_exit "TICKET-T04" 0
 # TICKET-T05 連番が取り消し済みを含めて重複しない（0004 は取り消し済み → 次は 0005）
 run_cmd bash "$T" create investigation --title "調査 B" --purpose "p" --dod "d"
 assert_contains "TICKET-T05" "0005-investigation.md を作成した"
-run_cmd bash "$T" cancel 0005 --reason "不要"
+run_cmd bash "$T" cancel 0005 --reason "不要 & 重複 | \"引用\" \\ 記号"
 assert_exit "TICKET-T05" 0
-if [ -f wip/10_tickets/30_cancelled/0005-investigation.md ] && grep -q '^cancel_reason: "不要"' wip/10_tickets/30_cancelled/0005-investigation.md; then pass "TICKET-T05"; else fail "TICKET-T05" "取り消しの記載が無い"; fi
+if [ -f wip/10_tickets/30_cancelled/0005-investigation.md ] && grep -qF 'cancel_reason: "不要 & 重複 | \"引用\" \\ 記号"' wip/10_tickets/30_cancelled/0005-investigation.md; then pass "TICKET-T05"; else fail "TICKET-T05" "取り消しの記載が無い"; fi
 run_cmd bash "$T" cancel 0005 --reason ""
 assert_exit "TICKET-T05" 1
 assert_contains "TICKET-T05" "TK007:"

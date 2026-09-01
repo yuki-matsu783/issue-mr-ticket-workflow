@@ -320,7 +320,8 @@ _cp_emit_segment() {
       *) writes+=("${nonopt[@]}") ;;
     esac
   fi
-  if [[ "$exe" == "_" && "$CP_LOWER" == *git* ]]; then gitlike=1; fi
+  # 実行体が不明（クォート・コード文字列で _ に置き換わった）で、コマンド文字列に語としての git（git / git.exe / パス付き）があるときだけ gitlike。digit / legit / github には反応しない
+  if [[ "$exe" == "_" && "$CP_LOWER" =~ (^|[^a-z0-9_.-])git(\.exe)?([^a-z0-9_-]|$) ]]; then gitlike=1; fi
   [[ "$exe" == "_redirect_" ]] && exe=""
   _cp_join_us_to_reply "${args[@]}"; CP_ARGS+=("$REPLY")
   _cp_join_us_to_reply "${redirects[@]}"; CP_REDIRECTS+=("$REPLY")

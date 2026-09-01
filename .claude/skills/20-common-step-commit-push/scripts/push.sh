@@ -9,7 +9,7 @@ set -euo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load logger nop
 __ss_load frontmatter fatal
 
@@ -23,7 +23,7 @@ usage() {
   cat <<'USAGE'
 使い方: bash .claude/skills/20-common-step-commit-push/scripts/push.sh
   push 前チェック（1 未コミットなし / 2 作業中チケットなし / 3 md と html の対 / 4 draft 解除後の wip が空）を全件実施してから push する。
-  意図的に飛ばす項目は wip/push-check-skip.md に `- 項目 N: <理由>` と書いてコミットする（項目 4 は飛ばせない）。
+  意図的に飛ばす項目は wip/push-check-skip.md に `- 項目 N: <理由>` と書いてコミットする（項目 4 は飛ばせない。読むのはコミット済みの版だけ）。
 USAGE
 }
 
@@ -39,17 +39,19 @@ result_ng() { # $1=番号 $2=メッセージ $3=終了コード
 }
 
 # スキップ記録を読む: SKIP[n]=1（項目 1〜3 のみ）。項目 4 の指定は SKIP4_REQUESTED=1 として無視する
+# 記録はコミット済みの版（HEAD）だけを読む。作業ツリーにしか無い記録では飛ばせない（記録は必ず MR の差分に載る）
 declare -A SKIP=()
 SKIP4_REQUESTED=0
 read_skip_file() {
-  local line
-  [ -f "$SKIP_FILE" ] || return 0
+  local line content
+  content="$(git show "HEAD:$SKIP_FILE" 2>/dev/null || true)"
+  [ -n "$content" ] || return 0
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%$'\r'}"
     if [[ "$line" =~ ^[-*][[:space:]]*(項目[[:space:]]*)?([1-4])[[:space:]]*[:：] ]]; then
       if [ "${BASH_REMATCH[2]}" = "4" ]; then SKIP4_REQUESTED=1; else SKIP["${BASH_REMATCH[2]}"]=1; fi
     fi
-  done < "$SKIP_FILE"
+  done <<<"$content"
 }
 
 main() {
@@ -60,7 +62,6 @@ main() {
     esac
   done
   command -v git >/dev/null 2>&1 || result_ng 006 "git が無い" 2
-  command -v jq >/dev/null 2>&1 || result_ng 006 "jq が無い" 2
   cd "$LOGGER_ROOT" || result_ng 006 "リポジトリルートに移動できない: $LOGGER_ROOT" 2
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
@@ -132,6 +133,7 @@ main() {
   # 4. draft 解除後の作業領域が空（スキップ不可）
   local ready=0 state leftovers
   if [ -f "$MERGE_STATE" ]; then
+    command -v jq >/dev/null 2>&1 || result_ng 006 "jq が無い（$MERGE_STATE の判定に要る）" 2
     state="$(jq -r '.state // empty' "$MERGE_STATE" 2>/dev/null | tr -d '\r' || true)"
     [ "$state" = "ready" ] && ready=1
   fi

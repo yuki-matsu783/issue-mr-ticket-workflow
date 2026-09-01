@@ -14,7 +14,7 @@ tags: [report, ai-asset-implementation, issue-6]
 
 ## 要約
 
-issue #6（実装 1/3: ルール・フック共通基盤・共通ステップスキルと提供コマンド）の実装をチケット 0013〜0021（+ 設計差し戻し 0024・計画修正 0023）で完了した。作成したのは、設定・定義 3 本（`task-types.tsv` / `scope-limits.json` / `.gitattributes`）、ルール 4 本（`work-defaults` / `logger` / `design-docs` / `ai-asset-design-docs`）、フック共通ライブラリ 5 本（`hook-common` / `cmdpos` / `scope` / `push-detect` / `transcript`）、提供コマンド 5 本（`commit.sh` / `push.sh` / `ticket.sh` / `check-html.sh` / `run-tests.sh`）と共有ライブラリ 3 本（`logger.sh` / `frontmatter.sh` / `test-lib.sh`）、テンプレート 12 本（sh 2・チケット 1・HTML 2・SKILL / eval 2・MR / issue / 追記 / 要件 4 ほか）、共通ステップスキル 9 本の SKILL.md、eval 定義 5 本。テストは `run-tests.sh` で 14 本 / 55 ID が全 PASS（HK-T01・T09 はフック本体が要るため 2/3）。切り替え境目 A（0016）/ B（0017）/ C（0018）以降、コミット・push・チケットの状態遷移・HTML 検査はすべて提供コマンドで行った。仕様からの逸脱と決定は D-1〜D-28 として下表にまとめ、フィードバック計画（0022）の入力にする。フック本体は作らず `settings.json` にも登録していないので、この時点でフックによるロックアウトの経路は無い。
+issue #6（実装 1/3: ルール・フック共通基盤・共通ステップスキルと提供コマンド）の実装をチケット 0013〜0021（+ 設計差し戻し 0024・計画修正 0023）で完了した。作成したのは、設定・定義 3 本（`task-types.tsv` / `scope-limits.json` / `.gitattributes`）、ルール 4 本（`work-defaults` / `logger` / `design-docs` / `ai-asset-design-docs`）、フック共通ライブラリ 5 本（`hook-common` / `cmdpos` / `scope` / `push-detect` / `transcript`）、提供コマンド 5 本（`commit.sh` / `push.sh` / `ticket.sh` / `check-html.sh` / `run-tests.sh`）と共有ライブラリ 3 本（`logger.sh` / `frontmatter.sh` / `test-lib.sh`）、テンプレート 11 本（sh 2・チケット 1・HTML 2・SKILL / eval 2・MR / issue / 追記 / 要件 4 ほか）、共通ステップスキル 9 本の SKILL.md、eval 定義 5 本。テストは `run-tests.sh` で 14 本 / 55 ID が全 PASS（HK-T01・T09 はフック本体が要るため 2/3）。切り替え境目 A（0016）/ B（0017）/ C（0018）以降、コミット・push・チケットの状態遷移・HTML 検査はすべて提供コマンドで行った。仕様からの逸脱と決定は D-1〜D-28 として下表にまとめ、フィードバック計画（0022）の入力にする。フック本体は作らず `settings.json` にも登録していないので、この時点でフックによるロックアウトの経路は無い。切れ目の敵対的自己レビュー（指摘 25 件）は追加チケット 0025 で 20 件を修正し、仕様の判断が要る 5 件を 0022 へ送った（下表 D-29〜D-34）。
 
 ## 確かめられなかったこと
 
@@ -115,7 +115,34 @@ issue #6（実装 1/3: ルール・フック共通基盤・共通ステップス
 | `wip/20_plans/{0002-investigation-plan,0006-ai-asset-design-plan,0011-ai-asset-implementation-plan}.html`、`wip/30_reports/{0003-investigation,0008-ai-asset-design,0013-ai-asset-implementation}.html` | `20-common-step-report-view` 仕様（処理フロー・OUT ひな形）。0011 / 0003 は 0018 の試し埋め（`wip/tmp/trial/`）を正式配置 | 6 本とも `check-html.sh` で `OK: 検査 7 項目すべて通過`（0002 id 10 / リンク 7、0006 id 9 / リンク 6、0011 id 11 / リンク 8、0003 id 16 / リンク 9、0008 id 17 / リンク 10）。付録 `0003-investigation-appendix-{A,B,C}.md` は対象外 |
 | `wip/push-check-skip.md`（削除） | `20-common-step-commit-push` 仕様（push 前チェック項目 3） | md / html の対が揃ったので項目 3 のスキップ記録を削除。以後の push は 4 項目すべてを実施 |
 
+### 0025 追加: 敵対的自己レビュー F-1〜F-25 の対応
+
+切れ目の opus 自己レビュー（PR #7 `boundary:note ai-asset-implementation:0021`、全文は一時ファイル `wip/tmp/review-impl-findings.md`）の confidence ≥ 0.5 の 19 件のうち実装で解消できる 14 件と、安価な低確度 6 件を直した。仕様の判断が要る F-7 / F-15 / F-16 / F-23(a) / F-25(a)(c) は「残課題」で 0022 に送る。
+
+| アセット | 変更 | 対応する指摘 |
+|---|---|---|
+| `commit.sh` | ディレクトリ引数（末尾 `/`・symlink 経由を含む）を CP001 で拒否。`git add` 後に実際にステージされたパスへ除外パターンを当て直し、一致があれば index から戻して CP003。`-m` の値なしは CP001・終了 2 | F-1・F-24・F-25(b) |
+| `push.sh` | スキップ記録を `HEAD` のコミット済み版（`git show HEAD:wip/push-check-skip.md`）からだけ読む。jq の検査を `logs/merge-state.json` が存在するときに限定 | F-2・F-20 |
+| 読み込み行（雛形 2 本を正とし、同じ行を持つ 22 ファイルに同じ置換） | `nop` 分岐でも `LOGGER_ROOT="${r:-$PWD}"` を設定し、logger 不在で提供コマンドが `unbound variable` で落ちない | F-3 |
+| `check-html.sh` | 属性値（`src` / `href` / `id` / `data-template`）の抽出を二重・単一引用符の両対応に。あわせて `extract_required` の 1 行ごとの fork を無くし、`strip_comments` を C ロケールで動かして 1 回 12 s → 8 s | F-4（速度はテストの TIMEOUT 境界への対処） |
+| `ticket.sh` | 根拠欄そのものが無い `- [x]` 行を未充足に数える。`sed_escape`（`\` `"` を YAML のエスケープに、`&` `|` を sed から守り、改行は空白）で frontmatter の値を壊さない。未コミット判定をチケットパスの完全一致（awk）に | F-5・F-6・F-21(a) |
+| `scope.sh` | 承認単位 `"."` を認めず、ルート直下のファイルはファイル単位で承認。`gh api` の `-X` / `-f` / `--jq` 等の値を読み飛ばす（`-X POST` の `POST` がパスに化け、`issues/1/comments` が `other` になっていた。語彙のループ検査で発見） | F-10・追加 1 件 |
+| `cmdpos.sh` | `CP_GITLIKE` を「語としての git（`git` / `git.exe` / パス付き）」に限定。`digit` / `legit` / `github` に反応しない | F-19(a) |
+| `hook-common.sh` | redact パターン 3 のキー名を `token` / `password` / `passwd` / `secret` / `(api|access|private|auth|client|secret_access)_key` に拡張（`AWS_SECRET_ACCESS_KEY=…/…` を拾う）。規則 5 はハイフン区切りで大文字を含まない語（ブランチ名・チケット名）と小文字 + `_` だけの語（識別子）を残す。`hook_record` の `id` / `decision` も JSON エスケープ | F-12・F-13・F-19(c) |
+| `test-lib.sh` | `make_counting_path <cmds>` / `counted_calls [cmd]`（呼び出し回数を数える PATH。`2>/dev/null` で隠した fork も数える） | F-17 |
+| テスト 9 本 | 語彙表の全要素ループ（cmdpos のラッパー・opaque・書込先 3 表、scope の読み取り一覧・git サブコマンド・gh 分類 45 行、`tool_class` 14 行）、負のケースへの正の期待値（`count=1` `exe=grep`）、gitlike の負のコントロール、fork ゼロ / jq 1 回の計数、`CI=false` / `CI=0`、ディレクトリ・symlink 引数、未コミットの skip 記録、単一引用符、根拠欄なし、記号入りの取り消し理由、logger 不在での `OK:` / `CP002:` | F-9・F-11・F-14・F-17・F-19(b) と各修正の負ケース |
+| `.claude/evals/{work-defaults,logger,design-docs,ai-asset-design-docs}.md` | ルール 4 本の eval 定義（WD-E / LR-E / DD-E / AD-E 各 3 行。with = ルールが読み込まれている、without = 外した状態。未実行） | F-8 |
+| `work-defaults.md` 前文 / `20-common-step-commit-push/SKILL.md` | 表に無い種類はスキルの既定に倒し基準に無いことを明示する 1 文 / 対象はファイル単位・記録はコミット済みの版だけ・CP006 は環境誤りにも出る注記 | F-23(b)・F-18・F-15（注記のみ） |
+
+やらなかったこと（理由）: F-7（`read` / `remote-read` の無条件許可）は仕様側を直す提案が妥当なので実装・テストとも据え置き。F-15（識別子の転用）は台帳に番号を足す設計判断が先。F-16（glab の draft 作成コマンド）は仕様と SKILL.md のどちらに寄せるかが設計判断。F-21(b)（doing 2 枚目の無視）はフック本体（2/3）で機構の異常として扱う。F-22(c) は本レポートの HTML に逸脱表を追加して解消。
+
 ## テスト結果
+
+### 0025（最終）
+
+- `run-tests.sh --ids` → `OK: 14 本 / 55 件`。ID は増やしていない（§11 に無い観点は D-26 の運用どおり既存 ID に付ける）。assert の合計は 660 → 956 件（cmdpos 135 → 237、scope 105 → 246、hook_common 79 → 101、push_detect 26 → 31、transcript 21 → 23、commit 39 → 56、push 31 → 34、check_html 36 → 39、ticket 79 → 80）
+- 旧実装に対する FAIL の確認: 実装側 7 ファイル（commit.sh / push.sh / check-html.sh / ticket.sh / scope.sh / cmdpos.sh / hook-common.sh）を `git stash` で修正前に戻し、追加後のテストを流して FAIL することを確かめた（結果は下の「検査結果 0025」）。レビューの変異 M7〜M19・M29 に相当する欠陥（語彙の欠落・セグメント消失・隠した fork・gitlike の拡大・`CI` 判定・承認 `"."`）が、追加した検査で見える
+- `test_check_html.sh` は `check-html.sh` 1 回あたり 12 s × 15 回で 120 s の TIMEOUT に触れた（0021 までは偶然収まっていた）。`check-html.sh` の fork 削減で 1 回 8 s に下げ、16 回で約 100 s。根本対策（`strip_comments` の純 bash ループの見直し）は残課題
 
 ### 0021（最終）
 
@@ -184,6 +211,14 @@ issue #6（実装 1/3: ルール・フック共通基盤・共通ステップス
 - eval: なし
 
 ## 検査結果
+
+### 0025
+
+- プレースホルダ（`{{ }}` / TODO / TBD）: 変更ファイルと eval 4 本で 0 件。frontmatter: eval 4 本が `type: eval` + title / description / tags / keywords。CR: 0
+- `bash -n`: 変更した sh 全件通過。読み込み行は 22 ファイルとも同一文字列（`test_templates.sh` SS-T02 の一致検査を通過）
+- 旧実装での FAIL（`git stash` で実装 7 ファイルだけ戻して実行）: cmdpos 4 / scope 6 / hook_common 5 / commit 14 / push 2 / ticket 3 / check_html 2 = 36 件が FAIL、修正後は 0
+- 許可範囲: `git diff --name-only 2475fce` は `.claude/hooks/lib/**`・`.claude/skills/20-common-step-*/**`・`.claude/rules/work-defaults.md`・`.claude/evals/**`・`wip/**` のみ
+- 旧名 5 語: 変更ファイルに持ち込みなし
 
 ### 0021
 
@@ -278,6 +313,12 @@ issue #6（実装 1/3: ルール・フック共通基盤・共通ステップス
 | D-26 | 0015 | `scope.sh` の判定順・宣言の絞り込み・ops の分類・設定の検査のテストを HK-T11 の ID で書いた（§11 には glob と confirm の優先だけ） | §11 に該当する ID が無く、実装計画が「テスト ID の無いアセット」を起こせないため、最も近い ID に付けた（D-6 と同じ運用） | 0022 → §11 に HK-T15（判定順と ops 分類）の追加を検討 |
 | D-27 | 0015 | `scope.sh` は `frontmatter.sh` を読み込み行の `deny` ポリシーで source する（チケットの DoD どおり）。案内側フック（diff-check / subagent-stop-check）が source したときも読めなければ deny JSON を出して終了 0 になる | 読み込み行のポリシーはファイル単位で固定。案内側の「何も出さずに通す」と食い違うが、frontmatter.sh が無い状態は機構全体の破損であり、PostToolUse の permissionDecision は無視される | 0022 → 2/3 で案内側の挙動を確認し、必要なら scope.sh を `nop` にして呼び手が判定 |
 | D-28 | 0021 | 成果物ルールの frontmatter に `category: artifact` と `paths: [...]` を置いた（`work-defaults` は `category: behavior` + `applies_when`（D-1）） | `paths` は `ルール体系` 要件が定めるが、`category` のキー名と値、`applies_when` は `markdown-docs` ルール（未作成）が定める想定で未定義。収集・抽出の実装が読む形を先に固定した | 0022 → `markdown-docs` ルール（または `ルール体系` の仕様）に `category` / `paths` / `applies_when` を明記 |
+| D-29 | 0025 | `commit.sh` はディレクトリ引数（symlink 経由を含む）を CP001 で拒否し、ステージ後の実パスに除外パターンを当て直して一致があれば CP003 | 仕様 CP001 は「対象未指定・一括指定」。ディレクトリは一括指定の一種として扱った（レビュー F-1） | 0022 → CP001 の条件に「ディレクトリ」を追加（D-8 と一緒に） |
+| D-30 | 0025 | `push.sh` はスキップ記録を `HEAD` のコミット済み版からだけ読む | 仕様は「記録ファイル自体が未コミットなら項目 1 で止まる」と書くが、読み取り元を定めない（レビュー F-2） | 0022 → OUT ひな形に「コミット済みの版を読む」を明記（D-9 と一緒に） |
+| D-31 | 0025 | 読み込み行の `nop` 分岐でも `LOGGER_ROOT` を設定する | shell-script 仕様「読み込み行」は nop を「4 関数を no-op で定義して続行」とだけ定める（レビュー F-3） | 0022 → 仕様に追記（D-3 と一緒に） |
+| D-32 | 0025 | `ticket.sh` の frontmatter 値は YAML の二重引用符エスケープ（`\\` `\"`）で書く。根拠欄そのものが無い `- [x]` は未充足 | 仕様は記録の形とエスケープを定めず、完了検査は「根拠欄が空でない」だけ（レビュー F-5・F-6） | 0022 → complete 3 の検査条件と cancel の記録の形（D-12・D-15 と一緒に） |
+| D-33 | 0025 | `scope_resolve` はルート直下のファイルをファイル単位で承認し、承認単位 `"."` を認めない | §8 (7)「承認単位は親ディレクトリ」を素直に実装すると `"."` で全パスが allow になる（レビュー F-10） | 0022 → §8 (7) に例外を明記 |
+| D-34 | 0025 | redact パターン 3 のキー名の拡張と規則 5 の除外条件 | §3 の列挙に無い判断（レビュー F-12・F-13。D-25 の続き） | 0022 → §3 の注記（D-25 と一緒に） |
 
 ## 想定と異なった点
 
@@ -288,7 +329,9 @@ issue #6（実装 1/3: ルール・フック共通基盤・共通ステップス
 - 0015: `redact` の `Bearer` パターンが置換後の `***` に再一致して無限ループになり、テストがタイムアウトした。置換結果が再び当たらないことをパターンごとに確かめる必要がある
 - 0015: 参考実装の走査部（真偽値を返す述語）はそのままでは使えず、セグメント列を積む形に全面的に書き直した（正規化部は無改造で流用）。付録 A の見立てどおり
 - 0021: レポートへ節を差し込む perl で `$(cat)` が末尾の改行を落とし、見出し行が前の行に連結された（`### 0020` が 2 か所で消えた）。差し込み後に見出しの数を数える検査で気づいて修正。文書の機械的な差し込みにも「差し込み後の構造検査」が要る
-
+- 0025: 語彙表のループ検査を書いたら、`gh api -X POST …/issues/1/comments` が `remote-write:other` になっていた（`-X` の値 `POST` をパスとして拾っていた）。レビューの指摘（F-14「語彙が未検査」）が予告したとおり、表形式のテストが表形式の実装の穴を最初の実行で見つけた
+- 0025: `check-html.sh` は 1 回 12 s かかっており、`test_check_html.sh` は 0021 まで偶然 120 s に収まっていた。bash の多バイト文字列のパターン照合と 1 行ごとの fork が原因。fork を減らして 8 s
+- 0025: `sed` の置換文字列に `\"` を渡すと `"` になる。旧コードの `cancel_reason` も `"` を含む理由で YAML を壊していた（テストが `"` を含む理由を試していなかった）
 ## 残課題
 
 - **0022（フィードバック計画）の入力**: 逸脱 D-1〜D-28 の仕様への反映（要件・仕様・DDR のどれに書くか、2/3 へ送るもの）、`work-defaults` 以外のルール 11 本（成果物 4: `markdown-docs` / `plan-report` / `html-view` / `bash-script` / `ai-asset-authoring`、行動 6: `agent-common` / `directory-structure` / `document-lifecycle` / `git-workflow` / `ai-command-style` / `headless-awareness`）の送り先、計画の保留 4 件（`SP` 接頭辞の衝突（SP-E と subagent-stop-check の SP-T）、`build-test` と `hook-test` の重なり、テンプレートのプレースホルダ表記 `<...>` と `{{ }}`、`commands.build-test` が空）
@@ -296,3 +339,5 @@ issue #6（実装 1/3: ルール・フック共通基盤・共通ステップス
 - **3/3（ワークフロースキル）へ**: 旧ワークフロースキル 2 本に残る旧名（`work-boundary.sh` 26 / `merge-prep.sh` 26 / `10-work-` 31 / `20-task-gh-` 25 / `workflow-lib.sh` 1）の置換。`00-workflow-issue-mr-driven/assets/issue-addendum.template.md`（旧）と `20-common-step-issue/assets/issue-addendum.template.md`（新）の重複整理
 - **確認できていないもの**: HTML テンプレート 2 本と HTML 6 本のブラウザでの実表示（ライト / ダーク・サイドバーの sticky）。eval 15 件の実行（人間の依頼時）。`shellcheck` による静的検査（本環境に無い）
 - **小さな改善**: `test-lib.sh` の `hook_payload` に `session_id` の指定を足す（HK-T07 は手書きの JSON で代替した）。`skill.template.md` のガイドに「冒頭段落は禁止事項の要約」を書く。実装計画のチケット表の実行順（`next` の最小連番）と計画の記述順を揃える
+- **0025（レビュー由来）の 0022 への入力**: F-7 `scope_op_declared` が `read` / `remote-read` を無条件に許可（仕様は宣言必須。仕様を「常に可」に直す提案）/ F-15 エラー識別子の転用（`push.sh` の引数誤りが CP005・環境誤りが CP006、`check-html.sh` の `RV:` 番号なし、`TK004` の 9 箇所 → 台帳に CP007 / RV008 / TK008）/ F-16 feature-mr の glab コマンドが SKILL.md（API + ファイル渡し）と仕様（`glab mr create --draft`）で別物 / F-23(a) `ai-asset-design-docs` ルールの「受け入れ基準の節順」に正史 3 本が違反 / F-25(a)(c) TR004・TR005 の終了コードと `build-test` の bash テスト判定。`HOOK_DENY_ID` の既定 `WF009` が台帳の `WFx09`（x = 1〜5）に無い番号（2/3 でフック本体が決める）
+- **`check-html.sh` の速度**: 1 回 8 s（`strip_comments` の純 bash ループ）。`test_check_html.sh` は約 100 s で TIMEOUT 120 s に近い。sed 1 回でコメントを落とす等の見直し → 2/3 以降の小改善

@@ -63,9 +63,9 @@ __hc_redact_to_reply() {
   while [[ "$s" =~ ([Bb][Ee][Aa][Rr][Ee][Rr][[:space:]]+)[^[:space:]\"\'\*]+ ]]; do
     m="${BASH_REMATCH[0]}"; pre="${s%%"$m"*}"; post="${s#*"$m"}"; s="${pre}${BASH_REMATCH[1]}***${post}"
   done
-  # 3. key=value（token / password / secret / api_key / api-key / apikey）。大文字小文字を問わない
+  # 3. key=value（token / password / passwd / secret / api_key・access_key・private_key 等の *_key）。大文字小文字を問わない。値に / を含む秘密（AWS シークレット等）もここで拾う
   shopt -s nocasematch
-  while [[ "$s" =~ ((token|password|secret|api[_-]?key)=)[^[:space:]\&\;\"\'\*]+ ]]; do
+  while [[ "$s" =~ ((token|password|passwd|secret|(api|access|private|auth|client|secret[_-]?access)[_-]?key)=)[^[:space:]\&\;\"\'\*]+ ]]; do
     m="${BASH_REMATCH[0]}"; pre="${s%%"$m"*}"; post="${s#*"$m"}"; s="${pre}${BASH_REMATCH[1]}***${post}"
   done
   shopt -u nocasematch
@@ -73,10 +73,15 @@ __hc_redact_to_reply() {
   while [[ "$s" =~ AKIA[A-Z0-9]{16} ]]; do
     m="${BASH_REMATCH[0]}"; pre="${s%%"$m"*}"; post="${s#*"$m"}"; s="${pre}***${post}"
   done
-  # 5. 40 文字以上の 16 進 / base64 様の語（`/` を含む語はパスと区別できないので対象外）
-  while [[ "$s" =~ [A-Za-z0-9+=_-]{40,} ]]; do
-    m="${BASH_REMATCH[0]}"; pre="${s%%"$m"*}"; post="${s#*"$m"}"; s="${pre}***${post}"
+  # 5. 40 文字以上の 16 進 / base64 様の語（`/` を含む語はパスと区別できないので対象外）。
+  #    ハイフン区切りで大文字を含まない語（ブランチ名・チケット名）と、英小文字と _ だけの語（識別子）は秘密と見なさず残す
+  local rest="$s" out=""
+  while [[ "$rest" =~ [A-Za-z0-9+=_-]{40,} ]]; do
+    m="${BASH_REMATCH[0]}"; pre="${rest%%"$m"*}"; post="${rest#*"$m"}"
+    if [[ ( "$m" == *-*-* && "$m" != *[A-Z]* ) || "$m" != *[A-Z0-9+=-]* ]]; then out+="${pre}${m}"; else out+="${pre}***"; fi
+    rest="$post"
   done
+  s="${out}${rest}"
   (( nc )) && shopt -s nocasematch
   REPLY="$s"
 }
@@ -200,6 +205,8 @@ hook_record() {
   __hc_redact_to_reply "$note"; __hc_json_str "$REPLY"; note="$REPLY"
   __hc_json_str "$HOOK_TOOL"; local tool="$REPLY"
   __hc_json_str "$ticket"; ticket="$REPLY"
+  __hc_json_str "$decision"; decision="$REPLY"
+  __hc_json_str "$id"; id="$REPLY"
   line="{\"ts\":\"$ts\",\"session_id\":\"$HOOK_SESSION_ID\",\"hook\":\"$HOOK_NAME\",\"event\":\"$HOOK_EVENT\",\"decision\":\"$decision\",\"id\":\"$id\",\"tool\":\"$tool\",\"target\":\"$target\",\"ticket\":\"$ticket\",\"note\":\"$note\"}"
   dir="$HOOK_ROOT/logs/hooks"
   { mkdir -p "$dir" && printf '%s\n' "$line" >> "$dir/decisions.jsonl"; } 2>/dev/null || true

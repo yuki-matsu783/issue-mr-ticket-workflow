@@ -6,7 +6,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 # shellcheck disable=SC1091
@@ -103,7 +103,15 @@ case_order() {
   assert_eq "HK-T11" "allow - 5 -" "$(resolve implementation - - src/a/b.ts)"
   # (7) 未記載 → ask WF202。承認単位は親ディレクトリ、file_granular はファイル
   assert_eq "HK-T11" "ask WF202 7 README" "$(resolve implementation - - README/x.md)"
-  assert_eq "HK-T11" "ask WF202 7 ." "$(resolve implementation - - README.md)"
+  assert_eq "HK-T11" "ask WF202 7 README.md" "$(resolve implementation - - README.md)"
+  # 承認済み範囲: 親ディレクトリの承認はその配下だけ。"." が混ざっても他のパスは allow にならず、ルート直下はファイル単位
+  local ap="$TMP_DIR/approved.json"
+  printf '[{"scope":"."},{"scope":"README.md"},{"scope":"logs"}]\n' > "$ap"
+  assert_eq "HK-T11" "allow - 6 -" "$(resolve implementation - "$ap" README.md)"
+  assert_eq "HK-T11" "allow - 6 -" "$(resolve implementation - "$ap" logs/mr.json)"
+  assert_eq "HK-T11" "ask WF202 7 LICENSE" "$(resolve implementation - "$ap" LICENSE)"
+  assert_eq "HK-T11" "ask WF202 7 other" "$(resolve implementation - "$ap" other/x.txt)"
+  assert_eq "HK-T11" "ask WF202 7 README.md" "$(resolve implementation - - README.md)"
   assert_eq "HK-T11" "ask WF202 7 CLAUDE.md" "$(resolve implementation - - CLAUDE.md)"
   assert_eq "HK-T11" "allow - 5 -" "$(resolve ai-asset-implementation - - CLAUDE.md)"
 }
@@ -158,6 +166,27 @@ case_classify() {
   cmdpos_parse 'cat x > y.txt'; scope_classify 0 >/dev/null; assert_eq "HK-T11" "y.txt" "$SC_TARGETS"
   cmdpos_parse 'cp a b > log.txt'; scope_classify 0 >/dev/null; assert_eq "HK-T11" "b${_SC_US}log.txt" "$SC_TARGETS"
   assert_eq "HK-T11" "provided" "$(classify_all 'bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "docs: x" a.md')"
+  # 一覧に載っている語彙は全要素を踏む（表形式の実装は表形式で検査する）
+  local w pair
+  for w in $_SC_READ_ONLY_CMDS; do
+    case "$w" in '['|'[[') continue ;; esac
+    assert_eq "HK-T11" "read" "$(classify_all "$w x")"
+  done
+  for w in $_SC_GIT_READ_SUBCMDS; do assert_eq "HK-T11" "read" "$(classify_all "git $w")"; done
+  for pair in 'git remote -v=read' 'git remote add o u=unknown' 'git config --get user.name=read' 'git config user.name x=unknown' \
+              'git merge origin/main=merge-base' 'git merge feat=unknown' 'git push=remote-write:push' 'git commit -m x=unknown' \
+              'gh repo view=remote-read' 'gh run list=remote-read' 'gh workflow view x=remote-read' 'gh release download v1=remote-read' \
+              'gh release upload v1 a.html=remote-write:attach' 'gh label create x=remote-write:other' 'gh project list=remote-read' \
+              'glab ci view=remote-read' 'glab pipeline list=remote-read' 'gh auth status=remote-read' 'gh auth login=remote-write:other' \
+              'gh version=remote-read' 'gh api repos/o/r=remote-read' 'gh api -X DELETE repos/o/r=remote-write:other' \
+              'gh api -X POST repos/o/r/issues/1/comments -f body=x=remote-write:mr-comment' 'gh api repos/o/r/pulls -f title=x=remote-write:mr-create' \
+              'gh api -X PATCH repos/o/r/pulls/7 -f body=x=remote-write:mr-edit' 'gh api repos/o/r/issues -f title=x=remote-write:issue-create' \
+              'glab api projects/1/uploads -F file=@a=remote-write:attach' 'gh issue view 1=remote-read' 'gh issue create=remote-write:issue-create' \
+              'gh issue edit 1=remote-write:issue-append' 'gh pr view 7=remote-read' 'gh pr checks 7=remote-read' 'gh pr create=remote-write:mr-create' \
+              'gh pr edit 7=remote-write:mr-edit' 'glab mr note 7=remote-write:mr-comment' 'gh pr comment 7=remote-write:mr-comment' 'gh pr merge 7=remote-write:other' \
+              'find . -name x=read' 'find . -delete=write' 'bash -n x.sh=read' 'bash tests/x.sh=build-test' 'npm test=build-test' 'npm run build=build-test' 'npm install=unknown'; do
+    assert_eq "HK-T11" "${pair##*=}" "$(classify_all "${pair%=*}")"
+  done
   assert_eq "HK-T11" "hook-test" "$(classify_all 'bash .claude/hooks/lib/tests/test_x.sh')"
   assert_eq "HK-T11" "hook-test" "$(classify_all 'bash .claude/skills/x/scripts/tests/test_y.sh')"
   assert_eq "HK-T11" "build-test" "$(classify_all 'bash tests/run.sh')"

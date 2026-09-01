@@ -6,7 +6,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 LIB="$LOGGER_ROOT/.claude/hooks/lib/hook-common.sh"
@@ -153,6 +153,11 @@ case_hk_t08() {
   assert_contains "HK-T08" 'WF213: 未記載のパス'
   assert_contains "HK-T08" '計画タスクで宣言を十分に列挙する必要がある'
   assert_not_contains "HK-T08" '"ask"'
+  # 負のコントロール: CI=false / CI=0 はヘッドレスではない（ask のまま）
+  run_cmd env CI=false bash "$TMP_REPO/drv.sh" workflow-guard deny ask WF202 "未記載のパス" "src/x.ts" < <(payload)
+  assert_contains "HK-T08" '"permissionDecision":"ask"'
+  run_cmd env CI=0 bash "$TMP_REPO/drv.sh" workflow-guard deny ask WF202 "未記載のパス" "src/x.ts" < <(payload)
+  assert_contains "HK-T08" '"permissionDecision":"ask"'
   run_cmd env CI=true bash "$TMP_REPO/drv.sh" workflow-guard deny ask WF202 "未記載のパス" "src/x.ts" < <(payload)
   assert_contains "HK-T08" '"permissionDecision":"deny"'
   assert_contains "HK-T08" 'WF202: 未記載のパス'
@@ -180,6 +185,12 @@ case_hk_t10() {
     'git commit -m "docs: 説明を直す" a.md|git commit -m "docs: 説明を直す" a.md'
     'abc123 short hex 0123456789abcdef|abc123 short hex 0123456789abcdef'
     'tokens=5 mytoken=x|tokens=5 mytoken=***'
+    'AWS_SECRET_ACCESS_KEY=abcd1234/EFGH5678/ijkl9012MNOPqrstUVWXyz0123|AWS_SECRET_ACCESS_KEY=***'
+    'PRIVATE_KEY=abc client-key=def access_key=ghi|PRIVATE_KEY=*** client-key=*** access_key=***'
+    'X-Api-Key: 0123456789ABCDEF0123456789abcdef012345678|X-Api-Key: ***'
+    'branch feature-6-workflow-foundation-and-more-stuff pushed|branch feature-6-workflow-foundation-and-more-stuff pushed'
+    '0025-ai-asset-implementation-review-followup-ticket-name|0025-ai-asset-implementation-review-followup-ticket-name'
+    'some_very_long_function_name_that_is_over_forty_chars|some_very_long_function_name_that_is_over_forty_chars'
   )
   local c in exp
   for c in "${cases[@]}"; do
@@ -201,6 +212,12 @@ case_misc() {
   assert_eq "HK-T07" "read" "$R_OUT"
   run_cmd bash "$TMP_REPO/drv.sh" x guide class Agent
   assert_eq "HK-T07" "spawn" "$R_OUT"
+  # §2 の分類表を全行踏む
+  local pair
+  for pair in Edit=write Write=write MultiEdit=write NotebookEdit=write Bash=exec PowerShell=exec EnterPlanMode=plan Agent=spawn Workflow=spawn Read=read Grep=read Glob=read WebFetch=read Unknown=read; do
+    run_cmd bash "$TMP_REPO/drv.sh" x guide class "${pair%%=*}"
+    assert_eq "HK-T07" "${pair#*=}" "$R_OUT"
+  done
   run_cmd bash "$TMP_REPO/drv.sh" x guide rel "$TMP_REPO/src/a.ts"
   assert_eq "HK-T07" "src/a.ts" "$R_OUT"
   run_cmd bash "$TMP_REPO/drv.sh" x guide rel "./src//b.ts"

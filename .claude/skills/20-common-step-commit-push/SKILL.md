@@ -25,7 +25,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "<prefix>: <
 
 1. メッセージは `<prefix>: <日本語 1 行>`（prefix: `feat` / `fix` / `docs` / `chore` / `refactor` / `test` / `perf` / `build` / `ci` / `ai-asset`）。フッター・モデル名を含めない（CP002）
 2. 対象は自分が変更したファイルをパスで明示する（リポジトリルート相対）。`-A` / `.` / glob は CP001。オプションは順不同
-3. 除外パターン（`assets/exclude-patterns.txt`。クレデンシャル類・開発副産物）に一致したファイルは除外一覧に移され、残りだけがコミットされる。**除外一覧は必ず報告する**（黙って落とさない）。全部が除外なら CP003、差分が無ければ CP004
+3. 除外パターン（`assets/exclude-patterns.txt`。クレデンシャル類・開発副産物）に一致したファイルは除外一覧に移され、残りだけがコミットされる。対象はファイル単位で渡す（ディレクトリは CP001。除外パターンはファイル単位でしか当たらない）。**除外一覧は必ず報告する**（黙って落とさない）。全部が除外なら CP003、差分が無ければ CP004
 4. 空コミットは `--allow-empty`（MR 作成時の差分作りのみ。`20-common-step-feature-mr`）
 5. 出力の最終行 `OK: N ファイルをコミットした（<SHA>）。除外: ...` を作業ログに残す。コミットのタイミングの既定はチケット完了時（完了検査が未コミットを拒否する）
 
@@ -36,7 +36,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 ```
 
 1. 前チェックを全項目実施し、未充足を全件列挙して CP005 で止まる: (1) 未コミットの変更が無い / (2) 作業中のチケットが無い（宣言 `remote-write:push` があれば通す）/ (3) `wip/30_reports/`・`wip/20_plans/` の `.md` と `.html` が対（付録 `*-appendix-*.md` は対象外）/ (4) draft 解除後（`logs/merge-state.json` が `ready`）は `wip/` に `.gitkeep` 以外が無い
-2. 意図的に飛ばす項目は `wip/push-check-skip.md` に `- 項目 N: <理由>` と書いて**コミットしてから**実行する（記録が未コミットなら項目 1 で止まる = 記録は必ず MR の差分になる）。項目 4 は飛ばせない。飛ばした項目は出力に明記される
+2. 意図的に飛ばす項目は `wip/push-check-skip.md` に `- 項目 N: <理由>` と書いて**コミットしてから**実行する（読まれるのはコミット済みの版だけで、未コミットの記録は無視され項目 1 で止まる = 記録は必ず MR の差分になる）。項目 4 は飛ばせない。飛ばした項目は出力に明記される
 3. 上流が未設定なら `--set-upstream origin <現在ブランチ>` で push する。リモートに拒否されたら CP006（force しない。状況を報告する）
 4. 出力の最終行 `OK: push した（<ブランチ>、N コミット）。スキップ: ...` を作業ログに残す
 
@@ -58,4 +58,4 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 | `CP003:` 全対象が除外 | 除外されたファイルとパターンを見る。本当に必要なら除外パターンの見直しを提案する（黙って回避しない） |
 | `CP004:` 差分なし・コミット失敗 | 変更が無い（既にコミット済み）か、コミット時の検査が失敗している。出力を読む |
 | `CP005:` push 前チェック未充足 | 列挙された全件を解消する。意図的に飛ばすなら `wip/push-check-skip.md` に理由を書いてコミット（項目 4 は不可） |
-| `CP006:` リモート拒否 | force しない。git の出力を添えて報告する（fetch → `git merge origin/<default>` の要否は人間の判断） |
+| `CP006:` リモート拒否 | force しない。git の出力を添えて報告する（fetch → `git merge origin/<default>` の要否は人間の判断）。環境の誤り（git 不在・detached HEAD・merge-state 判定時の jq 不在）にも同じ識別子で終了 2 になるので、本文で見分ける |

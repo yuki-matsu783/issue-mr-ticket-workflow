@@ -8,7 +8,7 @@ set -euo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load logger nop
 
 readonly SCRIPT_PREFIX="CP"
@@ -68,7 +68,7 @@ main() {
     case "$1" in
       -h|--help) usage; exit 0 ;;
       -m)
-        [ $# -ge 2 ] || result_ng 002 "-m にメッセージが無い（期待する形式: <prefix>: <日本語 1 行>）" 1
+        [ $# -ge 2 ] || result_ng 001 "-m にメッセージが無い（引数の誤り。期待する形式: -m \"<prefix>: <日本語 1 行>\"）" 2
         message="$2"; shift ;;
       -m*) message="${1#-m}" ;;
       --allow-empty) allow_empty=1 ;;
@@ -80,6 +80,8 @@ main() {
           *'*'*|*'?'*|*'['*) result_ng 001 "glob（$1）は受け付けない。パスを 1 つずつ明示する" 2 ;;
         esac
         f="${1#./}"
+        # ディレクトリ（symlink 経由を含む）は受け付けない。除外パターンは指定されたパスにしか当たらず、中の .env 等を見落とすため
+        if [ -d "$f" ]; then result_ng 001 "ディレクトリ（$f）は受け付けない。除外パターンはファイル単位で当たるので、中のファイルをパスで明示する" 2; fi
         files+=("$f") ;;
     esac
     shift
@@ -119,6 +121,17 @@ main() {
       print_excluded
       printf '%s\n' "$add_err"
       result_ng 001 "git がステージできないパスがある（未追跡のまま削除・綴り誤り・.gitignore 対象）。上の git の出力を確認する" 2
+    fi
+    # 実際にステージされたパスに除外パターンを当て直す（指定と実パスが異なる経路の保険）。一致があれば index から戻して止まる
+    local staged_ng=() s
+    while IFS= read -r s; do
+      [ -n "$s" ] || continue
+      if matches_exclude "$s"; then git reset -q -- "$s" >/dev/null 2>&1 || true; staged_ng+=("$s（$REPLY）"); fi
+    done < <(git diff --cached --name-only -- "${kept[@]}" | tr -d '\r')
+    if [ "${#staged_ng[@]}" -gt 0 ]; then
+      EXCLUDED+=("${staged_ng[@]}")
+      print_excluded
+      result_ng 003 "ステージされたパスに除外パターンの一致がある（${staged_ng[*]}）。index から戻した。対象を見直す" 1
     fi
     if git diff --cached --quiet -- "${kept[@]}" && [ "$allow_empty" -eq 0 ]; then
       print_excluded

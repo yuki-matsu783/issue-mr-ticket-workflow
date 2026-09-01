@@ -99,6 +99,27 @@ make_restricted_path() { # $@=残すコマンド名
   return 0
 }
 
+# 呼び出し回数を数える PATH を作る: make_counting_path <コマンド名>... → COUNTING_PATH（列挙したコマンドだけが使え、
+# 呼ばれるたびに名前が COUNTING_LOG に 1 行追記される。「fork ゼロ」「jq 1 回」のような約束の検査に使う）
+make_counting_path() { # $@=数えるコマンド名
+  local dir name real
+  dir="$(mktemp -d)"
+  _TL_TMPS+=("$dir")
+  COUNTING_LOG="$dir/calls.log"; : > "$COUNTING_LOG"
+  for name in "$@"; do
+    real="$(command -v "$name" 2>/dev/null || true)"
+    [[ -z "$real" ]] && continue
+    printf '#!/bin/bash\nprintf "%%s\\n" "%s" >> "%s"\nexec "%s" "$@"\n' "$name" "$COUNTING_LOG" "$real" > "$dir/$name"
+    chmod +x "$dir/$name" 2>/dev/null || true
+  done
+  COUNTING_PATH="$dir"
+  return 0
+}
+# counted_calls [コマンド名]: 数えた回数を出力（省略で全部）
+counted_calls() {
+  if [[ -n "${1:-}" ]]; then grep -c -x -- "$1" "$COUNTING_LOG" 2>/dev/null || true; else grep -c . "$COUNTING_LOG" 2>/dev/null || true; fi
+}
+
 # jq の出力から CR を除く（Windows ネイティブ jq は CRLF を出す）
 tl_jq() {
   jq "$@" | tr -d '\r'

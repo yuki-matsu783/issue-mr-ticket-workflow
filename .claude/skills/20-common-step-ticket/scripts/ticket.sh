@@ -13,7 +13,7 @@ shopt -u patsub_replacement 2>/dev/null || true
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load logger nop
 __ss_load frontmatter fatal
 
@@ -86,9 +86,16 @@ do_commit() { # $1=件名 $2..=パス
 # 状態変更後のコミット失敗を、ticket.sh の失敗として返す（最終行は commit.sh のもの）
 fail_with_commit_last() { log_warn "commit.sh の拒否: $COMMIT_LAST"; printf '%s\n' "$COMMIT_LAST"; exit 1; }
 
+# frontmatter の二重引用符付きの値として書けるよう、sed の置換文字列に直す（改行は空白に。\ と " は YAML のエスケープ、| と & は sed の特殊文字）
+# sed は置換文字列の `\\` を `\`、`\&` を `&`、`\|` を `|` にするので、ファイルには `\\`（\）と `\"`（"）が残る
+sed_escape() { # $1=値 → REPLY
+  local v="${1//$'\n'/ }"
+  v="${v//\\/\\\\\\\\}"; v="${v//\"/\\\\\"}"; v="${v//&/\\&}"; v="${v//|/\\|}"
+  REPLY="$v"
+}
 set_field() { # $1=file $2=key $3=value（frontmatter の `key: ""` 行を置き換える）
-  local esc="${3//|/\\|}"
-  sed -i "s|^$2: \"\"|$2: \"$esc\"|" "$1"
+  sed_escape "$3"
+  sed -i "s|^$2: \"\"|$2: \"$REPLY\"|" "$1"
 }
 
 # ---------------------------------------------------------------- create
@@ -235,12 +242,15 @@ cmd_complete() {
   [ -z "$unchecked" ] || unmet+=("DoD に未チェックの項目がある（DoD 節の行 ${unchecked}）")
   noroot="$(printf '%s\n' "$dod" | grep -E '^- \[x\]' | grep -nE '（根拠:[[:space:]]*）|（根拠:[[:space:]]*$' | cut -d: -f1 | tr '\n' ' ' || true)"
   [ -z "$noroot" ] || unmet+=("チェック済み DoD の根拠欄が空（チェック済み項目の ${noroot}番目）")
+  local noroot2
+  noroot2="$(printf '%s\n' "$dod" | grep -E '^- \[x\]' | grep -nv '（根拠:' | cut -d: -f1 | tr '\n' ' ' || true)"
+  [ -z "$noroot2" ] || unmet+=("チェック済み DoD に根拠欄「（根拠: ）」そのものが無い（チェック済み項目の ${noroot2}番目）。欄を消して通さない")
   for h in "${LOG_HEADINGS[@]}"; do grep -q "^### $h" "$T_PATH" || unmet+=("作業ログの見出し「$h」が無い"); done
   cur="$(section "$T_PATH" '^### 現在地')"
   if printf '%s\n' "$cur" | grep -qE '^- *(次|未着手)|未着手|^- *次[:：]'; then unmet+=("作業ログ「現在地」に未完了の項目が残っている（「次:」「未着手」）"); fi
   ai="$(section "$T_PATH" '^### AI アセットに反映すべき内容' | sed '/^[[:space:]]*$/d')"
   [ -n "$ai" ] || unmet+=("作業ログ「AI アセットに反映すべき内容」が空（0 件なら 0 件である根拠を書く）")
-  st="$(git status --porcelain 2>/dev/null | tr -d '\r' | grep -v -- "${T_PATH#./}" | grep -v -- "${T_PATH##*/}" | sed '/^$/d' || true)"
+  st="$(git status --porcelain 2>/dev/null | tr -d '\r' | awk -v p="${T_PATH#./}" 'substr($0, 4) != p' | sed '/^$/d' || true)"
   if [ -n "$st" ]; then unmet+=("チケット以外に未コミットの変更がある（$(printf '%s\n' "$st" | wc -l | tr -d ' ') 件: $(printf '%s\n' "$st" | head -5 | sed 's/^...//' | tr '\n' ' ')）→ commit.sh で先にコミットする"); fi
   if [ "${#unmet[@]}" -gt 0 ]; then
     printf '%s\n' "${unmet[@]/#/- }"
@@ -273,7 +283,7 @@ cmd_cancel() {
   local orig ts new esc
   orig="$(cat "$T_PATH")"
   ts="$(now_iso)"
-  esc="${reason//|/\\|}"; esc="${esc//\"/\\\"}"
+  sed_escape "$reason"; esc="$REPLY"
   sed -i "s|^base_sha: \(.*\)$|base_sha: \1\ncancelled_at: \"$ts\"\ncancel_reason: \"$esc\"|" "$T_PATH"
   new="$CANCELLED/${T_PATH##*/}"
   mv "$T_PATH" "$new"

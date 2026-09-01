@@ -14,7 +14,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 0; fi
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load frontmatter deny
 
 _SC_US=$'\x1e'
@@ -177,14 +177,16 @@ scope_resolve() {
     fi
   fi
   # (6) 承認済み範囲
+  # 承認単位 "." は認めない（ルート直下のファイルはファイル単位で承認される。"." が入ると全パスが allow になるため）
   for a in "${SC_APPROVED[@]}"; do
-    if [[ "$p" == "$a" || "$p" == "$a/"* || "$a" == "." ]]; then SC_DECISION="allow"; SC_STAGE=6; return 0; fi
+    [[ "$a" == "." || -z "$a" ]] && continue
+    if [[ "$p" == "$a" || "$p" == "$a/"* ]]; then SC_DECISION="allow"; SC_STAGE=6; return 0; fi
   done
-  # (7) 未記載 → 確認。承認単位は親ディレクトリ（file_granular はファイル単位）
+  # (7) 未記載 → 確認。承認単位は親ディレクトリ（file_granular とルート直下のファイルはファイル単位）
   SC_DECISION="ask"; SC_ID="WF202"; SC_STAGE=7
   if _sc_any_match "$p" "${SC_COMMON_FILE_GRANULAR[@]}"; then SC_ASK_SCOPE="$p"
   elif [[ "$p" == */* ]]; then SC_ASK_SCOPE="${p%/*}"
-  else SC_ASK_SCOPE="."; fi
+  else SC_ASK_SCOPE="$p"; fi
   return 0
 }
 
@@ -207,10 +209,12 @@ _sc_classify_gh() { # $1=exe(gh|glab) $2..=args → REPLY=分類
     api)
       for ((x = 1; x < ${#a[@]}; x++)); do
         case "${a[x]}" in
-          -X|--method) method="${a[x+1]:-}"; method="${method^^}" ;;
+          -X|--method) method="${a[x+1]:-}"; method="${method^^}"; x=$((x + 1)) ;;
           -X*) method="${a[x]:2}"; method="${method^^}" ;;
-          -f|-F|--field|--raw-field|--input|--input=*|--field=*|--raw-field=*) haswrite=1 ;;
-          --paginate|--jq|-q|-H|--header|--hostname|-i|--include|--silent|--cache|-p|--preview|--verbose) ;;
+          -f|-F|--field|--raw-field|--input) haswrite=1; x=$((x + 1)) ;;
+          --input=*|--field=*|--raw-field=*) haswrite=1 ;;
+          --jq|-q|-H|--header|--hostname|-p|--preview|--cache) x=$((x + 1)) ;;
+          --paginate|-i|--include|--silent|--verbose) ;;
           -*) ;;
           *) [[ -z "$path" ]] && path="${a[x]}" ;;
         esac

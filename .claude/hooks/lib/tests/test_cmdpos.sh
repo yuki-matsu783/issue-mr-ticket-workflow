@@ -6,7 +6,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 # shellcheck disable=SC1091
@@ -179,6 +179,62 @@ case_hk_t05_degraded() {
 }
 
 # ---- HK-T12: 提供コマンドの識別はコマンド文字列上のルート相対表記だけ ----
+# ---- HK-T05: 語彙表の全要素と負のケースの正の期待値 ----
+case_hk_t05_vocab() {
+  local w pair
+  # ラッパー・予約語（§7-3）: どれを前置しても exe=git sub=commit
+  for w in $_CP_PREFIX_WORDS; do
+    case "$w" in
+      timeout) run_cmd dump 'timeout 10 git commit' ;;
+      sudo) run_cmd dump 'sudo -u alice git commit' ;;
+      *) run_cmd dump "$w git commit" ;;
+    esac
+    assert_contains "HK-T05" "exe=git sub=commit"
+  done
+  # コード文字列を取る実行系（§7-5）: コード指定オプション付きは opaque、ファイル指定は opaque でない。無条件の語は常に opaque
+  for w in $_CP_OPAQUE_WITH_OPT; do
+    run_cmd dump "$w -c 'git push'"
+    assert_contains "HK-T05" "exe=$w"
+    assert_contains "HK-T05" "opaque=1"
+    run_cmd dump "$w script.txt"
+    assert_contains "HK-T05" "opaque=0"
+  done
+  for w in $_CP_OPAQUE_WORDS; do
+    run_cmd dump "$w git push"
+    assert_contains "HK-T05" "exe=$w"
+    assert_contains "HK-T05" "opaque=1"
+  done
+  # 書き込み先を取るコマンド（§7）: write が空でない
+  for pair in 'cp a b=b' 'mv a b=b' 'install a b=b' 'ln -s a b=b' 'sed -i s/x/y/ f.txt=f.txt' 'tee out.txt=out.txt' 'touch t.txt=t.txt' 'mkdir d=d' 'rm r.txt=r.txt'; do
+    run_cmd dump "${pair%%=*}"
+    assert_contains "HK-T05" "write=[${pair#*=}]"
+  done
+  run_cmd dump 'truncate -s 0 z'
+  assert_not_contains "HK-T05" "write=[]"
+  # 負のケースにも正の期待値: セグメントが消えたのではなく、別の exe として解析されている
+  run_cmd dump 'grep "git commit" file.txt'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=grep"
+  run_cmd dump "echo 'git commit'"
+  assert_contains "HK-T05" "seg0: exe=echo"
+  run_cmd dump $'cat <<EOF\ngit commit\nEOF'
+  assert_contains "HK-T05" "seg0: exe=cat"
+  run_cmd dump 'ls # git commit'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=ls"
+  # gitlike: 実行体が不明（クォートで _ になった）でも、語としての git があるときだけ立つ
+  run_cmd dump "'git' commit"
+  assert_contains "HK-T05" "exe=_"
+  assert_contains "HK-T05" "gitlike=1"
+  run_cmd dump '"git.exe" push'
+  assert_contains "HK-T05" "gitlike=1"
+  for w in "'digit' x" "'legit' x" "'github' x" "'gitlab' x"; do
+    run_cmd dump "$w"
+    assert_contains "HK-T05" "exe=_"
+    assert_contains "HK-T05" "gitlike=0"
+  done
+}
+
 case_hk_t12() {
   run_cmd dump 'bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "docs: x" a.md'
   assert_contains "HK-T12" "provided=.claude/skills/20-common-step-commit-push/scripts/commit.sh"
@@ -208,5 +264,6 @@ case_hk_t05_opaque
 case_hk_t05_redirect_write
 case_hk_t05_powershell
 case_hk_t05_degraded
+case_hk_t05_vocab
 case_hk_t12
 finish

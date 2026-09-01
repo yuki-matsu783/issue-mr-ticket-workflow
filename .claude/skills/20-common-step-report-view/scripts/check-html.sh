@@ -9,11 +9,14 @@ set -euo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load logger nop
 
 readonly SCRIPT_PREFIX="RV"
 readonly TEMPLATE_DIR=".claude/skills/20-common-step-report-view/assets"
+# 属性値の引用符（二重・単一の両方を見る）と、引用符以外の 1 文字
+readonly Q="[\"']"
+readonly NQ="[^\"']"
 
 usage() {
   cat <<'USAGE'
@@ -28,6 +31,7 @@ result_ng2() { log_warn "${SCRIPT_PREFIX}: $1"; printf '%s\n' "$1"; exit 2; }
 # HTML コメントを除く（純 bash。地の文で <style> や id="…" に触れるコメントを数えないため）
 strip_comments() { # $1=内容 → REPLY
   local s="$1" pre rest
+  local LC_ALL=C   # 区切りは ASCII なのでバイト単位で探す（多バイト文字列のパターン照合は桁違いに遅い）
   while [[ "$s" == *"<!--"* ]]; do
     pre="${s%%<!--*}"
     rest="${s#*<!--}"
@@ -38,16 +42,19 @@ strip_comments() { # $1=内容 → REPLY
 }
 
 # 開きタグ内の id 属性だけを抽出する
-extract_ids() { printf '%s' "$1" | grep -oE '<[A-Za-z][^>]*[[:space:]]id="[^"]+"' | sed 's/.*id="//; s/"$//' || true; }
+extract_ids() { printf '%s' "$1" | grep -oE "<[A-Za-z][^>]*[[:space:]]id=${Q}${NQ}+${Q}" | sed -E "s/.*id=${Q}//; s/${Q}\$//" || true; }
 # data-required 要素の識別子（id があれば id、無ければ tag@出現順）
 extract_required() {
-  local tags tag id line n=0
-  { printf '%s' "$1" | grep -oE '<[A-Za-z][^>]*[[:space:]]data-required([[:space:]>]|=)[^>]*>?' || true; } | while IFS= read -r line; do
-    tag="$(printf '%s' "$line" | sed -E 's/^<([A-Za-z0-9]+).*/\1/')"
-    id="$(printf '%s' "$line" | grep -oE '[[:space:]]id="[^"]+"' | head -1 | sed 's/.*id="//; s/"$//' || true)"
+  local tag id line n=0
+  # 1 行ごとの sed / grep（fork）を避け、bash の展開だけで tag と id を取り出す
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    tag="${line#<}"; tag="${tag%%[^A-Za-z0-9]*}"
+    id=""
+    if [[ "$line" =~ [[:space:]]id=[\"\']([^\"\']+)[\"\'] ]]; then id="${BASH_REMATCH[1]}"; fi
     n=$((n + 1))
     if [ -n "$id" ]; then printf '%s#%s\n' "$tag" "$id"; else printf '%s@%d\n' "$tag" "$n"; fi
-  done
+  done < <(printf '%s' "$1" | grep -oE '<[A-Za-z][^>]*[[:space:]]data-required([[:space:]>]|=)[^>]*>?' || true)
 }
 
 main() {
@@ -72,8 +79,8 @@ main() {
 
   # 2. 外部リソース（src 属性・<link href>・CSS url()・@import。data: URI と <a href> は対象外）
   local ext=()
-  while IFS= read -r line; do [ -n "$line" ] && ext+=("$line"); done < <(printf '%s' "$body" | grep -oE '<(img|script|iframe|video|audio|source|embed|object|track)[^>]*[[:space:]]src="[^"]*"' | grep -vE 'src="data:' || true)
-  while IFS= read -r line; do [ -n "$line" ] && ext+=("$line"); done < <(printf '%s' "$body" | grep -oE '<link[^>]*[[:space:]]href="[^"]*"' || true)
+  while IFS= read -r line; do [ -n "$line" ] && ext+=("$line"); done < <(printf '%s' "$body" | grep -oE "<(img|script|iframe|video|audio|source|embed|object|track)[^>]*[[:space:]]src=${Q}${NQ}*${Q}" | grep -vE "src=${Q}data:" || true)
+  while IFS= read -r line; do [ -n "$line" ] && ext+=("$line"); done < <(printf '%s' "$body" | grep -oE "<link[^>]*[[:space:]]href=${Q}${NQ}*${Q}" || true)
   # url() は @import 文の中のものを二重に数えない
   local body_no_import; body_no_import="$(printf '%s' "$body" | sed -E 's/@import[[:space:]]+[^;]+;?//g')"
   while IFS= read -r line; do [ -n "$line" ] && ext+=("$line"); done < <(printf '%s' "$body_no_import" | grep -oE 'url\([^)]*\)' | grep -vE '^url\(["'"'"']?data:' || true)
@@ -88,7 +95,7 @@ main() {
 
   # 4. ページ内リンクの参照先
   local hrefs broken
-  hrefs="$(printf '%s' "$body" | grep -oE 'href="#[^"]+"' | sed 's/^href="#//; s/"$//' | sort -u || true)"
+  hrefs="$(printf '%s' "$body" | grep -oE "href=${Q}#${NQ}+${Q}" | sed -E "s/^href=${Q}#//; s/${Q}\$//" | sort -u || true)"
   broken="$(comm -23 <(printf '%s\n' "$hrefs" | sed '/^$/d') <(printf '%s\n' "$ids" | sed '/^$/d' | sort -u) | tr '\n' ' ')"
   [ -z "$broken" ] || fails+=("RV004: 参照先の無いページ内リンク: ${broken}")
 
@@ -99,7 +106,7 @@ main() {
 
   # 6. テンプレートの必須節
   local kind template treq missing="" req
-  kind="$(printf '%s' "$body" | grep -oE '<body[^>]*data-template="[^"]+"' | sed 's/.*data-template="//; s/"$//' | head -1 || true)"
+  kind="$(printf '%s' "$body" | grep -oE "<body[^>]*data-template=${Q}${NQ}+${Q}" | sed -E "s/.*data-template=${Q}//; s/${Q}\$//" | head -1 || true)"
   if [ -z "$kind" ]; then
     case "$file" in */wip/30_reports/*|wip/30_reports/*) kind="report" ;; */wip/20_plans/*|wip/20_plans/*) kind="plan" ;; esac
   fi

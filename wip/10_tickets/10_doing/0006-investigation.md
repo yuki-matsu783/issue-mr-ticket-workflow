@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画の方針: 人間レ�
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T05:01:21+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "eac5ca7"
 ---
 
 # 0006 hooks/lib との結線の確認と参考実装との差分

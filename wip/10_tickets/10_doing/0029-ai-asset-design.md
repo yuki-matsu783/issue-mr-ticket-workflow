@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "正史の変更で差分が 1 文�
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T16:51:56+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "139e41c"
 ---
 
 # 0029 AI アセット設計: 共通ステップ仕様 5 本（shell-script / commit-push / ticket / report-view / ai-asset-creator）への書き戻し（wip/20_plans/0026-ai-asset-design-plan.md の 0029）

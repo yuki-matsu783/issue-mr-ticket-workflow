@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "切れ目の敵対的レビュー
 allow:
   write: [".claude/rules/**", ".claude/hooks/lib/**", ".claude/hooks/config/**", ".claude/hooks/tests/**", ".claude/skills/20-common-step-*/**", ".claude/evals/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-01T15:21:02+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2475fce"
 ---
 
 # 0025 AI アセット実装・追加（敵対的自己レビュー F-1〜F-25 の対応）

@@ -81,7 +81,24 @@ tags: [report, ai-asset-implementation, issue-6]
 | `20-common-step-commit-push/SKILL.md` | 同仕様 IN/OUT・OUT ひな形・参照ナレッジ・Script 処理 | 手順がコミット 1〜5・push 1〜4。エラー表は CP001〜006 |
 | `20-common-step-report-view/SKILL.md` | 同仕様 処理フロー 1〜6・OUT ひな形・参照ナレッジ・Script 処理 | 手順 1〜6 が処理フロー 1〜6。エラー表は RV001〜007 |
 
+### 0020 S4-2: SKILL.md 5 本と assets 4 本・eval 定義 5 本
+
+| アセット | 仕様の節 | 備考 |
+|---|---|---|
+| `20-common-step-ai-asset-creator/SKILL.md` | 同仕様 禁止事項・処理フロー 1〜7・OUT ひな形・参照ナレッジ | 手順 1〜7 が処理フロー 1〜7（置き場表を転記）。エラー表は停止条件 + TR006 / CPxxx の伝播 |
+| `20-common-step-feature-mr/SKILL.md` + `assets/mr-body.template.md` | 同仕様 禁止事項・処理フロー 1〜6・OUT ひな形（4 節 + 命名規約）・参照ナレッジ | 手順 4 に commit.sh / push.sh、5 に gh / glab の MR 作成コマンド。テンプレートは 概要 / 変更点（空）/ 動作確認（レビュー完了のみ）/ `- Closes #N` |
+| `20-common-step-issue/SKILL.md` + `assets/issue.template.md` + `assets/issue-addendum.template.md` | 同仕様 禁止事項・呼出条件・処理フロー 1〜6・GitLab の長文送信・OUT ひな形・参照ナレッジ | 手順 2 に検索コマンド 4 本、4・5 に作成・追記コマンド。issue = 種別 / 概要 / 詳細 / 受け入れ条件 / スコープ外 / 優先度、addendum = 区切り / 日付 / 経緯 / 内容（+ 受け入れ条件（任意）→ D-21） |
+| `20-common-step-requirement/SKILL.md` + `assets/requirements.template.md` | 同仕様 禁止事項・処理フロー 1〜7・OUT ひな形・参照ナレッジ | 手順 1〜7 が処理フロー 1〜7。テンプレートは frontmatter 5 項目 + 7 章（受け入れ基準は メイン / 代替 / 例外 / 整合）、各章に 1 行ガイドのコメント、`{{ }}` 29 個 |
+| `20-common-step-spec/SKILL.md` | 同仕様 禁止事項・処理フロー 1〜6・種別ごとの節構成・OUT ひな形（持たない）・参照ナレッジ | 手順 3 に節構成の表とエラー識別子の規則を転記。テンプレートは仕様どおり持たない |
+| `.claude/evals/20-common-step-{ai-asset-creator,feature-mr,issue,requirement,spec}.md` | 各仕様 Script 処理「テスト観点（eval）」、ai-asset-creator 仕様 OUT ひな形（eval.template） | `eval.template.md` のコピー + プレースホルダ置換で生成。AC-E / FM-E / IS-E / RQ-E / SP-E 各 3 行、with / without × 3 回、実行状況 **未実行** |
+
 ## テスト結果
+
+### 0020
+
+- 機械テスト: なし（SKILL.md・テンプレート・eval 定義は指示文。`run-tests.sh` の対象に変更なし）
+- eval: 5 本を定義（AC-E01〜03 / FM-E01〜03 / IS-E01〜03 / RQ-E01〜03 / SP-E01〜03）。実行はしていない（定義のみ。人間の明示的な依頼時に実行）
+- 対応の確認: 各 SKILL.md の手順番号が仕様の処理フロー番号と一致（対応表は 0020 チケットの作業ログ）。Claude Code が 5 本のスキルを認識した（セッションの利用可能スキル一覧に現れた）
 
 ### 0019
 
@@ -124,6 +141,13 @@ tags: [report, ai-asset-implementation, issue-6]
 - eval: なし
 
 ## 検査結果
+
+### 0020
+
+- プレースホルダ（`{{ }}` / `TODO` / `TBD`。`assets/*.template.*` 4 本は対象外）: 0 件（対象 10 ファイル。規約の説明文中の語を除く）
+- frontmatter: SKILL.md 5 本の `name` がディレクトリ名と一致、description に `Use when`。eval 5 本は `type: eval` + title / description / tags / keywords。`requirements.template.md` は `type: requirement`（D-20）
+- 参照更新の再検索: 新規 14 ファイルに旧名（`workflow-lib.sh` / `work-boundary.sh` / `merge-prep.sh` / `10-work-` / `20-task-gh-`）なし。CR なし
+- 許可範囲: `git diff --name-only 71956c3` は 5 スキルディレクトリ・`.claude/evals/`・`wip/` のみ
 
 ### 0013
 
@@ -185,11 +209,14 @@ tags: [report, ai-asset-implementation, issue-6]
 | D-19 | 0019 | SKILL.md の frontmatter は `name` / `description` のみ（`type` / `title` 等の OKF 項目を付けない） | `ルール体系.md` の `markdown-docs`（未作成）が「SKILL.md の既存 description は上書きしない」「対象外」に言及し、既存の 2 スキルも name / description のみ。Claude Code のスキル発見は name / description を読む | なし（`markdown-docs` ルール作成時に再確認） |
 | D-1 | 0013 | 行動ルールの「効くタイミング」を frontmatter の `applies_when` キーで宣言した | 要件は「frontmatter で宣言する」とだけ定め、キー名を定める仕様（`markdown-docs` ルール・ルール体系の仕様）が未作成 | 0022 → `markdown-docs` ルールの要件、または `ルール体系.md` の仕様 |
 | D-2 | 0013 | `task-types.tsv` の 1 行目をヘッダ（`#` 始まり）にした | 仕様は 6 列を定めるがヘッダの有無を定めない。`#` 始まりなら読み手がコメントとして飛ばせる | 0022（仕様に 1 行追記の候補） |
+| D-20 | 0020 | `requirements.template.md` の frontmatter を `type: requirement` にした（仕様 requirement 処理フロー 2 は `type: requirements`） | 既存の要件書 42 本がすべて `type: requirement`。テンプレート由来の新規文書が既存と揃わない害の方が大きい | 0022 → 仕様の表記を `requirement` に修正 |
+| D-21 | 0020 | `issue-addendum.template.md` に「受け入れ条件（追加分）」の小節（任意。不要なら削る）を置いた | 仕様 OUT ひな形は 4 項目（区切り・日付・経緯・内容）だが、追記した依頼を DoD に落とす鍵が要る | 0022 → 仕様 OUT ひな形に「受け入れ条件（任意）」を追加 |
 
 ## 想定と異なった点
 
 - 0014: 読み込み行の関数内で `BASH_SOURCE[1]` が呼び手のスクリプトを指すことを利用したが、`bash -c` から直接呼ぶと空になる（テストは必ずファイルから実行する）
 - 0014: ログの出どころは `{{NAME}}` ではなく `$0` の basename（仕様どおり）。テストの期待を先に誤った
+- 0020: Bash ツールで複数ファイルを 1 回のヒアドキュメントの列で書くと unexpected EOF で落ちた（3 回とも。小さな単体は通る）。Write ツールで 1 ファイルずつ書いて回避。生成物への影響なし
 
 ## 残課題
 

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "計画書 1 枚"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T02:33:58Z"
 completed_at: ""
-base_sha: ""
+base_sha: "332abe2"
 ---
 
 # 0006 AI アセット設計計画
@@ -34,7 +34,8 @@ base_sha: ""
 
 ### 現在地
 
-- 未着手
+- 済: 着手
+- 次: D1〜D21 とテスト ID 不在 5 本の採否 → 計画書 → 設計チケット群 + 実装計画チケット → 完了
 
 ### うまくいったこと
 

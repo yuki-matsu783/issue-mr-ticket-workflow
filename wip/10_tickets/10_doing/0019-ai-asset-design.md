@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の定義�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T08:35:15+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "57b860f"
 ---
 
 # 0019 レビュー指摘: 並列実行の前提と登録の書き方（R1・R2・R10・R11・R12・R19・R22）

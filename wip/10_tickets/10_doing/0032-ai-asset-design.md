@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "レビュー指摘の反映のみ
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T17:27:55+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "211fd9d"
 ---
 
 # 0032 AI アセット設計・追加: 敵対的レビュー G-1〜G-21 の反映（設計 0028〜0030 の切れ目）

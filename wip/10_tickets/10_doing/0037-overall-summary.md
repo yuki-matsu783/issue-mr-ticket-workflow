@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "統括のみ（work-defaults の�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "remote-write:issue-create", "remote-write:mr-edit", "remote-write:mr-comment", "remote-write:attach", "remote-write:push", "remote-write:draft-ready", "merge-base"]
-started_at: ""
+started_at: "2026-09-01T20:15:24+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "db6c92a"
 ---
 
 # 0037 全体まとめ: issue #6（実装 1/3）の統括レポート・PR 本文の最終整形・片付け・issue コメント・draft 解除

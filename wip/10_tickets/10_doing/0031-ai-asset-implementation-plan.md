@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "計画書（work-defaults の既�
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T17:33:16+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "004b5b2"
 ---
 
 # 0031 AI アセット実装計画（設計 0028〜0030 で仕様に書いた実装 7 件）

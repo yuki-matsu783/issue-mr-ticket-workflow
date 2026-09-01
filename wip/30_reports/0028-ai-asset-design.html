@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI アセット設計 結果報告（チケット 0028〜0030）</title>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット設計 結果報告 / AI アセット設計（2 回目）</p>
+  <h1 id="title" data-required>AI アセット設計 結果報告（チケット 0028〜0030）</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 0028: 更新した文書と DDR 4 件</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. 0028: 決定と根拠（実装を正にした範囲）</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 受け入れ条件との対応</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映（ヘッドレスの帰結）</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/6">#6</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/7">#7</a></dd></div>
+    <div><dt>チケット</dt><dd>0028（フック共通仕様・post-push 2 仕様・DDR 07/08/09/12）、0029（共通ステップ仕様 5 本・DDR 10/11）、0030（requirement / issue / feature-mr / spec・ルール体系・要件 4 本・横断整合）</dd></div>
+    <div><dt>計画</dt><dd><code>wip/20_plans/0026-ai-asset-design-plan.md</code></dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">実装（0013〜0021・0025）が仕様と違う形で確定した振る舞い（逸脱 D-1〜D-34）と、実装レビューで欠陥とされた仕様の穴を、<b>実装を正として仕様に書き戻す</b>。中核（フック本体・<code>settings.json</code>）は変えない。実装を変える設計は 5 件だけ（<code>read</code> / <code>remote-read</code> / <code>provided</code> を常に可、識別子 CP007 / RV008 / TK008、完了検査の重複見出し、eval 接頭辞 SC-E、HK-T15）で、0031 の実装計画に渡す。このレポートは 0028 が作り、0029・0030 が節を追記する。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><code>build-test</code> の定義を仕様側で狭めた（<code>tests/</code> / <code>test/</code> 始まりだけ。参考実装は <code>commands.build-test</code> に列挙）— 計画 0026 の G5 は「どちらかに合わせる」までしか決めていなかった（<a href="#f2">2</a>）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>DDR i0006-07（承認単位）・08（redact の除外）・09（read / remote-read / provided 常に可）・12（識別子の新設）の決定と却下した案（<a href="#f1">1</a>）</li>
+        <li>§12 に T7・T8 を「実機未確認」として置いたこと（<a href="#next">設計への反映</a>）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>§1 のテスト観点番号・§7 の出力の形・§9 の cancel 項目・<code>last_offset</code> の単位（実装の事実の転記。<a href="#f1">1</a>）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><code>tool_response</code> の終了コードのフィールド名（§12 T7）と、案内側フックで <code>frontmatter.sh</code> が読めないときの実挙動（§12 T8）は、実機のフック登録（2/3）まで確認できない。仕様には「実装が読む順」と「未確認」を明記した</li>
+      <li><code>task-types.tsv</code> のヘッダ行が読み手（3/3 の <code>work-boundary.sh</code> 等）でコメント扱いされるかは、読み手が無いので未確認</li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">0028: 更新した文書と DDR 4 件 <span class="chip good">◎良</span> <span class="basis">根拠: 文書ごとの主な変更と由来（逸脱 D / レビュー F / 候補 A〜G）</span></h3>
+      <table>
+        <thead><tr><th>文書</th><th>主な変更</th><th>由来</th></tr></thead>
+        <tbody>
+          <tr><td><code>フック共通仕様.md</code> §1</td><td>lib 5 本すべてに単体テスト観点の HK-T 番号、<code>redact</code> / <code>tool_class</code> の所在、transcript の暦計算（jq 1.6 に <code>strptime</code> が無い）</td><td>A2、H6、D-33</td></tr>
+          <tr><td>同 §3</td><td>マスク対象の精密化: キー名 6 種（<code>/</code> を含む値はここで拾う）、40 文字語の除外 3 条件、<code>***</code> に再一致しない</td><td>D-24、F-10</td></tr>
+          <tr><td>同 §6</td><td>CP007 / RV008 / TK008 を条件付きで登録、eval 接頭辞 SP-E → SC-E</td><td>G2、B3、D-23</td></tr>
+          <tr><td>同 §7</td><td>PowerShell 判定を「語としての <code>git</code>」に、9「出力の形」（<code>CP_*</code> 配列・US 区切り・<code>CP_GITLIKE</code> の定義・補助関数）</td><td>D-22、F-19</td></tr>
+          <tr><td>同 §8</td><td><code>commands.build-test</code> は空でよい、tsv のヘッダ行、判定順 (6) の一致規則と <code>"."</code> の禁止、(7) ルート直下はファイル単位、<code>build-test</code> の範囲、<code>hook-test</code> を先に判定、<code>read</code> / <code>remote-read</code> / <code>provided</code> は常に可</td><td>D-2、D-4、D-6、D-25、D-26、G1、G5、A8</td></tr>
+          <tr><td>同 §9</td><td><code>cancelled_at</code> / <code>cancel_reason</code> と YAML エスケープ</td><td>D-27、F-13</td></tr>
+          <tr><td>同 §11</td><td>HK-T05 / T10 / T11 / T13 / T14 の観点を追記、HK-T15 を追加</td><td>A8、F-7、F-12、F-15、D-34</td></tr>
+          <tr><td>同 §12</td><td>T7（終了コードの読み順・未確認）、T8（案内側の読み込みポリシー）</td><td>D-23、D-27、F-12</td></tr>
+          <tr><td><code>post-push-usage-report.md</code></td><td><code>last_offset</code> の単位 = 処理済み行数</td><td>D-12</td></tr>
+          <tr><td><code>post-push-compact-prompt.md</code></td><td>push 検知 2: フィールド名の読み順と未確認（§12 T7 へ）</td><td>D-23</td></tr>
+          <tr><td><code>workflow-guard.md</code> / <code>workflow-diff-check.md</code></td><td>承認単位の文言（ルート直下・<code>"."</code> を記録しない）を §8 に合わせる</td><td>D-25（横断整合）</td></tr>
+          <tr><td><code>20_ddr/i0006-07 / 08 / 09 / 12</code></td><td>承認単位 / redact の除外条件 / ops の例外 / 識別子の新設。DDR から仕様を参照し、仕様から DDR を参照しない</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">0028: 決定と根拠（実装を正にした範囲） <span class="chip warn">△注意</span> <span class="basis">根拠: 各決定の却下案と、G5 だけ仕様を狭めた点</span></h3>
+      <table>
+        <thead><tr><th>決定</th><th>根拠</th><th>却下した案</th></tr></thead>
+        <tbody>
+          <tr><td>実装が採った振る舞いを仕様に写す（§3 / §7 / §8 の大半）</td><td>実装レビューで欠陥とされておらず、テスト（HK-T05・T10・T11）で固定済み</td><td>仕様どおりに実装を戻す（redact のパス消失など振る舞いが悪くなる）</td></tr>
+          <tr><td><code>read</code> / <code>remote-read</code> / <code>provided</code> は常に可（仕様側を変える）</td><td>宣言漏れでヘッドレス実行が止まる害が、読むだけの操作を統制する利より大きい</td><td>宣言必須に戻す → DDR i0006-09</td></tr>
+          <tr><td><code>build-test</code> は <code>tests/</code> / <code>test/</code> 始まりに狭める</td><td>実装は先頭一致。仕様を広げると <code>hook-test</code> との区別が崩れる。参考実装の実行は <code>commands.build-test</code> の経路がある（i0006-05）</td><td>仕様の「配下」に実装を合わせる</td></tr>
+          <tr><td><code>hook-test</code> を先に判定</td><td><code>.claude/skills/*/scripts/tests/*.sh</code> は提供コマンドの配下でもあり、後に回すと <code>provided</code> に吸われる</td><td>判定順を書かない</td></tr>
+          <tr><td>識別子は提供コマンドごとに 1 つ新設</td><td>1 番号 2 原因では SKILL.md のエラー表に対処が書けない</td><td>既存番号の転用を明記 / 横断の識別子 → DDR i0006-12</td></tr>
+          <tr><td>§12 に T7・T8 を「未確認」として置く</td><td>0008 の T5・T6 と同じ扱い。実装が読む順を書き TBD 表に載せる</td><td>確定形で書く（実機で違ったとき差分が分からない）</td></tr>
+          <tr><td>DDR は 4 件（07・08・09・12）</td><td>却下した案を持つ判断だけ。出力の形・ヘッダ行・<code>last_offset</code> は実装の事実</td><td>すべての逸脱に DDR</td></tr>
+        </tbody>
+      </table>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">受け入れ条件との対応 <span class="chip good">◎良</span> <span class="basis">根拠: 条件 2・3・7 と仕様の節・テスト ID</span></h3>
+      <table>
+        <thead><tr><th>issue #6 の受け入れ条件</th><th>0028 での対応</th><th>実装で確認する ID</th></tr></thead>
+        <tbody>
+          <tr><td>2. フック共通基盤（<code>lib/</code> 5 本・<code>config/</code> 2 本）とテスト</td><td>§1 に lib ごとの単体テスト観点、§7 に出力の形、§8 に判定順の細部と tsv の形、§11 に HK-T15 と T05 / T10 / T11 / T13 / T14</td><td>HK-T01〜T15（HK-T15 は 0031 で付番）</td></tr>
+          <tr><td>3. 共通ステップ 9 本と提供コマンド</td><td>§6 の台帳に CP007 / RV008 / TK008 と SC-E（個別仕様は 0029・0030）</td><td>CP-T / RV-T / TICKET-T</td></tr>
+          <tr><td>7. 要件・仕様・実装の整合</td><td>逸脱 D-2・D-4・D-6・D-12・D-22〜D-27・D-33・D-34 を仕様に写し、DDR 4 件に経緯</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <ul>
+    <li>仕様の変更は文言のみで、機械テストの対象は無い（テスト ID の観点は 0031 の実装計画で <code>test_scope.sh</code> 等に落とす）</li>
+    <li>DDR 4 件は i0006-06 と同じ frontmatter（type / title / description / tags / keywords）と節（背景 / 決定 / 理由 / 却下した案 / 影響）</li>
+    <li>仕様本文に <code>DDR i0006-07</code> / <code>-09</code> の参照を書いてしまったので削除した（残る i0006-01 参照は §7 の依存の説明で今回の変更ではない）</li>
+  </ul>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映（ヘッドレス実行の帰結、2/3 以降で確認）</h2>
+  <table>
+    <thead><tr><th>変更</th><th>帰結</th></tr></thead>
+    <tbody>
+      <tr><td>承認単位: ルート直下はファイル単位・<code>"."</code> 無視</td><td>ルート直下のファイルへの書き込みは 1 ファイルごとに ask で止まる（既定で進まない）。計画がルート直下を含むなら <code>types[t].allow</code> に個別に載せる</td></tr>
+      <tr><td><code>read</code> / <code>remote-read</code> / <code>provided</code> は常に可</td><td>宣言漏れで止まらない（既定で進む）。<code>write-local</code> 以上は従来どおり宣言が要る</td></tr>
+      <tr><td><code>hook-test</code> を先に判定</td><td><code>allow.ops</code> に <code>hook-test</code> が無いチケットでテストを打つと止まる（既定で進まない）</td></tr>
+      <tr><td>§12 T7 の読み順</td><td>4 候補のどれでもなければ終了コード 0 とみなす = push 失敗を成功と誤認し得る（既定で進む側）。実機登録直後に <code>decisions.jsonl</code> で確かめる</td></tr>
+      <tr><td>§12 T8</td><td><code>frontmatter.sh</code> 不在時、案内側フックが deny JSON を出す（PostToolUse では無視されるので実害は無い見込み）</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <ul>
+    <li>計画 0026 の「H6 に jq 1.6 の注記」は、H1〜H6 が調査レポート 0003 の申し送りで仕様に H 節が無いため、§1 の <code>transcript.sh</code> の行に書いた</li>
+    <li><code>build-test</code> の定義（G5）は「実装を仕様に合わせる」ではなく仕様を狭めた</li>
+    <li>仕様 §8 に DDR 番号を書いてしまい、DoD「仕様から DDR を参照しない」に照らして削った</li>
+  </ul>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li>0031（実装計画）へ: HK-T15 の付番、CP007 / RV008 / TK008 の出力、SC-E への改名は仕様に書いただけで実装は未変更</li>
+    <li>2/3 へ: §12 T7・T8 の実機確認</li>
+    <li><code>workflow-guard.md</code> の WF204 / WF206 の対象から <code>read</code> / <code>remote-read</code> / <code>provided</code> が外れている文言は 0030 の横断整合で見る（0028 は §8 と WF202 の文言だけ直した）</li>
+  </ul>
+</section>
+
+<footer>issue #6 / PR #7 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

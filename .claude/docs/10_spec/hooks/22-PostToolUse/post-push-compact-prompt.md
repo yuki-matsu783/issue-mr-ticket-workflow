@@ -34,7 +34,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 ### push 検知（`lib/push-detect.sh`。正）
 
 1. コマンド列（`cmdpos.sh`）に提供コマンド `push.sh` があるか、または実行位置に `git push`（緊急停止時の直接実行）がある
-2. かつ成功: `tool_response` の終了コードが 0、かつ HEAD がリモートに反映された — `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致。`@{upstream}` が解決できないとき（初回 push で上流が未設定など）は `origin/<b>` と比較し、それも無ければ `tool_response` の終了コード 0 をもって反映されたとみなす（縮退）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
+2. かつ成功: `tool_response` の終了コードが 0（フィールド名は `exit_code` / `exitCode` / `returnCode` / `code` の順に読み、どれも無ければ 0、`interrupted: true` は失敗とみなす — 実物の形はフック共通仕様 §12 T7）、かつ HEAD がリモートに反映された — `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致。`@{upstream}` が解決できないとき（初回 push で上流が未設定など）は `origin/<b>` と比較し、それも無ければ `tool_response` の終了コード 0 をもって反映されたとみなす（縮退）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
 3. 満たさなければ何もしない（前回 push 時点も更新しない）
 
 ### 本体

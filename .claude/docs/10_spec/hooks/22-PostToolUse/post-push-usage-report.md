@@ -38,7 +38,7 @@ keywords: [PostToolUse, Stop, 対応工数, トークン, ツール実行回数,
 1. 停止中 → 何もしない
 2. `lib/transcript.sh` で `transcript_path` の `last_offset` 以降を読み、assistant メッセージの `usage`（input / output / cache_read_input_tokens / cache_creation_input_tokens）、`tool_use` ブロック数、assistant ターン数、タイムスタンプ列を得る
 3. 実作業時間: 連続する assistant / tool_result のタイムスタンプ差を合計し、ユーザー入力待ち（user メッセージ直前の間隔）と 10 分を超える間隔を除く
-4. `logs/usage/<branch>.json` の該当セッション（サブエージェントは `subagents[agent_id]`）に加算し `last_offset` を更新する（二重計上防止）
+4. `logs/usage/<branch>.json` の該当セッション（サブエージェントは `subagents[agent_id]`）に加算し `last_offset` を更新する（二重計上防止）。`last_offset` の単位は transcript の**処理済み行数**（空行・壊れた行を含む総行数。`lib/transcript.sh` が返す `new_offset`）
 5. 読めない・形式不明 → 何もしない（読めた分だけ加算し `parse_errors` を +1）
 
 ### 既定（push 成功時）

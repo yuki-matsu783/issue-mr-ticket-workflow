@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "正史の変更で差分が 1 文�
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T16:39:32+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "e2e6f38"
 ---
 
 # 0028 AI アセット設計: フック共通仕様と post-push 2 仕様への書き戻し（wip/20_plans/0026-ai-asset-design-plan.md の 0028）

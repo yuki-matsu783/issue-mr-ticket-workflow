@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/skills/20-common-step-ticket/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T04:03:03Z"
 completed_at: ""
-base_sha: ""
+base_sha: "9990794"
 ---
 
 # 0017 AI アセット実装 S2-4: ticket.sh と ticket.template.md（切り替え境目 B）
@@ -42,7 +42,8 @@ base_sha: ""
 
 ### 現在地
 
-- 未着手
+- 済: 着手（移動を commit.sh でコミット）
+- 次: ticket.template.md → ticket.sh（create / next / start / complete / cancel）→ テスト TICKET-T01〜11 → complete で自己完了 → next の確認
 
 ### うまくいったこと
 

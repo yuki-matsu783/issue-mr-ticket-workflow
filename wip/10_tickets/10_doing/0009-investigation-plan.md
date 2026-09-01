@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "反映の自己検査（md と HT
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T04:42:26+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "45ea975"
 ---
 
 # 0009 調査計画のレビュー指摘の反映（R1〜R13）

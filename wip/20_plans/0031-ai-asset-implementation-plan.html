@@ -97,13 +97,13 @@
     <tbody>
       <tr><td>A1</td><td><code>ai-asset-creator/assets/skill.template.md</code></td><td>更新</td><td>OUT ひな形（frontmatter 2 項目・冒頭段落は禁止事項の要約）</td></tr>
       <tr><td>A2</td><td><code>requirement/assets/requirements.template.md</code></td><td>更新</td><td>処理フロー 3（小節の許容のガイド 1 行）</td></tr>
-      <tr><td>A3</td><td><code>commit.sh</code></td><td>更新</td><td>commit.sh 2・5（CP007 3 か所・CP008 2 か所）</td></tr>
+      <tr><td>A3</td><td><code>commit.sh</code></td><td>更新</td><td>commit.sh 2・5（CP007 4 か所・CP008 2 か所。<code>test_ticket.sh</code> の TICKET-T10 の期待値も同時に更新）</td></tr>
       <tr><td>A4</td><td><code>push.sh</code></td><td>更新</td><td>push.sh 0（CP007 5 か所。CP005 / CP006 を本来の条件に）</td></tr>
-      <tr><td>A5</td><td><code>ticket.sh</code></td><td>更新</td><td>create 1・3、complete 3、TK008（TK004 転用 16 か所）</td></tr>
+      <tr><td>A5</td><td><code>ticket.sh</code></td><td>更新</td><td>create 1・3（<code>yaml_escape</code> 新設）、complete 3、TK008（TK004 の終了 2 転用 15 か所 + TK001 誤用 1 か所）</td></tr>
       <tr><td>A6</td><td><code>check-html.sh</code></td><td>更新</td><td><code>RV008:</code>（<code>RV:</code> 4 か所）</td></tr>
       <tr><td>A7</td><td><code>test-lib.sh</code></td><td>更新</td><td><code>hook_payload [--session]</code></td></tr>
-      <tr><td>A8</td><td>テスト 6 本</td><td>更新</td><td>CP-T03 / T06 / T08、TICKET-T03 / T05 / T12、RV-T07、HK-T15、<code>--session</code></td></tr>
-      <tr><td>A9</td><td>SKILL.md 4 本（commit-push / ticket / report-view / shell-script）</td><td>更新</td><td>エラー識別子表・処理フロー・test-lib の関数一覧</td></tr>
+      <tr><td>A8</td><td>テスト 9 本</td><td>更新</td><td>CP-T03 / T04 / T06 / T08、TICKET-T03 / T05 / T10 / T12、RV-T07、SS-T04、TR-T04、FR-T05、HK-T15、<code>--session</code></td></tr>
+      <tr><td>A9</td><td>SKILL.md 7 本（commit-push / ticket / report-view / shell-script / spec / ai-asset-creator / feature-mr）</td><td>更新</td><td>エラー識別子表・処理フロー・test-lib の関数一覧・eval ID の範囲表記</td></tr>
       <tr><td>A10</td><td>eval 2 本（spec / ai-asset-creator）</td><td>更新</td><td>SC-E01〜03、AC-E04</td></tr>
       <tr><td>A11</td><td><code>wip/30_reports/0033-ai-asset-implementation.md</code>（+ HTML）</td><td>新規</td><td>実装結果レポート（0033 が作り以後追記）</td></tr>
     </tbody>
@@ -117,15 +117,31 @@
     <thead><tr><th>順</th><th>ステップ</th><th>内容</th><th>依存</th><th>チケット</th></tr></thead>
     <tbody>
       <tr><td>S1</td><td>テンプレート</td><td>A1・A2</td><td>—</td><td>0033</td></tr>
-      <tr><td>S2-1 / S3-1</td><td>中核 + テスト</td><td><code>commit.sh</code> / <code>push.sh</code>（テスト先行: CP-T08 を先に書く）→ CP-T08 / T03 / T06</td><td>S1</td><td>0033</td></tr>
-      <tr><td>S2-2 / S3-2</td><td>中核 + テスト</td><td><code>ticket.sh</code>（TK008・エスケープ・見出し重複）→ TICKET-T12 / T03 / T05。0034 自身の <code>complete</code> が最初の実機確認</td><td>S3-1</td><td>0034</td></tr>
-      <tr><td>S2-3 / S3-3</td><td>中核 + テスト</td><td><code>check-html.sh</code>・<code>test-lib.sh</code> → RV-T07、HK-T15 の付け替え、HK-T07 / T08 の <code>--session</code>。<code>run-tests.sh --ids</code> 全件</td><td>S3-1</td><td>0035</td></tr>
-      <tr><td>S4</td><td>スキル・eval</td><td>SKILL.md 4 本、eval 2 本</td><td>S3-1〜3</td><td>0036</td></tr>
-      <tr><td>S5</td><td>参照更新</td><td>検索語 7 種の再実行（<code>SP-E</code> 0 件・<code>RV: </code> 0 件・CP004 のコミット失敗 0 件・push.sh の 005 / 006 転用 0 件・ticket.sh の終了 2 の TK004 0 件・SKILL.md の旧範囲表記 0 件・<code>HK-T11</code> 20 件）、全件テスト、レポート HTML の検査</td><td>S4</td><td>0036</td></tr>
-      <tr><td>—</td><td>全体まとめ</td><td>統括レポート → PR 本文の最終整形 → 承認③ → 片付け → 衝突確認 → issue コメント（承認⑥は本文を提示して停止）→ draft 解除</td><td>0033〜0036</td><td>0037</td></tr>
+      <tr><td>S2-1 / S3-1</td><td>中核 + テスト</td><td><code>commit.sh</code> / <code>push.sh</code>（テスト先行: CP-T08 を先に書く）→ CP-T08 / T04（付け替え）/ T03 / T06、<code>test_ticket.sh</code> の TICKET-T10 の期待値 CP004 → CP008</td><td>S1</td><td>0033</td></tr>
+      <tr><td>S2-2 / S3-2</td><td>中核 + テスト</td><td><code>ticket.sh</code>（TK008・<code>yaml_escape</code>・見出し重複）→ TICKET-T12 / T03 / T05 / T10（index）。0034 自身の <code>complete</code> が最初の実機確認</td><td>S3-1</td><td>0034</td></tr>
+      <tr><td>S2-3 / S3-3</td><td>中核 + テスト</td><td><code>check-html.sh</code>・<code>test-lib.sh</code> → RV-T07、HK-T15 の付け替え、HK-T07 / T08 の <code>--session</code>、SS-T04 / TR-T04 / FR-T05 の追記。<code>run-tests.sh --ids</code> 全件</td><td>S3-1</td><td>0035</td></tr>
+      <tr><td>S4</td><td>スキル・eval</td><td>SKILL.md 7 本、eval 2 本</td><td>S3-1〜3</td><td>0036</td></tr>
+      <tr><td>S5</td><td>参照更新</td><td>下の参照更新一覧の検索を再実行し期待値と一致することを記録、全件テスト、レポート HTML の検査</td><td>S4</td><td>0036</td></tr>
+      <tr><td>—</td><td>全体まとめ</td><td><code>10-task-overall-summary</code> 仕様の処理フロー 2〜9 を手作業代替: 別 issue 起票（本文案を提示して承認）→ 衝突確認 → 統括レポート → PR 本文 <code>## 統括</code> → HTML 添付 → push → 承認③ → 片付け → 最終ゲート → draft 解除。issue #6 へのコメントは仕様に無いので行わない</td><td>0033〜0036</td><td>0037</td></tr>
     </tbody>
   </table>
-  <p>許可範囲（宣言）: 0033 = ai-asset-creator / requirement の assets・commit-push 配下、0034 = ticket 配下、0035 = report-view・shell-script・<code>hooks/lib/tests</code>、0036 = SKILL.md 4 本・<code>evals</code>、0037 = <code>wip/**</code> + <code>remote-write:pr</code> / <code>issue</code>。ops はテストを回すチケットすべてに <code>build-test</code> と <code>hook-test</code>（<code>run-tests.sh</code> が宣言を検査する）。</p>
+  <p>許可範囲（宣言）: 0033 = ai-asset-creator / requirement の assets・commit-push の <code>scripts/**</code>・ticket の <code>scripts/tests/**</code>、0034 = ticket の <code>scripts/**</code>、0035 = report-view / shell-script の <code>scripts/**</code>・<code>hooks/lib/tests/**</code>、0036 = SKILL.md 7 本・<code>evals</code>、0037 = <code>wip/**</code> + overall-summary の上限の語彙（<code>issue-create</code> / <code>mr-edit</code> / <code>mr-comment</code> / <code>attach</code> / <code>push</code> / <code>draft-ready</code> / <code>merge-base</code>）。ops はテストを回すチケットすべてに <code>build-test</code> と <code>hook-test</code>。<b>作業中の <code>push.sh</code> は項目 2 で止まる</b>（<code>remote-write:push</code> は実装チケットの上限に無い）ので、push は完了コミット直後（doing が空）に行う。</p>
+  <h3>参照更新一覧（S5 で再実行。件数は実測）</h3>
+  <table>
+    <thead><tr><th>名称・パス</th><th>検索語</th><th>現在</th><th>残るもの</th><th>期待</th></tr></thead>
+    <tbody>
+      <tr><td>eval 接頭辞</td><td><code>SP-E</code></td><td>7 行 / 2 ファイル（evals 6、spec/SKILL.md 1）</td><td>—</td><td>0</td></tr>
+      <tr><td>ai-asset-creator の eval 範囲</td><td><code>AC-E01〜03</code></td><td>1（SKILL.md:17）</td><td>—</td><td>0</td></tr>
+      <tr><td>番号無しの RV</td><td><code>"RV: </code></td><td>4（check-html.sh）</td><td>—</td><td>0</td></tr>
+      <tr><td>commit.sh の引数誤りの CP001</td><td><code>result_ng 001 "(-m に|存在しないオプション|不明なオプション|リポジトリルート)</code></td><td>4</td><td>対象の指定の誤り 5 件</td><td>0</td></tr>
+      <tr><td>commit.sh の CP004 コミット失敗</td><td><code>result_ng 004 "git commit が失敗</code></td><td>2</td><td>—</td><td>0</td></tr>
+      <tr><td>push.sh の CP005 / CP006 転用</td><td><code>result_ng 005 "引数</code> / <code>result_ng 006 "(git が無い|リポジトリルート|現在ブランチ|jq が無い)</code></td><td>1 + 4</td><td>リモート拒否 2 件</td><td>0</td></tr>
+      <tr><td>ticket.sh の TK004 転用</td><td><code>result_ng 004</code> の全件で終了コード 2 の行</td><td>21 のうち 15</td><td>終了 1 の 6 件</td><td>終了 2 は 0、全件 6</td></tr>
+      <tr><td>ticket.sh の TK001 誤用</td><td><code>result_ng 001 "--title</code></td><td>1（L126）</td><td>プレースホルダ残存 1 件</td><td>0</td></tr>
+      <tr><td>SKILL.md の旧記述</td><td><code>CP004: 差分なし・コミット失敗</code> / <code>CP001〜006</code> / <code>TK001〜007</code> / <code>RV001〜007</code> / feature-mr の <code>CP005: CP006:</code></td><td>commit-push 2、ticket 1、report-view 2、feature-mr 1</td><td>—</td><td>0</td></tr>
+      <tr><td>test_scope.sh の HK-T11</td><td><code>HK-T11</code></td><td>114（glob 20 + 他 93 + コメント 1）</td><td>glob 20 + コメント 1</td><td>21</td></tr>
+    </tbody>
+  </table>
 </section>
 
 <section id="decisions">
@@ -136,11 +152,11 @@
       <tr><td><code>ticket.sh</code> の現在地判定からコロン無しの <code>- 次</code> を外すか（G-6）</td><td>外さない</td><td>書き方で避けられる。緩めると未完了行を見逃す</td></tr>
       <tr><td><code>command -v git</code> を read にするか（G-9）</td><td>変えない</td><td><code>which</code> / <code>type</code> で代替。フック本体は 2/3 で実機ログを見て決める</td></tr>
       <tr><td>CP001 の終了コード</td><td>2（実装どおり）</td><td>対象の指定の誤りは呼び方を直すもの</td></tr>
-      <tr><td><code>create</code> のエスケープ対象</td><td>frontmatter に入る値だけ（理由 2 つ・allow の要素・predecessors）</td><td>frontmatter は二重引用符の規則で読まれる。本文は Markdown</td></tr>
+      <tr><td><code>create</code> のエスケープ対象と実装</td><td>frontmatter に入る値だけ（理由 2 つ・allow の要素・predecessors。<code>\</code> → <code>\\</code>、<code>"</code> → <code>\"</code>、改行 → 空白）。<code>yaml_escape</code> を新設し <code>sed_escape</code> は流用しない。<code>executor</code> は引用符なし・語彙固定で対象外</td><td>frontmatter は二重引用符の規則で読まれる。<code>create</code> は bash の置換で埋めるので sed を通らない</td></tr>
       <tr><td>見出し重複の判定</td><td><code>^### 見出し$</code> の行数が 2 以上で未充足（見出し名を列挙）</td><td>仕様 complete 3。完了済みは遡らない</td></tr>
       <tr><td><code>--session</code> の検証先</td><td><code>test_hook_common.sh</code> のセッション状態のケース</td><td>test-lib 自体はテスト ID を持たない</td></tr>
       <tr><td>eval の改名の範囲</td><td>spec の SP-E → SC-E（本文の参照 3 か所も）、ai-asset-creator に AC-E04</td><td>台帳と仕様に合わせる</td></tr>
-      <tr><td>全体まとめの実施方法</td><td><code>finalize.sh</code> 未作成のため仕様の手順を手作業代替。完了は片付けコミットに内包</td><td>全体計画の「手作業代替」。<code>complete</code> は TK005 で拒否する</td></tr>
+      <tr><td>全体まとめの実施方法</td><td><code>finalize.sh</code> 未作成のため仕様の処理フロー 2〜9 を手作業代替（別 issue 起票 → 衝突確認 → 統括レポート → PR 本文 → HTML 添付 → push → 承認③ → 片付け → 最終ゲート → draft 解除）。完了は片付けコミットに内包し、統括レポートに DoD × 根拠を写す</td><td>全体計画の「手作業代替」。<code>complete</code> は TK005 で拒否する。issue #6 へのコメントは仕様に無い</td></tr>
     </tbody>
   </table>
 </section>
@@ -153,10 +169,12 @@
     <tbody>
       <tr><td>CP-T08（新）</td><td>0033</td><td>機械</td><td><code>-m</code> 値なし・不明オプション → <code>CP007:</code> 終了 2 / pre-commit 失敗 → <code>CP008:</code> 終了 1 / logger 退避でも契約 / <code>push.sh --foo</code>・<code>git</code> / <code>jq</code> 不在・detached HEAD → <code>CP007:</code></td></tr>
       <tr><td>CP-T03 / T06（追記）</td><td>0033</td><td>機械</td><td>実パスの除外 → <code>CP003:</code>、スキップ記録は HEAD の版だけ（0025 のケースの ID を揃える）</td></tr>
+      <tr><td>CP-T04（付け替え）・TICKET-T10（期待値）</td><td>0033</td><td>機械</td><td><code>-m</code> 値なしの assert を <code>CP007:</code> に直し CP-T08 へ。<code>test_ticket.sh</code> の <code>CP004:</code> 3 assert を <code>CP008:</code> に</td></tr>
       <tr><td>TICKET-T12（新）</td><td>0034</td><td>機械</td><td>不明サブコマンド・引数・種類・番号 → <code>TK008:</code> 終了 2。<code>find_ticket</code> 失敗は <code>TK004:</code> のまま</td></tr>
-      <tr><td>TICKET-T03 / T05（追記）</td><td>0034</td><td>機械</td><td>見出し重複が TK003 で列挙 / 記号入りの理由・glob が往復で壊れない</td></tr>
+      <tr><td>TICKET-T03 / T05 / T10（追記）</td><td>0034</td><td>機械</td><td>見出し重複が TK003 で列挙 / 記号入りの理由・glob（<code>&amp;</code> 含む）が往復で壊れない / 拒否後に index が空</td></tr>
       <tr><td>RV-T07（新）</td><td>0035</td><td>機械</td><td>引数なし・不在・<code>.html</code> 以外 → <code>RV008:</code> 終了 2。導出元不明 → <code>RV006:</code> 終了 1</td></tr>
-      <tr><td>HK-T15（付け替え）</td><td>0035</td><td>機械</td><td><code>test_scope.sh</code> の glob 以外 94 assert を HK-T15 に。<code>--ids</code> で HK-T11 が 20 件</td></tr>
+      <tr><td>HK-T15（付け替え）</td><td>0035</td><td>機械</td><td><code>test_scope.sh</code> の glob 以外 93 assert を HK-T15 に、冒頭コメントは両 ID。<code>grep -c HK-T11</code> は 21</td></tr>
+      <tr><td>SS-T04 / TR-T04 / FR-T05（追記）</td><td>0035</td><td>機械</td><td>読み込み行の 3 ポリシー（<code>LOGGER_ROOT</code> / <code>FATAL:</code> 終了 2 / <code>WF009</code>）、<code>timeout</code> 不在 → TR005 終了 2、計数 PATH で 0 回と list / inline キーの生文字列</td></tr>
       <tr><td>HK-T07 / T08（<code>--session</code>）</td><td>0035</td><td>機械</td><td>2 つの <code>session_id</code> で状態が分かれる。既定 <code>testsession</code> は不変</td></tr>
       <tr><td>SC-E01〜03・AC-E04</td><td>0036</td><td>eval</td><td>定義のみ（実行しない）</td></tr>
       <tr><td>規約検査</td><td>各</td><td>機械</td><td><code>bash -n</code>・shellcheck（あれば）・全件 14 本 / 55 件 + 新規</td></tr>
@@ -170,11 +188,11 @@
   <table>
     <thead><tr><th>チケット</th><th>種類</th><th>ステップ</th><th>先行</th></tr></thead>
     <tbody>
-      <tr><td>0033</td><td>ai-asset-implementation</td><td>S1・S2-1・S3-1（テンプレート、commit.sh / push.sh、CP-T08 / T03 / T06。レポート 0033 を作る）</td><td>0031</td></tr>
-      <tr><td>0034</td><td>ai-asset-implementation</td><td>S2-2・S3-2（ticket.sh、TICKET-T12 / T03 / T05）</td><td>0033</td></tr>
-      <tr><td>0035</td><td>ai-asset-implementation</td><td>S2-3・S3-3（check-html.sh、test-lib.sh、RV-T07、HK-T15、<code>--session</code>）</td><td>0034</td></tr>
-      <tr><td>0036</td><td>ai-asset-implementation</td><td>S4・S5（SKILL.md 4 本、eval 2 本、参照更新、全件テスト）</td><td>0035</td></tr>
-      <tr><td>0037</td><td>overall-summary</td><td>統括レポート・PR 本文・片付け・issue コメント・draft 解除</td><td>0033〜0036</td></tr>
+      <tr><td>0033</td><td>ai-asset-implementation</td><td>S1・S2-1・S3-1（テンプレート、commit.sh / push.sh、CP-T08 / T04 / T03 / T06、TICKET-T10 の期待値。レポート 0033 を作る）</td><td>0031</td></tr>
+      <tr><td>0034</td><td>ai-asset-implementation</td><td>S2-2・S3-2（ticket.sh、TICKET-T12 / T03 / T05 / T10）</td><td>0033</td></tr>
+      <tr><td>0035</td><td>ai-asset-implementation</td><td>S2-3・S3-3（check-html.sh、test-lib.sh、RV-T07、HK-T15、<code>--session</code>、SS-T04 / TR-T04 / FR-T05）</td><td>0034</td></tr>
+      <tr><td>0036</td><td>ai-asset-implementation</td><td>S4・S5（SKILL.md 7 本、eval 2 本、参照更新、全件テスト）</td><td>0035</td></tr>
+      <tr><td>0037</td><td>overall-summary</td><td>仕様の処理フロー 2〜9 の手作業代替（別 issue 起票・衝突確認・統括レポート・PR 本文・HTML 添付・push・承認③・片付け・draft 解除）</td><td>0033〜0036</td></tr>
     </tbody>
   </table>
   <p>依存欄はチケットの <code>predecessors</code> と同じ値。全チケット main、人間レビューは切れ目 1 回（opus 代替）、敵対的レビュー 1 回。</p>
@@ -186,13 +204,15 @@
   <table>
     <thead><tr><th>チケット</th><th>変更するコマンド</th><th>最初の操作</th><th>復旧</th></tr></thead>
     <tbody>
-      <tr><td>0033</td><td><code>commit.sh</code> / <code>push.sh</code></td><td>テスト全通過 → 成果物を新版の <code>commit.sh</code> でコミット → <code>push.sh</code></td><td><code>git checkout &lt;base_sha&gt; -- &lt;path&gt;</code> で戻し、原因をテストに足す</td></tr>
+      <tr><td>0033</td><td><code>commit.sh</code> / <code>push.sh</code></td><td>テスト全通過 → 成果物を新版の <code>commit.sh</code> でコミット → 完了コミット直後（doing 空）に <code>push.sh</code></td><td><code>git checkout &lt;base_sha&gt; -- &lt;path&gt;</code> で戻し、原因をテストに足す</td></tr>
       <tr><td>0034</td><td><code>ticket.sh</code></td><td>テスト全通過 → 0034 自身を新版で <code>complete</code></td><td>誤判定なら戻して直す。正しい判定なら作業ログを直す</td></tr>
       <tr><td>0035</td><td><code>check-html.sh</code> / <code>test-lib.sh</code></td><td>レポート HTML を新版で検査、<code>run-tests.sh --ids</code> 全件</td><td>既存テストが落ちたら <code>hook_payload</code> の既定値を先に疑う</td></tr>
     </tbody>
   </table>
   <ul>
     <li><code>complete</code> の見出し重複検査が 0034 自身の作業ログを落とすリスク → 見出しを 1 回ずつだけ持つ形で書く</li>
+    <li><code>sed_escape</code> を <code>create</code> に流用して値を壊すリスク（<code>&amp;</code> → <code>\&amp;</code>、<code>\</code> の 4 連）→ <code>yaml_escape</code> を分けて新設</li>
+    <li><code>test_ticket.sh</code> の TICKET-T10 が <code>CP004:</code> を期待したまま 0033 が <code>commit.sh</code> を変えるリスク → 0033 の許可範囲に ticket のテストを入れ同時に更新</li>
     <li><code>--session</code> の引数解析が <code>key=value</code> と衝突するリスク → 第 3 引数位置に限定</li>
     <li>全体まとめの手作業代替で手順を飛ばすリスク → 0037 の DoD に仕様の手順を 1 項目ずつ。承認⑥は本文を提示して停止</li>
   </ul>
@@ -206,7 +226,9 @@
       <tr><td><code>bash-script</code> ルールとテストの書き方（規約）の正の置き場</td><td>3/3</td></tr>
       <tr><td>frontmatter キー名の正を <code>ルール体系.md</code> から読み手の仕様へ移すか</td><td>3/3</td></tr>
       <tr><td>§12 T7 / T8 の実機確認</td><td>2/3</td></tr>
-      <tr><td>別 issue 候補 16 件と「ルール 14 本」の注記</td><td>0037 の issue コメント</td></tr>
+      <tr><td>別 issue 候補 16 件の起票と「ルール 14 本」と要件 15 本の食い違いの注記</td><td>0037（起票は本文案を提示して承認。注記は統括レポートと PR 本文）</td></tr>
+      <tr><td>仕様の TICKET-T05 に <code>create</code> のエスケープ往復が無い（0034 はテストに足す）</td><td>次の設計（3/3）</td></tr>
+      <tr><td><code>overall-summary</code> の ops 上限に issue コメント（<code>issue-append</code>）が無い。旧ワークフロー SKILL.md の notify-issue とは食い違う</td><td>3/3</td></tr>
     </tbody>
   </table>
 </section>

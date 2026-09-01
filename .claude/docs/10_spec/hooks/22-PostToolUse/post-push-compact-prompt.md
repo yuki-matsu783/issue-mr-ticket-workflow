@@ -34,7 +34,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 ### push 検知（`lib/push-detect.sh`。正）
 
 1. コマンド列（`cmdpos.sh`）に提供コマンド `push.sh` があるか、または実行位置に `git push`（緊急停止時の直接実行）がある
-2. かつ成功: `tool_response` の終了コードが 0、かつ `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致（HEAD がリモートに反映された）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
+2. かつ成功: `tool_response` の終了コードが 0、かつ HEAD がリモートに反映された — `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致。`@{upstream}` が解決できないとき（初回 push で上流が未設定など）は `origin/<b>` と比較し、それも無ければ `tool_response` の終了コード 0 をもって反映されたとみなす（縮退）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
 3. 満たさなければ何もしない（前回 push 時点も更新しない）
 
 ### 本体
@@ -91,6 +91,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 | PP-T05 | 境界 | 初回で WF902、MR 未記録で WF903、変更 20 件で 15 件 + 「他 5 件」 |
 | PP-T06 | 正常系 | ブランチごとに `push-state.json` が独立 |
 | PP-T07 | 異常系 | origin 取得失敗で変更ファイル一覧だけ伝える。全滅で無出力 |
+| PP-T08 | 境界 | 上流未設定の初回 push（`@{upstream}` 不在）でも `origin/<b>` または終了コード 0 で検知され、`push-state.json` が作られる |
 
 ## 要件との対応
 

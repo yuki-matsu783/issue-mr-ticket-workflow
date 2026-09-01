@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "仕様は正史。設計実施の�
 allow:
   write: [".claude/docs/10_spec/**", ".claude/docs/20_ddr/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T02:37:38Z"
 completed_at: ""
-base_sha: ""
+base_sha: "2d14abb"
 ---
 
 # 0008 AI アセット設計実施 — フック共通仕様と post-push-compact-prompt 仕様の修正
@@ -40,7 +40,8 @@ base_sha: ""
 
 ### 現在地
 
-- 未着手
+- 済: 着手
+- 次: 共通仕様 §3・§6・§7・§8・§9・§12 と post-push-compact-prompt の修正 → 完了
 
 ### うまくいったこと
 

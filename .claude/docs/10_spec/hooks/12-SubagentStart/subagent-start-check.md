@@ -39,6 +39,8 @@ keywords: [SubagentStart, 実行者, executor, model, 不一致, 通知, 注入,
 5. **注入**: `WF802` として、チケット名（`<連番>-<種類>`）/ タスクの種類 / やってよいこと（`allow.write` と `allow.ops` をそのまま）/ DoD（`- [ ]` 行だけ。根拠欄は除く）を注入する。合計 4 KB を超える DoD は件数と先頭 10 件にする
 6. 入力が解釈できない → 何もしない（起動を止めない）
 
+- **縮退（SubagentStart イベントが使えない版）**: 登録を外し、要点の注入は起動プロンプト（`00-workflow-issue-mr-driven` の `assets/subagent-prompt.template.md`）だけを経路とする。実行者の不一致は `subagent-stop-check`（PostToolUse `Agent`）が `tool_input.model` と対象チケットの `executor` を比較して事後に WF801 を通知する（起動前には気づけないことを共通仕様 §12 T4 に記録）
+
 ## エラー識別子とメッセージ
 
 | ID | 種別 | 内容 |

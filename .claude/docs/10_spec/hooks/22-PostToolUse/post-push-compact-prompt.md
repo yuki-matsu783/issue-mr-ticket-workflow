@@ -34,7 +34,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 ### push 検知（`lib/push-detect.sh`。正）
 
 1. コマンド列（`cmdpos.sh`）に提供コマンド `push.sh` があるか、または実行位置に `git push`（緊急停止時の直接実行）がある
-2. かつ成功: `tool_response` の終了コードが 0、かつ `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致（HEAD がリモートに反映された）
+2. かつ成功: `tool_response` の終了コードが 0、かつ `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致（HEAD がリモートに反映された）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
 3. 満たさなければ何もしない（前回 push 時点も更新しない）
 
 ### 本体

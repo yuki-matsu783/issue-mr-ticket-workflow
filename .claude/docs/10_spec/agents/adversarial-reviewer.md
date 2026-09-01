@@ -40,7 +40,7 @@ keywords: [敵対的レビュー, サブエージェント, 読み取り専用, 
 起動プロンプト（`assets/adversarial-review-prompt.template.md`）:
 
 ```
-対象: 差分 5c19f25..a1b2c3d（ファイル: src/auth/validate.ts, tests/auth.spec.ts）
+対象: 差分 wip/tmp/adversarial-1.patch（5c19f25..a1b2c3d。ファイル: src/auth/validate.ts, tests/auth.spec.ts）
 種類: コード
 観点:
 - [bash-script/堅牢性] ...
@@ -65,9 +65,9 @@ keywords: [敵対的レビュー, サブエージェント, 読み取り専用, 
 
 | 許可 | 不許可 |
 |------|--------|
-| `Read` `Glob` `Grep`、`Bash`（読み取り系のみ: `git diff` / `git show <sha>:<path>` / `cat` / テストの**読取**。`workflow-guard` の READ_ONLY_CMDS と同じ） | `Edit` `Write` `MultiEdit` `NotebookEdit`、`git log` / `git blame`（経緯）、`gh` / `glab`、`Agent`、`WebFetch` / `WebSearch` |
+| `Read` `Glob` `Grep` のみ | `Bash`（`git log` / `git blame` / `gh` を止める手段が無いため与えない。敵対的レビューは切れ目の前 = 作業中チケット 0 枚で起動され `workflow-guard` が判定しない）、`Edit` `Write` `MultiEdit` `NotebookEdit`、`Agent`、`WebFetch` / `WebSearch` |
 
-定義の `tools:` に読み取り系だけを列挙し、Bash の読み取り系制限は `workflow-guard`（対象チケットの `ops` に依らず読み取り系は許可）と定義本文の禁止事項で担う。
+差分は Bash を使わずに読めるよう、呼び出し元が起動前に `git diff <base_sha>..HEAD > wip/tmp/adversarial-<n>.patch` を書き出し、起動プロンプトでそのパスと対象ファイルの一覧を渡す。エージェントは patch とファイル本体（`Read`）と周辺（`Grep`）だけで裏取りする。読み取り専用はツール権限で機械的に担保し、定義本文の禁止事項は多重防御に徹する。
 
 ## 定義ひな形
 
@@ -75,10 +75,10 @@ keywords: [敵対的レビュー, サブエージェント, 読み取り専用, 
 ---
 name: adversarial-reviewer
 description: 経緯を知らされない読み取り専用のレビュアー。渡された対象と観点で欠陥を探し、位置・重大度・確度付きの指摘を JSON で返す
-tools: Read, Glob, Grep, Bash
+tools: Read, Glob, Grep
 model: inherit
 ---
-（本文: 役割 / 進め方 4 段階 — 観点の突き合わせ → 観点外の探索（境界値・エラー経路・波及先・説明と実体の食い違い）→ 各指摘への反証 1 回 → 確度の申告 / 禁止事項 / 出力スキーマ / 0 件と unreviewed の扱い / 文書対象でも同じ姿勢）
+（本文: 役割 / 入力（patch のパス・対象ファイル・観点）/ 進め方 4 段階 — 観点の突き合わせ → 観点外の探索（境界値・エラー経路・波及先・説明と実体の食い違い）→ 各指摘への反証 1 回 → 確度の申告 / 禁止事項 / 出力スキーマ / 0 件と unreviewed の扱い / 文書対象でも同じ姿勢）
 ```
 
 ## 参照ナレッジ
@@ -93,7 +93,7 @@ model: inherit
 |--------------------|---------|
 | メイン: 対象と観点を渡されて起動・観点を集めに行かない | 呼出条件、IN / OUT、禁止事項 |
 | メイン: 観点の突き合わせ + 観点外の探索・問題なしを並べない | 定義ひな形（進め方）、禁止事項 |
-| メイン: 裏取りは読み取り専用・経緯は読まない | ツール権限、禁止事項 |
+| メイン: 裏取りは読み取り専用・経緯は読まない | ツール権限（Read / Glob / Grep のみ。Bash 無しで `git log` を物理的に読めない）、禁止事項 |
 | メイン: 反証 1 回・裏取りなしの高確度禁止 | 定義ひな形、`confidence` の規則 |
 | メイン: 指摘の内容と機械可読な形 | 出力スキーマ |
 | メイン: 0 件は `[]`・水増し禁止 | IN / OUT、禁止事項 |

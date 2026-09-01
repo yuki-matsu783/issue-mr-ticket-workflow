@@ -38,7 +38,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 
 1. 停止中 → `disabled` を記録して許可。作業中チケット 0 枚 → 許可（記録しない）
 2. 作業中チケットが 2 枚以上 → 提供コマンド（`ticket.sh` 等）以外の書き込み・実行を **deny WF207**（1 枚を残して他を `ticket.sh` で戻す対処を案内）
-3. `scope-limits.json` が無い・解釈できない → **deny WF210**。復旧経路として許可するのは: 提供コマンドの実行、`scope-limits.json` 自身と `wip/10_tickets/**` への書き込み
+3. `scope-limits.json` が無い・解釈できない → **deny WF210**。復旧経路として許可するのは: 提供コマンドの実行、`wip/10_tickets/**` への書き込み、`scope-limits.json` 自身への **ask（WF203）付きの**書き込み（設定が読めない間も上限設定の書き換えを AI の裁量にしない。ヘッドレスでは deny になり人間が直す）
 4. チケットの frontmatter が読めない・`ticket_type` が `types` に無い → **deny WF211**。復旧経路: 提供コマンドの実行、そのチケットファイル自身の編集
 5. **書き込みツール**: 対象パス `p` を正規化（リポジトリルート相対）し、
    - `p` が作業中チケット自身で、変更範囲が frontmatter の `ticket_type` / `allow` / `executor` / `human_review` / `predecessors` に及ぶ（Edit の `old_string` / `new_string` または Write の内容と現在値の差で判定）→ **deny WF208**。本文（DoD・作業ログ）だけなら許可
@@ -95,7 +95,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
 | WG-T01 | 正常系 | 作業中 0 枚ですべて通り記録されない |
-| WG-T02 | 正常系 | `types[t].allow` / `common.allow` / 宣言の範囲への Write が通る。宣言が上限の外を含んでも無視される |
+| WG-T02 | 正常系 | `common.allow` と（宣言が無ければ）`types[t].allow` への Write が通る。宣言 `allow.write` が `types[t].allow` より狭いとき、宣言外だが上限内のパスは WF202（ask）になり通らない。宣言が上限の外を含んでも無視される。`wip/10_tickets/10_doing/` の作業ログ追記は宣言によらず通る |
 | WG-T03 | 異常系 | `.claude/**` へ implementation チケットから Write → WF201。ai-asset-design から `.claude/docs/**` は通り `.claude/hooks/**` は WF201 |
 | WG-T04 | 正常系 | 未記載パスが WF202（ask）、`approvals.json` に親ディレクトリがあれば通る。`file_granular` のファイルはファイル単位 |
 | WG-T05 | 正常系 | `confirm` 範囲は承認済みでも毎回 WF203 |
@@ -104,7 +104,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WG-T08 | 異常系 | 2 枚目の doing で提供コマンド以外が WF207 |
 | WG-T09 | 異常系 | 作業中チケットの `ticket_type` を Edit → WF208、作業ログの追記は通る |
 | WG-T10 | 異常系 | `eval "..."`・4096 文字超が WF209 |
-| WG-T11 | 異常系 | 設定なしで WF210 かつ設定ファイル自身の Write は通る。種類が設定に無いチケットで WF211 |
+| WG-T11 | 異常系 | 設定なしで WF210 かつ設定ファイル自身の Write は ask（WF203）になる。設定ありのとき `.claude/hooks/config/**` と `.claude/settings.json` は ai-asset-implementation でも毎回 WF203。種類が設定に無いチケットで WF211 |
 | WG-T12 | 正常系 | EnterPlanMode が overall-plan で通り implementation で WF212 |
 | WG-T13 | 境界 | `WORKFLOW_HEADLESS=1` で WF202 が WF213（deny） |
 | WG-T14 | 正常系 | `commit.sh -m .. <禁止範囲のファイル>` が WF201 |

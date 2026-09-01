@@ -17,7 +17,7 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 禁止事項:
 
 - 部分一致（語の有無）だけでの拒否（縮退時を除く）
-- コミット・push 以外の `git` サブコマンドの拒否
+- コミットを生成しない `git` サブコマンドの拒否（`status` / `log` / `diff` / `add` / `fetch` / `merge` 等）
 - オプションによる例外（`--amend` `--force` `--no-verify` も拒否）
 - 提供コマンドの呼び出し文字列以外（内部処理）を見に行くこと
 
@@ -37,7 +37,8 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 2. `cmdpos.sh` でコマンド列を得る（共通仕様 §7。PowerShell は §7-6 の前処理）
 3. 各セグメントについて:
    - 提供コマンド（§7-8）→ 対象外
-   - 実行体 `git` かつ第 1 サブコマンド（`-C <dir>` / `-c k=v` / `--git-dir` 等のグローバルオプションを飛ばした後）が `commit` → **deny WF401**、`push` → **deny WF402**。`git commit-tree` 等の別名は対象外（完全一致）
+   - 実行体 `git` かつ第 1 サブコマンド（`-C <dir>` / `-c k=v` / `--git-dir` 等のグローバルオプションを飛ばした後）が `commit` → **deny WF401**、`push` → **deny WF402**。**コミットを生成する他のサブコマンド**（`revert`、`cherry-pick`、`am`、`rebase`（`--continue` 含む）、`commit-tree`、`stash` は対象外、`merge` は例外として許可 — `workflow-guard` の `merge-base` 分類で統制し、マージコミットのメッセージは git 生成を受容する。DDR i0004-07）も `commit.sh` の規約検査を迂回するため **deny WF401**（メッセージに「コミットを生成するサブコマンド」と明記）
+   - PowerShell の入力で実行位置のトークンが `git` を含む場合は、第 1 サブコマンドが上記の対象か特定できないときだけ拒否側に倒す（`git status` 等は通す — 共通仕様 §7-6）
    - ダブルクォート内の `$(git commit ...)` も実行位置として同じ判定
    - `opaque` かつ文字列に `commit` または `push` を含む → **deny WF403**（判定不能で拒否側）
 4. `degraded`（bash < 4.3、4096 文字超）→ 文字列に `git` と `commit` / `push` の語が共に含まれれば **deny WF403**（縮退した判定であること・`ai-command-style` ルールの言い換えを案内）
@@ -77,7 +78,9 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 | BG-T05 | 異常系 | `eval "git commit"`、`bash -c 'git push'`、`xargs git push`、`find . -exec git commit ;` が WF403 |
 | BG-T06 | 正常系 | `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "docs: x" a.md` と `push.sh` が通る |
 | BG-T07 | 境界 | 4097 文字のコマンドで `git` と `commit` を含めば WF403、含まなければ通る |
-| BG-T08 | 異常系 | PowerShell: `& git commit`、`git push; ls`、ヒアストリング内の `git commit` は通る |
+| BG-T08 | 異常系 | PowerShell: `& git commit`、`git push; ls`、`.\git.exe commit` が拒否 |
+| BG-T09b | 正常系 | PowerShell: ヒアストリング内の `git commit`、`git status`、`git diff` は通る |
+| BG-T10 | 異常系 | `git revert HEAD`、`git cherry-pick abc`、`git rebase --continue`、`git am x.patch` が WF401。`git merge origin/main` は通る |
 | BG-T09 | 異常系 | 入力 JSON 不正で WF409 |
 
 ## 要件との対応

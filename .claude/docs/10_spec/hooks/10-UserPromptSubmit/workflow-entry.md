@@ -19,7 +19,7 @@ keywords: [振り分け, 宣言, UserPromptSubmit, Skill, 拒否, 継続条件, 
 - 宣言の有無以外の判定（範囲は `workflow-guard`、進行状態は `workflow-state-guard`）
 - コマンドの中身の分類（実行ツールは読み取り目的でも宣言が要る）
 - リモートへの問い合わせ、会話内容を材料にした判定
-- 継続条件の独自判定（`boundary.sh status --offline` の結果を使う）
+- 継続条件の独自の規則（判定規則は `00-workflow-issue-mr-driven` 仕様「切れ目の判定（正）」と同じものを使う。毎ツール呼び出しのホットパスなので `boundary.sh` は起動せず同じファイルを直接読み、結果が一致することをテスト WE-T10 で固定する）
 
 ## 呼出条件（イベント・matcher・登録）
 
@@ -42,7 +42,8 @@ PreToolUse（書き込み / 実行 / プランモード / 起動）での判定�
 2. **継続条件**（宣言より先に評価。理由を記録の `note` に残す）:
    - `wip/10_tickets/00_todo` / `10_doing` / `20_done` のいずれかに `.md` がある → 許可（`continuation: tickets`）
    - チケットが無く `logs/review-state.json` の `state` が `requested` → 許可（`review`）
-   - チケットが無く `logs/merge-state.json` の `state` が `started` / `cleaned` / `pushed` → 許可（`merge_prep`）。ただし許すのは `finalize.sh release` の再実行だけ: 実行ツールのコマンドが提供コマンド `finalize.sh`（共通仕様 §7-8 の識別）でなければ、または書き込みツールなら、WF101 で拒否し「再実行だけが許される」旨を伝える
+   - チケットが無く `logs/merge-state.json` の `state` が `started` / `cleaned` / `pushed` → **宣言が無くても**許可するのは、提供コマンド `finalize.sh`（release の再実行）と `boundary.sh`（`status` による現在地の確認）の実行だけ（共通仕様 §7-8 の識別）。それ以外の操作はこの分岐では決めず 3〜4 の宣言の判定に進む（宣言があれば通常どおり許可、無ければ WF101 で「再宣言するか、`finalize.sh release` を再実行する」を案内）。継続条件は緩和であって、宣言済みより厳しくはしない
+   - 上記のどれにも当たらないが `20_done/` にだけチケットがある状態も `tickets` として通す（要件どおり。無宣言の窓になることは共通仕様 §13 の意図的な緩和）
 3. `entry.json` を読む。無い・壊れている → 未宣言として扱う（WF102。継続条件は 2 で評価済み）
 4. `declared_skill` が空 → **deny WF101**。理由: 「このプロンプトでは振り分けが宣言されていない。Skill ツールで `00-workflow-issue-mr-driven` または `00-workflow-quick-request` を読み込んでから、元の操作をやり直すこと」
 5. 宣言あり → 許可（他の判定は行わない）
@@ -83,6 +84,8 @@ PreToolUse（書き込み / 実行 / プランモード / 起動）での判定�
 | WE-T07 | 正常系 | `assets/entry-skills.txt` と `CLAUDE.md` の表のスキル名が一致する |
 | WE-T08 | 異常系 | `entry.json` 破損で WF102、`jq` 不在で WF109 |
 | WE-T09 | 正常系 | 別の `session_id` の宣言が効かない |
+| WE-T10 | 正常系 | 継続条件の判定が、同じ作業領域・`logs/` に対する `boundary.sh status --offline` の `position` と食い違わない |
+| WE-T11 | 正常系 | `merge-state.state=cleaned` で宣言済みなら Write も通り、未宣言でも `boundary.sh status` は通る |
 
 ## 要件との対応
 

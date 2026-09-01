@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "振る舞いが変わる（work-de
 allow:
   write: [".claude/skills/20-common-step-ticket/scripts/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T18:19:46+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "146f218"
 ---
 
 # 0034 AI アセット実装: ticket.sh の TK008・create の YAML エスケープ・complete の見出し重複検査と TICKET-T12（wip/20_plans/0031-ai-asset-implementation-plan.md の S2-2・S3-2）

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "この切れ目の敵対的レビ
 allow:
   write: [".claude/skills/20-common-step-ticket/scripts/**", ".claude/skills/20-common-step-shell-script/scripts/**", ".claude/skills/20-common-step-report-view/scripts/**", ".claude/skills/20-common-step-commit-push/scripts/**", ".claude/evals/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T19:58:01+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "be876f2"
 ---
 
 # 0039 AI アセット実装・追加: 敵対的レビュー I2-1〜I2-22 の反映（実装 0033〜0036 の切れ目）

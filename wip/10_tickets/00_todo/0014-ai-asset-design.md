@@ -22,12 +22,13 @@ base_sha: ""
 ## DoD
 
 - [ ] §1 の登録表の行数が確定し（WF801 の案と PostToolUseFailure の要否を反映）、assets/ の基準ディレクトリと各フックの timeout の既定が定義されている（根拠: ）
-- [ ] 確定した assets/ の基準ディレクトリを、暫定で書かれている workflow-entry（entry-skills.txt）・subagent-start-check（model-aliases.txt）・block-chmod（blocked-commands.txt）の仕様に反映した（根拠: ）
+- [ ] 確定した assets/ の基準ディレクトリを、暫定で書かれている workflow-entry（entry-skills.txt）と subagent-start-check（model-aliases.txt）の仕様に反映した（block-chmod の blocked-commands.txt は仕様で config/ に確定済みなので対象外）（根拠: ）
 - [ ] §2 に「model を受け取れるのは SessionStart のみ」が反映され、SubagentStart の model への依存が消えている（根拠: ）
 - [ ] §3 に「command 型フックは timeout で打ち切られると fail-open（出力も破棄）」と、PreToolUse で additionalContext を返せることが書かれている（根拠: ）
 - [ ] §6 の台帳で HOOK_DENY_ID の既定 WF009 の扱いが決まり、WF801〜809 の持ち主欄が本線の決定と一致している（根拠: ）
 - [ ] §8 に web の強制の可否（D3）の結論が書かれている（根拠: ）
 - [ ] §12 の T3・T4・T7・T8 のうち設計で閉じられるもの（T3 の defer の採否・T4 の model・T7・T8）が結論付きで閉じられ、実測が要る部分（T3 の「claude -p を入力から判別できるか」）はフェーズ 4c に残す旨が書かれている（根拠: ）
+- [ ] 受け入れ条件 3 のうち設計で閉じられる分（T3 の defer・T4 の model）が §12 に結論として書かれている（根拠: ）
 - [ ] 受け入れ条件 2（登録後に run-tests.sh --ids の全件と HK-T01 が通る）が §1 の登録表と HK-T01 の照合として書かれ、条件 4（HOOK_DENY_ID の既定が §6 に決まる）と条件 5（web の強制 / defer の扱いが仕様に書かれる）の担当分が §6・§8・§12 に落ちている（根拠: ）
 - [ ] 横断文書（自己改善ワークフロー機構.md・ルール体系.md・90_glossary/）の更新要否を確認し、不要なものは「対象なし」と明記した（根拠: ）
 - [ ] 決定の経緯が DDR i0009-10〜15 の範囲に残っている（根拠: ）

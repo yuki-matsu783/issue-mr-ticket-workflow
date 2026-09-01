@@ -1,7 +1,7 @@
 ---
 type: plan
 title: 0008 AI アセット設計計画 — 実測を待たずに決められる 16 件を 4 枚の設計チケットに割り付ける
-description: 調査結果 0005〜0007 が挙げた設計への反映 19 項目と issue #9 の申し送り（G7・G8・D3・D5・D6）を突き合わせ、実測に依存しない 16 件の決定を「拒否側フック 4 本 / 案内側フック 5 本 / フック共通仕様の横断 / 共通ライブラリと提供コマンド」の 4 枚の設計チケットに割り付ける計画
+description: 調査結果 0005〜0007 が挙げた設計への反映 15 項目と issue #9 の申し送り 6 項目（G7・G8・D2・D3・D5・D6）を突き合わせ、実測に依存しない 16 件の決定を「拒否側フック 4 本 / 案内側フック 5 本 / フック共通仕様の横断 / 共通ライブラリと提供コマンド」の 4 枚の設計チケットに割り付ける計画
 tags: [plan, ai-asset-design-plan, issue-9]
 keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF801, tool_response, defer, timeout, web の強制, G8, SS-H, boundary.sh, DDR]
 ---
@@ -52,7 +52,7 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 | 6 | `post-push-*` の成功判定 | 0007 f4 | 「PostToolUse に来た = 成功」に変える | 0013 / 0014 |
 | 7 | `SS-H*` がランナーの ID 正規表現に一致しない | 0005 f3 | (a) `session-start` の接頭辞を変える | 0013 / 0015 |
 | 8 | `boundary.sh` 依存テスト 8 本（`session-start` の 7 本 + `workflow-entry` の WE-T10）+ SS-H05 前半の扱い | 0005 f5 | 受け入れ条件 1 の解釈とセットで決める。**WE-T10 は 0012**（`workflow-entry` 仕様を持つ側）、残りは 0013 | 0012 / 0013 |
-| 9 | `assets/` の基準ディレクトリ | 0005 f4 | §1 に置き場を定義し、**0014 が確定後に個別フック仕様（`workflow-entry` / `subagent-start-check` / `block-chmod`）へ反映する**。0012・0013 はパスを暫定として書く | 0014 |
+| 9 | `assets/` の基準ディレクトリ | 0005 f4 | §1 に置き場を定義し、**0014 が確定後に個別フック仕様（`workflow-entry` / `subagent-start-check`）へ反映する**。0012・0013 はパスを暫定として書く。`config/blocked-commands.txt` は仕様で置き場が確定済みなので対象外 | 0014 |
 | 10 | タイムアウト時の fail-open | 0007 f7 | §1 に `timeout` の既定、§3 に「打ち切りは fail-open」を明記 | 0014 |
 | 11 | `defer` を採用しない | 0007 f3 | §12 T3 を閉じる | 0014 |
 | 12 | §12 T7（`tool_response` の終了コード）を閉じる | 0007 f4 | 「フィールドは存在しない」で閉じる | 0014 |
@@ -69,11 +69,11 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 |---|---|---|
 | 1・2 | `10_spec/hooks/20-PreToolUse/block-direct-git.md`（制御方式・テスト観点 BG-T01）、`.../workflow-state-guard.md`（呼出条件） | 0007 f9 / 0005 f6 |
 | 3 | `10_spec/hooks/20-PreToolUse/workflow-guard.md`（WF207）、`10_spec/skills/20-common-step-ticket.md`・`20-common-step-shell-script.md`・`20-common-step-commit-push.md`（1 枚目しか見ない 3 本） | issue G8。現物確認: **1 枚目しか見ない** = `run-tests.sh:86` の `ticket="${doing[0]}"`・`push.sh:98` の同型・`ticket.sh:334`（`next`）の `DOING_FILES[0]`。**件数で見る** = `ticket.sh:208`（`start` は 1 枚でもあれば TK002）。**完了検査は番号引数で `find_ticket` するので非対称ではない** |
-| 4 | `10_spec/hooks/10-UserPromptSubmit/workflow-entry.md`、`10_spec/skills/20-common-step-shell-script.md`（`tool_class`） | 0006 f2 |
+| 4 | `10_spec/hooks/10-UserPromptSubmit/workflow-entry.md`（0012）、`10_spec/skills/20-common-step-shell-script.md`（`tool_class`。**記述は 0015**。0012 は申し送りのみ） | 0006 f2 |
 | 5 | `10_spec/hooks/12-SubagentStart/subagent-start-check.md`・`13-SubagentStop/subagent-stop-check.md`、`10_spec/フック共通仕様.md` §1・§2・§3・§6・§12 T4 | 0007 f2 |
 | 6 | `10_spec/hooks/22-PostToolUse/post-push-compact-prompt.md`・`post-push-usage-report.md`、`フック共通仕様.md` §12 T7 | 0007 f4 |
-| 7・8 | `10_spec/hooks/00-SessionStart/session-start.md`（テスト観点）、`10_spec/skills/20-common-step-shell-script.md`（ID 正規表現） | 0005 f3・f5 |
-| 9〜15 | `10_spec/フック共通仕様.md` §1・§3・§6・§8・§12、`10_spec/skills/20-common-step-shell-script.md` | 0005 f2・f4、0006 f3、0007 f3・f5・f7 |
+| 7・8 | `10_spec/hooks/00-SessionStart/session-start.md`（テスト観点。0013）、`10_spec/hooks/10-UserPromptSubmit/workflow-entry.md`（WE-T10。0012）、`10_spec/skills/20-common-step-shell-script.md`（ID 正規表現。**記述は 0015**） | 0005 f3・f5 |
+| 9〜15 | `10_spec/フック共通仕様.md` §1・§3・§6・§8・§12（0014）、`10_spec/skills/20-common-step-shell-script.md`（**記述は 0015**。0014 は §6 台帳と §12 T8 の決定を渡すだけ） | 0005 f2・f4、0006 f3、0007 f3・f5・f7 |
 | 16 | `00_requirement/自己改善ワークフロー機構.md`（方針）、DDR | issue D5・D6 |
 
 **範囲外**（このフェーズで触らない）:
@@ -99,7 +99,7 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 
 ### ステップ 4: 共通ライブラリと提供コマンドの仕様（0015、先行 0014）
 
-`20-common-step-shell-script` の要件・仕様: `HOOK_DENY_ID` の既定、`scope.sh` の読み込みポリシー（T8 の縮退）、`tool_class` の役割、`run-tests.sh` の ID 正規表現、G8 の提供コマンド側の方針。D5・D6 の方針と DDR もここ。**§6 台帳と §12 T8 の決定を受ける**ので 0014 を先行に置く。
+`20-common-step-shell-script`・`20-common-step-ticket`・`20-common-step-commit-push` の **3 スキル**の要件・仕様: `HOOK_DENY_ID` の既定、`scope.sh` の読み込みポリシー（T8 の縮退）、`tool_class` の役割、`run-tests.sh` の ID 正規表現、G8 の提供コマンド側の方針（`run-tests.sh` / `push.sh` / `ticket.sh next` の 3 本）。D5・D6 の方針と DDR もここ。**§6 台帳と §12 T8 の決定を受ける**ので 0014 を先行に置く。
 
 ### 文書一覧と骨子（1:1:1）
 
@@ -121,7 +121,7 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 
 **新規に作る文書は無い**（11 本のフックとライブラリの要件・仕様は #6 と 2/3 の設計で作成済み）。1:1:1 は既に成立しており、このフェーズは更新のみ。
 
-`assets/entry-skills.txt`・`assets/model-aliases.txt`・`config/blocked-commands.txt` のパスは、0012・0013 では**暫定**として書き、基準ディレクトリを確定した 0014 が個別フック仕様へ反映する。
+`assets/entry-skills.txt`（`workflow-entry`）と `assets/model-aliases.txt`（`subagent-start-check`）のパスは、0012・0013 では**暫定**として書き、基準ディレクトリを確定した 0014 が個別フック仕様へ反映する。`config/blocked-commands.txt` は `block-chmod` 仕様が `.claude/hooks/config/` と確定して書いているので対象外（未作成なのは 3 本だが、置き場が未定なのは 2 本）。
 
 ### 横断整合
 
@@ -130,7 +130,7 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 | `00_requirement/自己改善ワークフロー機構.md` | 0014（D3）/ 0015（D5・D6） | `web` の強制の可否（D3）の結論、`ops` 上限の考え方（D5）の方針、`shellcheck` の CI 方針（D6）。直列（0015 ← 0014）なので同じ節に同時に触ることはない |
 | `00_requirement/rules/ルール体系.md` | 0014 | 変更なしの見込み（ルールの追加・削除が無いため）。0014 が確認して、無ければ「対象なし」と書く |
 | `90_glossary/ワークフロー用語.md` | 0014 | 「fail-open」「defer」「実行者の不一致（WF801）」の 3 語を追加するか確認する。`assets/` の基準ディレクトリを定義したら「アセット置き場」の項も |
-| `20_ddr/` | 4 枚が分担 | 決定ごとに `i0009-NN`。番号帯を先に割る: **0012 = i0009-01〜04 / 0013 = i0009-05〜09 / 0014 = i0009-10〜15 / 0015 = i0009-16〜19**（衝突を避けるため） |
+| `20_ddr/` | 4 枚が分担 | 決定ごとに `i0009-NN`。番号帯を先に割る: **0012 = i0009-01〜05 / 0013 = i0009-06〜10 / 0014 = i0009-11〜18 / 0015 = i0009-19〜24**（決定の件数 + 予備 1〜2）。**関連する決定は 1 つの DDR にまとめてよい**（帯を余らせるのは可、越えるのは不可） |
 
 ### ヘッドレス実行の帰結
 
@@ -149,8 +149,9 @@ keywords: [AI アセット設計計画, フック共通仕様, HOOK_DENY_ID, WF8
 | チケット | write | ops |
 |---|---|---|
 | 0012・0013・0014・0015 | `.claude/docs/**`（`wip/**` は common で常時許可のため宣言しない） | `read`, `remote-read` |
+| 0016 | `wip/**` | `read`, `remote-read` |
 
-`ai-asset-design` の上限（`scope-limits.json`）どおり。`types.ai-asset-design.ops` は `["read", "remote-read"]` だけで **`web` を含まない**（`web` を持つのは `investigation` のみ）ので、外部への問い合わせは宣言の裁量ではなく**そもそも許されない**。必要になったら `investigation` チケットを別に起こす。
+`ai-asset-design` の上限（`scope-limits.json`）どおり。`types.ai-asset-design.ops` は `["read", "remote-read"]` だけで **`web` を含まない**（`web` を持つのは `investigation` のみ）ので、外部への問い合わせは宣言の裁量ではなく**そもそも許されない**。必要になったら `investigation` チケットを別に起こす。なお全体計画の合意表は `ai-asset-design` の write を「`.claude/docs/**`, `wip/**`」と書いているが、`wip/**` は `common.allow` にあり宣言しなくても許可されるため、0012〜0015 では宣言しない（`ai-asset-implementation-plan` の 0016 は `.claude/docs/**` を使わないので `wip/**` だけを宣言する）。
 
 ## 検証
 
@@ -164,7 +165,7 @@ issue #9 の受け入れ条件（原文の 6 条件）に対して、このフ�
 | 4 | `HOOK_DENY_ID` の既定と「作業中チケット 2 枚以上」の扱いが仕様（§6・該当フック）に決まり、**テストで固定されている** | フック共通仕様 §6（0014）、`workflow-guard` 仕様（0012）、`20-common-step-shell-script` 仕様（0015） | WG-T\*（WF207 の拒否）、SS-T04（`HOOK_DENY_ID` の既定） |
 | 5 | `tool_response` / `agent_type` / `web` の強制 / `defer` の扱いが実物の確認に基づいて仕様に書かれている（扱わないものは理由つきで「扱わない」） | `post-push-*` 仕様と `subagent-stop-check` 仕様（0013）、§8 と §12 T3（0014） | PP-T\*・UR-T\*（成功判定）、SP-T\*（`agent_type`）。`web` と `defer` は「扱わない」の理由を仕様に書く |
 | 6 | 実装で判明した仕様との食い違いは仕様書へ書き戻し、経緯を DDR に残している | このフェーズの対象外（フェーズ 5 が要否を決め、フェーズ 6 が実施） | — |
-| — | 決定の経緯を DDR に残す（1〜5 に共通） | `20_ddr/i0009-01`〜`i0009-19`（4 枚が分担） | — |
+| — | 決定の経緯を DDR に残す（1〜5 に共通） | `20_ddr/i0009-01`〜`i0009-24`（4 枚が分担） | — |
 
 各設計チケットの DoD は次の型で書く（`10-task-ai-asset-design-plan` 仕様）:
 
@@ -179,10 +180,10 @@ issue #9 の受け入れ条件（原文の 6 条件）に対して、このフ�
 
 | 番号 | 種類 | 担当 / 内容 | 先行 |
 |---|---|---|---|
-| 0012 | `ai-asset-design` | 拒否側フック 4 本（`block-direct-git` / `workflow-state-guard` / `workflow-guard` / `workflow-entry`）。決定 1・2・3・4。DDR i0009-01〜04 | なし |
-| 0013 | `ai-asset-design` | 案内側フック 5 本（`subagent-start-check` / `subagent-stop-check` / `post-push-compact-prompt` / `post-push-usage-report` / `session-start`）。決定 5・6・7・8。DDR i0009-05〜09 | なし |
-| 0014 | `ai-asset-design` | フック共通仕様の横断決定（§1・§2・§3・§6・§8・§12）。決定 9〜15 と登録表の行数の確定。DDR i0009-10〜15 | 0012, 0013 |
-| 0015 | `ai-asset-design` | 共通ライブラリと提供コマンドの仕様（`20-common-step-shell-script` / `20-common-step-ticket`）と D5・D6 の方針。決定 3（提供コマンド側）・4（lib 側）・7（正規表現案の場合）・13・15・16。DDR i0009-16〜19 | 0014 |
+| 0012 | `ai-asset-design` | 拒否側フック 4 本（`block-direct-git` / `workflow-state-guard` / `workflow-guard` / `workflow-entry`）。決定 1・2・3（フック側）・4（`workflow-entry` 側）・8（WE-T10 のみ）。DDR i0009-01〜05 | なし |
+| 0013 | `ai-asset-design` | 案内側フック 5 本（`subagent-start-check` / `subagent-stop-check` / `post-push-compact-prompt` / `post-push-usage-report` / `session-start`）。決定 5・6（各フック仕様側）・7・8（WE-T10 を除く）。DDR i0009-06〜10 | なし |
+| 0014 | `ai-asset-design` | フック共通仕様の横断決定（§1・§2・§3・§6・§8・§12）。決定 9〜15 と、決定 5（§2・§6 台帳）・6（§12 T7）の共通仕様側、登録表の行数の確定。DDR i0009-11〜18 | 0012, 0013 |
+| 0015 | `ai-asset-design` | 共通ライブラリと提供コマンドの仕様（`20-common-step-shell-script` / `20-common-step-ticket` / `20-common-step-commit-push` の 3 スキル）と D5・D6 の方針。決定 3（提供コマンド側）・4（lib 側）・7（正規表現案の場合）・13・15・16。DDR i0009-19〜24 | 0014 |
 | 0016 | `ai-asset-implementation-plan` | 次の計画。0006 の「実装計画への申し送り」3 件（実装の型・T6 を最初に確かめる・実装チケットの分割）と、0014 が確定した登録表の行数を入力にする | 0012, 0013, 0014, 0015 |
 
 実行者・レビュー要否は全体計画の方針（全種類メインエージェント、人間レビューは opus の敵対的自己レビューで代替）に従う。
@@ -198,7 +199,7 @@ issue #9 の受け入れ条件（原文の 6 条件）に対して、このフ�
 | `session-start` のテスト ID の接頭辞を変えると、仕様・テスト・`--ids` の 3 か所がずれる | 受け入れ条件 2 が満たせない | 0013 で仕様を変え、0015 で `run-tests.sh` 側の規約（正規表現の制約）を明記して、実装フェーズで `--ids` に現れることを確認する |
 | `scope.sh` の読み込みポリシーを `nop` にすると、`frontmatter.sh` 不在（機構の破損）とチケットの記載不正が区別できなくなる | WF209 と WF211 が混ざる | 0015 で「`scope_load_ticket` の戻り値を 2 値以上にする」か「呼び手が別途ファイルの存在を確かめる」かを決める。決められなければ現状維持（`deny`）に倒し、§12 T8 は閉じずに残す |
 | 4 枚が同じ節（§1・§6・§12）に触って衝突する | 手戻り | 横断（§1・§6・§8・§12）は **0014 に一本化**し、0012・0013 は各フック仕様だけを触る。0014 は 0012・0013 を先行に置く |
-| DDR の番号が衝突する | 文書の重複 | 番号帯を先に割った（0012 = 01〜04 / 0013 = 05〜09 / 0014 = 10〜15 / 0015 = 16〜19）。余らせてよい |
+| DDR の番号が衝突する | 文書の重複 | 番号帯を先に割った（0012 = 01〜05 / 0013 = 06〜10 / 0014 = 11〜18 / 0015 = 19〜24）。件数 + 予備を確保し、関連する決定は 1 つにまとめてよい。余らせるのは可、越えるのは不可 |
 
 ## スコープ外
 
@@ -218,3 +219,5 @@ issue #9 の受け入れ条件（原文の 6 条件）に対して、このフ�
 | `ルール体系.md` の更新が要るか（現時点では不要の見込み） | 0014 が確認して「対象なし」を明記する |
 | `90_glossary/` に足す用語の粒度 | 0014 |
 | `PostToolUseFailure` を登録して失敗も捕まえるか（登録表が 1 行増える） | 0014。既定は「登録しない」（`post-push-*` は成功時の案内が仕事のため） |
+
+**対象なし**: 11 本のうち `block-chmod` と `workflow-diff-check` の 2 本は、調査（0005〜0007）が設計で直すべき点を挙げなかったため**設計変更なし**（要件・仕様・テスト観点 BC-T01〜06 / DC-T01〜07 とも現状維持）。0012・0013 の割り付けが 9 本なのはこのため。

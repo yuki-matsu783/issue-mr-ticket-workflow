@@ -17,7 +17,7 @@ base_sha: ""
 
 ## 目的
 
-0014 が確定した §6 台帳と §12 T8 を受けて、20-common-step-shell-script と 20-common-step-ticket の要件・仕様を更新し、D5・D6 の方針を決める（決定 3・4・7・13・15・16 の残り）
+0014 が確定した §6 台帳と §12 T8 を受けて、20-common-step-shell-script・20-common-step-ticket・20-common-step-commit-push の 3 スキルの要件・仕様を更新し、D5・D6 の方針を決める（決定 3・4・7・13・15・16 の残り）
 
 ## DoD
 
@@ -25,7 +25,7 @@ base_sha: ""
 - [ ] scope.sh の読み込みポリシー（deny のままか nop か）が決まり、nop にする場合は機構の破損（WF209）とチケットの記載不正（WF211）を区別する方法が仕様に書かれている（根拠: ）
 - [ ] tool_class の責務が「ツールの種類の分類まで」と定義され、振り分けスキル名の照合を含まないことが書かれている（根拠: ）
 - [ ] run-tests.sh のテスト ID の抽出正規表現の制約が仕様に明記され、session-start の新しい接頭辞が一致することが確認できる（根拠: ）
-- [ ] G8 の提供コマンド側の方針が仕様に書かれている（1 枚目しか見ない = run-tests.sh:86 / push.sh:98 / ticket.sh:334。件数で見る = ticket.sh:208 の start。完了検査は番号指定なので非対称ではない）。対象は 20-common-step-shell-script・20-common-step-ticket・20-common-step-commit-push の 3 スキル（根拠: ）
+- [ ] G8 の提供コマンド側の方針が仕様に書かれている（1 枚目しか見ない = run-tests.sh:86 / push.sh:98 / ticket.sh:334。件数で見る = ticket.sh:208 の start。完了検査は番号指定なので非対称ではない）。対象は 20-common-step-shell-script・20-common-step-ticket・20-common-step-commit-push の 3 スキル。**提供コマンドの実体の修正が要る結論になった場合は #10（3/3）への申し送りとして書く**（フェーズ 4 の write は .claude/hooks/** と 20-common-step-shell-script/** に限られ、push.sh と ticket.sh は書けないため）（根拠: ）
 - [ ] D5（investigation 以外の実施タスクの ops 上限に宣言必須の考え方を適用するか）と D6（shellcheck を CI で回す方針）の結論が方針として書かれている（scope-limits.json と CI 設定は変えない）（根拠: ）
 - [ ] 受け入れ条件 2（登録後に run-tests.sh --ids の全件が通る）が、既存の約 60 本と新規 93 本を含む全件が --ids に現れる形として仕様に落ちている（根拠: ）
 - [ ] 受け入れ条件 4 のうち HOOK_DENY_ID の既定がテストで固定されている（SS-T04 の期待値）（根拠: ）

@@ -133,7 +133,7 @@
 <!-- 必須: この計画で何をするか（結論方針。1〜3 文 + 決めたこと） -->
 <section id="goal" data-required>
   <h2>この計画で何をするか</h2>
-  <p class="lead">調査結果 0005〜0007 の「設計への反映」15 項目と issue #9 の申し送り（G7・G8・D3・D5・D6）を突き合わせ、<strong>実測に依存しない 16 件の決定</strong>を 4 枚の設計チケットに割り付ける。実測（§12 の T1・T2・T5・T6 の最終確認と実物の形）はフェーズ 4c、その書き戻しはフェーズ 5 が要否を決めてフェーズ 6 で行う。<strong>中核（フック・<code>settings.json</code>）の変更は「要」</strong>: 16 件のうち 6 件がフック共通仕様の中核の定義（§1 登録表 / §3 制御方式 / §6 識別子台帳 / §8 許可範囲 / §12 TBD）に触り、とくに WF801 の案 (c) を採ると登録表が 16 行 → 17 行になって <code>settings.json</code> の登録内容そのものが変わる。</p>
+  <p class="lead">調査結果 0005〜0007 の「設計への反映」15 項目と issue #9 の申し送り 6 項目（G7・G8・D2・D3・D5・D6）を突き合わせ、<strong>実測に依存しない 16 件の決定</strong>を 4 枚の設計チケットに割り付ける。実測（§12 の T1・T2・T5・T6 の最終確認と実物の形）はフェーズ 4c、その書き戻しはフェーズ 5 が要否を決めてフェーズ 6 で行う。<strong>中核（フック・<code>settings.json</code>）の変更は「要」</strong>: 16 件のうち 6 件がフック共通仕様の中核の定義（§1 登録表 / §3 制御方式 / §6 識別子台帳 / §8 許可範囲 / §12 TBD）に触り、とくに WF801 の案 (c) を採ると登録表が 16 行 → 17 行になって <code>settings.json</code> の登録内容そのものが変わる。</p>
   <div class="box ok">
     <p class="label">決めたこと</p>
     <ul>
@@ -162,7 +162,7 @@
           <tr><td>6</td><td><code>post-push-*</code> の成功判定</td><td>0007 f4 / D2</td><td>「PostToolUse に来た = 成功」に変える</td><td>0013 / 0014</td></tr>
           <tr><td>7</td><td><code>SS-H*</code> がランナーの ID 正規表現に一致しない</td><td>0005 f3</td><td>(a) <code>session-start</code> の接頭辞を変える</td><td>0013 / 0015</td></tr>
           <tr><td>8</td><td><code>boundary.sh</code> 依存テスト 8 本（<code>session-start</code> の 7 本 + <code>workflow-entry</code> の WE-T10）+ SS-H05 前半の扱い</td><td>0005 f5</td><td>受け入れ条件 1 の解釈とセットで決める。<strong>WE-T10 は 0012</strong>、残りは 0013</td><td>0012 / 0013</td></tr>
-          <tr><td>9</td><td><code>assets/</code> の基準ディレクトリ</td><td>0005 f4</td><td>§1 に置き場を定義し、<strong>0014 が確定後に個別フック仕様へ反映</strong>。0012・0013 はパスを暫定として書く</td><td>0014</td></tr>
+          <tr><td>9</td><td><code>assets/</code> の基準ディレクトリ</td><td>0005 f4</td><td>§1 に置き場を定義し、<strong>0014 が確定後に個別フック仕様（<code>workflow-entry</code> / <code>subagent-start-check</code>）へ反映</strong>。0012・0013 はパスを暫定として書く。<code>config/blocked-commands.txt</code> は仕様で置き場が確定済みなので対象外</td><td>0014</td></tr>
           <tr><td>10</td><td>タイムアウト時の fail-open</td><td>0007 f7</td><td>§1 に <code>timeout</code> の既定、§3 に「打ち切りは fail-open」を明記</td><td>0014</td></tr>
           <tr><td>11</td><td><code>defer</code> を採用しない</td><td>0007 f3</td><td>§12 T3 を閉じる</td><td>0014</td></tr>
           <tr><td>12</td><td>§12 T7（<code>tool_response</code> の終了コード）を閉じる</td><td>0007 f4 / D2</td><td>「フィールドは存在しない」で閉じる</td><td>0014</td></tr>
@@ -185,11 +185,11 @@
     <tbody>
       <tr><td>決定 1・2（<code>git 'commit'</code> / <code>mcp__.*</code>）</td><td><code>block-direct-git</code> の制御方式 3 に bash 経路の <code>subcmd == "_"</code> → deny WF403 を追加。<code>workflow-state-guard</code> の呼出条件に <code>mcp__.*</code> を明記</td><td>0007 f9 / 0005 f6</td></tr>
       <tr><td>決定 3（G8: 作業中チケット 2 枚以上）</td><td><code>workflow-guard</code> の WF207 で「機構の異常」として拒否。提供コマンド 3 本の方針は 0015</td><td>issue G8。現物確認: <strong>1 枚目しか見ない</strong> = <code>run-tests.sh:86</code>・<code>push.sh:98</code>・<code>ticket.sh:334</code>（<code>next</code>）。<strong>件数で見る</strong> = <code>ticket.sh:208</code>（<code>start</code>）。<strong>完了検査は番号引数なので非対称ではない</strong></td></tr>
-      <tr><td>決定 4（振り分けスキル名の正）</td><td><code>entry-skills.txt</code> を正にし、<code>tool_class</code> は分類のみに留める</td><td>0006 f2</td></tr>
+      <tr><td>決定 4（振り分けスキル名の正）</td><td><code>entry-skills.txt</code> を正にし、<code>tool_class</code> は分類のみに留める（<code>workflow-entry</code> 仕様は 0012。<code>20-common-step-shell-script</code> 仕様の<strong>記述は 0015</strong>で、0012 は申し送りのみ）</td><td>0006 f2</td></tr>
       <tr><td>決定 5（WF801 の判定経路）</td><td><code>SubagentStart</code> に <code>model</code> が来ないので、PreToolUse <code>Agent</code>（案 c）を本線に、(b) を残す</td><td>0007 f2</td></tr>
       <tr><td>決定 6（<code>post-push-*</code> の成功判定）</td><td><code>tool_response</code> の 4 候補読みをやめ「PostToolUse に来た = 成功」に</td><td>0007 f4</td></tr>
-      <tr><td>決定 7・8（<code>session-start</code>）</td><td>テスト ID の接頭辞を <code>SS-H*</code> から変える。<code>boundary.sh</code> 依存テスト 8 本 + SS-H05 前半の扱いを決める</td><td>0005 f3・f5</td></tr>
-      <tr><td>決定 9〜15（フック共通仕様）</td><td>§1（<code>assets/</code> の置き場・<code>timeout</code>）・§2（<code>model</code>）・§3（fail-open・PreToolUse の通知）・§6（<code>WF009</code>・WF801 の持ち主）・§8（<code>web</code>）・§12（T3・T4・T7・T8 を閉じる）</td><td>0005 f2・f4、0006 f3、0007 f3・f5・f7</td></tr>
+      <tr><td>決定 7・8（<code>session-start</code> と WE-T10）</td><td>テスト ID の接頭辞を <code>SS-H*</code> から変える（<code>session-start</code> 仕様は 0013、ID 正規表現の<strong>記述は 0015</strong>）。<code>boundary.sh</code> 依存テスト 8 本（7 本 + WE-T10。WE-T10 は 0012）+ SS-H05 前半の扱いを決める</td><td>0005 f3・f5</td></tr>
+      <tr><td>決定 9〜15（フック共通仕様）</td><td>§1（<code>assets/</code> の置き場・<code>timeout</code>）・§2（<code>model</code>）・§3（fail-open・PreToolUse の通知）・§6（<code>WF009</code>・WF801 の持ち主）・§8（<code>web</code>）・§12（T3・T4・T7・T8 を閉じる）。いずれも 0014。<code>20-common-step-shell-script</code> 仕様の<strong>記述は 0015</strong>で、0014 は §6 台帳と §12 T8 の決定を渡すだけ</td><td>0005 f2・f4、0006 f3、0007 f3・f5・f7</td></tr>
       <tr><td>決定 16（D5・D6）</td><td><code>ops</code> 上限の考え方と <code>shellcheck</code> の CI は<strong>方針まで</strong>（<code>scope-limits.json</code> と CI 設定は変えない）</td><td>issue D5・D6</td></tr>
       <tr><td><strong>範囲外</strong></td><td><code>.claude/hooks/**</code> のスクリプトとテスト（フェーズ 4a）、<code>settings.json</code>（フェーズ 4b・人間）、<code>scope-limits.json</code> の実体、CI 設定</td><td>全体計画のフェーズ列</td></tr>
     </tbody>
@@ -219,7 +219,7 @@
     <li class="step">
       <span class="step-no">4</span>
       <h3>共通ライブラリと提供コマンドの仕様（0015、先行 0014）</h3>
-      <p><code>20-common-step-shell-script</code> の要件・仕様: <code>HOOK_DENY_ID</code> の既定、<code>scope.sh</code> の読み込みポリシー（T8 の縮退）、<code>tool_class</code> の役割、<code>run-tests.sh</code> の ID 正規表現、G8 の提供コマンド側の方針。D5・D6 の方針と DDR もここ。<strong>§6 台帳と §12 T8 の決定を受ける</strong>ので 0014 を先行に置く。</p>
+      <p><code>20-common-step-shell-script</code>・<code>20-common-step-ticket</code>・<code>20-common-step-commit-push</code> の <strong>3 スキル</strong>の要件・仕様: <code>HOOK_DENY_ID</code> の既定、<code>scope.sh</code> の読み込みポリシー（T8 の縮退）、<code>tool_class</code> の役割、<code>run-tests.sh</code> の ID 正規表現、G8 の提供コマンド側の方針（<code>run-tests.sh</code> / <code>push.sh</code> / <code>ticket.sh next</code> の 3 本）。D5・D6 の方針と DDR もここ。<strong>§6 台帳と §12 T8 の決定を受ける</strong>ので 0014 を先行に置く。</p>
     </li>
     <!-- ステップの数だけ li.step を繰り返す（番号は連番） -->
   </ol>
@@ -245,7 +245,7 @@
   </table>
   </div>
   <p><strong>新規に作る文書は無い</strong>（11 本のフックとライブラリの要件・仕様は #6 と 2/3 の設計で作成済み）。1:1:1 は既に成立しており、このフェーズは更新のみ。</p>
-  <p><code>assets/entry-skills.txt</code>・<code>assets/model-aliases.txt</code>・<code>config/blocked-commands.txt</code> のパスは、0012・0013 では<strong>暫定</strong>として書き、基準ディレクトリを確定した 0014 が個別フック仕様へ反映する。</p>
+  <p><code>assets/entry-skills.txt</code>（<code>workflow-entry</code>）と <code>assets/model-aliases.txt</code>（<code>subagent-start-check</code>）のパスは、0012・0013 では<strong>暫定</strong>として書き、基準ディレクトリを確定した 0014 が個別フック仕様へ反映する。<code>config/blocked-commands.txt</code> は <code>block-chmod</code> 仕様が <code>.claude/hooks/config/</code> と確定して書いているので対象外（未作成なのは 3 本だが、置き場が未定なのは 2 本）。</p>
   <h3>横断整合</h3>
   <div class="tablewrap">
   <table>
@@ -254,7 +254,7 @@
           <tr><td><code>00_requirement/自己改善ワークフロー機構.md</code></td><td>0014（D3）/ 0015（D5・D6）</td><td><code>web</code> の強制の可否（D3）の結論、<code>ops</code> 上限の考え方（D5）の方針、<code>shellcheck</code> の CI 方針（D6）。直列（0015 ← 0014）なので同じ節に同時に触ることはない</td></tr>
           <tr><td><code>00_requirement/rules/ルール体系.md</code></td><td>0014</td><td>変更なしの見込み（ルールの追加・削除が無いため）。0014 が確認して、無ければ「対象なし」と書く</td></tr>
           <tr><td><code>90_glossary/ワークフロー用語.md</code></td><td>0014</td><td>「fail-open」「defer」「実行者の不一致（WF801）」の 3 語を追加するか確認する。<code>assets/</code> の基準ディレクトリを定義したら「アセット置き場」の項も</td></tr>
-          <tr><td><code>20_ddr/</code></td><td>4 枚が分担</td><td>決定ごとに <code>i0009-NN</code>。番号帯: <strong>0012 = i0009-01〜04 / 0013 = i0009-05〜09 / 0014 = i0009-10〜15 / 0015 = i0009-16〜19</strong></td></tr>
+          <tr><td><code>20_ddr/</code></td><td>4 枚が分担</td><td>決定ごとに <code>i0009-NN</code>。番号帯: <strong>0012 = i0009-01〜05 / 0013 = i0009-06〜10 / 0014 = i0009-11〜18 / 0015 = i0009-19〜24</strong>（決定の件数 + 予備 1〜2）。<strong>関連する決定は 1 つの DDR にまとめてよい</strong>（帯を余らせるのは可、越えるのは不可）</td></tr>
     </tbody>
   </table>
   </div>
@@ -276,10 +276,11 @@
   <h3>許可範囲（やってよいこと）</h3>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <thead><tr><th>チケット</th><th>write</th><th>ops</th></tr></thead>
     <tbody>
       <tr><td>0012・0013・0014・0015</td><td><code>.claude/docs/**</code>（<code>wip/**</code> は common で常時許可のため宣言しない）</td><td><code>read</code>, <code>remote-read</code></td></tr>
-  <tr><td colspan="3"><code>types.ai-asset-design.ops</code> は <code>["read", "remote-read"]</code> だけで <strong><code>web</code> を含まない</strong>（<code>web</code> を持つのは <code>investigation</code> のみ）。外部への問い合わせは宣言の裁量ではなく<strong>そもそも許されない</strong>。必要になったら <code>investigation</code> チケットを別に起こす。</td></tr>
+  <tr><td>0016</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code></td></tr>
+  <tr><td colspan="3"><code>types.ai-asset-design.ops</code> は <code>["read", "remote-read"]</code> だけで <strong><code>web</code> を含まない</strong>（<code>web</code> を持つのは <code>investigation</code> のみ）。外部への問い合わせは宣言の裁量ではなく<strong>そもそも許されない</strong>。必要になったら <code>investigation</code> チケットを別に起こす。なお全体計画の合意表は <code>ai-asset-design</code> の write を「<code>.claude/docs/**</code>, <code>wip/**</code>」と書いているが、<code>wip/**</code> は <code>common.allow</code> にあり宣言しなくても許可されるため 0012〜0015 では宣言しない（<code>ai-asset-implementation-plan</code> の 0016 は <code>.claude/docs/**</code> を使わないので <code>wip/**</code> だけを宣言する）。</td></tr>
     </tbody>
   </table>
   </div>
@@ -299,7 +300,7 @@
       <tr><td>4</td><td><code>HOOK_DENY_ID</code> の既定と「作業中チケット 2 枚以上」の扱いが仕様（§6・該当フック）に決まり、<strong>テストで固定されている</strong></td><td>フック共通仕様 §6（0014）、<code>workflow-guard</code> 仕様（0012）、<code>20-common-step-shell-script</code> 仕様（0015）</td><td>WG-T*（WF207 の拒否）、SS-T04（<code>HOOK_DENY_ID</code> の既定）</td></tr>
       <tr><td>5</td><td><code>tool_response</code> / <code>agent_type</code> / <code>web</code> の強制 / <code>defer</code> の扱いが実物の確認に基づいて仕様に書かれている（扱わないものは理由つきで「扱わない」）</td><td><code>post-push-*</code> 仕様と <code>subagent-stop-check</code> 仕様（0013）、§8 と §12 T3（0014）</td><td>PP-T*・UR-T*（成功判定）、SP-T*（<code>agent_type</code>）。<code>web</code> と <code>defer</code> は「扱わない」の理由を仕様に書く</td></tr>
       <tr><td>6</td><td>実装で判明した仕様との食い違いは仕様書へ書き戻し、経緯を DDR に残している</td><td>このフェーズの対象外（フェーズ 5 が要否を決め、フェーズ 6 が実施）</td><td>—</td></tr>
-      <tr><td>—</td><td>決定の経緯を DDR に残す（1〜5 に共通）</td><td><code>20_ddr/i0009-01</code>〜<code>i0009-19</code>（4 枚が分担）</td><td>—</td></tr>
+      <tr><td>—</td><td>決定の経緯を DDR に残す（1〜5 に共通）</td><td><code>20_ddr/i0009-01</code>〜<code>i0009-24</code>（4 枚が分担）</td><td>—</td></tr>
     </tbody>
   </table>
   </div>
@@ -313,10 +314,10 @@
   <table>
     <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
     <tbody>
-      <tr><td>0012</td><td><code>ai-asset-design</code></td><td>拒否側フック 4 本（<code>block-direct-git</code> / <code>workflow-state-guard</code> / <code>workflow-guard</code> / <code>workflow-entry</code>）。決定 1・2・3・4。DDR i0009-01〜04</td><td>なし</td></tr>
-      <tr><td>0013</td><td><code>ai-asset-design</code></td><td>案内側フック 5 本（<code>subagent-start-check</code> / <code>subagent-stop-check</code> / <code>post-push-compact-prompt</code> / <code>post-push-usage-report</code> / <code>session-start</code>）。決定 5・6・7・8。DDR i0009-05〜09</td><td>なし</td></tr>
-      <tr><td>0014</td><td><code>ai-asset-design</code></td><td>フック共通仕様の横断決定（§1・§2・§3・§6・§8・§12）。決定 9〜15 と登録表の行数の確定。DDR i0009-10〜15</td><td>0012, 0013</td></tr>
-      <tr><td>0015</td><td><code>ai-asset-design</code></td><td>共通ライブラリと提供コマンドの仕様（<code>20-common-step-shell-script</code> / <code>20-common-step-ticket</code>）と D5・D6 の方針。決定 3（提供コマンド側）・4（lib 側）・7（正規表現案の場合）・13・15・16。DDR i0009-16〜19</td><td>0014</td></tr>
+      <tr><td>0012</td><td><code>ai-asset-design</code></td><td>拒否側フック 4 本（<code>block-direct-git</code> / <code>workflow-state-guard</code> / <code>workflow-guard</code> / <code>workflow-entry</code>）。決定 1・2・3（フック側）・4（<code>workflow-entry</code> 側）・8（WE-T10 のみ）。DDR i0009-01〜05</td><td>なし</td></tr>
+      <tr><td>0013</td><td><code>ai-asset-design</code></td><td>案内側フック 5 本（<code>subagent-start-check</code> / <code>subagent-stop-check</code> / <code>post-push-compact-prompt</code> / <code>post-push-usage-report</code> / <code>session-start</code>）。決定 5・6（各フック仕様側）・7・8（WE-T10 を除く）。DDR i0009-06〜10</td><td>なし</td></tr>
+      <tr><td>0014</td><td><code>ai-asset-design</code></td><td>フック共通仕様の横断決定（§1・§2・§3・§6・§8・§12）。決定 9〜15 と、決定 5（§2・§6 台帳）・6（§12 T7）の共通仕様側、登録表の行数の確定。DDR i0009-11〜18</td><td>0012, 0013</td></tr>
+      <tr><td>0015</td><td><code>ai-asset-design</code></td><td>共通ライブラリと提供コマンドの仕様（<code>20-common-step-shell-script</code> / <code>20-common-step-ticket</code> / <code>20-common-step-commit-push</code> の 3 スキル）と D5・D6 の方針。決定 3（提供コマンド側）・4（lib 側）・7（正規表現案の場合）・13・15・16。DDR i0009-19〜24</td><td>0014</td></tr>
       <tr><td>0016</td><td><code>ai-asset-implementation-plan</code></td><td>次の計画。0006 の「実装計画への申し送り」3 件（実装の型・T6 を最初に確かめる・実装チケットの分割）と、0014 が確定した登録表の行数を入力にする</td><td>0012, 0013, 0014, 0015</td></tr>
     </tbody>
   </table>
@@ -335,7 +336,7 @@
       <tr><td><code>session-start</code> のテスト ID の接頭辞を変えると、仕様・テスト・<code>--ids</code> の 3 か所がずれる</td><td>受け入れ条件 2 が満たせない</td><td>0013 で仕様を変え、0015 で <code>run-tests.sh</code> 側の規約（正規表現の制約）を明記して、実装フェーズで <code>--ids</code> に現れることを確認する</td></tr>
       <tr><td><code>scope.sh</code> の読み込みポリシーを <code>nop</code> にすると、<code>frontmatter.sh</code> 不在（機構の破損）とチケットの記載不正が区別できなくなる</td><td>WF209 と WF211 が混ざる</td><td>0015 で「<code>scope_load_ticket</code> の戻り値を 2 値以上にする」か「呼び手が別途ファイルの存在を確かめる」かを決める。決められなければ現状維持（<code>deny</code>）に倒し、§12 T8 は閉じずに残す</td></tr>
       <tr><td>4 枚が同じ節（§1・§6・§12）に触って衝突する</td><td>手戻り</td><td>横断（§1・§6・§8・§12）は <strong>0014 に一本化</strong>し、0012・0013 は各フック仕様だけを触る。0014 は 0012・0013 を先行に置く</td></tr>
-      <tr><td>DDR の番号が衝突する</td><td>文書の重複</td><td>番号帯を先に割った（0012 = 01〜04 / 0013 = 05〜09 / 0014 = 10〜15 / 0015 = 16〜19）。余らせてよい</td></tr>
+      <tr><td>DDR の番号が衝突する</td><td>文書の重複</td><td>番号帯を先に割った（0012 = 01〜05 / 0013 = 06〜10 / 0014 = 11〜18 / 0015 = 19〜24）。件数 + 予備を確保し、関連する決定は 1 つにまとめてよい。余らせるのは可、越えるのは不可</td></tr>
     </tbody>
   </table>
   </div>
@@ -369,6 +370,7 @@
     </tbody>
   </table>
   </div>
+  <div class="box ok"><p class="label">対象なし</p><p>11 本のうち <code>block-chmod</code> と <code>workflow-diff-check</code> の 2 本は、調査（0005〜0007）が設計で直すべき点を挙げなかったため<strong>設計変更なし</strong>（要件・仕様・テスト観点 BC-T01〜06 / DC-T01〜07 とも現状維持）。0012・0013 の割り付けが 9 本なのはこのため。</p></div>
 </section>
 
 <footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>

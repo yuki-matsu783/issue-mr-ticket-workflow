@@ -36,13 +36,13 @@ wip/tmp/review-0031-findings.md の指摘のうち確度 0.5 以上の 20 件（
 
 ### 現在地
 
-- 済: wip/tmp/review-0031-findings.md（P-1〜P-23）を読む → scope-limits.json の overall-summary の ops 上限と 10-task-overall-summary 仕様の処理フローを確認 → 計画書 md（pairs 17 + 参照更新一覧の書き直し）→ HTML（pairs 13、check-html OK）→ 未着手チケット 0033〜0037 の allow・目的・DoD・作業内容を直接編集 → このチケットの記入
+- 済: wip/tmp/review-0031-findings.md（P-1〜P-23）を読む → scope-limits.json の overall-summary の ops 上限と 10-task-overall-summary 仕様の処理フローを確認 → 計画書 md（pairs 17 + 参照更新一覧の書き直し）→ HTML（pairs 13、check-html OK）→ todo のチケット 0033〜0037 の allow・目的・DoD・作業内容を直接編集 → このチケットの記入
 - 完了: commit.sh → ticket.sh complete 0038 → push → PR #7 に note → 0033 へ
 
 ### うまくいったこと
 
 - レビューが行番号と実測件数を付けていたので、参照更新一覧を「残るもの」で書き直す形に一度で変えられた
-- 未着手チケットは frontmatter と本文を直接編集して済ませた（取り消して作り直すと連番と cancelled が 5 枚増える）
+- todo のチケットは frontmatter と本文を直接編集して済ませた（取り消して作り直すと連番と cancelled が 5 枚増える）
 
 ### うまくいかなかったこと
 
@@ -54,7 +54,7 @@ wip/tmp/review-0031-findings.md の指摘のうち確度 0.5 以上の 20 件（
 
 - 人間レビュー: 承認④により opus 自己レビューで代替。このチケットはその反映で、結果は note で報告する
 - 実行者が main（全体計画の方針）
-- 未着手チケット 5 枚の frontmatter（allow）と本文を ticket.sh を通さず直接編集した（ticket.sh は状態遷移だけを担い、内容の編集手段を持たない。00_todo/ のチケットは機構が読まない）
+- todo のチケット 5 枚の frontmatter（allow）と本文を ticket.sh を通さず直接編集した（ticket.sh は状態遷移だけを担い、内容の編集手段を持たない。00_todo/ のチケットは機構が読まない）
 
 ### 判断と根拠
 

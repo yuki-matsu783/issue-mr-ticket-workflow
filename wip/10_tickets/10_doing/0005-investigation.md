@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画の方針: 人間レ�
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T04:53:30+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "ad782ff"
 ---
 
 # 0005 フック 11 本の仕様の洗い出しと矛盾の検出

@@ -14,6 +14,8 @@ keywords: [SubagentStop, PostToolUse Agent, 作業中のまま, 未コミット,
 
 案内側のフック。同じスクリプトを 2 つのイベントに登録する: SubagentStop（検査して `logs/` に記録）と PostToolUse `Agent`（メインエージェント側で直前の記録を additionalContext として伝える。加えて `subagent-start-check` の WF801 記録も再掲する）。検査はいずれも同じ関数。
 
+WF801 の再掲は**事後の保険**であり、本線ではない。実行者の不一致の検知は `subagent-start-check` が PreToolUse `Agent` で起動前に行う（DDR i0009-06）。PreToolUse の経路が使えない縮退のときだけ、この再掲が唯一の通知経路になる。
+
 禁止事項:
 
 - チケットの移動・完了、差分の巻き戻し

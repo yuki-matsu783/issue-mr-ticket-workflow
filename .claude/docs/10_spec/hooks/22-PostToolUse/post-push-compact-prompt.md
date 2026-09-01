@@ -26,7 +26,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 
 ## 入出力
 
-- 入力: `tool_input.command`、`tool_response`（終了コード・出力）。参照: `git remote get-url origin`、`git rev-parse HEAD` / `@{upstream}`、`git diff --name-only <前回>..HEAD`、`logs/mr.json`、`logs/push-state.json`
+- 入力: `tool_input.command`。参照: `git remote get-url origin`、`git rev-parse HEAD` / `@{upstream}`、`git diff --name-only <前回>..HEAD`、`logs/mr.json`、`logs/push-state.json`
 - 出力: additionalContext（WF901）と `logs/push-state.json` の更新
 
 ## 制御方式
@@ -34,7 +34,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 ### push 検知（`lib/push-detect.sh`。正）
 
 1. コマンド列（`cmdpos.sh`）に提供コマンド `push.sh` があるか、または実行位置に `git push`（緊急停止時の直接実行）がある
-2. かつ成功: `tool_response` の終了コードが 0（フィールド名は `exit_code` / `exitCode` / `returnCode` / `code` の順に読み、どれも無ければ 0、`interrupted: true` は失敗とみなす — 実物の形はフック共通仕様 §12 T7）、かつ HEAD がリモートに反映された — `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致。`@{upstream}` が解決できないとき（初回 push で上流が未設定など）は `origin/<b>` と比較し、それも無ければ `tool_response` の終了コード 0 をもって反映されたとみなす（縮退）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
+2. かつ成功: **PostToolUse に届いた時点で成功とみなす**（公式は「`PostToolUse` hooks fire after a tool has already executed successfully.」と明記し、失敗は別イベント `PostToolUseFailure` に流れる。`tool_response` に終了コードのフィールドは存在しない — `Bash` が返すのは `stdout` / `stderr` / `interrupted` / `isImage`。DDR i0009-07）、かつ HEAD がリモートに反映された — `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致。`@{upstream}` が解決できないとき（初回 push で上流が未設定など）は `origin/<b>` と比較し、それも無ければ PostToolUse に届いたこと自体をもって反映されたとみなす（縮退）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
 3. 満たさなければ何もしない（前回 push 時点も更新しない）
 
 ### 本体
@@ -91,7 +91,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 | PP-T05 | 境界 | 初回で WF902、MR 未記録で WF903、変更 20 件で 15 件 + 「他 5 件」 |
 | PP-T06 | 正常系 | ブランチごとに `push-state.json` が独立 |
 | PP-T07 | 異常系 | origin 取得失敗で変更ファイル一覧だけ伝える。全滅で無出力 |
-| PP-T08 | 境界 | 上流未設定の初回 push（`@{upstream}` 不在）でも `origin/<b>` または終了コード 0 で検知され、`push-state.json` が作られる |
+| PP-T08 | 境界 | 機械テスト。上流未設定の初回 push（`@{upstream}` 不在）でも `origin/<b>`、それも無ければ PostToolUse に届いたこと自体で検知され、`push-state.json` が作られる |
 
 ## 要件との対応
 

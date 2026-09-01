@@ -98,7 +98,7 @@ keywords: [PostToolUse, Stop, 対応工数, トークン, ツール実行回数,
 
 | 要件（受け入れ基準） | 実現箇所 |
 |--------------------|---------|
-| メイン: push 成功で働く（検知は compact-prompt と同じ） | 呼出条件、push-detect |
+| メイン: push 成功で働く（検知は compact-prompt と同じ。成功判定は「PostToolUse に届いた = 成功」で、`tool_response` の終了コードは読まない。DDR i0009-07） | 呼出条件、push-detect |
 | メイン: 失敗・他コマンドは何もしない | 既定 1 |
 | メイン: 4 指標の集計 | `--accumulate` 2・3 |
 | メイン: 蓄積状態と transcript から（申告不可）・一部欠落の注記 | 禁止事項、既定 3 |

@@ -23,23 +23,28 @@ keywords: [SubagentStart, 実行者, executor, model, 不一致, 通知, 注入,
 
 ## 呼出条件（イベント・matcher・登録）
 
-- SubagentStart（全サブエージェント）。`adversarial-reviewer` の起動でも働くが、対象チケットの要点の注入は同じ（レビュー対象の範囲を知る材料になる）
+- **SubagentStart（全サブエージェント）**: 対象チケットの要点の注入（WF802）。`adversarial-reviewer` の起動でも働くが、注入する内容は同じ（レビュー対象の範囲を知る材料になる）
+- **PreToolUse、matcher `Agent`**: 実行者の不一致（WF801）の検知。同じスクリプトを 2 つのイベントに登録し、イベント名（`hook_event_name`）で処理を分ける。`SubagentStart` の入力に `model` は来ない（公式は「`model` を受け取れるのは `SessionStart` だけ」と明記）ため、比較の材料が取れるのは `Agent` ツールの `tool_input.model` を読める PreToolUse だけ（DDR i0009-06）
+- この 2 行目の登録により、フック共通仕様 §1 の登録表は **16 行 → 17 行**になる（確定は 0014）
 
 ## 入出力
 
-- 入力: `agent_id`、`agent_type`、`model`（無い版では不一致の比較を行わない）。参照: 対象チケットの frontmatter（`executor`、`ticket_type`、`allow`）と本文の DoD 節
-- 出力: SubagentStart の additionalContext（サブエージェントのコンテキストへ注入）。不一致はメインエージェントにも届く必要があるため、`decisions.jsonl` に記録し、`subagent-stop-check`（PostToolUse `Agent`）がその記録を拾って WF801 をメイン側に再掲する
+- 入力: SubagentStart では `agent_id`・`agent_type`（`model` は**来ない**）。PreToolUse `Agent` では `tool_input.model`・`tool_input.subagent_type`（どちらも `hook_read_input` が `HOOK_MODEL` / `HOOK_SUBAGENT_TYPE` に入れる）。参照: 対象チケットの frontmatter（`executor`、`ticket_type`、`allow`）と本文の DoD 節
+- 出力: SubagentStart の additionalContext（サブエージェントのコンテキストへ要点を注入）と、PreToolUse `Agent` の additionalContext（メインエージェントへ WF801 を通知。公式は PreToolUse で `additionalContext` を返せると明記している）。PreToolUse の通知は起動を止めない（`permissionDecision` を出さない）。あわせて `decisions.jsonl` に記録し、`subagent-stop-check`（PostToolUse `Agent`）が事後の保険としてその記録を再掲する
 
 ## 制御方式
 
 1. 停止中 → `disabled` を記録して何もしない
 2. 対象チケットを決める。無ければ何もしない
 3. frontmatter が読めない・`executor` が解釈できない → 何もしない
-4. **不一致**: `executor` が `main` 以外で、入力の `model` が特定でき、正規化（`claude-sonnet-4-5-...` → `sonnet` のように族名で比較。対応表は `assets/model-aliases.txt`）した値が異なる → **WF801** を additionalContext の先頭に書き、`decisions.jsonl` に `notify` で記録（`note` にチケット・実行者・起動モデル）
-5. **注入**: `WF802` として、チケット名（`<連番>-<種類>`）/ タスクの種類 / やってよいこと（`allow.write` と `allow.ops` をそのまま）/ DoD（`- [ ]` 行だけ。根拠欄は除く）を注入する。合計 4 KB を超える DoD は件数と先頭 10 件にする
+4. **不一致（PreToolUse `Agent` のときだけ）**: `executor` が `main` 以外で、`tool_input.model` が特定でき、正規化（`claude-sonnet-4-5-...` → `sonnet` のように族名で比較。対応表は `assets/model-aliases.txt`。基準ディレクトリは 0014 が確定するまで暫定）した値が異なる → **WF801** を additionalContext に書き、`decisions.jsonl` に `notify` で記録（`note` にチケット・実行者・起動モデル）。**起動は止めない**（通知であり `permissionDecision` は出さない）
+   - **限界**: `Agent` ツールの `model` は任意引数で、省略時は「エージェント定義のモデル」が使われる。省略された起動では `tool_input.model` が空になり**比較そのものができない**（何も出さない）。この限界は経路（PreToolUse / SubagentStart / PostToolUse）を変えても解消しない
+   - SubagentStart のときは不一致の判定を行わない（`model` が来ないため）
+5. **注入（SubagentStart のときだけ）**: `WF802` として、チケット名（`<連番>-<種類>`）/ タスクの種類 / やってよいこと（`allow.write` と `allow.ops` をそのまま）/ DoD（`- [ ]` 行だけ。根拠欄は除く）を注入する。合計 4 KB を超える DoD は件数と先頭 10 件にする
 6. 入力が解釈できない → 何もしない（起動を止めない）
 
-- **縮退（SubagentStart イベントが使えない版）**: 登録を外し、要点の注入は起動プロンプト（`00-workflow-issue-mr-driven` の `assets/subagent-prompt.template.md`）だけを経路とする。実行者の不一致は `subagent-stop-check`（PostToolUse `Agent`）が `tool_input.model` と対象チケットの `executor` を比較して事後に WF801 を通知する（起動前には気づけないことを共通仕様 §12 T4 に記録）
+- **縮退（PreToolUse で `additionalContext` が届かない版）**: PreToolUse の登録を外し、実行者の不一致は `subagent-stop-check`（PostToolUse `Agent`）が事後に WF801 を通知する経路だけにする（起動前には気づけない。この場合 §1 は 16 行に戻る）
+- **縮退（SubagentStart イベントが使えない版）**: SubagentStart の登録を外し、要点の注入は起動プロンプト（`00-workflow-issue-mr-driven` の `assets/subagent-prompt.template.md`）だけを経路とする。不一致の検知（PreToolUse `Agent`）はそのまま残る
 
 ## エラー識別子とメッセージ
 
@@ -61,10 +66,10 @@ keywords: [SubagentStart, 実行者, executor, model, 不一致, 通知, 注入,
 
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
-| SA-T01 | 正常系 | 作業中チケットの executor=sonnet、model=claude-sonnet-… で通知なし・要点が注入される |
-| SA-T02 | 異常系 | executor=opus、model=sonnet で WF801 が注入の先頭に付き記録に残る。起動は止まらない（終了 0） |
+| SA-T01 | 正常系 | 機械テスト。作業中チケットの executor=sonnet で、PreToolUse `Agent` の `tool_input.model`=claude-sonnet-… なら通知なし。SubagentStart では要点が注入される |
+| SA-T02 | 異常系 | 機械テスト。**PreToolUse `Agent`** で executor=opus・`tool_input.model`=sonnet のとき WF801 が additionalContext に出て記録に残る。起動は止まらない（`permissionDecision` を出さず終了 0） |
 | SA-T03 | 正常系 | 作業中が無く未着手の先頭が対象になる。チケットが 1 枚も無ければ無出力 |
-| SA-T04 | 正常系 | `model` フィールドが無い入力で通知なし（注入はする） |
+| SA-T04 | 正常系 | 機械テスト。`tool_input.model` が無い（`Agent` の `model` を省略した）起動で通知なし。SubagentStart の入力（`model` が来ない）でも通知は出さず、要点の注入だけを行う |
 | SA-T05 | 正常系 | frontmatter が壊れたチケットで無出力・終了 0 |
 | SA-T06 | 境界 | DoD が 4 KB 超で件数と先頭 10 件に縮む。本文の作業ログは注入されない |
 

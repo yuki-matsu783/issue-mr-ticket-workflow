@@ -44,6 +44,7 @@ keywords: [チケット, テンプレート, ticket.sh, 状態遷移, 連番, Do
 ```bash
 bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next
 # => {"current": null, "next": "0003", "type": "design-plan", "skill": "10-task-design-plan"}
+# => {"current": "0003", "next": null, "type": "design-plan", "skill": "10-task-design-plan"}   # 作業中があるとき（再開時にスキルを引ける）
 
 bash .claude/skills/20-common-step-ticket/scripts/ticket.sh start 0003
 # => OK: 0003-design-plan.md を作業中にした（開始 2026-09-01T10:12:03+09:00 / 基準点 5c19f25）
@@ -80,13 +81,15 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
-状態変更のコミットは各サブコマンドが内部から `commit.sh`（`20-common-step-commit-push`）を呼んで行う（`commit.sh -m "<件名>" <旧パス> <新パス>` の形。`commit-push` 仕様のインターフェースに従い `--` は使わない。メッセージ規約の検査・除外パターンの突合・除外一覧の出力を 1 箇所に集める。`commit.sh` が拒否したときは、その最終行をそのまま `ticket.sh` の失敗として返し、作業ツリーを実行前の状態に戻す — 移動・作成・記載事項の変更だけが済んだ状態を残さない。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし**全体計画チケット（`overall-plan`）の作成・着手は現在のブランチによらずコミットを行わず**、その旨を出力する（feature ブランチはこの後に切られる。default 上でも、別の作業の feature ブランチ上で新しい依頼を始めた場合でも、ファイルは未追跡のまま新しい feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様・DDR i0004-04）。機構（entry の継続判定・guard の宣言範囲の強制・session-start の現在地）のチケット判定はチケットファイルの存在（作業領域の配置）で行い、git の追跡状態やコミットの有無を見ないため、未追跡のまま持ち越したチケットも作業中として扱われる。
+状態変更のコミットは各サブコマンドが内部から `commit.sh`（`20-common-step-commit-push`）を呼んで行う（`commit.sh -m "<件名>" <旧パス> <新パス>` の形。`commit-push` 仕様のインターフェースに従い `--` は使わない。メッセージ規約の検査・除外パターンの突合・除外一覧の出力を 1 箇所に集める。`commit.sh` が拒否したときは、その最終行をそのまま `ticket.sh` の失敗として返し、作業ツリーと index を実行前の状態に戻す — 移動・作成・記載事項の変更だけが済んだ状態や、`commit.sh` がステージしたチケットパスが index に残った状態を残さない。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし**全体計画チケット（`overall-plan`）の作成・着手は現在のブランチによらずコミットを行わず**、その旨を出力する（feature ブランチはこの後に切られる。default 上でも、別の作業の feature ブランチ上で新しい依頼を始めた場合でも、ファイルは未追跡のまま新しい feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様・DDR i0004-04）。機構（entry の継続判定・guard の宣言範囲の強制・session-start の現在地）のチケット判定はチケットファイルの存在（作業領域の配置）で行い、git の追跡状態やコミットの有無を見ないため、未追跡のまま持ち越したチケットも作業中として扱われる。
 
-### create <種類> --field 値 ...
+### create <種類> --title <題名> --purpose <目的> --dod <項目>... --work <手順>... [--predecessors <番号,...>] --executor <実行者> --human-review <true|false> --human-review-reason <理由> --adversarial-review <true|false> --adversarial-review-reason <理由> [--allow-write <glob,...>] [--allow-ops <分類,...>]
 
-1. `wip/10_tickets/{00_todo,10_doing,20_done,30_cancelled}` を無ければ作成する
+オプションは順不同。`--dod` / `--work` は繰り返して複数項目を渡す。`--predecessors` / `--allow-write` / `--allow-ops` はカンマ区切り。値の中の記号（`"` / `\` / `&` / `|`）はそのまま渡してよい（3 でエスケープする）。
+
+1. `wip/10_tickets/{00_todo,10_doing,20_done,30_cancelled}` を無ければ作成する。`<種類>` が `task-types.tsv` に無ければ TK008 で拒否する
 2. 全ディレクトリを走査して既存の最大連番 + 1 を採番する
-3. テンプレートをコピーし、渡された記載事項を埋める。`{{ }}` の残存が 1 つでもあれば TK001 で拒否する
+3. テンプレートをコピーし、渡された記載事項を埋める。frontmatter に書く文字列値は YAML の二重引用符の規則でエスケープする（`\` → `\\`、`"` → `\"`。改行は空白）。`{{ }}` の残存が 1 つでもあれば TK001 で拒否する
 4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`。`commit.sh` 経由）を行う（コミットの方式と `overall-plan` の例外は冒頭の規定に従う）。コミットが拒否されたら作成したファイルを削除して失敗を返す（未追跡のチケットが残ると機構は着手可能なチケットとして数える）
 
 ### start <番号>
@@ -102,9 +105,10 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 2. 種類が全体まとめ（overall-summary）なら TK005 で拒否し、片付けの提供コマンドを案内する
 3. 検査を行い、未充足をすべて列挙して TK003 で拒否する（1 件目で止めない）:
    - DoD の `- [ ]` が 0 件（すべて `- [x]`）
-   - チェック済みの各 DoD 項目の根拠欄（ファイル・テスト ID・コマンド出力）が空でない
-   - 作業ログ「現在地」に未完了の項目が残っていない
+   - チェック済みの各 DoD 項目の根拠欄（ファイル・テスト ID・コマンド出力）が空でない。根拠欄 `（根拠: ）` そのものが無い `- [x]` 行も未充足
+   - 作業ログ「現在地」に未完了の項目が残っていない（節の中に `次:` / `未着手` の語が無いことで判定する）
    - 作業ログ「AI アセットに反映すべき内容」が空でない（0 件なら根拠の記述があること）
+   - 作業ログの固定見出しが重複していない（同じ見出しが 2 回以上あるのは、テンプレートの空の見出しを残したまま追記した状態。見出しの一覧の正は要件書）
    - `git status` にチケットファイル以外の未コミットの変更が無い（成果物のコミット済み検査）
 4. 完了時刻を記載事項に書いて `20_done/` へ移し、旧パスと新パスを `commit.sh` に渡してコミットする。拒否されたら記載事項の変更ごと `10_doing/` に戻す
 
@@ -112,11 +116,11 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 1. 理由が空なら TK007 で拒否する
 2. 対象が `00_todo/` または `10_doing/` に無ければ TK004 で拒否する
-3. 記載事項に取り消し理由と時刻を書いて `30_cancelled/` へ移し、旧パスと新パスを `commit.sh` に渡してコミットする（完了と区別される）。拒否されたら元の置き場に戻す
+3. 記載事項に `cancelled_at`（ISO 8601）と `cancel_reason`（理由。YAML エスケープ済み）を追加して `30_cancelled/` へ移し、旧パスと新パスを `commit.sh` に渡してコミットする（完了と区別される。2 項目の形はフック共通仕様 §9）。拒否されたら元の置き場に戻す
 
 ### next
 
-1. `10_doing/` にファイルがあればそれを `current` として返す（次の着手は不可）
+1. `10_doing/` にファイルがあればそれを `current` として返す（次の着手は不可）。このときも `type` / `skill` は `current` のもので返す（再開時に呼び出し元がスキルを引けるように）
 2. 無ければ `00_todo/` のうち **frontmatter の `predecessors` がすべて `20_done/` にあるチケット**の最小連番を `next` として、種類と対応するスキル名（`.claude/hooks/config/task-types.tsv` を読んで解決。解決はこのコマンドだけが行う）を JSON で返す。先行が未完了のチケットは飛ばす（レビュー指摘の追加チケットを次フェーズの計画チケットの先行に加えることで、連番が後でも先に走る — `00-workflow-issue-mr-driven` 仕様 手順 4-4）。着手できるチケットが 1 枚も無いのに `00_todo/` が空でないときは `next: null` に `blocked: [番号...]` を添える（呼び出し元は依存の不整合として報告する）
 3. `00_todo/` も空なら `{"current": null, "next": null}` を返す（呼び出し元はループ終了と判定する）
 
@@ -127,10 +131,11 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | TK001 | プレースホルダ残存 | 残った `{{ }}` の一覧 |
 | TK002 | 作業中が既にある | 作業中のチケット番号。先に完了・取り消しすることを案内 |
 | TK003 | 完了検査の未充足 | 未充足の全件。形だけの記入をしないことの注意 |
-| TK004 | 対象が見つからない・状態が違う | 実際の置き場（あれば）。手動で動かさないことの注意 |
+| TK004 | 対象が見つからない・状態が違う（番号で指定したチケットが期待する置き場に無い） | 実際の置き場（あれば）。手動で動かさないことの注意 |
 | TK005 | 全体まとめの完了 | 片付けの提供コマンドの案内 |
 | TK006 | 先行チケット未完了 | 未完了の先行チケット番号の一覧 |
 | TK007 | 取り消し理由が空 | `--reason` の指定を案内 |
+| TK008 | 引数・環境の誤り（終了 2）: 不明なサブコマンド・引数・値、`task-types.tsv` に無い種類、テンプレート不在、`jq` 不在、リポジトリルートに移れない | 正しい呼び方（`usage`）または不足しているもの |
 
 ### テスト観点
 
@@ -138,14 +143,15 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 |-----------|------|----------------|
 | TICKET-T01 | 正常系 | create → start → complete の遷移とファイルの移動・時刻/基準点の記録 |
 | TICKET-T02 | 異常系 | 作業中があるときの start が TK002 |
-| TICKET-T03 | 異常系 | DoD 未チェック・根拠欄が空・作業ログ欠け・未コミットありの complete が TK003 で全件列挙 |
+| TICKET-T03 | 異常系 | DoD 未チェック・根拠欄が空・根拠欄ごと削った `- [x]`・作業ログ欠け・固定見出しの重複・未コミットありの complete が TK003 で全件列挙 |
 | TICKET-T04 | 異常系 | 全体まとめの complete が TK005 |
-| TICKET-T05 | 境界 | 連番が取り消し済みを含めて重複しない |
-| TICKET-T06 | 正常系 | next の JSON（current / next / type / skill）と空のときの null |
+| TICKET-T05 | 境界 | 連番が取り消し済みを含めて重複しない。`cancel` の理由に `&` / `"` / `\` / `\|` を含めても frontmatter が壊れず `fm_get` で読み戻せる |
+| TICKET-T06 | 正常系 | next の JSON（current / next / type / skill）と空のときの null。作業中があるときは `current` と、その `type` / `skill` |
 | TICKET-T08 | 正常系 | 先行が未完了の小さい連番を飛ばして、着手できる最小連番を返す。全部が待ちなら `next: null` + `blocked` |
 | TICKET-T09 | 正常系 | overall-plan の create / start が default 上でも feature ブランチ上でもコミットしない（他の種類はコミットする） |
-| TICKET-T10 | 異常系 | `commit.sh` が拒否する状況（件名の規約違反を強制した場合・除外パターンに一致するファイルが同時にステージされている場合）で `ticket.sh` が同じ最終行で失敗し、start / complete / cancel ではチケットが元の置き場に記載事項も含めて戻り、create では作成ファイルが残らない |
+| TICKET-T10 | 異常系 | `commit.sh` が拒否する状況（コミット時の検査（フック）の失敗・除外パターンに一致するファイルが同時にステージされている場合）で `ticket.sh` が同じ最終行で失敗し、start / complete / cancel ではチケットが元の置き場に記載事項も含めて戻り（index にも残らない）、create では作成ファイルが残らない |
 | TICKET-T11 | 境界 | ファイル名の種類と `ticket_type` が食い違うチケットで `next` / `start` が frontmatter の値を使う |
+| TICKET-T12 | 異常系 | 不明なサブコマンド・不明な引数・`task-types.tsv` に無い種類の `create` が TK008・終了 2（最終行は `TK008:`） |
 | TICKET-T07 | 異常系 | 先行チケット未完了の start が TK006 |
 
 ## 要件との対応
@@ -155,7 +161,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | メイン: テンプレートをコピーして記載事項を埋め連番を付ける・雛形の痕跡を残さない | create 1〜4、OUT ひな形（TK001） |
 | メイン: 着手はスクリプトで、同時 1 枚、開始時刻と差分基準点の記録 | start 1〜4（TK002） |
 | メイン: 成果物・状態変更のコミットは `20-common-step-commit-push` の手順 | Script 処理 冒頭（`commit.sh` 経由）、TICKET-T10 |
-| メイン: 完了はスクリプトで、DoD・作業ログ・コミット済みの検査と完了時刻 | complete 1〜4（TK003） |
+| メイン: 完了はスクリプトで、DoD・作業ログ・コミット済みの検査と完了時刻 | complete 1〜4（TK003。根拠欄なし・判定語・見出しの重複を含む） |
 | メイン: 次のチケットはスクリプトの提示に従う | next |
 | メイン: 取り消しは理由を記録し完了と区別 | cancel（30_cancelled/ と TK007） |
 | 代替: 再開時は「現在地」から続ける | 処理はスキル本文の指示（スクリプトは状態を動かさない） |

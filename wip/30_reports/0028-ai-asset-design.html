@@ -120,8 +120,8 @@
   <h1 id="title" data-required>AI アセット設計 結果報告（チケット 0028〜0030）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 2</span>
-    <span class="chip warn">△注意 1</span>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 2</span>
     <span class="chip stop">✕問題 0</span>
   </p>
 
@@ -136,6 +136,8 @@
           <li><a href="#f1"><span class="mk good">◎</span> 1. 0028: 更新した文書と DDR 4 件</a></li>
           <li><a href="#f2"><span class="mk warn">△</span> 2. 0028: 決定と根拠（実装を正にした範囲）</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. 受け入れ条件との対応</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 0029: 共通ステップ仕様 5 本と DDR 2 件</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. 0029: 決定と根拠（CP008 の新設・規約節の置き場）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -159,8 +161,8 @@
 <section id="overview" data-required>
   <p class="lead">実装（0013〜0021・0025）が仕様と違う形で確定した振る舞い（逸脱 D-1〜D-34）と、実装レビューで欠陥とされた仕様の穴を、<b>実装を正として仕様に書き戻す</b>。中核（フック本体・<code>settings.json</code>）は変えない。実装を変える設計は 5 件だけ（<code>read</code> / <code>remote-read</code> / <code>provided</code> を常に可、識別子 CP007 / RV008 / TK008、完了検査の重複見出し、eval 接頭辞 SC-E、HK-T15）で、0031 の実装計画に渡す。このレポートは 0028 が作り、0029・0030 が節を追記する。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>2</b><span>◎良</span></li>
-    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
@@ -169,6 +171,7 @@
       <p class="sub">判断に困っている</p>
       <ul>
         <li><code>build-test</code> の定義を仕様側で狭めた（<code>tests/</code> / <code>test/</code> 始まりだけ。参考実装は <code>commands.build-test</code> に列挙）— 計画 0026 の G5 は「どちらかに合わせる」までしか決めていなかった（<a href="#f2">2</a>）</li>
+        <li>0029: 計画が CP007 に寄せていた「<code>git commit</code> 自体の失敗」を CP008 として分け、0028 で確定した台帳を 1 行改めた（<a href="#f5">5</a>）</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -176,6 +179,7 @@
       <p class="sub">方針は決めた</p>
       <ul>
         <li>DDR i0006-07（承認単位）・08（redact の除外）・09（read / remote-read / provided 常に可）・12（識別子の新設）の決定と却下した案（<a href="#f1">1</a>）</li>
+        <li>0029: DDR i0006-10（提供コマンドの保証は HEAD の版で担保）・11（計画書の必須 6 節と固有節）、テストの書き方の規約 6 項目を shell-script 仕様の Script 処理のサブ節に置いたこと（<a href="#f4">4</a>・<a href="#f5">5</a>）</li>
         <li>§12 に T7・T8 を「実機未確認」として置いたこと（<a href="#next">設計への反映</a>）</li>
       </ul>
     </div>
@@ -251,6 +255,40 @@
         </tbody>
       </table>
     </li>
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">0029: 共通ステップ仕様 5 本と DDR 2 件 <span class="chip good">◎良</span> <span class="basis">根拠: 文書ごとの主な変更と由来（候補 A3〜A6・B9・C1・C2・G2・G5・G10〜G12、逸脱 D-3〜D-19・D-29〜D-32、レビュー F-1〜F-6・F-15・F-17・F-18）</span></h3>
+      <table>
+        <thead><tr><th>文書</th><th>主な変更</th><th>由来</th></tr></thead>
+        <tbody>
+          <tr><td><code>20-common-step-shell-script.md</code></td><td>読み込み行の失敗時（<code>nop</code> でも <code>LOGGER_ROOT</code>・<code>FATAL:</code>・<code>HOOK_DENY_ID</code>）/ <code>fm_get</code> の生文字列 / TR004・TR005 は終了 2 / test-lib の 4 関数と <code>hook_payload --session</code> / 新節「テストの書き方（規約）」6 項目 / SS-T04・FR-T05・TR-T04</td><td>A3、C1、G5、G10、G11、D-3・D-4・D-5・D-31、F-3・F-17</td></tr>
+          <tr><td><code>20-common-step-commit-push.md</code></td><td>CP001 の条件（ディレクトリ・ステージ不可）/ 実パスへの除外の当て直し / CP007・CP008 / push.sh の手順 0 / スキップ記録の行の形と <code>HEAD</code> の版 / CP-T03・CP-T06・CP-T08</td><td>A4、G2、D-7・D-8・D-9・D-29・D-30、F-1・F-2・F-15・F-18</td></tr>
+          <tr><td><code>20-common-step-ticket.md</code></td><td><code>create</code> のオプション名と YAML エスケープ / TK008 / <code>next</code> の type・skill / complete 3 の 3 条件（根拠欄なし・判定語・見出し重複）/ cancel の 2 項目 / index の復元 / TICKET-T03・T05・T06・T10・T12</td><td>A5、G2、G12、D-10〜D-15・D-32、F-5・F-6・F-15</td></tr>
+          <tr><td><code>20-common-step-report-view.md</code></td><td><code>data-template</code> / 必須要素の <code>id</code> / 計画書の 8 節と固有節の規約 / RV008 / シングルクォート / RV-T02・RV-T06・RV-T07</td><td>A6、B9、G2、D-16・D-17・D-18、F-4・F-15</td></tr>
+          <tr><td><code>20-common-step-ai-asset-creator.md</code></td><td><code>skill.template.md</code>: frontmatter 2 項目・冒頭段落は禁止事項の要約 / AC-E04</td><td>C2、D-19</td></tr>
+          <tr><td><code>フック共通仕様.md</code> §6</td><td>CP001–008（008 は <code>git commit</code> 自体の失敗）</td><td>D-7</td></tr>
+          <tr><td><code>20_ddr/i0006-10 / 11</code></td><td>提供コマンドの保証は HEAD の版で担保 / 計画書の必須 6 節と固有節</td><td>F-2・D-30 / D-17・B9</td></tr>
+        </tbody>
+      </table>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5">0029: 決定と根拠（CP008 の新設・規約節の置き場） <span class="chip warn">△注意</span> <span class="basis">根拠: 計画 0026 からの差分 2 件と、各決定の却下案</span></h3>
+      <table>
+        <thead><tr><th>決定</th><th>根拠</th><th>却下した案</th></tr></thead>
+        <tbody>
+          <tr><td><code>git commit</code> 自体の失敗は CP008 を新設（台帳を CP001–008 に）</td><td>計画は CP007 に 2 原因を寄せていたが i0006-12 の「1 番号 1 対処」に反する。終了コードの分類（1 と 2）も違う</td><td>CP007 に両方 / CP004 の転用のまま</td></tr>
+          <tr><td>テストの書き方の規約は Script 処理のサブ節（「テスト観点」の直前）</td><td><code>20-common-step-spec</code> の固定節構成はサブ節の追加を制限しない。ID の表に散文を混ぜない。<code>bash-script</code> ルールは別 issue</td><td>テスト観点の表の上に散文 / <code>rules/bash-script</code>（未作成）</td></tr>
+          <tr><td>push.sh に手順 0（引数・環境の検査）を明示し CP005・CP006 を限定</td><td>F-15 の転用は SKILL.md の対処を的外れにする。手順として書かないと実装依存になる</td><td>識別子表の条件文だけ直す</td></tr>
+          <tr><td>スキップ記録は <code>HEAD</code> の版だけ読む</td><td>保証がスキップ可能な検査に依存していた（F-2）</td><td>項目 1 をスキップ不可 / 記録の未コミットを別検査 → DDR i0006-10</td></tr>
+          <tr><td>計画書の固有節は「必須節の後・保留の前」に追加可</td><td>フィードバック計画の本体が共通節に収まらない（B9）</td><td>種類ごとのテンプレート / 固有節を認めない → DDR i0006-11</td></tr>
+          <tr><td><code>complete</code> の見出し重複は「同じ固定見出しが 2 回以上」で判定</td><td>完了済み 4 枚で起きた形はテンプレートの見出しを残したまま追記したもの</td><td>空の節を検出（正当な「無し」と区別しにくい）</td></tr>
+          <tr><td>SKILL.md の frontmatter は <code>name</code> / <code>description</code> のみ</td><td>Claude Code のスキル発見が読む 2 項目。文書 frontmatter の規約は SKILL.md を対象外にしている</td><td>文書と同じ <code>type</code> / <code>title</code></td></tr>
+          <tr><td><code>hook_payload --session</code> は仕様に書き実装は 0031</td><td>既定値 <code>testsession</code> で後方互換</td><td>既定値だけを仕様に書く</td></tr>
+        </tbody>
+      </table>
+      <p>受け入れ条件との対応（0029 分）: 条件 5 → CP-T03・CP-T06・CP-T08（新）、TICKET-T03・T05・T06・T10・T12（新）、RV-T02・RV-T06・RV-T07（新）、SS-T04・FR-T05・TR-T04 / 条件 6 → 「テストの書き方（規約）」と test-lib の関数 / 条件 4 → <code>skill.template.md</code> と AC-E04。</p>
+    </li>
   </ol>
 </section>
 
@@ -273,6 +311,10 @@
       <tr><td><code>hook-test</code> を先に判定</td><td><code>allow.ops</code> に <code>hook-test</code> が無いチケットでテストを打つと止まる（既定で進まない）</td></tr>
       <tr><td>§12 T7 の読み順</td><td>4 候補のどれでもなければ終了コード 0 とみなす = push 失敗を成功と誤認し得る（既定で進む側）。実機登録直後に <code>decisions.jsonl</code> で確かめる</td></tr>
       <tr><td>§12 T8</td><td><code>frontmatter.sh</code> 不在時、案内側フックが deny JSON を出す（PostToolUse では無視されるので実害は無い見込み）</td></tr>
+      <tr><td>（0029）push.sh の手順 0: 引数・環境の誤りは CP007・終了 2</td><td>環境の壊れ（<code>jq</code> 不在等）で止まる（既定で進まない）。スキップ記録では解消できない</td></tr>
+      <tr><td>（0029）スキップ記録は <code>HEAD</code> の版だけ</td><td>記録をコミットしないまま push すると項目 1 で止まる。記録 → <code>commit.sh</code> → <code>push.sh</code> の順が必須</td></tr>
+      <tr><td>（0029）<code>complete</code> の見出し重複検査</td><td>テンプレートの見出しを残したまま追記したチケットは完了できない（止まる）。既存の完了済み 4 枚は遡って直さない</td></tr>
+      <tr><td>（0029）<code>create</code> の種類不正は TK008・終了 2</td><td>種類名を誤ると止まる。<code>task-types.tsv</code> の名前が正</td></tr>
     </tbody>
   </table>
 </section>
@@ -283,6 +325,8 @@
     <li>計画 0026 の「H6 に jq 1.6 の注記」は、H1〜H6 が調査レポート 0003 の申し送りで仕様に H 節が無いため、§1 の <code>transcript.sh</code> の行に書いた</li>
     <li><code>build-test</code> の定義（G5）は「実装を仕様に合わせる」ではなく仕様を狭めた</li>
     <li>仕様 §8 に DDR 番号を書いてしまい、DoD「仕様から DDR を参照しない」に照らして削った</li>
+    <li>（0029）計画 0026 の CP007 は 2 原因を 1 番号に寄せていた。CP008 を足し、0028 で確定した台帳を 1 行改めた（後続が先行の台帳を直す形）</li>
+    <li>（0029）テストの書き方の規約は「テスト観点」の中ではなく Script 処理のサブ節にした</li>
   </ul>
 </section>
 
@@ -292,6 +336,8 @@
     <li>0031（実装計画）へ: HK-T15 の付番、CP007 / RV008 / TK008 の出力、SC-E への改名は仕様に書いただけで実装は未変更</li>
     <li>2/3 へ: §12 T7・T8 の実機確認</li>
     <li><code>workflow-guard.md</code> の WF204 / WF206 の対象から <code>read</code> / <code>remote-read</code> / <code>provided</code> が外れている文言は 0030 の横断整合で見る（0028 は §8 と WF202 の文言だけ直した）</li>
+    <li>（0029）0031 の実装計画へ: 実装 7 件に CP008・CP-T08 / TICKET-T12 / RV-T07 のテスト・push.sh の手順 0 の識別子付け替え・AC-E04 の eval 定義を加える（計 8 件 + テスト）</li>
+    <li>（0029）<code>20-common-step-ticket</code> の要件書に見出し重複の受け入れ条件を足すかは 0030 で判断</li>
   </ul>
 </section>
 

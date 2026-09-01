@@ -63,7 +63,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 
 - `assets/script.template.sh`: shebang（`#!/usr/bin/env bash`）、`set -euo pipefail`、logger の読み込み行（リポジトリルートの解決を含む 1 行。Script 処理「読み込み行」）、`usage` 関数、サブコマンド／オプションの解析骨格（順不同）、結果出力の型（成功 `OK: ...` / 失敗 `<接頭辞><番号>: ...` を最終行に）、終了コードの規約（0 / 1 / 2。Script 処理「終了コード」）
 - `assets/test.template.sh`: `test-lib.sh` を `source` する 20 行程度の骨格（一時ディレクトリの用意と後始末、ケース関数の型、`finish` による集計と非 0 終了）。assert の実装は持たない（`test-lib.sh` に集約）
-- `scripts/test-lib.sh`（`source` 専用）: `assert_eq <ID> <expected> <actual>` / `assert_exit <ID> <expected_code>` / `assert_contains <ID> <needle>` / `assert_not_contains <ID> <needle>`（直前の `run_cmd` の出力に対して）/ `run_cmd <cmd...>`（`R_EXIT` / `R_OUT` / `R_ERR` に格納。`set -e` の影響を受けない）/ `make_tmp_repo`（`mktemp -d` + `git init -q -b main` + user 設定 + `trap` による後始末。パスに非 ASCII を含めない）/ `hook_payload <event> <tool_name> <json-fields...>`（`jq -nc --arg` でフック入力 JSON を組む）/ `finish`（`PASS`/`FAIL` の集計行 `passed=N failures=N` を出し、失敗があれば非 0）。テストは `set -uo pipefail`（`-e` なし）で書き、終了コードは `run_cmd` が取る。Windows 対策はここに集約する: PATH を絞るときは symlink ではなくラッパースクリプトを生成、jq 出力の CR 除去、性能閾値は `TEST_SKIP_PERF=1` で無効化
+- `scripts/test-lib.sh`（`source` 専用）: `assert_eq <ID> <expected> <actual>` / `assert_exit <ID> <expected_code>` / `assert_contains <ID> <needle>` / `assert_not_contains <ID> <needle>`（直前の `run_cmd` の出力に対して）/ `run_cmd <cmd...>`（`R_EXIT` / `R_OUT` / `R_ERR` に格納。`set -e` の影響を受けない）/ `make_tmp_repo`（`mktemp -d` + `git init -q -b main` + user 設定 + `trap` による後始末。パスに非 ASCII を含めない）/ `make_tmp_dir`（git なしの一時ディレクトリ）/ `make_restricted_path <cmd...>`（挙げたコマンドだけを持つ PATH を `RESTRICTED_PATH` に作る。symlink ではなくラッパースクリプト）/ `make_counting_path <cmd...>`（挙げたコマンドの呼び出しを記録するラッパーだけを持つ PATH を `COUNTING_PATH` に、記録先を `COUNTING_LOG` に作る。fork ゼロ・呼び出し回数の約束を回数で検査するためのもの）/ `counted_calls [cmd]`（記録された呼び出し回数を返す）/ `hook_payload <event> <tool_name> [--session <id>] <json-fields...>`（`jq -nc --arg` でフック入力 JSON を組む。`session_id` は既定 `testsession` で、`--session` で変える）/ `finish`（`PASS`/`FAIL` の集計行 `passed=N failures=N` を出し、失敗があれば非 0）。テストは `set -uo pipefail`（`-e` なし）で書き、終了コードは `run_cmd` が取る。Windows 対策はここに集約する: PATH を絞るときは symlink ではなくラッパースクリプトを生成、jq 出力の CR 除去、性能閾値は `TEST_SKIP_PERF=1` で無効化
 - `scripts/run-tests.sh`（提供コマンド）: 2 つの置き場（`.claude/hooks/**/tests/test_*.sh`・`.claude/skills/*/scripts/tests/test_*.sh`）のテストを列挙して実行する。Script 処理「run-tests.sh」
 - `scripts/frontmatter.sh`（`source` 専用）: チケット等の Markdown frontmatter を読む純 bash ライブラリ。Script 処理「frontmatter.sh」
 
@@ -87,9 +87,9 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 
 | 呼び手 | lib | ポリシー | 失敗時 |
 |---|---|---|---|
-| 提供コマンド・フック・テスト | `logger` | `nop` | 4 関数を no-op で定義して続行（ログ機構の失敗が本体を止めない — `rules/logger.md`） |
-| 提供コマンド | `frontmatter` | `fatal` | 環境の誤りとして理由を最終行に出し終了コード 2（判定に使う値が読めないまま続行しない） |
-| フック（拒否側） | `frontmatter` | `deny` | フック共通仕様 §3「判定できなければ拒否側に倒す」に従い `WFx09` の deny JSON を出して終了 0 |
+| 提供コマンド・フック・テスト | `logger` | `nop` | 4 関数を no-op で定義して続行（ログ機構の失敗が本体を止めない — `rules/logger.md`）。`LOGGER_ROOT` は解決できた値（できなければ `$PWD`）を必ず設定する（呼び手が直後に `cd "$LOGGER_ROOT"` するため。未設定だと `set -u` で本体が落ちる） |
+| 提供コマンド | `frontmatter` | `fatal` | 環境の誤りとして最終行 `FATAL: <理由>` を出し終了コード 2（判定に使う値が読めないまま続行しない）。共有の 1 行は呼び手の識別子を知らないので `<接頭辞><番号>:` の形は取らない |
+| フック（拒否側） | `frontmatter` | `deny` | フック共通仕様 §3「判定できなければ拒否側に倒す」に従い `WFx09` の deny JSON を出して終了 0。識別子は呼び手が読み込み行より前に `HOOK_DENY_ID` で設定する（未設定なら `WF009`。番号はフックごとの仕様が決める） |
 | フック（案内側） | `frontmatter` | `nop` | 何も出さずに通す（§3 の案内側の原則） |
 | テスト | `test-lib` | `fatal` | テスト自身が理由を出して非 0 で終了 |
 
@@ -108,7 +108,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | 関数 | 入出力 |
 |------|--------|
 | `fm_extract <file>` | frontmatter 本文を `FM_BLOCK` に格納（CR 除去済み）。frontmatter が無ければ空で戻り値 1 |
-| `fm_get <file> <key>` | スカラー値を標準出力に返す。`key` は `ticket_type` のようなトップレベルか、`human_review.required` / `allow.write` のようなドット区切り（入れ子マッピング・インラインマップの両方を同じキーで引く）。クォートは外す。無ければ空で戻り値 1 |
+| `fm_get <file> <key>` | スカラー値を標準出力に返す。`key` は `ticket_type` のようなトップレベルか、`human_review.required` / `allow.write` のようなドット区切り（入れ子マッピング・インラインマップの両方を同じキーで引く）。クォートは外す。無ければ空で戻り値 1。マッピングやフロー配列のキー（`allow` / `predecessors`）を指定したときは生の文字列（`["a", "b"]` 等）を返す（呼び手が形を確かめる用途。エラーにしない） |
 | `fm_list <file> <key>` | フロー配列の要素を 1 行 1 要素で返す（クォート除去）。無ければ空で戻り値 1 |
 | `fm_has <file> <key>` | 存在すれば 0 |
 
@@ -124,15 +124,15 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 2. `.claude/hooks/**/tests/test_*.sh` と `.claude/skills/*/scripts/tests/test_*.sh` を列挙する（`--filter` で絞る）。0 本なら TR001
 3. 各テストを `timeout`（既定 120 秒）付きで `bash <test>` として実行し、最終行（集計行）と終了コードを集める。`PASS <ID>` / `FAIL <ID>: ...` 行から ID を抽出する
 4. ファイルごとの結果（PASS / FAIL / TIMEOUT）を表で出し、`--ids` なら PASS / FAIL した ID の一覧も出す（仕様書の「テスト観点」表との突合用。同じ ID が複数のテストに現れたら重複として報告する）
-5. すべて PASS なら `OK: <N> 本 / <ID 数> 件` で 0。FAIL があれば TR002、TIMEOUT があれば TR003（両方あれば両方列挙）で 1。引数不正は TR004、`timeout` コマンド不在等の環境不備は TR005、宣言不足は TR006 で 1
+5. すべて PASS なら `OK: <N> 本 / <ID 数> 件` で 0。FAIL があれば TR002、TIMEOUT があれば TR003（両方あれば両方列挙）で 1。宣言不足は TR006 で 1。引数不正は TR004、`timeout` コマンド不在等の環境不備は TR005 で **2**（引数・環境の誤り。Script 処理「終了コード」の規約）
 
 | ID | 条件 |
 |----|------|
 | TR001 | 対象のテストが 0 本 |
 | TR002 | FAIL したテストがある（ファイルと ID を列挙） |
 | TR003 | タイムアウトしたテストがある |
-| TR004 | 引数の誤り |
-| TR005 | 実行環境の不備（bash / timeout / jq の不在） |
+| TR004 | 引数の誤り（終了 2） |
+| TR005 | 実行環境の不備（bash / timeout / jq の不在。終了 2） |
 | TR006 | 作業中チケットの `allow.ops` に `build-test`（必要なら `hook-test`）が無い |
 
 ### logger.sh（source 専用）
@@ -146,6 +146,17 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 5. **書き込み**: `logs/sh/<出どころ>.log` へ追記する。書き込みの失敗（権限・ディスク・ディレクトリ不在）はすべて握りつぶし、関数は常に 0 を返す（`set -e` の利用側を巻き込まない）。標準出力・標準エラーには何も出さない
 6. ローテーションは持たない（`logs/` はローカル限りで、必要なら人間が消す。肥大が問題になったら日付別ファイルへの変更をこの仕様で決める）
 
+### テストの書き方（規約）
+
+仕様書のテスト観点をテストに落とすときの規約。各スクリプトのテストと、レビューでテストの穴を探すときの基準として使う。
+
+- **表は全要素を踏む**: 語彙表・分類表・判定順のように仕様が表で定めるものは、代表例ではなく表の全要素をループで検査する（表に足した要素がテストされないまま残らない）
+- **負のケースに正の期待値を添える**: 「一致しない」「拒否されない」だけの assert は、抽出の故障でも通る。何として解析・判定されたか（セグメント数・実行体・判定段階・識別子）を併記する
+- **回数の約束は数える**: fork ゼロ・`jq` 1 回のような性能や実装の約束は、`make_counting_path` で呼び出し回数を数えて検査する。stderr が空・`PATH=""` で動く、では `2>/dev/null` 付きの fork を素通しする。数える経路が実際に呼ばれる正のコントロール（1 回以上）を同じテストに置く
+- **契約を exact に固定する**: 最終行（`OK:` / `<接頭辞><番号>:`）と終了コード（0 / 1 / 2）は `assert_eq` で一致を見る（`assert_contains` で済ませない）
+- **秘密の実例を置かない**: テストデータに実在の秘密と同じ形（`AKIA` + 16 文字の実例・40 文字の 16 進など、リモートの push 保護が拒否する形）を置かない。マスク対象の検査は形を崩した値（長さや文字種だけ合わせる）で行う
+- **一時リポジトリで実行する**: 提供コマンド・フックのテストは `make_tmp_repo` の中で行い、作業中のリポジトリの状態（チケット・`logs/`）に依存しない
+
 ### テスト観点
 
 | テスト ID | 種別 | 固定する振る舞い |
@@ -158,16 +169,16 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | SS-T01 | 正常系 | 雛形からコピーした sh が `bash -n` を通り、logger を source して結果出力の型で終了する |
 | SS-T02 | 異常系 | テスト雛形が失敗ケースを検出して非 0 で終了する |
 | SS-T03 | 正常系 | 読み込み行が、スキルの `scripts/`・フックのイベントディレクトリ・両者の `tests/` の 4 通りの深さから logger を解決する（fork なしの経路） |
-| SS-T04 | 異常系 | git 不在・リポジトリ外・`CLAUDE_PROJECT_DIR` 未設定でも読み込み行が失敗せず、logger が no-op になって本体が続行する |
+| SS-T04 | 異常系 | git 不在・リポジトリ外・`CLAUDE_PROJECT_DIR` 未設定でも読み込み行が失敗せず、logger が no-op になって本体が続行する。`nop` でも `LOGGER_ROOT` が設定される。`fatal` の最終行は `FATAL: <理由>` で終了 2、`deny` は `HOOK_DENY_ID`（未設定なら `WF009`）の deny JSON で終了 0 |
 | FR-T01 | 正常系 | フラットなスカラーとフロー配列（`ticket_type` / `predecessors`）を読める |
 | FR-T02 | 正常系 | 入れ子マッピング（`allow.write` / `allow.ops`）をドット区切りで読める |
 | FR-T03 | 正常系 | インラインマップ（`human_review.required` / `.reason`）をドット区切りで読める。クォート内の `:` と `,` を区切りにしない |
 | FR-T04 | 境界 | CRLF のファイル・キー前後の空白・行末コメントを無視する |
-| FR-T05 | 異常系 | frontmatter 無し・キー無し・対象外の形（ブロック配列）で空 + 戻り値 1。外部プロセスを起動しない |
+| FR-T05 | 異常系 | frontmatter 無し・キー無し・対象外の形（ブロック配列）で空 + 戻り値 1。外部プロセスを起動しない（呼び出しを数える PATH で 0 回）。マッピング・配列のキーへの `fm_get` は生の文字列を返す |
 | TR-T01 | 正常系 | 2 つの置き場のテストを列挙し、全 PASS で `OK:` と ID 数 |
 | TR-T02 | 異常系 | FAIL を含むテストで TR002 とファイル・ID の列挙、非 0 |
 | TR-T03 | 異常系 | 無限ループするテストが TR003 で止まる |
-| TR-T04 | 境界 | `--filter` の絞り込みと 0 本のときの TR001、`--ids` の一覧と重複 ID の報告 |
+| TR-T04 | 境界 | `--filter` の絞り込みと 0 本のときの TR001、`--ids` の一覧と重複 ID の報告。不明な引数が TR004・終了 2、`timeout` 不在が TR005・終了 2 |
 | TR-T05 | 異常系 | `allow.ops` に `build-test` の無い作業中チケットがあるときは TR006 で実行しない。作業中チケットが無ければ実行する |
 
 ## 要件との対応
@@ -176,7 +187,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 |--------------------|---------|
 | メイン: 雛形から作る・白紙禁止 | 処理フロー 2、OUT ひな形、禁止事項 |
 | メイン: 規約と logger ルールに従い共通 logger を読み込む | 処理フロー 3、logger.sh |
-| メイン: テストの作成・実行・記録 | 処理フロー 4、OUT ひな形（test.template） |
+| メイン: テストの作成・実行・記録 | 処理フロー 4、OUT ひな形（test.template）、Script 処理「テストの書き方（規約）」 |
 | メイン: 機械的な検査と記録 | 処理フロー 5 |
 | メイン: logger の読み込みは 1 行・コピー禁止 | サンプル、禁止事項、Script 処理「読み込み行」 |
 | 代替: 既存 sh は差分小さく・逸脱は直すか記録 | 処理フロー 6 |

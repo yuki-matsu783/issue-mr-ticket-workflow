@@ -166,13 +166,13 @@ printf '#!/bin/sh\necho "pre-commit: blocked" >&2\nexit 1\n' > .git/hooks/pre-co
 before="$(count_commits)"
 run_cmd bash "$T" create design --title "拒否" --purpose "p" --dod "d"
 assert_exit "TICKET-T10" 1
-assert_contains "TICKET-T10" "CP004:"
-assert_eq "TICKET-T10" "CP004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "TICKET-T10" "CP008:"
+assert_eq "TICKET-T10" "CP008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 if ls wip/10_tickets/00_todo/0011-*.md >/dev/null 2>&1; then fail "TICKET-T10" "create の拒否でファイルが残った"; else pass "TICKET-T10"; fi
 orig="$(cat wip/10_tickets/00_todo/0010-investigation.md)"
 run_cmd bash "$T" start 0010
 assert_exit "TICKET-T10" 1
-assert_eq "TICKET-T10" "CP004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_eq "TICKET-T10" "CP008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 if [ -f wip/10_tickets/00_todo/0010-investigation.md ] && [ "$(cat wip/10_tickets/00_todo/0010-investigation.md)" = "$orig" ] && [ ! -e wip/10_tickets/10_doing/0010-investigation.md ]; then pass "TICKET-T10"; else fail "TICKET-T10" "start の拒否で元に戻っていない"; fi
 run_cmd bash "$T" cancel 0010 --reason "x"
 assert_exit "TICKET-T10" 1

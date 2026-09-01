@@ -4,7 +4,7 @@
 # 使い方: bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 #   前チェック 4 項目を全件実施し、未充足を全件列挙して CP005 で止まる。`wip/push-check-skip.md` に
 #   `- 項目 N: <理由>` と書かれた項目（1〜3）だけ飛ばす（項目 4 はスキップ不可）。
-# 終了コード: 成功 0 / 前チェック未充足・リモート拒否 1 / 引数や環境の誤り 2。最終行は `OK: ...` または `CP<番号>: ...`
+# 終了コード: 成功 0 / 前チェック未充足（CP005）・リモート拒否（CP006）1 / 引数や環境の誤り（CP007）2。最終行は `OK: ...` または `CP<番号>: ...`
 set -euo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
@@ -58,14 +58,14 @@ main() {
   while [ $# -gt 0 ]; do
     case "$1" in
       -h|--help) usage; exit 0 ;;
-      *) result_ng 005 "引数は受け付けない: $1（push.sh は現在ブランチを push する）" 2 ;;
+      *) result_ng 007 "引数は受け付けない: $1（push.sh は現在ブランチを push する）" 2 ;;
     esac
   done
-  command -v git >/dev/null 2>&1 || result_ng 006 "git が無い" 2
-  cd "$LOGGER_ROOT" || result_ng 006 "リポジトリルートに移動できない: $LOGGER_ROOT" 2
+  command -v git >/dev/null 2>&1 || result_ng 007 "git が無い（環境の誤り）" 2
+  cd "$LOGGER_ROOT" || result_ng 007 "リポジトリルートに移動できない（環境の誤り）: $LOGGER_ROOT" 2
   local branch
   branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || result_ng 006 "現在ブランチを特定できない（detached HEAD）" 2
+  [ -n "$branch" ] && [ "$branch" != "HEAD" ] || result_ng 007 "現在ブランチを特定できない（detached HEAD。環境の誤り）" 2
   log_info "start branch=$branch"
 
   read_skip_file
@@ -133,7 +133,7 @@ main() {
   # 4. draft 解除後の作業領域が空（スキップ不可）
   local ready=0 state leftovers
   if [ -f "$MERGE_STATE" ]; then
-    command -v jq >/dev/null 2>&1 || result_ng 006 "jq が無い（$MERGE_STATE の判定に要る）" 2
+    command -v jq >/dev/null 2>&1 || result_ng 007 "jq が無い（$MERGE_STATE の判定に要る。環境の誤り）" 2
     state="$(jq -r '.state // empty' "$MERGE_STATE" 2>/dev/null | tr -d '\r' || true)"
     [ "$state" = "ready" ] && ready=1
   fi

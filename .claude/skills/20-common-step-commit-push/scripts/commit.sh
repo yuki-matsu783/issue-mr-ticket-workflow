@@ -3,7 +3,7 @@
 # 仕様: .claude/docs/10_spec/skills/20-common-step-commit-push.md「commit.sh」
 # 使い方: bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "<メッセージ>" [--allow-empty] <ファイル>...
 #   オプションは順不同。パスはリポジトリルート相対。
-# 終了コード: 成功 0 / 検査未充足 1 / 引数や環境の誤り 2。最終行は `OK: ...` または `CP<番号>: ...`
+# 終了コード: 成功 0 / 検査未充足 1（CP002〜004・CP008）/ 引数や環境の誤り 2（CP001 対象の指定の誤り・CP007 引数・環境の誤り）。最終行は `OK: ...` または `CP<番号>: ...`
 set -euo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
@@ -68,13 +68,13 @@ main() {
     case "$1" in
       -h|--help) usage; exit 0 ;;
       -m)
-        [ $# -ge 2 ] || result_ng 001 "-m にメッセージが無い（引数の誤り。期待する形式: -m \"<prefix>: <日本語 1 行>\"）" 2
+        [ $# -ge 2 ] || result_ng 007 "-m にメッセージが無い（引数の誤り。期待する形式: -m \"<prefix>: <日本語 1 行>\"）" 2
         message="$2"; shift ;;
       -m*) message="${1#-m}" ;;
       --allow-empty) allow_empty=1 ;;
       -A|--all|-a|.|./|..) result_ng 001 "一括指定（$1）は受け付けない。自分が変更したファイルだけをパスで明示する" 2 ;;
-      --amend|--no-verify) result_ng 001 "$1 は存在しないオプション（直前コミットの書き換え・検査の回避はしない）" 2 ;;
-      -*) result_ng 001 "不明なオプション: $1（-m <メッセージ> / --allow-empty / <ファイル>...）" 2 ;;
+      --amend|--no-verify) result_ng 007 "$1 は存在しないオプション（直前コミットの書き換え・検査の回避はしない）" 2 ;;
+      -*) result_ng 007 "不明なオプション: $1（-m <メッセージ> / --allow-empty / <ファイル>...）" 2 ;;
       *)
         case "$1" in
           *'*'*|*'?'*|*'['*) result_ng 001 "glob（$1）は受け付けない。パスを 1 つずつ明示する" 2 ;;
@@ -87,7 +87,7 @@ main() {
     shift
   done
 
-  cd "$LOGGER_ROOT" || result_ng 001 "リポジトリルートに移動できない: $LOGGER_ROOT" 2
+  cd "$LOGGER_ROOT" || result_ng 007 "リポジトリルートに移動できない（環境の誤り）: $LOGGER_ROOT" 2
   log_info "start message='${message}' files=${files[*]:-} allow_empty=$allow_empty"
 
   # 1. メッセージの検査
@@ -147,13 +147,13 @@ main() {
     if ! out="$(git "${args[@]}" -- "${kept[@]}" 2>&1)"; then
       print_excluded
       printf '%s\n' "$out"
-      result_ng 004 "git commit が失敗した（コミット時の検査・フック）。上の出力を確認する" 1
+      result_ng 008 "git commit が失敗した（コミット時の検査・フック）。上の出力を確認して原因を直し、再実行する（amend や --no-verify は無い）" 1
     fi
   else
     if ! out="$(git "${args[@]}" 2>&1)"; then
       print_excluded
       printf '%s\n' "$out"
-      result_ng 004 "git commit が失敗した（コミット時の検査・フック）。上の出力を確認する" 1
+      result_ng 008 "git commit が失敗した（コミット時の検査・フック）。上の出力を確認して原因を直し、再実行する（amend や --no-verify は無い）" 1
     fi
   fi
 

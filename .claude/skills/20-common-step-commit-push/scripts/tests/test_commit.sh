@@ -104,7 +104,8 @@ run_cmd bash "$COMMIT" -m "chore: glob" '*.txt'
 assert_exit "CP-T04" 2
 assert_contains "CP-T04" "CP001:"
 run_cmd bash "$COMMIT" -m "chore: amend" --amend e.txt
-assert_exit "CP-T04" 2
+assert_exit "CP-T08" 2   # 存在しないオプションは引数の誤り（CP007）
+assert_contains "CP-T08" "CP007:"
 run_cmd bash "$COMMIT" -m "chore: 存在しない" nosuch.txt
 assert_exit "CP-T04" 2
 assert_contains "CP-T04" "CP001:"
@@ -113,16 +114,32 @@ run_cmd bash "$COMMIT" --allow-empty -m "chore: start #1 x"
 assert_exit "CP-T04" 0
 assert_contains "CP-T04" "OK: 0 ファイルをコミットした"
 assert_eq "CP-T04" "$((before + 1))" "$(count_commits)"
-# -m の値が無いのは引数の誤り（CP001・終了 2）
+# CP-T08 引数・環境の誤りは CP007（終了 2）、git commit 自体の失敗は CP008（終了 1・git の出力を透過）
 echo g > g.txt
 run_cmd bash "$COMMIT" g.txt -m
-assert_exit "CP-T04" 2
-assert_contains "CP-T04" "CP001:"
+assert_exit "CP-T08" 2
+assert_eq "CP-T08" "CP007" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$COMMIT" -m "chore: 不明" --foo g.txt
+assert_exit "CP-T08" 2
+assert_contains "CP-T08" "CP007:"
+# 対象の指定の誤り（未指定・一括・ディレクトリ・ステージ不可）は CP001 のまま（負のケースの正の期待値）
+run_cmd bash "$COMMIT" -m "chore: なし"
+assert_eq "CP-T08" "CP001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+before="$(count_commits)"
+printf '#!/bin/sh\necho "pre-commit: blocked" >&2\nexit 1\n' > .git/hooks/pre-commit; chmod +x .git/hooks/pre-commit
+run_cmd bash "$COMMIT" -m "chore: フックで止まる" g.txt
+assert_exit "CP-T08" 1
+assert_eq "CP-T08" "CP008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "CP-T08" "pre-commit: blocked"
+assert_eq "CP-T08" "$before" "$(count_commits)"
+rm -f .git/hooks/pre-commit
+git reset -q -- g.txt
 
 # 読み込み行の nop: logger.sh が無くても LOGGER_ROOT が決まり、契約どおり OK: / CP<番号>: で終わる（コミット経路のロックアウト対策）
 mv .claude/skills/20-common-step-shell-script/scripts/logger.sh logger.sh.bak
 run_cmd env -u CLAUDE_PROJECT_DIR -u LOGGER_ROOT bash "$COMMIT" -m "docs: logger 不在でもコミットできる" g.txt
 assert_exit "CP-T01" 0
+assert_exit "CP-T08" 0   # logger を退避しても最終行の契約が守られる
 assert_contains "CP-T01" "OK: 1 ファイルをコミットした"
 echo h > h.txt
 run_cmd env -u CLAUDE_PROJECT_DIR -u LOGGER_ROOT bash "$COMMIT" -m "bad subject" h.txt

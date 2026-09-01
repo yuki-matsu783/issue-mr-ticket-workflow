@@ -55,9 +55,10 @@ assert_not_contains "CP-T05" "appendix-A.md に .html が無い"
 assert_contains "CP-T05" "項目 4: draft 解除後"
 assert_contains "CP-T05" "未充足 4 件"
 assert_eq "CP-T05" "1" "$(git -C "$REMOTE" rev-list --count main)"
-# 引数は受け付けない
+# 引数は受け付けない（引数の誤りは CP007・終了 2）
 run_cmd bash "$PUSH" --force
-assert_exit "CP-T05" 2
+assert_exit "CP-T08" 2
+assert_eq "CP-T08" "CP007" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 # 全部直すと push できる
 rm -f logs/merge-state.json wip/20_plans/0009-orphan.html wip/10_tickets/10_doing/0001-investigation.md
 echo "<p>" > wip/30_reports/0003-investigation.html
@@ -115,5 +116,30 @@ commit_all "chore: ticket without push"
 run_cmd bash "$PUSH"
 assert_exit "CP-T07" 1
 assert_contains "CP-T07" "項目 2: 作業中のチケットがある"
+rm -f wip/10_tickets/10_doing/0001-investigation.md; commit_all "chore: no ticket"
+
+# CP-T08 環境の誤り（git / jq 不在・detached HEAD）は CP007・終了 2。CP005 は検査未充足、CP006 はリモート拒否だけ
+make_restricted_path bash
+run_cmd env PATH="$RESTRICTED_PATH" bash "$PUSH"
+assert_exit "CP-T08" 2
+assert_eq "CP-T08" "CP007" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+printf '{"state":"ready"}\n' > logs/merge-state.json
+make_restricted_path bash git tr sed wc head tail find sort grep ls cat cut uniq awk basename dirname comm mktemp rm
+run_cmd env PATH="$RESTRICTED_PATH" bash "$PUSH"
+assert_exit "CP-T08" 2
+assert_eq "CP-T08" "CP007" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "CP-T08" "jq"
+rm -f logs/merge-state.json
+git checkout -q --detach
+run_cmd bash "$PUSH"
+assert_exit "CP-T08" 2
+assert_eq "CP-T08" "CP007" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+git checkout -q main
+# 正のコントロール: 環境が揃っていれば検査未充足は CP005 のまま
+echo z > z.txt
+run_cmd bash "$PUSH"
+assert_exit "CP-T08" 1
+assert_eq "CP-T08" "CP005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+rm -f z.txt
 
 finish

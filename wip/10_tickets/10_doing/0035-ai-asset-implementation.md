@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "振る舞いが変わる（work-de
 allow:
   write: [".claude/skills/20-common-step-report-view/scripts/**", ".claude/skills/20-common-step-shell-script/scripts/**", ".claude/hooks/lib/tests/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T18:54:34+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "bef95e5"
 ---
 
 # 0035 AI アセット実装: check-html.sh の RV008・test-lib の hook_payload --session・HK-T15 の付番と RV-T07（wip/20_plans/0031-ai-asset-implementation-plan.md の S2-3・S3-3）

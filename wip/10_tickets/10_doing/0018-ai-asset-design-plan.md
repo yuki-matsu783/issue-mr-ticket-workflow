@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ユーザー指示によりタス
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T07:09:36+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "dafe280"
 ---
 
 # 0018 設計計画の 2 巡目レビュー指摘の反映（Q1〜Q11）

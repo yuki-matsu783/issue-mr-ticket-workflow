@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "計画書 1 枚"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-01T16:37:57+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2e6c931"
 ---
 
 # 0026 AI アセット設計計画（フィードバック計画 0022 の候補 26 件の仕様・要件・DDR への書き戻し）

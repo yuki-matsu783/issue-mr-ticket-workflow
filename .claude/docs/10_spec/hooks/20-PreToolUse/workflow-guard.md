@@ -41,7 +41,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 3. `scope-limits.json` が無い・解釈できない → **deny WF210**。復旧経路として許可するのは: 提供コマンドの実行、`wip/10_tickets/**` への書き込み、`scope-limits.json` 自身への **ask（WF203）付きの**書き込み（設定が読めない間も上限設定の書き換えを AI の裁量にしない。ヘッドレスでは deny になり人間が直す）
 4. チケットの frontmatter が読めない・`ticket_type` が `types` に無い → **deny WF211**。復旧経路: 提供コマンドの実行、そのチケットファイル自身の編集
 5. **書き込みツール**: 対象パス `p` を正規化（リポジトリルート相対）し、
-   - `p` が作業中チケット自身で、変更範囲が frontmatter の `ticket_type` / `allow` / `executor` / `human_review` / `predecessors` に及ぶ（Edit の `old_string` / `new_string` または Write の内容と現在値の差で判定）→ **deny WF208**。本文（DoD・作業ログ）だけなら許可
+   - `p` が作業中チケット自身で、変更範囲が frontmatter の `ticket_type` / `allow` / `executor` / `human_review` / `adversarial_review` / `predecessors` に及ぶ（Edit の `old_string` / `new_string` または Write の内容と現在値の差で判定）→ **deny WF208**。本文（DoD・作業ログ）だけなら許可
    - それ以外は `scope.sh` の判定順（共通仕様 §8）で allow / ask WF202 / ask WF203 / deny WF201
 6. **実行ツール**: `cmdpos.sh` で実行位置のコマンド列を得て、セグメントごとに:
    - 提供コマンド → 許可。ただし引数にパスを取るもの（`commit.sh -m .. <files>`、`ticket.sh create` の出力先）は各パスに 5 と同じ判定を適用する
@@ -71,7 +71,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WF205 | deny | コマンドによるファイル書き込み | 対象 / Edit・Write を使うこと |
 | WF206 | deny | 宣言に無いリモート書き込み | 操作の種別 / リモート書き込みは切れ目の処理か宣言内のみ |
 | WF207 | deny | 作業中が 2 枚以上 | チケット番号の一覧 / `ticket.sh` で 1 枚に戻す |
-| WF208 | deny | 作業中チケット自身の種類・宣言・実行者・レビュー要否の改変 | 変えようとした項目 / 見直しは未着手チケットか計画で |
+| WF208 | deny | 作業中チケット自身の種類・宣言・実行者・レビュー要否（人間・敵対的）の改変 | 変えようとした項目 / 見直しは未着手チケットか計画で |
 | WF209 | deny | 判定不能（opaque・縮退・入力不正） | 判定できなかった理由 / 言い換え（`ai-command-style`）またはユーザーへの報告 |
 | WF210 | deny | 上限設定なし・不正 | 設定パス / 復旧経路（設定とチケットの修正・提供コマンド） |
 | WF211 | deny | チケットの記載不正・種類が設定に無い | チケット / 復旧経路（記載の修正・`ticket.sh cancel`） |
@@ -83,7 +83,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 - WF201 / 204 / 205 / 206: 宣言の範囲内で進める。範囲を広げる必要があれば作業を止めてユーザーに提案する（未着手チケットの見直しまたは計画の追加チケット）。迂回しない
 - WF202 / 203: 確認に答える（ユーザー）。承認された未記載パスは同セッション内で再確認されない
 - WF207 / 211: `ticket.sh` で戻す・直す。WF210: ユーザーが `scope-limits.json` を直す（AI アセット実装のチケットでのみ AI が変更できる）
-- WF208: 変更を取り消す。実行者・レビュー要否の変更は未着手チケットの見直し（`00-workflow-issue-mr-driven` 手順 5-1）で行う
+- WF208: 変更を取り消す。実行者・レビュー要否（人間・敵対的）の変更は未着手チケットの見直し（`00-workflow-issue-mr-driven` 手順 5-1）で行う
 
 ## 記録（logs/）
 
@@ -102,7 +102,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WG-T06 | 正常系 | 読み取り系・提供コマンド・`remote-read` が通り、`echo x > src/a` が WF205、`npm test` は `build-test` を宣言したときだけ通る（無ければ WF204） |
 | WG-T07 | 異常系 | `gh issue create` が宣言無しで WF206、overall-plan の宣言ありで通る |
 | WG-T08 | 異常系 | 2 枚目の doing で提供コマンド以外が WF207 |
-| WG-T09 | 異常系 | 作業中チケットの `ticket_type` を Edit → WF208、作業ログの追記は通る |
+| WG-T09 | 異常系 | 作業中チケットの `ticket_type` や `adversarial_review.required` を Edit → WF208、作業ログの追記は通る |
 | WG-T10 | 異常系 | `eval "..."`・4096 文字超が WF209 |
 | WG-T11 | 異常系 | 設定なしで WF210 かつ設定ファイル自身の Write は ask（WF203）になる。設定ありのとき `.claude/hooks/config/**` と `.claude/settings.json` は ai-asset-implementation でも毎回 WF203。種類が設定に無いチケットで WF211 |
 | WG-T12 | 正常系 | EnterPlanMode が overall-plan で通り implementation で WF212 |

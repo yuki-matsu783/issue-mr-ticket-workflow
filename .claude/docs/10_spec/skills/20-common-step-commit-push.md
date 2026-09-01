@@ -84,7 +84,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 |---|------|------|
 | 1 | 未コミットの変更が無い | `git status --porcelain` が空 |
 | 2 | 作業中のチケットが無い | `wip/10_tickets/10_doing/` が空。ただし作業中チケットの「やってよいこと」に push が宣言されていれば通す |
-| 3 | レポート・計画書の対が揃っている | `wip/30_reports/`・`wip/20_plans/` の `.md` と `.html` が同じベース名で対になっている（内容の同期は HTML 検査とレビューが担う） |
+| 3 | レポート・計画書の対が揃っている | `wip/30_reports/`・`wip/20_plans/` の `.md` と `.html` が同じベース名で対になっている（内容の同期は HTML 検査とレビューが担う）。付録 `*-appendix-*.md`（`20-common-step-report-view` 仕様）は HTML を持たないので対の対象外 |
 | 4 | draft 解除後の作業領域が空 | `logs/` の記録が draft 解除済みを示すとき、`wip/` に `.gitkeep` 以外が無い |
 
 2. `wip/push-check-skip.md` に列挙された項目は飛ばし、飛ばした項目名を出力に含める（記録ファイル自体が未コミットなら項目 1 で止まる = 記録は必ず MR の差分になる）。ただし項目 4（draft 解除後の作業領域が空）は安全性の項目のため**スキップできない**（記録に書かれていても無視して検査する）

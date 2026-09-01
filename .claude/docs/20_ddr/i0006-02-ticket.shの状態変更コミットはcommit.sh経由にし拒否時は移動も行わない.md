@@ -14,8 +14,8 @@ keywords: [ticket.sh, commit.sh, 状態変更のコミット, 規約検査, 除�
 
 ## 決定
 
-- `ticket.sh` の create / start / complete / cancel は、状態変更のコミットを `commit.sh -m "<件名>" -- <チケットファイル>` で行う
-- `commit.sh` が拒否した（メッセージ規約・除外パターン・差分なし）ときは、その最終行をそのまま `ticket.sh` の失敗として返し、チケットファイルの移動も行わない（移動とコミットを分離しない）
+- `ticket.sh` の create / start / complete / cancel は、状態変更のコミットを `commit.sh -m "<件名>" <パス>...`（移動なら旧パスと新パス。`commit-push` 仕様のインターフェースどおり `--` は使わない）で行う
+- `commit.sh` が拒否した（メッセージ規約・除外パターン・差分なし）ときは、その最終行をそのまま `ticket.sh` の失敗として返し、作業ツリーを実行前の状態に戻す（移動・作成・記載事項の変更だけが済んだ状態を残さない）
 - `overall-plan` の create / start がコミットしない規定（DDR i0004-04）は維持する
 
 ## 理由
@@ -32,4 +32,4 @@ keywords: [ticket.sh, commit.sh, 状態変更のコミット, 規約検査, 除�
 ## 影響
 
 - `10_spec/skills/20-common-step-ticket.md`（Script 処理 冒頭・create 4・参照ナレッジ・TICKET-T10）
-- `10_spec/skills/20-common-step-commit-push.md`（変更なし。呼出条件が正になった）
+- `10_spec/skills/20-common-step-commit-push.md`（変更なし。呼出条件が正になった。引数形は同仕様の `commit.sh -m "<メッセージ>" <ファイル>...` に従う）

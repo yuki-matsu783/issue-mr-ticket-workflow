@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation-plan
-predecessors: ["0008", "0009", "0010"]
+predecessors: ["0008", "0009", "0010", "0012"]
 executor: main
 human_review: {required: true, reason: "ステップ順・許可範囲・テスト割付・ロックアウト対策の確認（全体計画の方針。承認④により opus 自己レビューで代替）"}
 adversarial_review: {required: false, reason: "計画書。実装の切れ目で実施する"}

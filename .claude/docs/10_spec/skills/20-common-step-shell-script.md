@@ -78,12 +78,20 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 
 ### 読み込み行（雛形の 1 行。logger と frontmatter.sh に共通）
 
-雛形が持つ読み込み行は、リポジトリルートを次の順で解決し、`<ルート>/.claude/skills/20-common-step-shell-script/scripts/<lib>.sh` を `source` する。各スクリプトはこの行をコピーして使い、中身を自作・改変しない（行の実体は `assets/script.template.sh` が正）。
+雛形が持つ読み込み行は `<lib>`（`logger` / `frontmatter` / `test-lib`）と失敗時ポリシー（`nop` / `fatal` / `deny`）を引数に取る 1 行で、リポジトリルートを次の順で解決して `<ルート>/.claude/skills/20-common-step-shell-script/scripts/<lib>.sh` を `source` する。解決したルートは `LOGGER_ROOT` に置き、logger と `frontmatter.sh` はこれを基準に `logs/` やパスを解決する。各スクリプトはこの行をコピーして引数だけを変え、中身を自作・改変しない（行の実体は `assets/script.template.sh` が正）。
 
 1. `${BASH_SOURCE[0]%/*}` を起点に、`.claude` ディレクトリを持つ親を上向きに探す（パラメータ展開だけで fork なし。スキルの `scripts/`・フックのイベントディレクトリ・両者の `tests/` のどの深さでも同じ行で動く。相対パスで起動されて親に登れないときは次へ）
 2. `CLAUDE_PROJECT_DIR`（Claude Code がフックに渡す。`\` は `/` に正規化）
 3. `git rev-parse --show-toplevel`（空文字なら不採用。`source "/.claude/..."` にしない）
-4. すべて失敗したら logger の 4 関数を no-op で定義して続行する（ログ機構の失敗が本体を止めない — `rules/logger.md`）。`frontmatter.sh` の読み込みに失敗した提供コマンドは、環境の誤りとして終了コード 2 で止まる（no-op にしない。判定に使う値が読めないため）
+4. すべて失敗したとき（またはライブラリファイルが無いとき）の振る舞いは失敗時ポリシーによる:
+
+| 呼び手 | lib | ポリシー | 失敗時 |
+|---|---|---|---|
+| 提供コマンド・フック・テスト | `logger` | `nop` | 4 関数を no-op で定義して続行（ログ機構の失敗が本体を止めない — `rules/logger.md`） |
+| 提供コマンド | `frontmatter` | `fatal` | 環境の誤りとして理由を最終行に出し終了コード 2（判定に使う値が読めないまま続行しない） |
+| フック（拒否側） | `frontmatter` | `deny` | フック共通仕様 §3「判定できなければ拒否側に倒す」に従い `WFx09` の deny JSON を出して終了 0 |
+| フック（案内側） | `frontmatter` | `nop` | 何も出さずに通す（§3 の案内側の原則） |
+| テスト | `test-lib` | `fatal` | テスト自身が理由を出して非 0 で終了 |
 
 `git rev-parse` だけに頼らないのは、フックが毎ツール呼び出しで git を起動することになる（Git Bash で約 95 ms/回）ことと、git 不在・リポジトリ外で `set -e` により即死することを避けるため。
 
@@ -112,10 +120,11 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 
 `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh [--filter <glob>] [--ids] [--timeout <秒>]`
 
-1. `.claude/hooks/**/tests/test_*.sh` と `.claude/skills/*/scripts/tests/test_*.sh` を列挙する（`--filter` で絞る）。0 本なら TR001
-2. 各テストを `timeout`（既定 120 秒）付きで `bash <test>` として実行し、最終行（集計行）と終了コードを集める。`PASS <ID>` / `FAIL <ID>: ...` 行から ID を抽出する
-3. ファイルごとの結果（PASS / FAIL / TIMEOUT）を表で出し、`--ids` なら PASS / FAIL した ID の一覧も出す（仕様書の「テスト観点」表との突合用）
-4. すべて PASS なら `OK: <N> 本 / <ID 数> 件` で 0。FAIL があれば TR002、TIMEOUT があれば TR003（両方あれば両方列挙）で 1。引数不正は TR004、`timeout` コマンド不在等の環境不備は TR005 で 2
+1. 作業中チケット（`wip/10_tickets/10_doing/`）があれば、その `allow.ops` に `build-test`（対象に `.claude/hooks/**` のテストを含むなら `hook-test` も）が無ければ TR006 で拒否する（提供コマンドは分類を問わずフックが許可するため、宣言の検査をコマンド側で行う — フック共通仕様 §8）。作業中チケットが無いとき（切れ目・実装計画外の実行）は検査しない
+2. `.claude/hooks/**/tests/test_*.sh` と `.claude/skills/*/scripts/tests/test_*.sh` を列挙する（`--filter` で絞る）。0 本なら TR001
+3. 各テストを `timeout`（既定 120 秒）付きで `bash <test>` として実行し、最終行（集計行）と終了コードを集める。`PASS <ID>` / `FAIL <ID>: ...` 行から ID を抽出する
+4. ファイルごとの結果（PASS / FAIL / TIMEOUT）を表で出し、`--ids` なら PASS / FAIL した ID の一覧も出す（仕様書の「テスト観点」表との突合用。同じ ID が複数のテストに現れたら重複として報告する）
+5. すべて PASS なら `OK: <N> 本 / <ID 数> 件` で 0。FAIL があれば TR002、TIMEOUT があれば TR003（両方あれば両方列挙）で 1。引数不正は TR004、`timeout` コマンド不在等の環境不備は TR005、宣言不足は TR006 で 1
 
 | ID | 条件 |
 |----|------|
@@ -124,6 +133,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | TR003 | タイムアウトしたテストがある |
 | TR004 | 引数の誤り |
 | TR005 | 実行環境の不備（bash / timeout / jq の不在） |
+| TR006 | 作業中チケットの `allow.ops` に `build-test`（必要なら `hook-test`）が無い |
 
 ### logger.sh（source 専用）
 
@@ -157,7 +167,8 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | TR-T01 | 正常系 | 2 つの置き場のテストを列挙し、全 PASS で `OK:` と ID 数 |
 | TR-T02 | 異常系 | FAIL を含むテストで TR002 とファイル・ID の列挙、非 0 |
 | TR-T03 | 異常系 | 無限ループするテストが TR003 で止まる |
-| TR-T04 | 境界 | `--filter` の絞り込みと 0 本のときの TR001、`--ids` の一覧 |
+| TR-T04 | 境界 | `--filter` の絞り込みと 0 本のときの TR001、`--ids` の一覧と重複 ID の報告 |
+| TR-T05 | 異常系 | `allow.ops` に `build-test` の無い作業中チケットがあるときは TR006 で実行しない。作業中チケットが無ければ実行する |
 
 ## 要件との対応
 

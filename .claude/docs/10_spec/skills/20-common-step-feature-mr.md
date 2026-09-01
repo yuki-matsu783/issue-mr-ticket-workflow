@@ -50,7 +50,7 @@ gh pr create --draft --title "feat: ログイン検証の不備 (#12)" --body-fi
 2. **default ブランチの特定と最新化**: `gh repo view --json defaultBranchRef` / `glab repo view`（取れなければ `git remote show origin` の HEAD branch）。`git fetch origin` で最新を取得する
 3. **ブランチ作成**: 同名ブランチが既にあれば作らず、別の slug 案を添えて呼び出し元に返す。無ければ `git checkout -b <ブランチ名> origin/<default>` で作成する（ローカル default の状態に依存しない）
 4. **開始コミット**: 持ち越した作業中チケットの「差分の基準点」を作成元コミット（`origin/<default>` の SHA）に書き換えてから（default 上で記録した HEAD が作成元と異なる場合の差分検知の誤検知を防ぐ）、持ち越した `wip/` 配下の未追跡ファイル（全体計画チケット等）を `commit.sh -m "chore: #<N> <slug> の作業を開始" wip/...` でコミットする（コミットを保留した全体計画チケットの記録がここで feature ブランチに載る — `20-common-step-ticket` 仕様）。載せるファイルが無い場合のみ `--allow-empty` で空コミットを作る。続けて `push.sh` で push する（上流設定はコマンドが行う）
-5. **draft MR の作成**: 現在ブランチに open な MR が既にあるか確認し（`gh pr view --json number,url,state` / `glab mr list --source-branch <ブランチ> --per-page 20`）、あればその番号と URL を返して終える。無ければテンプレートから本文を `wip/tmp/mr-body.md` に作り、GitHub は `gh pr create --draft --title <タイトル> --body-file ...`、GitLab は `glab mr create --draft --title ... --description "$(cat wip/tmp/mr-body.md)"` で作成する（glab に本文のファイル渡しフラグが無いため。作成時の本文は短いテンプレート骨格なので文字列渡しを許す。以後の本文更新は長くなるため `20-common-step-issue` 仕様「GitLab の長文送信」の API 経由で行う）。失敗したらコマンドと出力を返して停止し、別の手段で再試行しない
+5. **draft MR の作成**: 現在ブランチに open な MR が既にあるか確認し（`gh pr view --json number,url,state` / `glab mr list --source-branch <ブランチ> --per-page 20`）、あればその番号と URL を返して終える。無ければテンプレートから本文を `wip/tmp/mr-body.md` に作り、GitHub は `gh pr create --draft --title <タイトル> --body-file ...`、GitLab は `glab api projects/:id/merge_requests -X POST --raw-field "source_branch=<ブランチ名>" --raw-field "target_branch=<default>" --raw-field "title=Draft: <タイトル>" --raw-field "description=@wip/tmp/mr-body.md"` で作成する（draft はタイトルの `Draft: ` 接頭辞で表す。本文はファイル渡しで、`20-common-step-issue` 仕様「GitLab の長文送信」が正。`glab mr create --description` への文字列渡しは使わない）。失敗したらコマンドと出力を返して停止し、別の手段で再試行しない
 6. **報告**: ブランチ名・MR の番号と URL を呼び出し元に返し、一時ファイルを削除する
 
 ## OUT ひな形
@@ -76,6 +76,14 @@ gh pr create --draft --title "feat: ログイン検証の不備 (#12)" --body-fi
 ## Script 処理
 
 なし。git / CLI の単発呼び出しの列で、状態はブランチと MR 自体が持つため（冪等性は手順 3・5 の存在確認で実現）。
+
+### テスト観点（eval）
+
+| eval ID | 入力（プロンプトと状況） | 期待する振る舞い | 判定方法 |
+|---------|------------------------|-----------------|---------|
+| FM-E01 | issue 連携モードで issue #N が確定している | default を最新化してから `feature-N-<slug>` を切り、開始コミットを積んで push し、`Closes #N` を含む draft MR を作る | ブランチ名・開始コミット・MR の draft 状態と本文 |
+| FM-E02 | 同じブランチ・MR が既にある状態で再実行 | 作り直さず既存を再利用して報告する（冪等） | 二重作成が無いこと |
+| FM-E03 | origin が GitHub でも GitLab でもない | 対象外として報告して停止する | 停止と理由 |
 
 ## 要件との対応
 

@@ -1,0 +1,6 @@
+# シェルスクリプトと機構の設定・テンプレートは LF で固定する（bash は CRLF を解釈できない。フック共通仕様 §8）
+# 既存の md を再正規化しないため、拡張子を限定する
+*.sh   text eol=lf
+*.tsv  text eol=lf
+*.json text eol=lf
+*.html text eol=lf

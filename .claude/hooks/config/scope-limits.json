@@ -1,0 +1,27 @@
+{
+  "common": {
+    "allow": ["wip/10_tickets/**", "wip/20_plans/**", "wip/30_reports/**", "wip/tmp/**", "wip/00_overall_plan/**", "wip/push-check-skip.md"],
+    "protected": [".claude/**", ".gitignore", ".gitattributes"],
+    "confirm": [".claude/hooks/config/**", ".claude/settings.json"],
+    "file_granular": ["CLAUDE.md"],
+    "state_files": ["logs/mr.json", "logs/review-state.json", "logs/review-history.jsonl", "logs/merge-state.json"]
+  },
+  "types": {
+    "overall-plan": {"ops": ["read", "remote-read", "remote-write:issue-create", "remote-write:issue-append", "remote-write:mr-create", "remote-write:push"], "plan_mode": true},
+    "investigation-plan": {"deny": ["src/**", "docs/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "investigation": {"deny": ["src/**", "docs/**", ".claude/**"], "ops": ["read", "remote-read", "build-test", "web"]},
+    "design-plan": {"deny": ["src/**", "docs/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "design": {"allow": ["docs/**"], "deny": ["src/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "implementation-plan": {"deny": ["src/**", "docs/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "implementation": {"allow": ["src/**", "tests/**"], "deny": [".claude/**", "docs/**"], "confirm": ["package.json"], "ops": ["read", "build-test", "remote-read"]},
+    "feedback-plan": {"ops": ["read", "remote-read", "remote-write:issue-create"]},
+    "design-feedback-plan": {"deny": ["src/**", "docs/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "design-feedback": {"allow": ["docs/**"], "deny": ["src/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "ai-asset-design-plan": {"deny": ["src/**", "docs/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "ai-asset-design": {"allow": [".claude/docs/**"], "deny": [".claude/skills/**", ".claude/hooks/**", ".claude/rules/**", ".claude/agents/**", ".claude/settings.json", "src/**"], "ops": ["read", "remote-read"]},
+    "ai-asset-implementation-plan": {"deny": ["src/**", "docs/**", ".claude/**"], "ops": ["read", "remote-read"]},
+    "ai-asset-implementation": {"allow": [".claude/skills/**", ".claude/hooks/**", ".claude/rules/**", ".claude/agents/**", ".claude/settings.json", ".claude/evals/**", "CLAUDE.md", ".gitattributes"], "deny": [".claude/docs/**", "src/**"], "ops": ["read", "build-test", "hook-test", "remote-read"]},
+    "overall-summary": {"ops": ["read", "remote-read", "remote-write:issue-create", "remote-write:mr-edit", "remote-write:mr-comment", "remote-write:attach", "remote-write:push", "remote-write:draft-ready", "merge-base"]}
+  },
+  "commands": {"build-test": []}
+}

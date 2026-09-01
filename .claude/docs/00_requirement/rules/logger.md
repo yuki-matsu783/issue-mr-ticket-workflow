@@ -48,7 +48,7 @@ sh ファイルを書くときのログの規約を定めるルール（`.claude
 
 ### ルールが定める内容（ルール本文の必須項目）
 
-- **使い方**: 冒頭で `source "$(git rev-parse --show-toplevel)/.claude/skills/20-common-step-shell-script/scripts/logger.sh"`。提供される関数は `log_debug` / `log_info` / `log_warn` / `log_error`（各 1 引数。複数引数はスペース連結）
+- **使い方**: 冒頭で、`20-common-step-shell-script` の雛形が持つ**読み込み行（1 行）**で共通 logger を読み込む。行の中身を自作・改変しない。読み込みに失敗してもログ機構が本体を止めない（ルートの解決順と失敗時の振る舞いの正は `10_spec/skills/20-common-step-shell-script.md`「読み込み行」。経緯は DDR i0006-06）。提供される関数は `log_debug` / `log_info` / `log_warn` / `log_error`（各 1 引数。複数引数はスペース連結）
 - **レベル**: DEBUG < INFO < WARN < ERROR。`LOG_LEVEL` の有効値は 4 レベル名（未設定・無効値は INFO に正規化）。使い分け — 受け付けた操作・判定結果・拒否理由は INFO、判定材料の詳細（比較した値・走査したファイル）は DEBUG、想定外だが続行できる事象は WARN、続行できない失敗は ERROR
 - **内部仕様の参照**: 行フォーマット・出力先（`logs/sh/<出どころ>.log`）・出どころの導出・失敗時の黙殺の詳細は `10_spec/skills/20-common-step-shell-script.md` が正。ルール本文には要点（自動付与される情報・ファイルにのみ書く・失敗しても本体を止めない）だけを書き、詳細を再掲しない
 - **禁止**: 標準出力・標準エラーへのログ出力（ファイルのみ。フックの応答・スクリプトの結果出力と混ぜない）。環境変数の値・トークン・クレデンシャル・個人情報のログ出力

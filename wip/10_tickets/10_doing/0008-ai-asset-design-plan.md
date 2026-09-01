@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T06:29:06+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "8c1fa88"
 ---
 
 # 0008 実測を待たずに決められる仕様変更の設計計画

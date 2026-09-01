@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation-plan
-predecessors: ["0012", "0013", "0014", "0015"]
+predecessors: ["0012", "0013", "0014", "0015", "0019", "0020", "0021", "0022"]
 executor: main
 human_review: {required: true, reason: "基準どおり（許可範囲とロックアウト対策を実装前に見る。承認④により opus の敵対的自己レビューで代替）"}
 adversarial_review: {required: true, reason: "全体計画の方針: 基準（不要）から要へ。中核（フック・settings.json）とロックアウト対策を含むため"}

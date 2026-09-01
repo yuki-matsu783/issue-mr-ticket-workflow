@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-design-plan
-predecessors: ["0003", "0004", "0005"]
+predecessors: ["0003", "0004", "0005", "0007"]
 executor: main
 human_review: {required: false, reason: "対象なしの見込み。対象ありなら結果報告で示し、実施側でレビュー（全体計画の方針）"}
 adversarial_review: {required: false, reason: "計画書 1 枚"}

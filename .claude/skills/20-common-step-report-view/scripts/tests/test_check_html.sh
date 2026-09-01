@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_check_html.sh — check-html.sh とテンプレート 2 本のテスト（仕様のテスト ID: RV-T01〜06）
+# test_check_html.sh — check-html.sh とテンプレート 2 本のテスト（仕様のテスト ID: RV-T01〜07）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*check_html*'
 set -uo pipefail
 
@@ -124,5 +124,26 @@ B2="$WORK/attr-removed.html"
 sed -e 's|<dl class="meta" id="meta" data-required>|<dl class="meta" id="meta">|' "$R" > "$B2"
 run_cmd bash "$CHECK" "$B2"
 assert_exit "RV-T06" 0
+
+# RV-T07 引数・ファイル不正は検査に入る前に RV008・終了 2（最終行が RV008:）。導出元テンプレート不明は検査 6 の不合格 RV006・終了 1（RV008 ではない）
+run_cmd bash "$CHECK"
+assert_exit "RV-T07" 2
+assert_eq "RV-T07" "RV008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$CHECK" "$R" "$P"
+assert_exit "RV-T07" 2
+assert_contains "RV-T07" "RV008: 引数は HTML ファイル 1 つ"
+run_cmd bash "$CHECK" "$WORK/nosuch.html"
+assert_exit "RV-T07" 2
+assert_eq "RV-T07" "RV008: ファイルが無い: $WORK/nosuch.html" "${R_OUT##*$'\n'}"
+printf 'plain\n' > "$WORK/not-html.txt"
+run_cmd bash "$CHECK" "$WORK/not-html.txt"
+assert_exit "RV-T07" 2
+assert_eq "RV-T07" "RV008: .html 以外は検査しない: $WORK/not-html.txt" "${R_OUT##*$'\n'}"
+assert_not_contains "RV-T07" "RV001"
+# 負のケースの正の期待値: data-template 無し + 置き場外は RV006 で終了 1（引数・ファイルは正しいので RV008 を出さない）
+run_cmd bash "$CHECK" "$E2"
+assert_exit "RV-T07" 1
+assert_contains "RV-T07" "RV006: テンプレートを特定できない"
+assert_not_contains "RV-T07" "RV008"
 
 finish

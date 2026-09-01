@@ -2,7 +2,7 @@
 # check-html.sh — HTML ビューの機械検査（提供コマンド）
 # 仕様: .claude/docs/10_spec/skills/20-common-step-report-view.md「check-html.sh」
 # 使い方: bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <file.html>
-#   検査 1〜7（RV001〜RV007）を全項目実行し、未充足を全件列挙する。必須節はテンプレート（<body data-template="report|plan">
+#   検査 1〜7（RV001〜RV007）を全項目実行し、未充足を全件列挙する。引数・ファイル不正は検査に入る前に RV008（終了 2）。必須節はテンプレート（<body data-template="report|plan">
 #   で特定。無ければ置き場のディレクトリで推定）の data-required 要素から導出する。
 # 終了コード: 成功 0 / 検査不合格 1 / 引数・ファイル不正 2。最終行は `OK: ...` または `RV<番号>: ...`
 set -euo pipefail
@@ -26,19 +26,16 @@ usage() {
 USAGE
 }
 
-result_ng2() { log_warn "${SCRIPT_PREFIX}: $1"; printf '%s\n' "$1"; exit 2; }
+# 引数・ファイル不正（検査に入る前）。最終行は RV008: で終了 2
+result_ng2() { log_warn "$1"; printf '%s\n' "$1"; exit 2; }
 
-# HTML コメントを除く（純 bash。地の文で <style> や id="…" に触れるコメントを数えないため）
+# HTML コメントを除く（地の文で <style> や id="…" に触れるコメントを数えないため）。
+# awk 1 回で index 走査する: bash の ${s%%<!--*} は数十 KB の文字列で 1 回 0.2〜0.4 秒かかり、コメントの多い HTML では
+# 1 検査に数秒を要した（テスト 1 本が run-tests.sh の上限に当たる）。閉じの無いコメントは末尾まで落とす（従来と同じ）
 strip_comments() { # $1=内容 → REPLY
-  local s="$1" pre rest
-  local LC_ALL=C   # 区切りは ASCII なのでバイト単位で探す（多バイト文字列のパターン照合は桁違いに遅い）
-  while [[ "$s" == *"<!--"* ]]; do
-    pre="${s%%<!--*}"
-    rest="${s#*<!--}"
-    if [[ "$rest" == *"-->"* ]]; then rest="${rest#*-->}"; else rest=""; fi
-    s="$pre$rest"
-  done
-  REPLY="$s"
+  REPLY="$(printf '%s' "$1" | awk 'BEGIN { RS = "\001" } { s = $0; out = ""
+    while ((i = index(s, "<!--")) > 0) { out = out substr(s, 1, i - 1); s = substr(s, i + 4); j = index(s, "-->"); if (j == 0) { s = ""; break }; s = substr(s, j + 3) }
+    printf "%s", out s }')"
 }
 
 # 開きタグ内の id 属性だけを抽出する
@@ -58,12 +55,12 @@ extract_required() {
 }
 
 main() {
-  [ $# -eq 1 ] || { usage; result_ng2 "RV: 引数は HTML ファイル 1 つ"; }
+  [ $# -eq 1 ] || { usage; result_ng2 "RV008: 引数は HTML ファイル 1 つ"; }
   case "$1" in -h|--help) usage; exit 0 ;; esac
   local file="$1"
-  cd "$LOGGER_ROOT" || result_ng2 "RV: リポジトリルートに移動できない: $LOGGER_ROOT"
-  [ -f "$file" ] || result_ng2 "RV: ファイルが無い: $file"
-  case "$file" in *.html) ;; *) result_ng2 "RV: .html 以外は検査しない: $file" ;; esac
+  cd "$LOGGER_ROOT" || result_ng2 "RV008: リポジトリルートに移動できない: $LOGGER_ROOT"
+  [ -f "$file" ] || result_ng2 "RV008: ファイルが無い: $file"
+  case "$file" in *.html) ;; *) result_ng2 "RV008: .html 以外は検査しない: $file" ;; esac
   log_info "start $file"
 
   local raw body

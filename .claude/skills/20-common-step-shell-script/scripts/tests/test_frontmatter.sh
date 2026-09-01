@@ -96,5 +96,23 @@ assert_eq "FR-T05" "x" "$R_OUT"
 assert_not_contains "FR-T05" "not found"
 fm fm_get ticket.md human_review.required
 assert_not_contains "FR-T05" "not found"
+# 外部プロセスを起動しない: 呼び出しを数える PATH で 4 関数を通して 0 回。正のコントロールは同じ PATH で cat を 1 回
+make_counting_path cat sed grep awk tr cut head tail sort
+run_cmd bash -c 'export PATH="$1"; source "$2" || exit 9; fm_get "$3" ticket_type; fm_list "$3" allow.write; fm_get "$3" human_review.reason; fm_has "$3" allow' _ "$COUNTING_PATH" "$LIB" ticket.md
+assert_exit "FR-T05" 0
+assert_eq "FR-T05" "0" "$(counted_calls)"
+run_cmd bash -c 'export PATH="$1"; cat "$2" >/dev/null' _ "$COUNTING_PATH" ticket.md
+assert_exit "FR-T05" 0
+assert_eq "FR-T05" "1" "$(counted_calls cat)"
+# 配列・インラインマップのキーへの fm_get は生の文字列（呼び手が形を確かめる用途）。ブロックマッピングのキーは空で 1
+fm fm_get ticket.md predecessors
+assert_exit "FR-T05" 0
+assert_eq "FR-T05" "[\"0006\", '0007']" "$R_OUT"
+fm fm_get ticket.md human_review
+assert_exit "FR-T05" 0
+assert_eq "FR-T05" '{required: true, reason: "a: b, c"}' "$R_OUT"
+fm fm_get ticket.md allow
+assert_exit "FR-T05" 1
+assert_eq "FR-T05" "" "$R_OUT"
 
 finish

@@ -120,7 +120,7 @@
   <h1 id="title" data-required>AI アセット実装 結果報告（2 回目、チケット 0033〜0036）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 1</span>
+    <span class="chip good">◎良 2</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -135,6 +135,7 @@
         <ol class="toc-sub">
           <li><a href="#f1"><span class="mk good">◎</span> 1. 0033: テンプレート 2 本、commit.sh / push.sh の CP007 / CP008、CP-T08</a></li>
           <li><a href="#f2"><span class="mk warn">△</span> 2. 0034: ticket.sh の TK008・yaml_escape・見出し重複検査、TICKET-T12</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 0035: check-html.sh の RV008、hook_payload --session、HK-T15 の付番、RV-T07 と 3 テストの追記</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -158,7 +159,7 @@
 <section id="overview" data-required>
   <p class="lead">設計 0028〜0032 が仕様に書き戻した内容のうち実装を伴う 9 件を、計画 0031 の固定順で実装する。各チケットはテストを先に書いて失敗を確認してから実装し、<code>run-tests.sh --ids</code> の全件と参照更新の検索で確かめる。「自分が使っている提供コマンドを自分で変える」チケットは、変更後の自分のコマンドで自分をコミット・完了させることを最初の実機確認にする。このレポートは 0033 が作り、0034〜0036 が節を追記する。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>1</b><span>◎良</span></li>
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -167,7 +168,7 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li>0034: <code>create</code> がエスケープして書いた値は <code>fm_get</code> でエスケープ済みの形のまま読まれる（<code>frontmatter.sh</code> にアンエスケープが無い）。0035 で <code>frontmatter.sh</code> 側を直す判断でよいか（<a href="#f2">2</a>・<a href="#next">逸脱 D2-2</a>）</li>
+        <li>0034 / 0035: <code>create</code> がエスケープして書いた値は <code>fm_get</code> でエスケープ済みの形のまま読まれる（<code>frontmatter.sh</code> にアンエスケープが無い）。書き手（<code>ticket.sh</code>）と読み手（<code>frontmatter.sh</code>・TICKET-T05）の許可範囲が別チケットに割れていたため 0035 でも直せず、3/3 に送る判断でよいか（<a href="#f2">2</a>・<a href="#next">逸脱 D2-2</a>）</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -229,7 +230,24 @@
           <tr><td>テスト</td><td>TICKET-T12（新）、T03（重複 → 未充足 8 件）、T05（記号入りの <code>create</code>: ファイルはエスケープ済み・読めて壊れない）、T10（index が空）</td><td>TICKET-T03 / T05 / T10 / T12</td></tr>
         </tbody>
       </table>
-      <p>注意点: <code>fm_get</code> / <code>fm_list</code> はクォート内の <code>\"</code> / <code>\\</code> を解除しないため、往復で元の値に戻らない（逸脱 D2-2。0035 で <code>frontmatter.sh</code> を直す）。途中で <code>yaml_escape</code> の挿入が 1 回失敗し 68 assert が落ちる状態を経たが、挿入し直して回復（壊れていた間に提供コマンドは使っていない）。</p>
+      <p>注意点: <code>fm_get</code> / <code>fm_list</code> はクォート内の <code>\"</code> / <code>\\</code> を解除しないため、往復で元の値に戻らない（逸脱 D2-2。3/3 で <code>frontmatter.sh</code> と TICKET-T05 を同じチケットで直す）。途中で <code>yaml_escape</code> の挿入が 1 回失敗し 68 assert が落ちる状態を経たが、挿入し直して回復（壊れていた間に提供コマンドは使っていない）。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">0035: check-html.sh の RV008、hook_payload --session、HK-T15 の付番、RV-T07 と 3 テストの追記 <span class="chip good">◎良</span> <span class="basis">根拠: テスト先行（FAIL 4 + 7 → 0）、全件 14 本 / 59 件、参照更新（<code>"RV: </code> 0 件・HK-T11 21 件・HK-T15 93 件）、新版 check-html.sh でこの HTML が OK</span></h3>
+      <table>
+        <thead><tr><th>変更</th><th>内容</th><th>仕様の節</th></tr></thead>
+        <tbody>
+          <tr><td><code>check-html.sh</code></td><td>引数・ファイル不正の最終行 <code>RV:</code> → <code>RV008:</code>（4 か所、終了 2）。ログの二重 prefix を解消</td><td>report-view Script 処理・RV008</td></tr>
+          <tr><td><code>check-html.sh</code>（計画外・性能のみ）</td><td><code>strip_comments</code> を bash の接尾辞除去ループから awk 1 回の index 走査に。出力は 4 本の HTML で一致。1 検査 7.0 → 3.1 秒、<code>test_check_html.sh</code> 121 → 41 秒</td><td>仕様の変更なし（逸脱 D2-4）</td></tr>
+          <tr><td><code>test-lib.sh</code></td><td><code>hook_payload &lt;event&gt; &lt;tool&gt; [--session &lt;id&gt;] [key=value ...]</code>。第 3 引数の位置でだけ解釈、既定 <code>testsession</code></td><td>shell-script OUT ひな形</td></tr>
+          <tr><td>RV-T07（新）</td><td>引数なし・2 つ・存在しない・<code>.html</code> 以外 → <code>RV008:</code> 終了 2。テンプレート不明は RV006 終了 1 で RV008 を含まない</td><td>RV-T07</td></tr>
+          <tr><td>HK-T15（付け替え）</td><td><code>test_scope.sh</code> の glob 以外 5 ケース 93 assert を HK-T11 → HK-T15。HK-T11 は 21 行（20 + コメント）</td><td>§11 HK-T11 / T15</td></tr>
+          <tr><td>HK-T07 / T08</td><td>3 セッションを <code>--session</code> で組み、<code>tool_input</code> に漏れない・既定不変・ヘッドレス deny の決定ログが指定 ID</td><td>§11 HK-T07 / T08</td></tr>
+          <tr><td>SS-T04 / TR-T04 / FR-T05</td><td>読み込み行の 3 ポリシー（nop の <code>LOGGER_ROOT</code> / fatal 終了 2 / deny JSON と <code>HOOK_DENY_ID</code>）/ <code>timeout</code> 不在 → TR005 終了 2 / 計数 PATH 0 回 + 正のコントロール、list・inline キーの生文字列</td><td>SS-T04 / TR-T04 / FR-T05</td></tr>
+        </tbody>
+      </table>
+      <p>テスト先行: 旧実装で <code>test_check_html.sh</code> FAIL 4 / <code>test_hook_common.sh</code> FAIL 7（他 4 本の追記は既存の振る舞いの追認で PASS）→ 実装後 51 / 108 とも全 PASS。全件: 個別実行で 14 本すべて PASS（<code>test_check_html.sh</code> が 121 秒で <code>run-tests.sh</code> の上限 120 秒に当たっていたため <code>strip_comments</code> を直し 41 秒に）、<code>run-tests.sh --ids</code> → <code>OK: 14 本 / 59 件</code>（+ RV-T07 + HK-T15。重複 ID の報告は 0033 の CP-T08 のみ）。0034 の申し送り（<code>frontmatter.sh</code> のアンエスケープ）は許可範囲の割れ（読み手は 0035、TICKET-T05 は 0034 側）で実行できず 3/3 へ。</p>
     </li>
   </ol>
 </section>
@@ -237,7 +255,7 @@
 <section id="verified">
   <h2>検証の結果</h2>
   <ul>
-    <li><code>run-tests.sh --ids</code> 全件 PASS（14 本 / 56 件、重複 ID なし）。<code>bash -n</code> OK</li>
+    <li><code>run-tests.sh --ids</code> 全件 PASS（14 本 / 56 件。重複 ID の報告: CP-T08 が <code>test_commit.sh</code> と <code>test_push.sh</code> の両方 — 仕様の 1 行が 2 スクリプトにまたがるため。0035 で気づいて訂正）。<code>bash -n</code> OK</li>
     <li>ロックアウト対策の最初の操作: 0033 の成果物を変更後の <code>commit.sh</code> でコミットし、<code>ticket.sh complete 0033</code> を通し、完了コミット直後に <code>push.sh</code></li>
   </ul>
 </section>
@@ -247,7 +265,10 @@
   <table>
     <thead><tr><th>#</th><th>チケット</th><th>逸脱</th><th>理由</th><th>送り先</th></tr></thead>
     <tbody>
-      <tr><td>D2-1</td><td>0033</td><td>冒頭段落のプレースホルダ名を プレースホルダ PROHIBITIONS とした（仕様は名前を定めない）</td><td>ひな形の規約（<code>二重波括弧形式</code>）</td><td>なし</td></tr>
+      <tr><td>D2-1</td><td>0033</td><td>冒頭段落のプレースホルダ名を PROHIBITIONS とした（仕様は名前を定めない）</td><td>ひな形の規約（二重波括弧形式）</td><td>なし</td></tr>
+      <tr><td>D2-2</td><td>0034</td><td><code>fm_get</code> / <code>fm_list</code> がクォート内のエスケープを解除せず、<code>create</code> の値が往復で元に戻らない</td><td><code>frontmatter.sh</code> は 0034 の、<code>test_ticket.sh</code> は 0035 の許可範囲外（書き手と読み手が別チケット）</td><td>3/3（アンエスケープと TICKET-T05 の期待値を同じチケットで。仕様に明記）</td></tr>
+      <tr><td>D2-3</td><td>0034</td><td>TICKET-T12 の負のコントロールを <code>complete 9999</code> にした</td><td><code>start</code> は TK002 を先に見る</td><td>なし</td></tr>
+      <tr><td>D2-4</td><td>0035</td><td>計画の A6 に無い <code>strip_comments</code> の置き換え（bash → awk）。仕様の振る舞いは不変</td><td><code>test_check_html.sh</code> が上限 120 秒に当たり全件 PASS を満たせない。許可範囲の内側で出力一致を確認</td><td>なし（3/3 で awk 前提を仕様に足すか判断）</td></tr>
     </tbody>
   </table>
 </section>
@@ -258,6 +279,8 @@
     <li>（0033）<code>run-tests.sh --filter</code> はルート相対パスの glob。<code>test_commit*</code> では 0 本（TR001）になり <code>'*test_commit*'</code> が要る</li>
     <li>（0034）値の往復は書き手（<code>ticket.sh</code>）だけでは成立せず、読み手（<code>frontmatter.sh</code>）のアンエスケープが要る</li>
     <li>（0034）<code>start</code> は TK002 を TK004 より先に判定するので、作業中がある状態では「対象不在」の負のコントロールに使えない</li>
+    <li>（0035）書き手と読み手の許可範囲が別チケットに割れていると、値の往復のような両側にまたがる修正はどちらのチケットでもできない。計画は「往復が要る修正は両側を同じチケットに置く」を確かめる</li>
+    <li>（0035）<code>run-tests.sh --ids</code> の全件が 400 秒の呼び出しで終わらなかった。<code>test_check_html.sh</code> が 1 本あたりの上限 120 秒の際（121 秒）にあり、原因は <code>check-html.sh</code> の <code>strip_comments</code>（bash の <code>${s%%&lt;!--*}</code> が 1 回 0.2〜0.4 秒）。awk に置き換えて解消（計画外の性能修正、D2-4）</li>
   </ul>
 </section>
 
@@ -265,7 +288,7 @@
   <h2>残課題</h2>
   <ul>
     <li>（0033）commit-push の SKILL.md のエラー表に CP007 / CP008 の行が無い状態が 0036 まで続く（計画どおり）</li>
-    <li>（0034）0035 へ: <code>frontmatter.sh</code> の <code>__fm_unquote</code> でエスケープ解除、TICKET-T05 の期待値を元の値に戻す。3/3 へ: <code>fm_get</code> の「クォートは外す」にエスケープ解除を明記</li>
+    <li>（0034 → 0035 → 3/3）<code>frontmatter.sh</code> の <code>__fm_unquote</code> でエスケープ解除、TICKET-T05 の期待値を元の値に戻す（同じチケットで）。<code>fm_get</code> の「クォートは外す」にエスケープ解除を明記</li>
   </ul>
 </section>
 

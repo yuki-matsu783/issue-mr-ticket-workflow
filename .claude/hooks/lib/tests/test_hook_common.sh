@@ -121,9 +121,10 @@ case_hk_t06() {
 # ---- HK-T07: セッション状態が session_id ごとに分離される ----
 case_hk_t07() {
   local pa pb pe
-  pa='{"hook_event_name":"PreToolUse","tool_name":"Bash","session_id":"sessA","tool_input":{"command":"ls"}}'
-  pb='{"hook_event_name":"PreToolUse","tool_name":"Bash","session_id":"sessB","tool_input":{"command":"ls"}}'
-  pe='{"hook_event_name":"PreToolUse","tool_name":"Bash","session_id":"../evil","tool_input":{"command":"ls"}}'
+  # 入力は test-lib の hook_payload --session で組む（session_id だけが違う 2 セッション）
+  pa="$(hook_payload PreToolUse Bash --session sessA command=ls)"
+  pb="$(hook_payload PreToolUse Bash --session sessB command=ls)"
+  pe="$(hook_payload PreToolUse Bash --session '../evil' command=ls)"
   run_cmd bash "$TMP_REPO/drv.sh" workflow-entry deny session '{"prompt_seq":3}' <<<"$pa"
   assert_eq "HK-T07" '{"prompt_seq":3}' "$R_OUT"
   run_cmd bash "$TMP_REPO/drv.sh" workflow-entry deny session-read <<<"$pb"
@@ -139,6 +140,12 @@ case_hk_t07() {
   run_cmd bash "$TMP_REPO/drv.sh" workflow-entry deny read < <(hook_payload PreToolUse Bash command=$'git status\necho x')
   assert_contains "HK-T07" "rc=0 sid=testsession tool=Bash ev=PreToolUse cmd=git status"
   assert_contains "HK-T07" "echo x"
+  # --session は第 3 引数の位置でだけ解釈され、tool_input のフィールドにはならない（既定は testsession のまま）
+  run_cmd bash "$TMP_REPO/drv.sh" workflow-entry deny read < <(hook_payload PreToolUse Bash --session sessC command='git status')
+  assert_contains "HK-T07" "rc=0 sid=sessC tool=Bash ev=PreToolUse cmd=git status"
+  assert_eq "HK-T07" "sessA" "$(hook_payload PreToolUse Bash --session sessA command=ls | tl_jq -r '.session_id')"
+  assert_eq "HK-T07" "null" "$(hook_payload PreToolUse Bash --session sessA command=ls | tl_jq -r '.tool_input["--session"]')"
+  assert_eq "HK-T07" "testsession" "$(hook_payload PreToolUse Bash command=ls | tl_jq -r '.session_id')"
 }
 
 # ---- HK-T08: ヘッドレスで ask が deny になる ----
@@ -163,6 +170,12 @@ case_hk_t08() {
   assert_contains "HK-T08" 'WF202: 未記載のパス'
   run_cmd tail -n 1 "$DEC"
   assert_contains "HK-T08" '"decision":"deny"'
+  # ヘッドレスの deny は入力の session_id で記録される（--session で変えた ID が決定ログに載る）
+  run_cmd env WORKFLOW_HEADLESS=1 bash "$TMP_REPO/drv.sh" workflow-guard deny ask WF202 "未記載のパス" "src/x.ts" WF213 < <(hook_payload PreToolUse Bash --session sessH command='git status')
+  assert_contains "HK-T08" '"permissionDecision":"deny"'
+  run_cmd tail -n 1 "$DEC"
+  assert_contains "HK-T08" '"session_id":"sessH"'
+  assert_not_contains "HK-T08" '"session_id":"testsession"'
 }
 
 # ---- HK-T10: redact がパターンを *** に置換し、通常のパス・日本語を壊さない ----

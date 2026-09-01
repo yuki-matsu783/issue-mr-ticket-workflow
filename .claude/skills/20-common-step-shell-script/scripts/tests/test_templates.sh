@@ -85,6 +85,30 @@ assert_exit "SS-T04" 0
 assert_eq "SS-T04" "OK: z 実行" "${R_OUT##*$'\n'}"
 assert_eq "SS-T04" "" "$R_ERR"
 if [ -d "$TMP_DIR/standalone/logs" ] || [ -d "$TMP_DIR/logs" ]; then fail "SS-T04" "リポジトリ外に logs/ が作られた"; else pass "SS-T04"; fi
+# 読み込み行の 3 ポリシー（雛形の読み込み行そのものを使い、ルート未解決の場所で logger を要求する）
+LOAD_LINE="$(grep -m1 '^__ss_load() {' "$SKILL/assets/script.template.sh")"
+mk_loader() { # $1=出力先 $2=policy — 読み込み行の直後に LOGGER_ROOT を出す
+  printf '%s\n%s\n__ss_load logger %s\nprintf "root=%%s\\n" "${LOGGER_ROOT:-unset}"\n' '#!/usr/bin/env bash' "$LOAD_LINE" "$2" > "$1"
+}
+mk_loader "$TMP_DIR/standalone/nop.sh" nop
+mk_loader "$TMP_DIR/standalone/fatal.sh" fatal
+mk_loader "$TMP_DIR/standalone/deny.sh" deny
+nogit "nop.sh"
+assert_exit "SS-T04" 0
+case "$R_OUT" in root=unset|root=) fail "SS-T04" "nop で LOGGER_ROOT が設定されない: $R_OUT" ;; *) pass "SS-T04" ;; esac
+nogit "fatal.sh"
+assert_exit "SS-T04" 2
+assert_eq "SS-T04" "FATAL: 共通ライブラリ logger を読み込めない（リポジトリルート未解決）" "${R_OUT##*$'\n'}"
+assert_not_contains "SS-T04" "root="
+nogit "deny.sh"
+assert_exit "SS-T04" 0
+assert_eq "SS-T04" "deny" "$(printf '%s' "$R_OUT" | tl_jq -r '.hookSpecificOutput.permissionDecision')"
+assert_contains "SS-T04" "WF009: 機構の不調"
+assert_not_contains "SS-T04" "root="
+run_cmd bash -c 'unset CLAUDE_PROJECT_DIR LOGGER_ROOT; export PATH="$1" HOOK_DENY_ID=WF777; exec bash "$2"' _ "$RESTRICTED_PATH" "deny.sh"
+assert_exit "SS-T04" 0
+assert_contains "SS-T04" "WF777: 機構の不調"
+assert_not_contains "SS-T04" "WF009"
 cd "$TMP_REPO" || exit 2
 
 finish

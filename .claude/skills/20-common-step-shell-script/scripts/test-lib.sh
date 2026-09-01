@@ -2,7 +2,7 @@
 # test-lib.sh — テスト共通ヘルパ（source 専用）
 # 仕様: .claude/docs/10_spec/skills/20-common-step-shell-script.md「OUT ひな形」test-lib.sh
 # 提供: run_cmd / assert_eq / assert_exit / assert_contains / assert_not_contains / make_tmp_repo /
-#       make_restricted_path / hook_payload / tl_jq / pass / fail / finish
+#       make_restricted_path / make_counting_path / counted_calls / hook_payload（--session）/ tl_jq / pass / fail / finish
 # 出力: 1 ケース 1 行 `PASS <ID>` / `FAIL <ID>: <理由>`、最後に `passed=N failures=N`
 # Windows（Git Bash）対策はここに集約する: PATH を絞るときは symlink ではなくラッパースクリプト、jq 出力の CR 除去、
 # 性能閾値は TEST_SKIP_PERF=1 で無効化
@@ -125,18 +125,21 @@ tl_jq() {
   jq "$@" | tr -d '\r'
 }
 
-# フック入力 JSON を組む: hook_payload <event> <tool_name> [key=value ...]（key=value は tool_input の文字列フィールド）
+# フック入力 JSON を組む: hook_payload <event> <tool_name> [--session <id>] [key=value ...]
+#   key=value は tool_input の文字列フィールド。session_id は既定 testsession で、--session <id> で変える
+#   （--session は第 3 引数の位置でだけ解釈する。key=value の解析と衝突させない）
 hook_payload() {
-  local event="$1" tool="$2" kv key val args=()
+  local event="$1" tool="$2" sid="testsession" kv key val args=()
   shift 2
-  local filter='{hook_event_name: $ev, tool_name: $tn, session_id: "testsession", cwd: $cwd, tool_input: {}}'
+  if [[ "${1:-}" == "--session" ]]; then sid="$2"; shift 2; fi
+  local filter='{hook_event_name: $ev, tool_name: $tn, session_id: $sid, cwd: $cwd, tool_input: {}}'
   for kv in "$@"; do
     key="${kv%%=*}"
     val="${kv#*=}"
     args+=(--arg "ti_$key" "$val")
     filter+=" | .tool_input[\"$key\"] = \$ti_$key"
   done
-  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -nc --arg ev "$event" --arg tn "$tool" --arg cwd "$PWD" "${args[@]}" "$filter" | tr -d '\r'
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -nc --arg ev "$event" --arg tn "$tool" --arg sid "$sid" --arg cwd "$PWD" "${args[@]}" "$filter" | tr -d '\r'
 }
 
 # 集計行を出し、失敗があれば非 0 で終了する

@@ -78,6 +78,14 @@ assert_contains "TR-T04" "TR004:"
 run_cmd bash "$RUNNER" --timeout abc
 assert_exit "TR-T04" 2
 assert_contains "TR-T04" "TR004:"
+# timeout コマンド不在は環境の不備 TR005・終了 2（引数の誤り TR004 と区別する）。bash / jq は残す
+make_restricted_path bash sh jq cat sed grep awk sort uniq wc tr find mkdir rm date basename dirname head tail cut comm env
+run_cmd bash -c 'export PATH="$1"; exec bash "$2"' _ "$RESTRICTED_PATH" "$RUNNER"
+assert_exit "TR-T04" 2
+assert_eq "TR-T04" "TR005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "TR-T04" "timeout"
+assert_not_contains "TR-T04" "TR004"
+assert_not_contains "TR-T04" "| PASS |"
 
 # TR-T05 allow.ops に build-test の無い作業中チケットがあるときは TR006 で実行しない。作業中チケットが無ければ実行する
 doing_ticket '["read"]'

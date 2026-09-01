@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（正史の変更�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T07:58:06+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1c0d94c"
 ---
 
 # 0015 共通ライブラリと提供コマンドの仕様（HOOK_DENY_ID / scope.sh のポリシー / tool_class / ID 正規表現 / D5・D6）

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "切れ目で 1 回（実装 4 枚�
 allow:
   write: [".claude/skills/20-common-step-commit-push/SKILL.md", ".claude/skills/20-common-step-ticket/SKILL.md", ".claude/skills/20-common-step-report-view/SKILL.md", ".claude/skills/20-common-step-shell-script/SKILL.md", ".claude/skills/20-common-step-spec/SKILL.md", ".claude/skills/20-common-step-ai-asset-creator/SKILL.md", ".claude/skills/20-common-step-feature-mr/SKILL.md", ".claude/evals/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T19:22:29+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "8155f5b"
 ---
 
 # 0036 AI アセット実装: SKILL.md 7 本のエラー表と eval ID の範囲・eval 2 本（SC-E / AC-E04）・参照更新と全件テスト（wip/20_plans/0031-ai-asset-implementation-plan.md の S4・S5）

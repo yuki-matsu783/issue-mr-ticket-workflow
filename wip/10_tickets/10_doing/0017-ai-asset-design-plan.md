@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "2 巡目のレビュー（最大 2
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T06:52:31+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f5e16b4"
 ---
 
 # 0017 設計計画のレビュー指摘の反映（P1〜P13）

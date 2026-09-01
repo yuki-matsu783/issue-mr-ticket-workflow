@@ -66,11 +66,39 @@ Windows Git Bash の実測（付録 A §4）: **jq が Windows ネイティブ�
 
 ## Q2 テストの実行方式（チケット 0004）
 
-（未着手）
+### 答え
+
+- **素の bash を踏襲（bats 非導入）+ 共通ヘルパ 1 ファイル + ランナー 1 本**。参考実装 2 系統とも素の bash（ファイルごとに `assert_eq` / `check` を自前定義、最終行に集計、失敗で非 0）。bats は本環境に無く、導入すると `.bats` 拡張子・`@test` 記法で仕様の雛形（`assets/test.template.sh`）とフックの許可 glob（`hook-test`: `.claude/hooks/**/tests/*.sh`・`.claude/skills/*/scripts/tests/*.sh`）を書き換えることになる。現規模（テスト ID 数十）では過剰
+- **テスト ID の対応付け**は agent-workflow 方式: `check <ID> …` / `assert_eq <ID> …` の第 1 引数を仕様書の ID（`TICKET-T01`・`HK-T02`・`CP-T03`・`RV-T04`。枝番は `-T02a`）にし、`PASS <ID>` / `FAIL <ID>: …` を 1 行で出す。ランナーが `^(PASS|FAIL) ([A-Z]+-T[0-9]+)` を集めれば仕様の「テスト観点」表とのカバレッジ突合が grep でできる
+- **共通ヘルパ** `.claude/skills/20-common-step-shell-script/scripts/test-lib.sh`（仮）: `assert_eq` / `assert_exit` / `assert_contains` / `assert_not_contains` / `run_cmd`（`R_EXIT` / `R_OUT` / `R_ERR`）/ `make_tmp_repo`（`mktemp -d` + `git init -q -b main` + user 設定 + `trap`）/ `hook_payload`（`jq -nc --arg` でイベント JSON を組む）/ `finish`（集計と exit）。`test.template.sh` はこれを `source` する 20 行程度。**`set -uo pipefail`（`-e` 無し）で統一**し終了コードは `run_cmd` が取る
+- **ランナー** `run-tests.sh`（仮）: 上記 2 glob を列挙し各テストを `timeout` 付きで実行、ファイルごとの最終行と exit を表にして総合 exit。`--filter <glob>`・`--ids`（ID 一覧）。CI ではこの 1 コマンドだけ叩く
+- **Windows 対策はヘルパ側で吸収**: PATH を絞るときは symlink ではなくラッパースクリプト（MSYS の bash.exe は同ディレクトリの dll を要求、`command -v printf` は組込みで絶対パスを返さない）、jq 出力の `tr -d '\r'`、`/` 始まり文字列を jq に渡すときの `MSYS_NO_PATHCONV=1`、性能閾値は環境変数で無効化、日本語を含む一時パスを避ける（native jq は開けない）
+
+### 根拠（Git Bash での実行。付録 C §2）
+
+| テスト | 結果 |
+|---|---|
+| `MR-driven scripts/test/test_command_position.sh` | passed=117 failures=1（13.2 s）。失敗は性能閾値（ヒアドキュメント判定 7〜8 s > 2000 ms）。**WSL Ubuntu では 118/118・2.3 s** → MSYS の fork 遅延起因 |
+| `agent-workflow hooks/tests/test-workflow-entry.sh` | PASS=45 FAIL=0（28.6 s） |
+| `test_report_templates.sh` | passed=8 failures=0 |
+| agent-workflow 残り 4 本 | 4 本中 2 本全通過、fallback 2 本は symlink PATH 方式が MSYS で動かず全滅（Windows 起因） |
+| MR-driven 残り 25 本 | 19 本全通過。失敗: 日本語パス × native jq、symlink PATH、`.git` 不在・Python 不在（環境起因）、1 本タイムアウト、1 件未調査 |
+
+ツール: bats 無し、shellcheck 無し、bash 5.2.12 (msys)、jq 1.6 native、perl 5.36。
 
 ## Q5 HTML テンプレートの土台（チケット 0004）
 
-（未着手）
+### 答え
+
+- HTML テンプレートを持つのは MR-driven のみ（実体 8 本）。土台は **`skills/issue-mr-flow/assets/reports-clean.template.html`**（565 行。DDR i0001-05 が名指し。sidebar + `#overview/#unverified/#conditions/#findings/#verified/#next/#surprises/#todo`、外部依存 0、`<style>` 1、ライト / ダーク対応、プレースホルダ `<!-- ここに書く: -->` 27 件）と **`plans.template.html`**（334 行。`#premise/#goal/#target/#approach/#phase-*/#out-of-scope/#verify/#criteria/#options`、ヘッダ帯型）。`html-slides` は `<script>` あり、`canvas-report` は mermaid CDN 依存で対象外
+- 参考の機械検査は「成果物向け grep 手順 6 項目」（`references/deliverables.md:78-150`。未スクリプト化）と「テンプレート本体向け `test_report_templates.sh` T1〜T7」（負のコントロール付き）。新仕様 RV001〜RV007 のうち **RV006（`data-required` 導出）だけが新規**、RV002 は `<a href>` 除外の改変
+- **`data-required` 案（レポート）**: サイドバーのメタ（issue / MR）、`#overview`、`#unverified`、`#findings`、`#next` に付ける。`#surprises`（想定と異なった点）・`#todo`（残課題）は参考では任意だが、実施タスク 6 種の仕様がすべてレポートに含めるため**必須に格上げ**が妥当（→ D16）。`#conditions` / `#verified` は任意のまま
+- **`data-required` 案（計画書）**: `header`（対象）/ `#goal` / `#target` / `#approach` / `#verify` を必須。計画タスク 7 種の共通節「チケット」「保留した点 / 対象なし」に対応する節が無く**新設して必須**が妥当。`[全体作業計画のみ必須]` の 2 節は削除（全体計画書は HTML を持たない）。`#out-of-scope` は md 側に対応節が無い（判断点）
+- **削るべき固有記述**: `wip/reports` / `wip/plans` パス、flow-id、`issue-mr-flow` / `deliverables.md` / `REVIEW-POINTS.md` / `canvas-report` 参照、issue #54/#186/#203 の経緯、冒頭コメントの検査手順（`check-html.sh` 参照に置換）、`[必須]/[任意]` コメント → `data-required` 属性、`<!-- ここに書く -->` → `{{名前}}`（付録 C §3 に行番号付きの表）
+
+### 根拠
+
+- 付録 C §1〜§3（ファイル一覧・節構成・検査項目の対応表・`data-required` の根拠は各 exec / plan 仕様の OUT ひな形）
 
 ## Q3 TBD T5 — PowerShell ツールのフック入力（チケット 0005）
 
@@ -108,11 +136,15 @@ Windows Git Bash の実測（付録 A §4）: **jq が Windows ネイティブ�
 | D13 | Q1 提供コマンド（§3-6） | ファイル名 `<連番>-<種類>.md` と frontmatter `ticket_type` が食い違ったときの扱いが仕様に無い | 実装は frontmatter を正とする。ticket 仕様に 1 文追加 |
 | D14 | Q1 提供コマンド（§5-4） | `.gitattributes` がリポジトリに無いが、共通仕様 §8 の `common.protected` は存在する前提。`*.sh text eol=lf` が無いと CRLF で取り出されてシバンが壊れる | 実装フェーズの最初のステップで `.gitattributes` を作る（仕様変更なし。`.gitattributes` は `common.protected` なので、この issue の許可範囲に明示が要る） |
 | D15 | Q1 提供コマンド（§4-16） | 終了コード 2 の意味が衝突する: 提供コマンドは「引数や環境の誤り」、フック契約では「ブロック」 | 仕様は既に別文脈（フックは JSON deny + 終了 0）なので矛盾はないが、shell-script 仕様に「フックでは exit 2 を使わない」を明記する |
-
-（調査 C の結果で追記）
+| D16 | Q5（付録 C §3） | レポートの「想定と異なった点」「残課題」、計画書の「チケット」「保留した点」は参考テンプレートで任意 / 無いが、新仕様の各タスクは必ず含める | **仕様を補う**（report-view 仕様に必須節の一覧を明記し、テンプレートで `data-required` にする） |
+| D17 | Q5 | `{{名前}}` プレースホルダを HTML コメント内に置くか要素内容に置くか、`data-required` を `<section>` 以外（sidebar / header）にも付けるかが仕様に無い（RV006 の抽出対象の定義） | **仕様を補う**（推奨: 要素内容に置く — 消し忘れがブラウザで見える。`data-required` は要素種別を問わず属性で抽出） |
+| D18 | Q5 | 計画書テンプレートのレイアウト（reports-clean のサイドバー型に揃えるか、plans のヘッダ帯型か）は DDR に無い | 実装計画で決める（推奨: サイドバー型に統一し CSS を 1 系統にする） |
+| D19 | Q2（付録 C §4） | 共通テストヘルパ `test-lib.sh` とランナー `run-tests.sh` は shell-script 仕様の OUT ひな形（`test.template.sh` に最小ヘルパを内包）に無い | **仕様を補う**（ヘルパを 1 ファイルに集約し雛形は `source` する。ランナーを Script 処理に追加。`hook-test` の許可 glob は変更不要） |
 
 ## 想定と異なった点
 
 ## 残課題
 
+- 参考テストの未解明の失敗 2 件（`test_block_direct_git_commit.sh` の改行を挟んだ `commit` 1 件、`test_install_to_project.sh` のタイムアウト）は原因未調査。新機構のテストで同種のケースを書くときに再現を確認する
+- HTML テンプレートのブラウザでの実表示は参考実装側でも未確認。初版作成時に目視する
 - shellcheck が本環境に無く、shell-script 仕様の規約検査は「省略の事実を記録」の分岐に常に入る。CI（Linux）で shellcheck を回す案は 2/3 以降で検討

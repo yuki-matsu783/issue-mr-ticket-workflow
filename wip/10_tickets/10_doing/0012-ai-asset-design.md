@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（正史の変更�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T07:15:00+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2a1b2d9"
 ---
 
 # 0012 拒否側フック 4 本の判定の決定（git 'commit' / mcp__.* / G8 / entry-skills.txt）

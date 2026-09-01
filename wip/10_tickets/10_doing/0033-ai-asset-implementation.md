@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "振る舞いが変わる（work-de
 allow:
   write: [".claude/skills/20-common-step-ai-asset-creator/assets/**", ".claude/skills/20-common-step-requirement/assets/**", ".claude/skills/20-common-step-commit-push/scripts/**", ".claude/skills/20-common-step-ticket/scripts/tests/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T18:03:36+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "176117d"
 ---
 
 # 0033 AI アセット実装: テンプレート 2 本と commit.sh / push.sh の識別子（CP007 / CP008）と CP-T08（wip/20_plans/0031-ai-asset-implementation-plan.md の S1・S2-1・S3-1）

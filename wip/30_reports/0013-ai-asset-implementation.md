@@ -18,7 +18,7 @@ tags: [report, ai-asset-implementation, issue-6]
 
 ## 確かめられなかったこと
 
-（0021 で集約）
+- 0018: HTML テンプレート 2 本のブラウザでの実表示（ライト / ダーク・サイドバーの sticky）。この環境にブラウザ操作が無く未確認。機械検査（RV001〜007）のみ通過
 
 ## 作成・更新したアセット（仕様の節との対応）
 
@@ -61,7 +61,24 @@ tags: [report, ai-asset-implementation, issue-6]
 | `scripts/ticket.sh` | Script 処理 create / start / complete / cancel / next、TK001〜007 | 状態変更は `commit.sh` 経由（overall-plan の create / start は除く）。拒否時は作業ツリーと index を戻す。frontmatter は `frontmatter.sh` だけで読む |
 | `scripts/tests/test_ticket.sh` | テスト観点 TICKET-T01〜11 | 一時リポジトリで `commit.sh` 実物を呼ぶ。79 assert |
 
+### 0018 S2-5: check-html.sh と report / plan テンプレート（切り替え境目 C）
+
+| アセット | 仕様の節 | 備考 |
+|---|---|---|
+| `20-common-step-report-view/assets/report.template.html` | OUT ひな形（規約・節構成） | `reports-clean.template.html` を土台にサイドバー型。`<body data-template="report">`。必須（`data-required`）: `h1#title`・`#counts`・`#toc`・`dl#meta`・`#overview`（+ 重点依頼 3 枠）・`#unverified`・`#findings`・`#next`・`#surprises`・`#todo`。任意: `#conditions`・`#verified`。プレースホルダは要素内容の `{{名前}}` 33 個 |
+| `assets/plan.template.html` | OUT ひな形、計画タスク共通の節 | 同じ CSS 系統でサイドバー型に統一（D18）。`<body data-template="plan">`。必須: `h1#title`・`#toc`・`dl#meta`・`#goal`・`#target`・`#approach`・`#verify`・`#tickets`・`#pending`。任意: `#risks`・`#out-of-scope` |
+| `scripts/check-html.sh` | Script 処理 RV001〜007 | HTML コメントを純 bash で除いてから検査。RV006 はテンプレート（`data-template` 属性、無ければ置き場）の `data-required` 要素（id、無ければ tag@出現順）から導出。RV002 は `<a href>`・`data:`・コメント内を数えない |
+| `scripts/tests/test_check_html.sh` | テスト観点 RV-T01〜06 | 36 assert。テンプレートを埋めた HTML と壊した HTML |
+
 ## テスト結果
+
+### 0018
+
+- `run-tests.sh --ids` → `OK: 9 本 / 44 件`（RV-T01〜06 を含む全 ID PASS、重複なし）
+- テスト先行の記録: 初回 12 件 FAIL → (1) テンプレート冒頭コメントの `{{名前}}` の語が RV001 に当たった（コメント文言を変更）。(2) `@import url(...)` を url() と @import で二重に数えた（@import 文を除いてから url() を数える）。(3) `set -o pipefail` 下で data-required が 0 件の HTML に対し `grep` の非 0 が関数を落とし、RV-T04 で出力が空になった（`|| true` を追加。負のコントロールの経路そのものが壊れていたので RV-T04 が捕まえた実装バグ）
+- 境目 C の確認（試し埋め）: `wip/tmp/trial/0011-ai-asset-implementation-plan.html`（計画書、id 15 件 / リンク 8 件）と `wip/tmp/trial/0003-investigation.html`（レポート、id 16 件 / リンク 9 件）が `check-html.sh` で `OK:`。正式な HTML は 0021 で作る
+- ブラウザでの目視: この環境ではできない（レポート「確かめられなかったこと」に記録）
+- eval: なし
 
 ### 0017
 
@@ -95,6 +112,12 @@ tags: [report, ai-asset-implementation, issue-6]
 
 - プレースホルダ（`{{ }}` / `TODO` / `TBD`）: 0 件（対象 4 ファイル）
 - frontmatter: `work-defaults.md` に `type` / `title` / `description` / `tags` / `keywords`
+- 参照更新の再検索: 新規ファイルに旧名なし
+
+### 0018
+
+- プレースホルダ: `check-html.sh`・`test_check_html.sh` で 0 件（テンプレート 2 本は対象外。テンプレート自身は RV001 で不合格になることを RV-T01 で確認）
+- CR: 0 件
 - 参照更新の再検索: 新規ファイルに旧名なし
 
 ### 0017
@@ -132,6 +155,9 @@ tags: [report, ai-asset-implementation, issue-6]
 | D-13 | 0017 | 種類が `task-types.tsv` に無い `create` は TK004・終了 2 | 該当する識別子が無い。「対象が見つからない」に寄せた | 0022（TK004 の条件に追記、または TK008 新設） |
 | D-14 | 0017 | TICKET-T10 の「件名の規約違反を強制した場合」は再現せず、コミット時の検査（pre-commit フック）の失敗で `commit.sh` の拒否を作った | `ticket.sh` は件名を自分で組み立てるため、規約違反を外から強制する経路が無い | 0022 → テスト観点の文言を「commit.sh が拒否する状況（フック失敗等）」に |
 | D-15 | 0017 | 「現在地に未完了の項目が残っていない」の判定を、現在地の節に `次:` / `未着手` の語がないこと、とした | 仕様は判定基準を定めない | 0022 → 仕様 complete 3 に判定語を明記 |
+| D-16 | 0018 | テンプレートの種別を `<body data-template="report|plan">` 属性で持たせ、`check-html.sh` はそれで必須節の導出元を選ぶ（無ければ置き場のディレクトリで推定） | 仕様は「テンプレートの必須節」とだけ定め、対象 HTML がどのテンプレート由来かの識別方法を定めない | 0022 → 仕様 OUT ひな形に属性を明記 |
+| D-17 | 0018 | 計画書テンプレートの節を「この計画で何をするか / 対象と範囲 / 方法とステップ / 検証 / チケット / リスクと復旧（任意）/ スコープ外（任意）/ 保留した点・対象なし」に決めた（Q5 の案 + 計画タスク共通節） | 仕様は「計画タスクの要件に従う」とだけ定める。必須節の一覧はテンプレートだけが持つ規約どおり、判断の経緯は DDR が必要 | 0022 → DDR（必須節の判断）を起こす候補 |
+| D-18 | 0018 | 必須要素にはすべて `id` を付けた（サイドバーの `dl#meta`・`h1#title` を含む） | 仕様の「id が無ければ要素名と出現順」の経路はテンプレート側で使わない方が検査の誤差が無い。経路自体は実装してある | なし |
 | D-1 | 0013 | 行動ルールの「効くタイミング」を frontmatter の `applies_when` キーで宣言した | 要件は「frontmatter で宣言する」とだけ定め、キー名を定める仕様（`markdown-docs` ルール・ルール体系の仕様）が未作成 | 0022 → `markdown-docs` ルールの要件、または `ルール体系.md` の仕様 |
 | D-2 | 0013 | `task-types.tsv` の 1 行目をヘッダ（`#` 始まり）にした | 仕様は 6 列を定めるがヘッダの有無を定めない。`#` 始まりなら読み手がコメントとして飛ばせる | 0022（仕様に 1 行追記の候補） |
 

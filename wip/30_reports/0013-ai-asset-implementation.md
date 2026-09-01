@@ -53,7 +53,22 @@ tags: [report, ai-asset-implementation, issue-6]
 | `scripts/tests/test_{commit,push}.sh` | テスト観点 CP-T01〜07 | 一時リポジトリ + bare リモート |
 | `wip/push-check-skip.md` | OUT ひな形「スキップ記録」 | 項目 3（HTML 未作成）を 0021 まで飛ばす |
 
+### 0017 S2-4: ticket.sh と ticket.template.md（切り替え境目 B）
+
+| アセット | 仕様の節 | 備考 |
+|---|---|---|
+| `20-common-step-ticket/assets/ticket.template.md` | OUT ひな形 | frontmatter 全項目・目的・DoD・作業内容・作業ログ 10 見出し（要件書の一覧が正）。`{{ }}` 15 個 |
+| `scripts/ticket.sh` | Script 処理 create / start / complete / cancel / next、TK001〜007 | 状態変更は `commit.sh` 経由（overall-plan の create / start は除く）。拒否時は作業ツリーと index を戻す。frontmatter は `frontmatter.sh` だけで読む |
+| `scripts/tests/test_ticket.sh` | テスト観点 TICKET-T01〜11 | 一時リポジトリで `commit.sh` 実物を呼ぶ。79 assert |
+
 ## テスト結果
+
+### 0017
+
+- `run-tests.sh --ids` → `OK: 8 本 / 38 件`（TICKET-T01〜11 を含む全 ID PASS、重複なし）
+- テスト先行の記録: 初回 39 件 FAIL → 原因 2 つ。(1) テスト側: 一時リポジトリで `logs/` が gitignore されておらず完了検査の「未コミットなし」に引っかかった（実リポジトリでは gitignore 済み）。(2) 実装側: `commit.sh` が拒否したとき、ステージ済みの追加・削除が index に残り、次の完了検査を落とした → `do_commit` の失敗経路で `git reset -q -- <paths>` を追加（TICKET-T10 が捕まえた実装バグ）
+- 境目 B の確認: このチケット自身を `ticket.sh complete 0017` で完了し、`ticket.sh next` が 0018 を返すことを確認（結果は 0018 の作業ログに記録）
+- eval: なし
 
 ### 0016
 
@@ -82,6 +97,12 @@ tags: [report, ai-asset-implementation, issue-6]
 - frontmatter: `work-defaults.md` に `type` / `title` / `description` / `tags` / `keywords`
 - 参照更新の再検索: 新規ファイルに旧名なし
 
+### 0017
+
+- プレースホルダ: `ticket.sh`・`test_ticket.sh` で 0 件（テンプレートは対象外。create が全数を埋めることを TICKET-T01 で確認）
+- CR: 0 件
+- 参照更新の再検索: 新規ファイルに旧名なし
+
 ### 0016
 
 - プレースホルダ: scripts 2 本・テスト 2 本・パターン 1 本で 0 件
@@ -105,6 +126,12 @@ tags: [report, ai-asset-implementation, issue-6]
 | D-7 | 0016 | `git commit` 自体が失敗した（コミット時のフック等）ときの最終行を `CP004:` にした（表の条件「差分なし」とは異なる） | 仕様 5 は「出力を返して停止する」とだけ定め、識別子が無い。`OK:` / `CP<番号>:` の型を守るため最も近い CP004 を使った | 0022 → 台帳と仕様に CP007（コミット失敗）を追加する候補 |
 | D-8 | 0016 | `git add` できないパス（綴り誤り・未追跡のまま削除・.gitignore 対象）を CP001（対象の誤り）・終了 2 にした | 仕様の CP001 は「対象未指定・一括指定」。対象の誤りの一種として扱った | 0022（CP001 の条件に 1 語追加の候補） |
 | D-9 | 0016 | スキップ記録の行の形を `- 項目 N: <理由>`（`- N:` も可）に決めた | 仕様は「列挙された項目」とだけ定め、形が無い | 0022 → 仕様 OUT ひな形に形を明記 |
+| D-10 | 0017 | `create` の記載事項の渡し方を `--title` / `--purpose` / `--dod`（複数）/ `--work`（複数）/ `--predecessors` / `--executor` / `--human-review(-reason)` / `--adversarial-review(-reason)` / `--allow-write` / `--allow-ops` に決めた | 仕様は `--field 値 ...` とだけ書き、名前を定めない | 0022 → 仕様 Script 処理 create にオプション名を明記 |
+| D-11 | 0017 | `next` は作業中があるときも `type` / `skill` を返す（仕様は `current` のみ言及） | 呼び出し元が再開時にスキルを引けるようにする | 0022（仕様 IN/OUT サンプルに 1 例追加の候補） |
+| D-12 | 0017 | `cancel` は frontmatter に `cancelled_at` / `cancel_reason` を追加して記録する | 「記載事項に取り消し理由と時刻を書き」の置き場が未定義。テンプレートに無い項目をスクリプトが追加する形 | 0022 → §9 / テンプレートに 2 項目を追加するか判断 |
+| D-13 | 0017 | 種類が `task-types.tsv` に無い `create` は TK004・終了 2 | 該当する識別子が無い。「対象が見つからない」に寄せた | 0022（TK004 の条件に追記、または TK008 新設） |
+| D-14 | 0017 | TICKET-T10 の「件名の規約違反を強制した場合」は再現せず、コミット時の検査（pre-commit フック）の失敗で `commit.sh` の拒否を作った | `ticket.sh` は件名を自分で組み立てるため、規約違反を外から強制する経路が無い | 0022 → テスト観点の文言を「commit.sh が拒否する状況（フック失敗等）」に |
+| D-15 | 0017 | 「現在地に未完了の項目が残っていない」の判定を、現在地の節に `次:` / `未着手` の語がないこと、とした | 仕様は判定基準を定めない | 0022 → 仕様 complete 3 に判定語を明記 |
 | D-1 | 0013 | 行動ルールの「効くタイミング」を frontmatter の `applies_when` キーで宣言した | 要件は「frontmatter で宣言する」とだけ定め、キー名を定める仕様（`markdown-docs` ルール・ルール体系の仕様）が未作成 | 0022 → `markdown-docs` ルールの要件、または `ルール体系.md` の仕様 |
 | D-2 | 0013 | `task-types.tsv` の 1 行目をヘッダ（`#` 始まり）にした | 仕様は 6 列を定めるがヘッダの有無を定めない。`#` 始まりなら読み手がコメントとして飛ばせる | 0022（仕様に 1 行追記の候補） |
 

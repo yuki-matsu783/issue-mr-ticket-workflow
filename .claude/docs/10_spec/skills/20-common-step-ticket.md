@@ -58,7 +58,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 | 節 | 内容 | 記入者 |
 |----|------|--------|
-| 記載事項（表） | 種類 / 先行チケット / 実行者 / 人間レビュー要否と理由 / やってよいこと / 開始時刻 / 完了時刻 / 差分基準点 | 作成時に AI（時刻・基準点はスクリプト） |
+| 記載事項（frontmatter・YAML） | `ticket_type` / `predecessors` / `executor` / `human_review`（required・reason）/ `allow`（write・ops）/ `started_at` / `completed_at` / `base_sha`。機械可読の正で、フックと提供コマンドはここを読む（形式の正は `10_spec/フック共通仕様.md` §9。表への転記はしない） | 作成時に AI（時刻・基準点はスクリプト） |
 | 目的 | 1〜3 行 | AI |
 | DoD | `- [ ]` 形式のチェックリスト（各項目に根拠を書く欄） | 作成時に AI、完了までにチェック |
 | 作業内容 | 実施ステップの箇条書き | AI |
@@ -70,20 +70,22 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 ## 参照ナレッジ
 
-- タスクの種類 → スキル名の対応表: `10_spec/skills/00-workflow-issue-mr-driven.md`（未作成）が正。`next` はそれと同じ対応で `skill` を返す
+- タスクの種類 → スキル名の対応表: `10_spec/skills/00-workflow-issue-mr-driven.md`（正。実体は `.claude/hooks/config/task-types.tsv`）。`next` がそのファイルを読んで `skill` を返す唯一の箇所（`boundary.sh status` は透過）
 - 種類ごとの宣言の上限・既定判断基準: 機構の設定と `rules/work-defaults.md`
 - 成果物のコミット手順: `20-common-step-commit-push`
 
 ## Script 処理
 
-実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。
+実体は `.claude/skills/20-common-step-ticket/scripts/ticket.sh <subcommand> [args]`。終了コードは成功 0 / 検査・前提未充足 1 / 引数や環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `TKxxx:`）。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
+
+状態変更のコミットは各サブコマンドが内部で `git` を直接実行して行う（メッセージ規約に従う。提供コマンド内部の git 実行はフックの拒否対象外 — 識別方法はフックの仕様が正）。ただし**全体計画チケット（`overall-plan`）の作成・着手は現在のブランチによらずコミットを行わず**、その旨を出力する（feature ブランチはこの後に切られる。default 上でも、別の作業の feature ブランチ上で新しい依頼を始めた場合でも、ファイルは未追跡のまま新しい feature ブランチへ持ち越され、ブランチ作成時の開始コミットに載る — `20-common-step-feature-mr` 仕様・DDR i0004-04）。機構（entry の継続判定・guard の宣言範囲の強制・session-start の現在地）のチケット判定はチケットファイルの存在（作業領域の配置）で行い、git の追跡状態やコミットの有無を見ないため、未追跡のまま持ち越したチケットも作業中として扱われる。
 
 ### create <種類> --field 値 ...
 
 1. `wip/10_tickets/{00_todo,10_doing,20_done,30_cancelled}` を無ければ作成する
 2. 全ディレクトリを走査して既存の最大連番 + 1 を採番する
 3. テンプレートをコピーし、渡された記載事項を埋める。`{{ }}` の残存が 1 つでもあれば TK001 で拒否する
-4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`）を commit の提供コマンドで行う
+4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`）を行う（コミットの方式と default 上の例外は冒頭の規定に従う）
 
 ### start <番号>
 
@@ -113,7 +115,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 ### next
 
 1. `10_doing/` にファイルがあればそれを `current` として返す（次の着手は不可）
-2. 無ければ `00_todo/` の最小連番を `next` として、種類と対応するスキル名を JSON で返す
+2. 無ければ `00_todo/` のうち **frontmatter の `predecessors` がすべて `20_done/` にあるチケット**の最小連番を `next` として、種類と対応するスキル名（`.claude/hooks/config/task-types.tsv` を読んで解決。解決はこのコマンドだけが行う）を JSON で返す。先行が未完了のチケットは飛ばす（レビュー指摘の追加チケットを次フェーズの計画チケットの先行に加えることで、連番が後でも先に走る — `00-workflow-issue-mr-driven` 仕様 手順 4-4）。着手できるチケットが 1 枚も無いのに `00_todo/` が空でないときは `next: null` に `blocked: [番号...]` を添える（呼び出し元は依存の不整合として報告する）
 3. `00_todo/` も空なら `{"current": null, "next": null}` を返す（呼び出し元はループ終了と判定する）
 
 ### エラー識別子
@@ -138,6 +140,8 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | TICKET-T04 | 異常系 | 全体まとめの complete が TK005 |
 | TICKET-T05 | 境界 | 連番が取り消し済みを含めて重複しない |
 | TICKET-T06 | 正常系 | next の JSON（current / next / type / skill）と空のときの null |
+| TICKET-T08 | 正常系 | 先行が未完了の小さい連番を飛ばして、着手できる最小連番を返す。全部が待ちなら `next: null` + `blocked` |
+| TICKET-T09 | 正常系 | overall-plan の create / start が default 上でも feature ブランチ上でもコミットしない（他の種類はコミットする） |
 | TICKET-T07 | 異常系 | 先行チケット未完了の start が TK006 |
 
 ## 要件との対応

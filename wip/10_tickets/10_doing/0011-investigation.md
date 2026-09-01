@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ユーザー指示によりタス
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "web"]
-started_at: ""
+started_at: "2026-09-02T06:12:32+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "829ade1"
 ---
 
 # 0011 調査 3 本の 2 巡目レビュー指摘の反映（S1〜S13）

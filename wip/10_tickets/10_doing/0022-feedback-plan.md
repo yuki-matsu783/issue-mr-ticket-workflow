@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "計画書"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-01T16:10:53+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "32ac432"
 ---
 
 # 0022 フィードバック計画

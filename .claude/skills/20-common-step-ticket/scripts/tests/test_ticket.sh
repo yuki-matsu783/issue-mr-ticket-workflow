@@ -7,6 +7,7 @@ set -uo pipefail
 # shellcheck disable=SC1090,SC2317
 __ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
+__ss_load frontmatter fatal
 
 REAL="$LOGGER_ROOT/.claude"
 make_tmp_repo
@@ -66,6 +67,7 @@ assert_contains "TICKET-T02" "0002-design-plan.md"
 f=wip/10_tickets/10_doing/0002-design-plan.md
 sed -i 's/^- \[ \] d（根拠: ）$/- [ ] d（根拠: ）\n- [x] e（根拠: ）\n- [x] g/' "$f"
 sed -i '/^### 判断と根拠$/d' "$f"
+perl -0pi -e 's/### うまくいったこと\n/### うまくいったこと\n\n### うまくいったこと\n/' "$f"   # テンプレートの見出しを残したまま追記した形
 echo x > stray.txt
 run_cmd bash "$T" complete 0002
 assert_exit "TICKET-T03" 1
@@ -77,11 +79,13 @@ assert_contains "TICKET-T03" "「現在地」に未完了の項目"
 assert_contains "TICKET-T03" "「AI アセットに反映すべき内容」が空"
 assert_contains "TICKET-T03" "未コミットの変更がある"
 assert_contains "TICKET-T03" "根拠欄「（根拠: ）」そのものが無い"
-assert_contains "TICKET-T03" "未充足 7 件"
+assert_contains "TICKET-T03" "見出し「うまくいったこと」が重複"
+assert_contains "TICKET-T03" "未充足 8 件"
 if [ -f "$f" ]; then pass "TICKET-T03"; else fail "TICKET-T03" "拒否されたのに移動した"; fi
 rm -f stray.txt
 sed -i 's/^- \[ \] d（根拠: ）$/- [x] d（根拠: ok）/; s/^- \[x\] e（根拠: ）$/- [x] e（根拠: ok）/; s/^### 拒否・確認・迂回の記録$/### 判断と根拠\n\n### 拒否・確認・迂回の記録/' "$f"
 sed -i 's/^- \[x\] g$/- [x] g（根拠: ok）/' "$f"
+perl -0pi -e 's/### うまくいったこと\n\n### うまくいったこと\n/### うまくいったこと\n/' "$f"
 fulfill "$f"
 run_cmd bash "$T" complete 0002
 assert_exit "TICKET-T03" 0
@@ -176,6 +180,7 @@ assert_eq "TICKET-T10" "CP008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 if [ -f wip/10_tickets/00_todo/0010-investigation.md ] && [ "$(cat wip/10_tickets/00_todo/0010-investigation.md)" = "$orig" ] && [ ! -e wip/10_tickets/10_doing/0010-investigation.md ]; then pass "TICKET-T10"; else fail "TICKET-T10" "start の拒否で元に戻っていない"; fi
 run_cmd bash "$T" cancel 0010 --reason "x"
 assert_exit "TICKET-T10" 1
+assert_eq "TICKET-T10" "" "$(git diff --cached --name-only)"   # index にも残らない
 if [ -f wip/10_tickets/00_todo/0010-investigation.md ] && [ "$(cat wip/10_tickets/00_todo/0010-investigation.md)" = "$orig" ]; then pass "TICKET-T10"; else fail "TICKET-T10" "cancel の拒否で元に戻っていない"; fi
 rm -f .git/hooks/pre-commit
 run_cmd bash "$T" start 0010
@@ -241,5 +246,39 @@ run_cmd bash "$T" start 0012
 assert_exit "TICKET-T11" 0
 assert_contains "TICKET-T11" "overall-plan はコミットしない"
 assert_eq "TICKET-T11" "$before" "$(count_commits)"
+
+# TICKET-T05（追記）create の理由・glob に記号（" \ & |）があっても frontmatter が壊れず、fm_get / fm_list で元の値が読める
+reason='a"b\c & d | e'
+run_cmd bash "$T" create investigation --title "記号" --purpose "p" --dod "d" --human-review-reason "$reason" --allow-write 'x/**,y"z' --predecessors "0001"
+assert_exit "TICKET-T05" 0
+f13="$(ls wip/10_tickets/00_todo/0013-*.md)"
+# ファイルには YAML エスケープ済みの形で書かれ、fm_get / fm_list は壊れずに読める（クォート内のエスケープ解除は frontmatter.sh 側の扱い — 0035 で FR-T05 と一緒に）
+if grep -qF 'reason: "a\"b\\c & d | e"' "$f13"; then pass "TICKET-T05"; else fail "TICKET-T05" "理由の YAML エスケープが期待と違う: $(grep -m1 human_review "$f13")"; fi
+assert_eq "TICKET-T05" 'a\"b\\c & d | e' "$(fm_get "$f13" human_review.reason)"
+assert_eq "TICKET-T05" "2" "$(fm_list "$f13" allow.write | wc -l | tr -d ' ')"
+if grep -qF 'write: ["x/**", "y\"z"]' "$f13"; then pass "TICKET-T05"; else fail "TICKET-T05" "allow.write の YAML エスケープが期待と違う: $(grep -m1 'write:' "$f13")"; fi
+assert_eq "TICKET-T05" "0001" "$(fm_list "$f13" predecessors)"
+if grep -q '^executor: main$' "$f13"; then pass "TICKET-T05"; else fail "TICKET-T05" "executor が壊れた"; fi
+
+# TICKET-T12 引数・環境の誤りは TK008・終了 2（最終行は TK008:）。対象が無いのは TK004・終了 1 のまま（負のケースの正の期待値）
+run_cmd bash "$T" badsub
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$T" create nosuchtype --title "t" --purpose "p" --dod "d"
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$T" create investigation --title "t"
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$T" start 12
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$T" cancel 0013 --bogus
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$T" complete 9999   # 作業中があっても find_ticket の失敗は TK004
+assert_exit "TICKET-T12" 1
+assert_eq "TICKET-T12" "TK004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+if ls wip/10_tickets/00_todo/0014-*.md >/dev/null 2>&1; then fail "TICKET-T12" "拒否された create がファイルを残した"; else pass "TICKET-T12"; fi
 
 finish

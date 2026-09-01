@@ -38,6 +38,16 @@ tags: [report, ai-asset-implementation, issue-6]
 | `commit-push/scripts/tests/test_push.sh` | CP-T08（`--force` → `CP007:` / `git` 不在 → CP007 / `jq` 不在（merge-state あり）→ CP007 / detached HEAD → CP007 / 正のコントロール: 環境が揃えば CP005） | CP-T08 |
 | `ticket/scripts/tests/test_ticket.sh` | TICKET-T10 の期待値 `CP004:` → `CP008:`（3 assert） | TICKET-T10 |
 
+### 0034
+
+| アセット | 変更 | 仕様の節 |
+|---|---|---|
+| `20-common-step-ticket/scripts/ticket.sh` | `yaml_escape` を新設（`\` → `\\`、`"` → `\"`、改行 → 空白）し、`create` の理由 2 つと `json_list` の各要素（`--allow-write` / `--allow-ops` / `--predecessors`）に適用。`sed_escape` は `yaml_escape` + sed メタ文字の 2 段に組み替え（`set_field` / `cancel` の出力は不変） | 仕様 create 3 |
+| 同 | TK004 を終了 2 で転用していた 15 か所と TK001 の誤用 1 か所（必須引数の欠落）を TK008 に。TK004 は `find_ticket` 失敗・状態違いの 6 か所（終了 1）だけ | 識別子表 TK004 / TK008、create 1 |
+| 同 | `complete` 3 に固定見出しの重複検査（`^### 見出し$` が 2 行以上 → 「見出し「〜」が重複している（N 回）」） | 仕様 complete 3 |
+| 同 | `create` / `start` / `complete` / `cancel` の `commit.sh` 拒否時に `git reset -q -- <パス>` で index も戻す | 仕様 Script 処理 冒頭（index にも残さない） |
+| `ticket/scripts/tests/test_ticket.sh` | TICKET-T12（不明サブコマンド・種類不正・必須引数欠落・4 桁でない番号・不明引数 → `TK008:` 終了 2。`complete 9999` は `TK004:` 終了 1 の負のコントロール。拒否された `create` がファイルを残さない）、TICKET-T03（見出し重複 → 未充足 8 件）、TICKET-T05（記号入りの理由と glob の `create` → ファイルは YAML エスケープ済み・`fm_get` / `fm_list` が壊れずに読める・`executor` 不変）、TICKET-T10（拒否後に `git diff --cached` が空）。`frontmatter.sh` を読む読み込み行を追加 | TICKET-T03 / T05 / T10 / T12 |
+
 ## テスト結果
 
 ### 0033
@@ -45,6 +55,12 @@ tags: [report, ai-asset-implementation, issue-6]
 - テスト先行: 新しいテストを旧スクリプト（`git checkout 176117d -- commit.sh push.sh`）に対して実行 → `test_commit.sh` FAIL 4（CP-T08）、`test_push.sh` FAIL 4（CP-T08）、`test_ticket.sh` FAIL 3（TICKET-T10）。実装後: 3 本とも全 PASS
 - 全件: `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids` → `OK: 14 本 / 56 件`（前回 55 件 + CP-T08。assert 数: test_commit 65、test_push 44、test_ticket 80）。重複 ID なし
 - `bash -n` OK（commit.sh / push.sh）。shellcheck 不在
+
+### 0034
+
+- テスト先行: テストを先に足して実行 → `test_ticket.sh` FAIL 8（TICKET-T03 / T12）。実装後: 全 PASS（102 assert）
+- 全件: `run-tests.sh --ids` → `OK: 14 本 / 57 件`（+ TICKET-T12）。重複 ID なし。`bash -n` OK
+- 途中経過: `yaml_escape` の挿入が 1 回一致せず（perl の `q{}` でバックスラッシュが潰れた）、`create` が未定義関数を呼んで 68 assert が落ちた状態を経て、挿入し直して回復。作業ツリーの `ticket.sh` が壊れていた間は提供コマンドを使っていない
 
 ## 検査結果
 
@@ -54,16 +70,26 @@ tags: [report, ai-asset-implementation, issue-6]
 - 参照更新（計画の参照更新一覧）: `result_ng 004 "git commit が失敗` 0 件 / `result_ng 005 "引数` 0 件 / `result_ng 006 "(git が無い|リポジトリルート|現在ブランチ|jq が無い)` 0 件 / `result_ng 001 "(-m に|存在しないオプション|不明なオプション|リポジトリルート)` 0 件。残るもの: CP006 2 件（リモート拒否）、CP001 5 件（対象の指定の誤り）— 計画の期待どおり
 - ロックアウト対策の最初の操作: 0033 の成果物を変更後の `commit.sh` でコミットし、`ticket.sh complete 0033`（内部で `commit.sh`）を通す。push は完了コミット直後に `push.sh`
 
+### 0034
+
+- プレースホルダ: `test_ticket.sh` 1 件（既存の fixture）と `ticket.sh` 20 件は、テンプレートの置換対象の名前（`{{TITLE}}` 等）を文字列として持つもので、前回（0017）と同じく検査の除外。TODO / TBD 0 件
+- 参照更新: `result_ng 004` は 6 件で終了 2 の行は 0 件（`grep -cE 'result_ng 004 "[^"]*" 2'`）、`result_ng 001` は 1 件（プレースホルダ残存のみ）、`result_ng 008` 16 件 — 計画の期待どおり
+- ロックアウト対策の最初の操作: 0034 自身を変更後の `ticket.sh complete 0034` で完了させる（見出し重複検査・TK008 を含む新版）
+
 ## 仕様からの逸脱
 
 | # | チケット | 逸脱 | 理由 | 送り先 |
 |---|---|---|---|---|
-| D2-1 | 0033 | `skill.template.md` の冒頭段落をプレースホルダ プレースホルダ PROHIBITIONS として置いた（仕様は「冒頭段落は禁止事項の要約」とだけ書き、プレースホルダ名は定めない） | ひな形は二重波括弧の形式で埋める箇所を示す規約 | なし（名前は実装の裁量） |
+| D2-1 | 0033 | `skill.template.md` の冒頭段落をプレースホルダ PROHIBITIONS として置いた（仕様は「冒頭段落は禁止事項の要約」とだけ書き、プレースホルダ名は定めない） | ひな形は二重波括弧の形式で埋める箇所を示す規約 | なし（名前は実装の裁量） |
 
 ## 想定と異なった点
 
 - （0033）`run-tests.sh --filter` は「ファイル名」ではなくルート相対パスの glob で、`test_commit*` では 0 本（TR001）になる。`'*test_commit*'` で絞る。SKILL.md の例を確認する（0036 の対象外なら 3/3）
+- （0034）`create` の値の往復（書いて読む）は `frontmatter.sh` のアンエスケープが無いと成立しない。計画は書き手（`ticket.sh`）だけを見ていた
+- （0034）`start` は TK002（作業中あり）を TK004 より先に判定するので、作業中チケットがある状態では「対象不在」の負のコントロールに使えない
 
 ## 残課題
 
 - （0033）SKILL.md（commit-push）のエラー表に CP007 / CP008 の行が無い状態が 0036 まで続く（計画どおり）
+- （0034）0035 へ: `frontmatter.sh` の `__fm_unquote` で二重引用符内の `\"` → `"`、`\\` → `\` を解除し、TICKET-T05 の期待値を元の値に戻す（FR-T05 の追記と一緒に）
+- （0034）3/3 へ: shell-script 仕様 `fm_get` の「クォートは外す」にエスケープ解除を含めることを明記

@@ -86,11 +86,19 @@ do_commit() { # $1=件名 $2..=パス
 # 状態変更後のコミット失敗を、ticket.sh の失敗として返す（最終行は commit.sh のもの）
 fail_with_commit_last() { log_warn "commit.sh の拒否: $COMMIT_LAST"; printf '%s\n' "$COMMIT_LAST"; exit 1; }
 
-# frontmatter の二重引用符付きの値として書けるよう、sed の置換文字列に直す（改行は空白に。\ と " は YAML のエスケープ、| と & は sed の特殊文字）
+# frontmatter の二重引用符付きの値に直す（YAML の規則: バックスラッシュは 2 つに、二重引用符は \" に。改行は空白）。
+# create のように bash の置換で埋めるときはこれだけを使う
+yaml_escape() { # $1=値 → REPLY
+  local v="${1//$'\n'/ }"
+  v="${v//\\/\\\\}"; v="${v//\"/\\\"}"
+  REPLY="$v"
+}
+# yaml_escape の結果を sed の置換文字列に直す（バックスラッシュを重ね、& と | を逃がす）。set_field / cancel のように sed で埋めるときはこちら
 # sed は置換文字列の `\\` を `\`、`\&` を `&`、`\|` を `|` にするので、ファイルには `\\`（\）と `\"`（"）が残る
 sed_escape() { # $1=値 → REPLY
-  local v="${1//$'\n'/ }"
-  v="${v//\\/\\\\\\\\}"; v="${v//\"/\\\\\"}"; v="${v//&/\\&}"; v="${v//|/\\|}"
+  yaml_escape "$1"
+  local v="$REPLY"
+  v="${v//\\/\\\\}"; v="${v//&/\\&}"; v="${v//|/\\|}"
   REPLY="$v"
 }
 set_field() { # $1=file $2=key $3=value（frontmatter の `key: ""` 行を置き換える）
@@ -100,7 +108,7 @@ set_field() { # $1=file $2=key $3=value（frontmatter の `key: ""` 行を置き
 
 # ---------------------------------------------------------------- create
 cmd_create() {
-  [ $# -ge 1 ] || result_ng 004 "create には種類を指定する（task-types.tsv の type）" 2
+  [ $# -ge 1 ] || result_ng 008 "create には種類を指定する（task-types.tsv の type）" 2
   local type="$1"; shift
   local title="" purpose="" preds="" executor="main" hr="true" hr_reason="既定（rules/work-defaults.md）" ar="false" ar_reason="既定（rules/work-defaults.md）" aw="wip/**" ao="read"
   local dod=() work=()
@@ -118,15 +126,15 @@ cmd_create() {
       --adversarial-review-reason) ar_reason="${2:-}"; shift ;;
       --allow-write) aw="${2:-}"; shift ;;
       --allow-ops) ao="${2:-}"; shift ;;
-      *) result_ng 004 "create の不明な引数: $1" 2 ;;
+      *) result_ng 008 "create の不明な引数: $1" 2 ;;
     esac
     shift
   done
-  type_known "$type" || result_ng 004 "種類 '$type' は $TASK_TYPES に無い" 2
-  [ -n "$title" ] && [ -n "$purpose" ] && [ "${#dod[@]}" -gt 0 ] || result_ng 001 "--title / --purpose / --dod（1 つ以上）は必須" 2
-  case "$hr" in true|false) ;; *) result_ng 004 "--human-review は true か false" 2 ;; esac
-  case "$ar" in true|false) ;; *) result_ng 004 "--adversarial-review は true か false" 2 ;; esac
-  [ -f "$TEMPLATE" ] || result_ng 004 "テンプレートが無い: $TEMPLATE" 2
+  type_known "$type" || result_ng 008 "種類 '$type' は $TASK_TYPES に無い" 2
+  [ -n "$title" ] && [ -n "$purpose" ] && [ "${#dod[@]}" -gt 0 ] || result_ng 008 "--title / --purpose / --dod（1 つ以上）は必須" 2
+  case "$hr" in true|false) ;; *) result_ng 008 "--human-review は true か false" 2 ;; esac
+  case "$ar" in true|false) ;; *) result_ng 008 "--adversarial-review は true か false" 2 ;; esac
+  [ -f "$TEMPLATE" ] || result_ng 008 "テンプレートが無い: $TEMPLATE（環境の誤り）" 2
 
   # 1. 置き場
   mkdir -p "$TODO" "$DOING" "$DONE" "$CANCELLED"
@@ -144,7 +152,7 @@ cmd_create() {
   json_list() { # "a,b" → ["a", "b"]
     local s="$1" out="" item; [ -z "$s" ] && { printf '[]'; return; }
     IFS=',' read -r -a arr <<<"$s"
-    for item in "${arr[@]}"; do item="${item#"${item%%[![:space:]]*}"}"; item="${item%"${item##*[![:space:]]}"}"; [ -z "$item" ] && continue; out+="${out:+, }\"$item\""; done
+    for item in "${arr[@]}"; do item="${item#"${item%%[![:space:]]*}"}"; item="${item%"${item##*[![:space:]]}"}"; [ -z "$item" ] && continue; yaml_escape "$item"; out+="${out:+, }\"$REPLY\""; done
     printf '[%s]' "$out"
   }
   local dod_text="" work_text="" item
@@ -157,6 +165,7 @@ cmd_create() {
   content="${content//"{{PREDECESSORS}}"/$(json_list "$preds")}"
   content="${content//"{{EXECUTOR}}"/$executor}"
   content="${content//"{{HUMAN_REVIEW_REQUIRED}}"/$hr}"
+  yaml_escape "$hr_reason"; hr_reason="$REPLY"; yaml_escape "$ar_reason"; ar_reason="$REPLY"   # frontmatter の二重引用符の中に入る値
   content="${content//"{{HUMAN_REVIEW_REASON}}"/$hr_reason}"
   content="${content//"{{ADVERSARIAL_REVIEW_REQUIRED}}"/$ar}"
   content="${content//"{{ADVERSARIAL_REVIEW_REASON}}"/$ar_reason}"
@@ -179,7 +188,7 @@ cmd_create() {
     result_ok "$path を作成した（未着手。overall-plan はコミットしない — feature ブランチの開始コミットに載る）"
   fi
   if ! do_commit "chore: チケット $num を作成" "$path"; then
-    rm -f "$path"
+    git reset -q -- "$path" >/dev/null 2>&1 || true; rm -f "$path"
     fail_with_commit_last
   fi
   result_ok "$path を作成した（未着手。$COMMIT_LAST）"
@@ -187,7 +196,7 @@ cmd_create() {
 
 # ---------------------------------------------------------------- start
 cmd_start() {
-  local n="${1:-}"; [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 004 "start には 4 桁の番号を指定する" 2
+  local n="${1:-}"; [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 008 "start には 4 桁の番号を指定する" 2
   doing_files
   if [ "${#DOING_FILES[@]}" -gt 0 ]; then
     result_ng 002 "作業中のチケットが既にある（${DOING_FILES[*]##*/}）。先に complete か cancel する" 1
@@ -217,6 +226,7 @@ cmd_start() {
   fi
   if ! do_commit "chore: チケット $n に着手" "$T_PATH" "$new"; then
     mv "$new" "$T_PATH"; printf '%s\n' "$orig" > "$T_PATH"
+    git reset -q -- "$T_PATH" "$new" >/dev/null 2>&1 || true
     fail_with_commit_last
   fi
   result_ok "${new##*/} を作業中にした（開始 $ts / 基準点 ${sha:-なし}。$COMMIT_LAST）"
@@ -230,7 +240,7 @@ section() { # $1=file $2=見出し行の正規表現 → その節の本文（�
     f { print }' "$1"
 }
 cmd_complete() {
-  local n="${1:-}"; [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 004 "complete には 4 桁の番号を指定する" 2
+  local n="${1:-}"; [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 008 "complete には 4 桁の番号を指定する" 2
   find_ticket "$n" || result_ng 004 "チケット $n が見つからない" 1
   [ "$T_STATE" = "doing" ] || result_ng 004 "チケット $n は作業中ではない（実際の置き場: $T_STATE = $T_PATH）。手動で動かさない" 1
   local type; type="$(type_of "$T_PATH")"
@@ -245,7 +255,13 @@ cmd_complete() {
   local noroot2
   noroot2="$(printf '%s\n' "$dod" | grep -E '^- \[x\]' | grep -nv '（根拠:' | cut -d: -f1 | tr '\n' ' ' || true)"
   [ -z "$noroot2" ] || unmet+=("チェック済み DoD に根拠欄「（根拠: ）」そのものが無い（チェック済み項目の ${noroot2}番目）。欄を消して通さない")
-  for h in "${LOG_HEADINGS[@]}"; do grep -q "^### $h" "$T_PATH" || unmet+=("作業ログの見出し「$h」が無い"); done
+  local hc
+  for h in "${LOG_HEADINGS[@]}"; do
+    hc="$(grep -c "^### $h\$" "$T_PATH" || true)"
+    if [ "$hc" -eq 0 ]; then unmet+=("作業ログの見出し「$h」が無い")
+    elif [ "$hc" -ge 2 ]; then unmet+=("作業ログの見出し「$h」が重複している（$hc 回。テンプレートの見出しを残したまま追記していないか）")
+    fi
+  done
   cur="$(section "$T_PATH" '^### 現在地')"
   if printf '%s\n' "$cur" | grep -qE '^- *(次|未着手)|未着手|^- *次[:：]'; then unmet+=("作業ログ「現在地」に未完了の項目が残っている（「次:」「未着手」）"); fi
   ai="$(section "$T_PATH" '^### AI アセットに反映すべき内容' | sed '/^[[:space:]]*$/d')"
@@ -266,6 +282,7 @@ cmd_complete() {
   log_info "complete $n -> $new completed_at=$ts"
   if ! do_commit "chore: チケット $n を完了" "$T_PATH" "$new"; then
     mv "$new" "$T_PATH"; printf '%s\n' "$orig" > "$T_PATH"
+    git reset -q -- "$T_PATH" "$new" >/dev/null 2>&1 || true
     fail_with_commit_last
   fi
   result_ok "${new##*/} を完了にした（完了 $ts。$COMMIT_LAST）"
@@ -274,8 +291,8 @@ cmd_complete() {
 # ---------------------------------------------------------------- cancel
 cmd_cancel() {
   local n="${1:-}" reason=""; shift || true
-  while [ $# -gt 0 ]; do case "$1" in --reason) reason="${2:-}"; shift ;; *) result_ng 004 "cancel の不明な引数: $1" 2 ;; esac; shift; done
-  [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 004 "cancel には 4 桁の番号を指定する" 2
+  while [ $# -gt 0 ]; do case "$1" in --reason) reason="${2:-}"; shift ;; *) result_ng 008 "cancel の不明な引数: $1" 2 ;; esac; shift; done
+  [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 008 "cancel には 4 桁の番号を指定する" 2
   [ -n "$reason" ] || result_ng 007 "取り消し理由が空。--reason <理由> を指定する" 1
   find_ticket "$n" || result_ng 004 "チケット $n が見つからない" 1
   case "$T_STATE" in todo|doing) ;; *) result_ng 004 "チケット $n は未着手でも作業中でもない（実際の置き場: $T_STATE = $T_PATH）" 1 ;; esac
@@ -290,6 +307,7 @@ cmd_cancel() {
   log_info "cancel $n -> $new reason=$reason"
   if ! do_commit "chore: チケット $n を取り消し" "$T_PATH" "$new"; then
     mv "$new" "$T_PATH"; printf '%s\n' "$orig" > "$T_PATH"
+    git reset -q -- "$T_PATH" "$new" >/dev/null 2>&1 || true
     fail_with_commit_last
   fi
   result_ok "${new##*/} を取り消した（$ts: $reason。$COMMIT_LAST）"
@@ -305,7 +323,7 @@ emit_json() { # $1=current $2=next $3=type $4=skill $5=blocked(空白区切り)
      + (if $b == null then {} else {blocked: $b} end)' | tr -d '\r'
 }
 cmd_next() {
-  command -v jq >/dev/null 2>&1 || result_ng 004 "jq が無い（next は JSON を返す）" 2
+  command -v jq >/dev/null 2>&1 || result_ng 008 "jq が無い（next は JSON を返す。環境の誤り）" 2
   doing_files
   if [ "${#DOING_FILES[@]}" -gt 0 ]; then
     local cur="${DOING_FILES[0]##*/}" t
@@ -339,17 +357,17 @@ cmd_next() {
 main() {
   local sub="${1:-}"; shift || true
   case "$sub" in
-    -h|--help|"") usage; [ -n "$sub" ] && exit 0; result_ng 004 "サブコマンドを指定する（create / start / complete / cancel / next）" 2 ;;
+    -h|--help|"") usage; [ -n "$sub" ] && exit 0; result_ng 008 "サブコマンドを指定する（create / start / complete / cancel / next）" 2 ;;
   esac
-  cd "$LOGGER_ROOT" || result_ng 004 "リポジトリルートに移動できない: $LOGGER_ROOT" 2
-  [ -f "$COMMIT" ] || result_ng 004 "commit.sh が無い: $COMMIT" 2
+  cd "$LOGGER_ROOT" || result_ng 008 "リポジトリルートに移動できない: $LOGGER_ROOT（環境の誤り）" 2
+  [ -f "$COMMIT" ] || result_ng 008 "commit.sh が無い: $COMMIT（環境の誤り）" 2
   case "$sub" in
     create) cmd_create "$@" ;;
     start) cmd_start "$@" ;;
     complete) cmd_complete "$@" ;;
     cancel) cmd_cancel "$@" ;;
     next) cmd_next "$@" ;;
-    *) result_ng 004 "不明なサブコマンド: $sub（create / start / complete / cancel / next）" 2 ;;
+    *) result_ng 008 "不明なサブコマンド: $sub（create / start / complete / cancel / next）" 2 ;;
   esac
 }
 

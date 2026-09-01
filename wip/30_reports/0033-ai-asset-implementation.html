@@ -121,7 +121,7 @@
 
   <p class="counts" id="counts" data-required>
     <span class="chip good">◎良 1</span>
-    <span class="chip warn">△注意 0</span>
+    <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
 
@@ -134,6 +134,7 @@
         <a href="#findings">実施した内容と結果</a>
         <ol class="toc-sub">
           <li><a href="#f1"><span class="mk good">◎</span> 1. 0033: テンプレート 2 本、commit.sh / push.sh の CP007 / CP008、CP-T08</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. 0034: ticket.sh の TK008・yaml_escape・見出し重複検査、TICKET-T12</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -158,7 +159,7 @@
   <p class="lead">設計 0028〜0032 が仕様に書き戻した内容のうち実装を伴う 9 件を、計画 0031 の固定順で実装する。各チケットはテストを先に書いて失敗を確認してから実装し、<code>run-tests.sh --ids</code> の全件と参照更新の検索で確かめる。「自分が使っている提供コマンドを自分で変える」チケットは、変更後の自分のコマンドで自分をコミット・完了させることを最初の実機確認にする。このレポートは 0033 が作り、0034〜0036 が節を追記する。</p>
   <ul class="kpis">
     <li class="kpi good"><b>1</b><span>◎良</span></li>
-    <li class="kpi warn"><b>0</b><span>△注意</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
@@ -166,7 +167,7 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li>無し（0033 時点）</li>
+        <li>0034: <code>create</code> がエスケープして書いた値は <code>fm_get</code> でエスケープ済みの形のまま読まれる（<code>frontmatter.sh</code> にアンエスケープが無い）。0035 で <code>frontmatter.sh</code> 側を直す判断でよいか（<a href="#f2">2</a>・<a href="#next">逸脱 D2-2</a>）</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -215,6 +216,21 @@
       </table>
       <p>テスト: 旧スクリプトに新テストを当てて <code>test_commit.sh</code> FAIL 4 / <code>test_push.sh</code> FAIL 4 / <code>test_ticket.sh</code> FAIL 3 → 実装後 全 PASS。全件 <code>OK: 14 本 / 56 件</code>（前回 55 件 + CP-T08）。検査: プレースホルダ 0 件（テンプレート除く）、参照更新 4 検索語とも 0 件（残るもの: CP006 2、CP001 5 = 期待どおり）。</p>
     </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">0034: ticket.sh の TK008・yaml_escape・見出し重複検査、TICKET-T12 <span class="chip warn">△注意</span> <span class="basis">根拠: テスト先行（FAIL 8 → 0、102 assert）、全件 14 本 / 57 件、参照更新（TK004 終了 2 が 0 件・TK008 16 件）。注意は fm_get のアンエスケープ不在</span></h3>
+      <table>
+        <thead><tr><th>変更</th><th>内容</th><th>仕様の節</th></tr></thead>
+        <tbody>
+          <tr><td><code>yaml_escape</code> 新設</td><td><code>\</code> → <code>\\</code>、<code>"</code> → <code>\"</code>、改行 → 空白。<code>create</code> の理由 2 つと <code>json_list</code> の各要素に適用。<code>sed_escape</code> は <code>yaml_escape</code> + sed メタ文字の 2 段に</td><td>create 3</td></tr>
+          <tr><td>TK008</td><td>TK004 の終了 2 転用 15 か所 + TK001 誤用 1 か所を付け替え。TK004 は <code>find_ticket</code> 失敗・状態違いの 6 か所だけ</td><td>識別子表</td></tr>
+          <tr><td><code>complete</code> の見出し重複</td><td><code>^### 見出し$</code> が 2 行以上で未充足（回数を列挙）</td><td>complete 3</td></tr>
+          <tr><td>拒否時の index 復元</td><td>4 サブコマンドの <code>commit.sh</code> 拒否時に <code>git reset -q -- &lt;パス&gt;</code></td><td>Script 処理 冒頭</td></tr>
+          <tr><td>テスト</td><td>TICKET-T12（新）、T03（重複 → 未充足 8 件）、T05（記号入りの <code>create</code>: ファイルはエスケープ済み・読めて壊れない）、T10（index が空）</td><td>TICKET-T03 / T05 / T10 / T12</td></tr>
+        </tbody>
+      </table>
+      <p>注意点: <code>fm_get</code> / <code>fm_list</code> はクォート内の <code>\"</code> / <code>\\</code> を解除しないため、往復で元の値に戻らない（逸脱 D2-2。0035 で <code>frontmatter.sh</code> を直す）。途中で <code>yaml_escape</code> の挿入が 1 回失敗し 68 assert が落ちる状態を経たが、挿入し直して回復（壊れていた間に提供コマンドは使っていない）。</p>
+    </li>
   </ol>
 </section>
 
@@ -240,6 +256,8 @@
   <h2>想定と異なった点</h2>
   <ul>
     <li>（0033）<code>run-tests.sh --filter</code> はルート相対パスの glob。<code>test_commit*</code> では 0 本（TR001）になり <code>'*test_commit*'</code> が要る</li>
+    <li>（0034）値の往復は書き手（<code>ticket.sh</code>）だけでは成立せず、読み手（<code>frontmatter.sh</code>）のアンエスケープが要る</li>
+    <li>（0034）<code>start</code> は TK002 を TK004 より先に判定するので、作業中がある状態では「対象不在」の負のコントロールに使えない</li>
   </ul>
 </section>
 
@@ -247,6 +265,7 @@
   <h2>残課題</h2>
   <ul>
     <li>（0033）commit-push の SKILL.md のエラー表に CP007 / CP008 の行が無い状態が 0036 まで続く（計画どおり）</li>
+    <li>（0034）0035 へ: <code>frontmatter.sh</code> の <code>__fm_unquote</code> でエスケープ解除、TICKET-T05 の期待値を元の値に戻す。3/3 へ: <code>fm_get</code> の「クォートは外す」にエスケープ解除を明記</li>
   </ul>
 </section>
 

@@ -28,7 +28,7 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 | 1 | 全体計画 | `overall-plan` | 本計画（このチケット。指摘反映の追加チケットを含む） |
 | 2 | 調査 | `investigation-plan` → `investigation` | **読み取りだけで答えられる問い**に限る: 11 本の仕様の判定順・識別子・終了方式・テスト ID の洗い出しと矛盾の検出、#6 で作った `hooks/lib` 5 本の公開関数と結線点の確認、参考実装（`agent-workflow`）のフックの実績（`exit 2` + stderr）と本仕様（`permissionDecision` + 終了 0）の差、公式 hooks リファレンス（`web`）による入力・出力フィールドの確認。**実測が要る問い（§12 の T1〜T4・T6〜T8）は「実装フェーズの検証項目」の一覧として整理するだけで、この段では実施しない**（理由は下記） |
 | 3 | AI アセット設計 | `ai-asset-design-plan` → `ai-asset-design` | 実測を待たずに決められるものを仕様に書く: `HOOK_DENY_ID` の既定と §6 台帳の整合 / 「作業中チケット 2 枚以上」の扱い（G8。WF207 の側で決め、提供コマンド側の非対称は方針だけ）/ `web` の強制の可否（D3）/ `investigation` 以外の実施タスクの `ops` 上限（D5。方針まで。`scope-limits.json` の実体変更はフェーズ 4）/ `shellcheck` の CI 実行の方針（D6）/ 調査で見つかった仕様の矛盾の解消。経緯は DDR `i0009-NN` に残す |
-| 4 | AI アセット実装・テスト | `ai-asset-implementation-plan` → `ai-asset-implementation` | 主作業。(a) 拒否側 1 本を先に最小実装して **T6**（`permissionDecision` + 終了 0 の deny が効くか）を確かめる → (b) フック本体 11 本と各テスト（案内側 → 拒否側）→ (c) `settings.json` への段階登録（人間の操作）→ (d) **登録済みの本物のフックの記録（`logs/hooks/decisions.jsonl`・`logs/sh/`）で T1〜T4・T7・T8 を実測** → (e) HK-T01（登録照合）と `run-tests.sh --ids` の全件通過。実測の結果は作業ログに残す（このフェーズは `.claude/docs/**` に書けない） |
+| 4 | AI アセット実装・テスト | `ai-asset-implementation-plan` → `ai-asset-implementation` | 主作業。(a) フック本体 11 本と各テスト（案内側 6 本 → 拒否側 5 本）→ (b) `settings.json` への段階登録（人間の操作。①記録・案内側 → ②-1 拒否側 1 本で **T6** を確認 → ②-2 残る拒否側 4 本）→ (c) **登録済みの本物のフックの記録（`logs/hooks/decisions.jsonl`・`logs/sh/`）で T1〜T4・T7・T8・`agent_type` を実測** → (d) HK-T01（登録照合）と `run-tests.sh --ids` の全件通過。`.claude/hooks/config/blocked-commands.txt`（`block-chmod` が読む禁止コマンド一覧。初期値 `chmod`）の新規作成もこのフェーズ。実測の結果は作業ログに残す（このフェーズは `.claude/docs/**` に書けない） |
 | 5 | フィードバック計画 | `feedback-plan` | 実測の結果と実装で判明した仕様との食い違いを棚卸しし、後続フェーズ（仕様への書き戻しと DDR）の要否を決める。受け入れ条件 3・5 は「仕様に反映されていること」を求めるので、書き戻しの `ai-asset-design` が要る見込みが高い（決定はこのフェーズで行う） |
 | 6 | 後続（フィードバック計画が選んだものだけ） | `ai-asset-design` 系 / `ai-asset-implementation` 系 | 未定 |
 | 7 | 全体まとめ | `overall-summary` | 統括レポート、MR 本文の最終整形（成果物リンク一覧を本文の表に置く）、片付け、draft 解除。**登録済みのフックとの関係は下記「登録後に全体まとめが通らない経路」で扱う** |
@@ -37,17 +37,17 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 
 **実測を調査フェーズに置かない理由**: `10-task-investigation-plan` 仕様は「`.claude/**` への一時的な変更（`settings.json` へのフックの一時登録など）は計画しない。……確かめたいことは既存の記録で代えるか、AI アセット実装フェーズの検証に回す」と明示している。プローブフックの本体を `wip/tmp/` に置いても、登録そのものを計画すればこの禁止に当たる。実装フェーズなら `.claude/hooks/**` が許可範囲で、登録も段取りに含まれるため、**本物のフックが残す記録で同じことが確かめられる**（捨てるプローブを作る必要がない）。
 
-**書き戻しの置き場**: 実装フェーズは `.claude/docs/**` に書けない（`scope-limits.json` の `ai-asset-implementation.deny`）。したがって実測結果の仕様への反映は、フェーズ 5（フィードバック計画）が起こす後続の `ai-asset-design` で行う。フェーズ 3 の時点で書けるのは、実測に依存しない決定だけ。
+**書き戻しの置き場（決定ではなく制約）**: 受け入れ条件 3・5・6 は `.claude/docs/**` への書き戻しを求めるが、実装フェーズは `.claude/docs/**` に書けない（`scope-limits.json` の `ai-asset-implementation.deny`）。したがって「実測の結果を仕様に反映する必要があると判断された場合、その置き場はフェーズ 6 以外に無い」という制約がある。**要否の判断自体はフィードバック計画（フェーズ 5）が行う**（`10-task-overall-plan` 仕様の禁止事項により、全体計画はフィードバック計画より後のフェーズの要否を決めない）。フェーズ 3 の時点で書けるのは、実測に依存しない決定だけ。
 
 ## 受け入れ条件との対応
 
 | # | issue #9 の受け入れ条件 | 満たすフェーズ | 検証の形 |
 |---|---|---|---|
-| 1 | フック本体 11 本が各仕様の判定順・識別子・終了方式どおりに動き、テスト（HK-T01 / HK-T09 / HK-T03 の登録部分を含む）が失敗ケースを含めて通る | 2（仕様の洗い出し）→ 4 | 各フック仕様のテスト ID 表（SS-H\* / WE-T\* / WG-T\* / SG-T\* / …）＋ 共通の HK-T01・T03・T04・T09 を `run-tests.sh` で実行。終了方式は T6 の実測（フェーズ 4a）で裏を取る |
-| 2 | `settings.json` への登録手順（人間の操作）が全体計画と結果報告に書かれ、登録後に `run-tests.sh --ids` の全件と HK-T01 が通る | 1（本計画の「settings.json の登録とロックアウト対策」）→ 4c・4e | 登録前後のテスト結果を実装結果報告に記録 |
-| 3 | §12 の TBD T1〜T4 の検証結果が共通仕様に反映され、経緯が DDR に残っている | 4d（実測）→ 5 → 6（書き戻し） | 実装結果報告の実測ログ、共通仕様 §12 の該当行の消滅、DDR `i0009-NN` |
+| 1 | フック本体 11 本が各仕様の判定順・識別子・終了方式どおりに動き、テスト（HK-T01 / HK-T09 / HK-T03 の登録部分を含む）が失敗ケースを含めて通る | 2（仕様の洗い出し）→ 4 | 各フック仕様のテスト ID 表（SS-H\* / WE-T\* / WG-T\* / SG-T\* / …）＋ 共通の HK-T01・T03・T04・T09 を `run-tests.sh` で実行。終了方式は T6 の実測（フェーズ 4b の ②-1）で裏を取る |
+| 2 | `settings.json` への登録手順（人間の操作）が全体計画と結果報告に書かれ、登録後に `run-tests.sh --ids` の全件と HK-T01 が通る | 1（本計画の「settings.json の登録とロックアウト対策」）→ 4b・4d | 登録前後のテスト結果を実装結果報告に記録 |
+| 3 | §12 の TBD T1〜T4 の検証結果が共通仕様に反映され、経緯が DDR に残っている | 4c（実測）→ 5 → 6（書き戻し） | 実装結果報告の実測ログ、共通仕様 §12 の該当行の消滅、DDR `i0009-NN` |
 | 4 | `HOOK_DENY_ID` の既定と「作業中チケット 2 枚以上」の扱いが仕様（§6・該当フック）に決まり、テストで固定されている | 3 → 4 | 仕様の差分 ＋ テスト（WG-T\*（WF207）・登録ラッパーの WFx09） |
-| 5 | `tool_response` / `agent_type` / `web` の強制 / `defer` の扱いが実物の確認に基づいて仕様に書かれている（扱わないものは理由つきで「扱わない」） | 2（公式リファレンス）→ 4d（実測）→ 5 → 6 | 実測表 ＋ 共通仕様 §2・§8 の差分 |
+| 5 | `tool_response` / `agent_type` / `web` の強制 / `defer` の扱いが実物の確認に基づいて仕様に書かれている（扱わないものは理由つきで「扱わない」） | 2（公式リファレンス）→ 4c（実測）→ 5 → 6 | 実測表 ＋ 共通仕様 §2・§8 の差分 |
 | 6 | 実装で判明した仕様との食い違いは仕様書へ書き戻し、経緯を DDR に残している | 4（作業ログ「仕様からの逸脱」）→ 5 → 6 | フィードバック計画の棚卸し表、DDR |
 
 ## 方針
@@ -76,16 +76,17 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 
 | type | write（宣言） | ops |
 |---|---|---|
-| 計画系（`*-plan`）・`feedback-plan` | `wip/**` | `read`, `remote-read` |
+| 計画系（`*-plan`） | `wip/**` | `read`, `remote-read` |
+| `feedback-plan` | `wip/**` | `read`, `remote-read`, `remote-write:issue-create`（別 issue の起票） |
 | `investigation` | `wip/**` | `read`, `remote-read`, `web`（公式 hooks リファレンスの確認） |
 | `ai-asset-design` | `.claude/docs/**`, `wip/**` | `read`, `remote-read` |
-| `ai-asset-implementation` | `.claude/hooks/**`, `.claude/skills/20-common-step-shell-script/**`（テストヘルパの拡張が要る場合のみ）, `wip/**` | `read`, `build-test`, `hook-test`, `remote-read` |
+| `ai-asset-implementation` | `.claude/hooks/**`（`config/scope-limits.json` の変更・`config/blocked-commands.txt` の新規作成を含む）, `.claude/skills/20-common-step-shell-script/**`（テストヘルパの拡張が要る場合のみ）, `wip/**` | `read`, `hook-test`, `remote-read` |
 | `overall-summary` | `wip/**` | `read`, `remote-read`, `merge-base`, `remote-write:mr-edit`, `remote-write:mr-comment`, `remote-write:issue-create`, `remote-write:attach`, `remote-write:push`, `remote-write:draft-ready` |
 
 - `wip/**` は `scope-limits.json` の `common.allow`（`wip/00_overall_plan/**`・`wip/10_tickets/**`・`wip/20_plans/**`・`wip/30_reports/**`・`wip/tmp/**` ほか）により宣言によらず書ける。上表の `wip/**` は意図の記録で、判定上の実効は `common.allow` の側にある（`wip/` 直下の任意ファイルは WF202 の確認になる）
-- `investigation` の `build-test` は宣言しない（読み取りだけの調査にするため）。実測はフェーズ 4 で `hook-test` / `build-test` を宣言して行う
+- `build-test` はどの type でも宣言しない。フックのテストは `.claude/hooks/**/tests/*.sh` = `hook-test`、提供コマンドのテスト（`run-tests.sh` 経由を含む）は `provided` で常に通り、`commands.build-test` は空配列のため `build-test` に該当するコマンドが無い
 - `.claude/settings.json` は**どの type でも AI が書かない**（宣言にも入れない）。登録は人間が行う。コミットの扱いは下記
-- `.claude/hooks/config/scope-limits.json` の変更（D5・G8 の結論が上限に及ぶ場合）はフェーズ 4 で行う（`common.confirm` に当たるため WF203 の確認が毎回入り、HK-T02 の 3 者一致も回す）
+- `.claude/hooks/config/**` の変更（D5・G8 の結論が `scope-limits.json` の上限に及ぶ場合、`blocked-commands.txt` の新規作成）はフェーズ 4 で行う（`common.confirm` に当たるため WF203 の確認が毎回入り、`scope-limits.json` を変えるなら HK-T02 の 3 者一致も回す）
 - `CLAUDE.md` / 旧ワークフロースキル / 用語集の参照更新は 3/3（#10）。この issue では触らない
 - コミット・push・チケットの状態遷移は提供コマンド（`commit.sh` / `push.sh` / `ticket.sh`）経由のみ
 
@@ -96,14 +97,15 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 1. **バックアップ（登録前の必須手順）**: 人間が `.claude/settings.json` を登録前の版としてコピーしておく（`settings.json` は git 追跡下だが、登録の途中で復元できる形を手元に持つ）。AI は貼り付ける JSON（§1 の登録表どおり。拒否側 5 登録は fail-closed ラッパー付き）と手順を用意して提示する
 2. **段階登録**（§1 の登録表 16 行をすべて割り当てる）:
    - **① 記録・案内側（11 行）**: SessionStart 1 / **UserPromptSubmit 1（workflow-entry・宣言の記録）** / **PreToolUse `Skill` 1（workflow-entry・宣言の記録）** / PostToolUse 4 / SubagentStart 1 / SubagentStop 2 / **Stop 1**。この段では `entry.json`・`decisions.jsonl` が書かれ始めるが拒否は起きない。**HK-T01（表との行単位の照合）はこの時点では落ちる**（②の完了後に照合する）
-   - **② 拒否側（5 行）**: PreToolUse の workflow-entry（未宣言の拒否）/ workflow-state-guard / block-chmod / block-direct-git / workflow-guard。fail-closed ラッパー付き
+   - **②-1 拒否側の 1 本目（1 行）**: `block-chmod`（判定が単純で影響範囲が狭い）を fail-closed ラッパー付きで登録し、**T6**（`permissionDecision` + 終了 0 の deny が実際に効くか）を確かめる。効かなければ `exit 2` + stderr の縮退に切り替え、§1 の登録ラッパーごと作り直してから先へ進む
+   - **②-2 残る拒否側（4 行）**: PreToolUse の workflow-entry（未宣言の拒否）/ workflow-state-guard / block-direct-git / workflow-guard。fail-closed ラッパー付き
    - 段ごとに新しいセッションで軽い操作（Read → Skill 宣言 → Edit → `commit.sh`）を通し、想定外の deny が出ないことを確かめる
 3. **切り戻し（2 種類を区別する）**:
    - **判定の誤りで deny が出る場合**: `WORKFLOW_ENFORCE=0` または `WORKFLOW_<NAME>_ENFORCE=0` を設定した**新しいセッション**で再開する（環境変数はセッション開始時に読まれるため同一セッションでは解除できない — §4）
    - **フック本体が起動できない場合（WFx09 が出る）**: fail-closed ラッパーは環境変数を見ないので**環境変数では戻らない**。1 のバックアップからの復元（人間の操作）だけが経路
 4. **登録した `settings.json` のコミット**: 登録は人間、コミットは AI が `commit.sh .claude/settings.json` で行う。`settings.json` は `common.confirm` に当たるため WF203 の確認が出る（人間が承認する）。ヘッドレスでは deny になるので、この操作は対話セッションで行う
-5. **登録の照合**: ②の完了後に HK-T01（§1 の表と `settings.json` の行単位の照合）と `run-tests.sh --ids` の全件を回し、結果を実装結果報告に記録する
-6. **3/3 の未実装への依存**: `session-start` は `boundary.sh status --offline`（3/3）が無ければ何も出さずに終了 0、`workflow-entry` は `logs/` と作業領域を直接読むため 3/3 が無くても動く。この前提はフェーズ 4d の実測で確かめる
+5. **登録の照合**: ②-2 の完了後に HK-T01（§1 の表と `settings.json` の行単位の照合）と `run-tests.sh --ids` の全件を回し、結果を実装結果報告に記録する
+6. **3/3 の未実装への依存**: `session-start` は `boundary.sh status --offline`（3/3）が無ければ何も出さずに終了 0、`workflow-entry` は `logs/` と作業領域を直接読むため 3/3 が無くても動く。この前提はフェーズ 4c の実測で確かめる
 
 ### 登録後に全体まとめが通らない経路（R3）
 
@@ -113,12 +115,12 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 |---|---|---|
 | `gh pr ready 12`（draft 解除） | WF304 | `finalize.sh release` |
 | 全体まとめチケットを完了の置き場へ（`ticket.sh complete` は TK005 で拒否） | WF303 | `finalize.sh release` が完了を内包 |
-| 片付け（`wip/` の削除）のうち `20_done/**` への操作 | WF303 | 同上 |
+| 片付け（`wip/` の削除）自体は `rm` なので `workflow-state-guard` の対象外（制御方式 2・3 は作成・編集・移動が対象）。ただし片付けは `finalize.sh release` が完了検査ごと内包する設計で、単独の手順が仕様に無い | — | `finalize.sh release` |
 
 採る手（実装計画で確定し、フェーズ 7 の直前に人間と最終確認する）:
 
-- **第 1 案（推奨）**: フェーズ 4e（登録の照合とテスト）まで終えて受け入れ条件 2 を満たしたら、**人間が拒否側 5 行を `settings.json` から一時的に外す**（①の状態に戻す）。フェーズ 7 を通してから、3/3 で `finalize.sh` が出来た時点で再登録する
-- **第 2 案**: `WORKFLOW_STATE_GUARD_ENFORCE=0` を設定した新しいセッションでフェーズ 7 を実施する（他のフックの強制は残る）
+- **第 1 案（推奨）**: `WORKFLOW_STATE_GUARD_ENFORCE=0` を設定した**新しいセッション**でフェーズ 7 を実施する。`settings.json` を触らないので登録は 16 行のまま保たれ、HK-T01 と全件テストが通る状態でマージできる。他のフック（`workflow-guard` 等）の強制は残る
+- **第 2 案**: 人間が拒否側 5 行を一時撤去する。ただし `settings.json` は git 追跡下なので、**撤去したままでは `push.sh` の項目 1（未コミットの変更が無い）で CP005 になり、コミットすれば 11/16 行の登録のままマージされて HK-T01 と全件テストが落ちる**。採るなら「フェーズ 7 の最終 push の前に 5 行を再登録し、HK-T01 と全件を回し直してからコミットする」を必須手順にする
 - **第 3 案**: draft 解除・片付け・完了を人間が手で行う
 
 ## 判断が必要になりそうな点（調査の問い / 実装フェーズの検証項目）
@@ -129,8 +131,9 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 2. 参考実装（`agent-workflow`）のフックが使う `exit 2` + stderr と、本仕様の `permissionDecision` + 終了 0 の差（T6 の予備知識）
 3. 公式 hooks リファレンスによる入力・出力フィールドの確認（`SubagentStart` の実在と `model` / `agent_id`、`permissionDecision: "defer"`、`tool_response` のフィールド名）
 4. `git 'commit'` のようにクォートで割った語のサブコマンド判定（`block-direct-git` は「特定できない」として扱う — D2）の仕様上の扱い
+5. §12 の T5（PowerShell ツールの stdin 固有フィールド）が #6 で解決済みか（DDR・#6 の作業ログを読む）。済みなら §12 の T5 行の削除を書き戻しの対象に含める
 
-実測が要るもの（フェーズ 4d。§12 の TBD）:
+実測が要るもの（フェーズ 4c。§12 の TBD と受け入れ条件 5）:
 
 | # | 項目 | 確かめ方（登録済みの本物のフックの記録で） |
 |---|---|---|
@@ -138,9 +141,10 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 | T2 | サブエージェント内のツール呼び出しの `session_id` が親と同じか | `decisions.jsonl` の `session_id` を親子で比較 |
 | T3 | `claude -p` を入力から判別できるか / `defer` の実在 | ヘッドレス実行時の入力（`permission_mode` 等）を `decisions.jsonl` に記録して比較 |
 | T4 | `SubagentStart` イベントと `model` / `agent_id` の実在 | ①の登録後にサブエージェントを起動し、`logs/` に記録が残るかを見る |
-| T6 | PreToolUse の deny が `permissionDecision` + 終了 0 で効くか | フェーズ 4a（拒否側 1 本の最小実装）で先に確かめる。効かなければ `exit 2` + stderr へ切り替え、§1 の登録ラッパーも作り直す |
+| T6 | PreToolUse の deny が `permissionDecision` + 終了 0 で効くか | 段階登録の ②-1（拒否側 1 本目 `block-chmod` の登録）で真っ先に確かめる。効かなければ `exit 2` + stderr へ切り替え、§1 の登録ラッパーも作り直す |
 | T7 | `tool_response` の終了コードのフィールド名 | `post-push-*` が読む値を `logs/` に落として実物を見る |
-| T8 | 案内側フックが `scope.sh` を `source` したとき `frontmatter.sh` が読めない場合の挙動（D2 の「案内側フックの `scope.sh` 読み込みポリシー」） | `frontmatter.sh` を一時的に読めなくして案内側フックの挙動を見る（`.claude/**` を触るのでフェーズ 4） |
+| — | `agent_type` の実物（`subagent-stop-check` が読む値。受け入れ条件 5） | T4 と同じサブエージェント起動で `logs/` に残る値を見る |
+| T8 | 案内側フックが `scope.sh` を `source` したとき `frontmatter.sh` が読めない場合の挙動（D2 の「案内側フックの `scope.sh` 読み込みポリシー」） | `frontmatter.sh` を一時的にリネーム（`mv`。宣言済みの `.claude/skills/20-common-step-shell-script/**` の内側）して案内側フックの挙動を見る。`chmod` は `block-chmod` が WF501 で拒否するうえ Windows では読み取り不可にできない |
 
 ## 保留した点
 
@@ -150,7 +154,7 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 | 「作業中チケット 2 枚以上」の扱い（G8）。WF207 の側で決め、`push.sh` / `run-tests.sh` / 完了検査の非対称を直すかは方針まで（提供コマンドの修正が要るなら 3/3 へ） | AI アセット設計（方針）→ 実装（WF207 の実装） |
 | `investigation` 以外の実施タスクの `ops` 上限（D5）。`scope-limits.json` の実体を変えるかどうか | AI アセット設計（方針）→ 変えるならフェーズ 4 で実施（WF203 の確認 + HK-T02） |
 | `shellcheck` の CI 実行（D6） | AI アセット設計で方針決定まで（CI 設定の変更は本 issue のスコープ外） |
-| フェーズ 7 を通すための手（上記 R3 の第 1〜3 案のどれを採るか） | AI アセット実装計画で案を確定し、フェーズ 7 の直前に人間と最終確認 |
+| フェーズ 7 を通すための手（上記の第 1〜3 案のどれを採るか。既定は第 1 案 = `WORKFLOW_STATE_GUARD_ENFORCE=0` の新セッション） | AI アセット実装計画で案を確定し、フェーズ 7 の直前に人間と最終確認 |
 | 後続フェーズ（書き戻しの `ai-asset-design`）の要否 | フィードバック計画 |
 | 実行者を既定のサブエージェントに戻す時期 | #10（3/3）の全体計画 |
 
@@ -162,4 +166,5 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 | ② | issue 本文は追記なしで進む。ブランチ `feature-9-hook-bodies-settings`・MR タイトル `feat: 自己改善ワークフロー機構の実装 2/3: フック本体 11 本と settings.json 登録・TBD T1〜T4 の検証 (#9)` | ユーザー（AskUserQuestion） | 2026-09-02 |
 | ③ | フェーズ列（テンプレートどおり）・実行者（全種類メインエージェント）・レビュー要否（基準どおり）・やってよいこと・`settings.json` の 2 段階登録（案内側 → 拒否側） | ユーザー（AskUserQuestion） | 2026-09-02 |
 | ④（以降の切れ目） | 人間レビューの代わりに opus サブエージェントによる敵対的自己レビューで切れ目を通過し、全体まとめの draft 解除まで進める。マージは人間 | ユーザー（AskUserQuestion） | 2026-09-02 |
+| ③の修正 2（チケット 0004） | 確認レビューの指摘 N1〜N11 を反映: フェーズ 7 の推奨を第 2 案（`WORKFLOW_STATE_GUARD_ENFORCE=0`）へ差し替え / 段階登録を ①・②-1・②-2 の 3 段に / `blocked-commands.txt` の新規作成を追加 / `agent_type` の実測を追加 / 書き戻しの置き場を制約の書き方に / `feedback-plan` の `issue-create` と `build-test` の削除 | AI（レビュー指摘の反映）。ユーザーへの報告で追認を求める | 2026-09-02 |
 | ③の修正（チケット 0003） | 敵対的レビューの指摘 R1〜R8 を反映: 実測を調査フェーズから実装フェーズ 4d へ移す / T6・T8 を追加 / 段階登録を 16 行に割り当て直す / 切り戻しを 2 種類に分ける / 登録後の `settings.json` のコミット経路 / 全体まとめが通らない経路と 3 案 / 方針表の差分の書き方 | AI（レビュー指摘の反映）。ユーザーへの報告で追認を求める | 2026-09-02 |

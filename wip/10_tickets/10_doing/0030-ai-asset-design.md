@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "正史の変更で差分が 1 文�
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T17:01:20+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "aa20fa8"
 ---
 
 # 0030 AI アセット設計: requirement / issue / feature-mr / spec 仕様・ルール体系要件・要件 4 本の節順と横断整合（wip/20_plans/0026-ai-asset-design-plan.md の 0030）

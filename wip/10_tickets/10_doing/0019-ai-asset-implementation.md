@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/skills/20-common-step-ai-asset-creator/assets/**", ".claude/skills/20-common-step-shell-script/**", ".claude/skills/20-common-step-ticket/**", ".claude/skills/20-common-step-commit-push/**", ".claude/skills/20-common-step-report-view/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T13:32:56+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "fa273a4"
 ---
 
 # 0019 AI アセット実装 S4-1: SKILL.md 4 本（shell-script / ticket / commit-push / report-view）

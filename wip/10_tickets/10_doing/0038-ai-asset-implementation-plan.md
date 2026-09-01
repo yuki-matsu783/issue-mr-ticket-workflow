@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "計画書（work-defaults の既�
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T17:56:14+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a1bd3f2"
 ---
 
 # 0038 AI アセット実装計画・追加: 自己レビュー P-1〜P-23 の反映（計画書 0031 とチケット 0033〜0037 の修正）

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "2 巡目のレビュー（最大 2
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "web"]
-started_at: ""
+started_at: "2026-09-02T05:39:34+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f22eb35"
 ---
 
 # 0010 調査 3 本のレビュー指摘の反映（R1〜R18）

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "実装の切れ目。差分全体�
 allow:
   write: [".claude/rules/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-01T14:28:07+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "5b33582"
 ---
 
 # 0021 AI アセット実装 S4-3・S5-1: ルール 3 本（logger / design-docs / ai-asset-design-docs）と参照更新・HTML 遡及

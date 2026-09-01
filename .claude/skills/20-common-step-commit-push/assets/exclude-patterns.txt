@@ -1,0 +1,45 @@
+# commit.sh の自動除外パターン（1 行 1 パターン、glob。# 始まりはコメント）
+# `/` を含まないパターンはファイル名（basename）に、含むパターンはリポジトリルート相対のパス全体に一致させる。
+# 除外されたファイルは commit.sh が必ず一覧で出力する。追加はこのファイルの編集で行う。
+
+# クレデンシャル類
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+*secret*
+*token*
+*credential*
+*password*
+.netrc
+.npmrc
+.pypirc
+
+# 開発副産物（ビルド出力・依存・キャッシュ・OS 固有）
+node_modules/**
+dist/**
+build/**
+out/**
+target/**
+coverage/**
+.venv/**
+venv/**
+__pycache__/**
+*.pyc
+.cache/**
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+*.log
+logs/**
+wip/tmp/**

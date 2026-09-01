@@ -43,7 +43,24 @@ tags: [report, ai-asset-implementation, issue-6]
 | `scripts/run-tests.sh` | Script 処理「run-tests.sh」1〜5、TR001〜006 | 提供コマンド。`--filter` / `--ids` / `--timeout`。TR004・TR005 は終了 2、TR001・TR002・TR003・TR006 は 1 |
 | `scripts/tests/test_{frontmatter,logger,templates,run_tests}.sh`、`.claude/hooks/tests/test_config_integrity.sh` | テスト観点 FR-T / LG-T / SS-T / TR-T、共通仕様 §11 HK-T02 | 5 本・20 ID |
 
+### 0016 S2-3: commit.sh / push.sh / exclude-patterns.txt（切り替え境目 A）
+
+| アセット | 仕様の節 | 備考 |
+|---|---|---|
+| `20-common-step-commit-push/assets/exclude-patterns.txt` | OUT ひな形「除外パターン一覧」 | `/` を含まないパターンは basename、含むパターンはルート相対パス全体に一致。追跡済みファイルへの誤爆は `wip/tmp/.gitkeep` のみ（gitignore 対象で実害なし） |
+| `scripts/commit.sh` | Script 処理「commit.sh」1〜6、CP001〜004 | オプション順不同。`git commit -- <paths>` で指定パスだけをコミット。フッター検出は `Co-Authored-By:` / `Generated with|by` / `noreply@anthropic.com` / 🤖 / `claude-<model>` / `gpt-N` 等（本文の語「Claude Code」は拒否しない） |
+| `scripts/push.sh` | Script 処理「push.sh」1〜4、CP005〜006 | 4 項目を全件実施。スキップ記録は `- 項目 N: 理由` の行。項目 4 は `logs/merge-state.json` の `state == ready` のときだけ判定し、スキップ不可 |
+| `scripts/tests/test_{commit,push}.sh` | テスト観点 CP-T01〜07 | 一時リポジトリ + bare リモート |
+| `wip/push-check-skip.md` | OUT ひな形「スキップ記録」 | 項目 3（HTML 未作成）を 0021 まで飛ばす |
+
 ## テスト結果
+
+### 0016
+
+- `run-tests.sh --ids` → `OK: 7 本 / 27 件`（CP-T01〜07 を含む全 ID PASS、重複なし）
+- テスト先行の記録: 初回 CP-T05 が 2 件 FAIL → いずれもテスト側（`appendix` の語が項目 1 の一覧に含まれる / リモートのコミット判定に `grep 't'` を使っていた）。実装側の修正なし
+- 境目 A の確認: このチケットの成果物コミットを `commit.sh` で実行（__OKLINE__）。チケットの完了コミットと push（`push.sh`、項目 3 はスキップ記録で通過）も提供コマンドで実施
+- eval: なし
 
 ### 0014
 
@@ -65,6 +82,12 @@ tags: [report, ai-asset-implementation, issue-6]
 - frontmatter: `work-defaults.md` に `type` / `title` / `description` / `tags` / `keywords`
 - 参照更新の再検索: 新規ファイルに旧名なし
 
+### 0016
+
+- プレースホルダ: scripts 2 本・テスト 2 本・パターン 1 本で 0 件
+- CR: 0 件
+- 参照更新の再検索: 新規ファイルに旧名なし
+
 ### 0014
 
 - プレースホルダ: scripts 4 本・テスト 5 本で 0 件（テンプレート 2 本は対象外。テンプレートの `{{ }}` は SS-T01 が埋めて検証）
@@ -79,6 +102,9 @@ tags: [report, ai-asset-implementation, issue-6]
 | D-4 | 0014 | 読み込み行の `deny` ポリシーの識別子は呼び手が `HOOK_DENY_ID` を設定する（既定 `WF009`） | `WFx09` の `x` は呼び手のフックで決まる | 0022 → 仕様に `HOOK_DENY_ID` を明記（2/3 のフック実装が使う） |
 | D-5 | 0014 | `fm_get` はインラインマップ・フロー配列のキーに対して生の文字列を返す（仕様は「スカラー値」のみ） | 呼び手が形を確かめる用途に使える。エラーにする理由が無い | 0022（仕様に 1 行追記の候補） |
 | D-6 | 0014 | HK-T02 は 1 つの ID で 8 個の assert を出す（枝番を使わない） | 仕様の 1 行に対応する検査が複数ある。ID は仕様の表との突合単位 | なし（運用の確認） |
+| D-7 | 0016 | `git commit` 自体が失敗した（コミット時のフック等）ときの最終行を `CP004:` にした（表の条件「差分なし」とは異なる） | 仕様 5 は「出力を返して停止する」とだけ定め、識別子が無い。`OK:` / `CP<番号>:` の型を守るため最も近い CP004 を使った | 0022 → 台帳と仕様に CP007（コミット失敗）を追加する候補 |
+| D-8 | 0016 | `git add` できないパス（綴り誤り・未追跡のまま削除・.gitignore 対象）を CP001（対象の誤り）・終了 2 にした | 仕様の CP001 は「対象未指定・一括指定」。対象の誤りの一種として扱った | 0022（CP001 の条件に 1 語追加の候補） |
+| D-9 | 0016 | スキップ記録の行の形を `- 項目 N: <理由>`（`- N:` も可）に決めた | 仕様は「列挙された項目」とだけ定め、形が無い | 0022 → 仕様 OUT ひな形に形を明記 |
 | D-1 | 0013 | 行動ルールの「効くタイミング」を frontmatter の `applies_when` キーで宣言した | 要件は「frontmatter で宣言する」とだけ定め、キー名を定める仕様（`markdown-docs` ルール・ルール体系の仕様）が未作成 | 0022 → `markdown-docs` ルールの要件、または `ルール体系.md` の仕様 |
 | D-2 | 0013 | `task-types.tsv` の 1 行目をヘッダ（`#` 始まり）にした | 仕様は 6 列を定めるがヘッダの有無を定めない。`#` 始まりなら読み手がコメントとして飛ばせる | 0022（仕様に 1 行追記の候補） |
 

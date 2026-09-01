@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装の切れ目で 1 回"}
 allow:
   write: [".claude/skills/20-common-step-ai-asset-creator/**", ".claude/skills/20-common-step-feature-mr/**", ".claude/skills/20-common-step-issue/**", ".claude/skills/20-common-step-requirement/**", ".claude/skills/20-common-step-spec/**", ".claude/evals/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T13:36:42+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "71956c3"
 ---
 
 # 0020 AI アセット実装 S4-2: SKILL.md 5 本と assets 6 本・eval 定義 5 本

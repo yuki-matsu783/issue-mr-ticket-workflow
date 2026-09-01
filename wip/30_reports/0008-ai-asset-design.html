@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI アセット設計 結果報告（チケット 0008〜0010・0012）</title>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット設計 結果報告 / AI アセット設計</p>
+  <h1 id="title" data-required>AI アセット設計 結果報告</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 更新した文書（D1〜D21 と F1〜F18 の反映）</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 受け入れ条件との対応（設計の範囲）</a></li>
+          <li><a href="#f3"><span class="mk warn">△</span> 3. 設計レビュー 18 件と追加チケット 0012</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/6">#6</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/7">#7</a></dd></div>
+    <div><dt>チケット</dt><dd>0008（フック共通仕様・提供コマンド）、0009（shell-script・ticket・report-view）、0010（investigation・eval 表）、0012（敵対的レビュー F1〜F18 の反映）</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">調査で見つかった仕様と実環境の食い違い（D1〜D21）と、設計レビュー（opus 敵対的レビュー、18 件）の指摘をすべて要件・仕様に反映した。新しい設計判断は DDR i0006-01〜06 に残した。要件書に内部構造は書かず（<code>rules/logger.md</code> は使い方の要点だけに戻した）、判定順・スキーマ・パスは仕様側に置いた。実装（0011 以降）が読むべき正はすべて <code>.claude/docs/10_spec/</code> にある。計画: <code>wip/20_plans/0006-ai-asset-design-plan.md</code>、調査の入力: <code>wip/30_reports/0003-investigation.md</code>（D1〜D21、H1〜H6）。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>ルール体系の 14 本（7 成果物 + 7 行動）と現状 4 本の差の扱い（0011 で判断 — <a href="#todo">残課題</a>）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>採否表（D1〜D21・Q6）の反映先と DDR i0006-01〜06 の決定（<a href="#f1">1</a>）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>受け入れ条件との対応表（<a href="#f2">2</a>）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>ヘッドレス実行で確認すること（2/3 以降）— T5: PowerShell ツールのフック stdin 固有フィールドが Bash と同形か（登録直後の <code>decisions.jsonl</code>）</li>
+      <li>T6: <code>permission_mode: auto</code> のときフックの deny が設定編集の分類器とどう重なるか</li>
+      <li><code>web</code> の宣言を強制するか（<code>WebFetch</code> / <code>WebSearch</code> を matcher に加えるか）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">更新した文書（D1〜D21 と F1〜F18 の反映） <span class="chip good">◎良</span> <span class="basis">根拠: 文書ごとの主な変更と由来</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>文書</th><th>主な変更</th><th>由来</th></tr></thead>
+        <tbody>
+          <tr><td><code>10_spec/フック共通仕様.md</code></td><td>§1 lib 5 本 + <code>frontmatter.sh</code> 依存、ラッパー <code>||</code> の位置づけ / §2 共通フィールド（<code>permission_mode</code> 等）と PowerShell の <code>tool_input</code> / §3 deny 後は終了 0 / §6 台帳（TR・FR-T・eval 接頭辞、登録義務の範囲） / §7 <code>frontmatter.sh</code> の読み方 / §7-8 提供コマンドはルート相対表記の文字列一致だけ / §8 <code>*</code> は <code>/</code> を跨がない、<code>build-test</code> の定義、<code>web</code> / §9 <code>adversarial_review</code> を WF208 に / §11 HK-T09・T11・T12 / §12 T3・T5 を狭め T6 追加</td><td>D2 D5 D7 D9 D12 D14 D17 D19 D21、F8 F9 F11 F15 F16 F17 F18</td></tr>
+          <tr><td><code>10_spec/hooks/12-PreToolUse/workflow-guard.md</code></td><td>WF208 の対象に <code>adversarial_review</code>、WG-T09</td><td>F4</td></tr>
+          <tr><td><code>10_spec/hooks/22-PostToolUse/post-push-compact-prompt.md</code></td><td>push 検知 2（<code>git push</code> の分岐）、PP-T08</td><td>D8</td></tr>
+          <tr><td><code>10_spec/skills/20-common-step-shell-script.md</code></td><td>読み込み行（<code>&lt;lib&gt;</code> + 失敗時ポリシー、<code>LOGGER_ROOT</code>）/ 終了コード / <code>frontmatter.sh</code> / <code>run-tests.sh</code>（TR001〜006、<code>allow.ops</code> の検査）/ logger の時刻は <code>printf</code> を使わない / テスト方式（TR-T01〜05）</td><td>D1 D3 D4 D6 D10 D11、F3 F10</td></tr>
+          <tr><td><code>10_spec/skills/20-common-step-ticket.md</code></td><td><code>commit.sh -m "&lt;件名&gt;" &lt;旧パス&gt; &lt;新パス&gt;</code>、拒否時は作業ツリーを戻す、create は拒否でファイルを残さない、TICKET-T10・T11</td><td>D13 D15、F1 F5 F13</td></tr>
+          <tr><td><code>10_spec/skills/20-common-step-commit-push.md</code></td><td>push 検査 3 の対から <code>*-appendix-*.md</code> を除外</td><td>F2</td></tr>
+          <tr><td><code>10_spec/skills/20-common-step-report-view.md</code></td><td>付録ファイル <code>-appendix-&lt;記号&gt;.md</code> の扱い</td><td>D16</td></tr>
+          <tr><td><code>10_spec/skills/10-task-investigation-plan.md</code> / <code>-exec.md</code></td><td>実行を伴う観点は <code>build-test</code> を宣言、<code>.claude/</code> 配下の一時変更を計画しない、要件との対応 +2 行</td><td>D20 D21、F6</td></tr>
+          <tr><td><code>10_spec/skills/20-common-step-{ai-asset-creator,feature-mr,issue,requirement,spec}.md</code></td><td>eval 観点表（AC-E / FM-E / IS-E / RQ-E / SP-E）</td><td>Q6</td></tr>
+          <tr><td><code>10_spec/skills/20-common-step-spec.md</code></td><td>eval 観点表を置く規則</td><td>Q6</td></tr>
+          <tr><td><code>00_requirement/rules/logger.md</code></td><td>使い方を要点だけに（解決順・失敗ポリシーは仕様へ）</td><td>F14</td></tr>
+          <tr><td><code>00_requirement/skills/20-common-step-shell-script.md</code></td><td><code>frontmatter.sh</code>・<code>run-tests.sh</code> の受け入れ条件</td><td>D3 D11</td></tr>
+          <tr><td><code>00_requirement/skills/10-task-investigation-{plan,exec}.md</code></td><td>実行を伴う調査と <code>.claude/</code> 配下の一時変更の受け入れ条件</td><td>D20 D21</td></tr>
+          <tr><td><code>20_ddr/i0006-01〜06</code></td><td>frontmatter.sh の置き場 / ticket.sh は commit.sh 経由 / data-required の格上げ / テスト方式 / 調査中の実行と一時変更 / 読み込み行</td><td>—</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>D1〜D21・Q6 と F1〜F18 はすべて要件・仕様・DDR に反映済み。要件書に内部構造は残していない。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">受け入れ条件との対応（設計の範囲） <span class="chip good">◎良</span> <span class="basis">根拠: issue #6 の受け入れ条件と実装で確認する ID</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>issue #6 の受け入れ条件</th><th>設計での対応</th><th>実装で確認する ID</th></tr></thead>
+        <tbody>
+          <tr><td>ルール 14 本が要件どおり</td><td>変更なし（0011 で 14 本 vs 4 本を判断 — 申し送り）</td><td>—</td></tr>
+          <tr><td>フック共通基盤（<code>lib/</code> 5 本・<code>config/</code> 2 本）</td><td>§1 の一覧・§7 の <code>frontmatter.sh</code> 依存・§8 の分類定義を確定</td><td>HK-T01〜T12</td></tr>
+          <tr><td>共通ステップスキル 9 本と提供コマンド</td><td>ticket / commit-push / shell-script / report-view の仕様を実環境に合わせて確定</td><td>TICKET-T01〜T11、TR-T01〜T05、SS-T01〜</td></tr>
+          <tr><td>テストが <code>run-tests.sh</code> で通る</td><td>テスト方式（plain bash + test-lib）と ID 規約、<code>allow.ops</code> の検査</td><td>TR-T05</td></tr>
+          <tr><td>要件・仕様・実装の整合</td><td>要件は外部的に、内部構造は仕様に。DDR に経緯</td><td>RQ-E / SP-E</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>設計の範囲で対応できる受け入れ条件はすべて仕様に落ち、実装で確認する ID が割り当たっている。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">3</span>
+      <h3 id="f3">設計レビュー 18 件と追加チケット 0012 <span class="chip warn">△注意</span> <span class="basis">根拠: 想定と異なった点</span></h3>
+      <p>設計レビューの指摘が 18 件と多く、追加チケット 0012 で 1 回分の設計をやり直した。原因は 0008〜0010 を 3 チケットに分けたことで、文書間（共通仕様 ↔ 個別仕様 ↔ 要件）の突合を各チケット内で閉じられなかったこと。</p>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>実装計画では「横断整合の確認」を独立チケットにせず、各チケットの DoD に「参照先の文言を再読して一致」を入れる。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>調査 D1〜D21・Q6 の反映</td><td>採否表の「採用」はすべて反映先の文書に書かれている（<a href="#f1">1</a>）</td></tr>
+      <tr><td>敵対的レビュー F1〜F18 の反映</td><td>0012 で全件反映（由来列に F 番号）</td></tr>
+      <tr><td>要件書の外部視点</td><td><code>rules/logger.md</code> から内部構造（解決順・失敗ポリシー）を仕様へ移した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>実装（0011 以降）が読むべき正はすべて <code>.claude/docs/10_spec/</code>。修正後の仕様を正として実装計画を立てる</li>
+    <li>新しい設計判断は DDR i0006-01〜06 に残した（経緯は本文に書かない）</li>
+    <li>2/3 以降で確認する事項（T5・T6・<code>web</code> の強制）は仕様 §12 の TBD として引き継ぐ</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>設計チケット 3 枚（0008〜0010）で閉じる</td><td>設計レビューの指摘が 18 件と多く、追加チケット 0012 で 1 回分の設計をやり直した。原因は 3 チケットに分けたことで文書間の突合を各チケット内で閉じられなかったこと</td><td>実装計画では横断整合の確認を独立チケットにせず、各チケットの DoD に「参照先の文言を再読して一致」を入れる</td></tr>
+      <tr><td><code>.claude/settings.json</code> を読んで T5 を確認</td><td>読む調査が分類器で止まった</td><td>T5 は文書と transcript から結論した（0003 の逸脱を引き継ぐ）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li>F11: <code>web</code> の強制有無（matcher）</li>
+    <li>F12: <code>subagent-stop-check</code> が読む <code>agent_type</code> の実物確認（サブエージェント実行時の stdin）</li>
+    <li>ルール体系の 14 本（7 成果物 + 7 行動）と現状 4 本の差の扱い</li>
+    <li><code>.gitattributes</code> の新設を最初のステップに置く（CRLF 混入の防止）</li>
+  </ul>
+  <p>（0011 への申し送り）</p>
+</section>
+
+<footer>issue #6 / PR #7 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

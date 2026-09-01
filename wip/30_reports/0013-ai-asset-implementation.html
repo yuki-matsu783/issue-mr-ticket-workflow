@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI アセット実装 結果報告（チケット 0013〜0021）</title>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装 結果報告 / AI アセット実装</p>
+  <h1 id="title" data-required>AI アセット実装 結果報告</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 7</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 0013 S1 設定・定義</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 0014 S2-1・S3-1 shell-script の scripts と HK-T02</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 0016 S2-3 commit.sh / push.sh（境目 A）</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 0017 S2-4 ticket.sh（境目 B）</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. 0018 S2-5 check-html.sh と HTML テンプレート（境目 C）</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 0019 S4-1 SKILL.md 4 本とテンプレート 2 本</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. 0020 S4-2 SKILL.md 5 本・assets 4 本・eval 5 本</a></li>
+          <li><a href="#f8"><span class="mk warn">△</span> 8. 0015 S2-2 hooks/lib 5 本</a></li>
+          <li><a href="#f9"><span class="mk good">◎</span> 9. 0021 S4-3・S5-1 ルール 3 本・参照更新・HTML 遡及</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/6">#6</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/7">#7</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-6-workflow-foundation</dd></div>
+    <div><dt>チケット</dt><dd>0013 / 0014 / 0016 / 0017 / 0018 / 0019 / 0020 / 0015（0024 の後）/ 0021。計画 0011（0023 で修正）</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">issue #6（実装 1/3: ルール・フック共通基盤・共通ステップスキルと提供コマンド）の実装をチケット 0013〜0021（+ 設計差し戻し 0024・計画修正 0023）で完了した。設定・定義 3 本、ルール 4 本、フック共通ライブラリ 5 本、提供コマンド 5 本と共有ライブラリ 3 本、テンプレート 12 本、共通ステップスキル 9 本の SKILL.md、eval 定義 5 本を作り、テストは <code>run-tests.sh</code> で 14 本 / 55 ID が全 PASS（HK-T01・T09 はフック本体が要るため 2/3）。切り替え境目 A / B / C 以降、コミット・push・チケットの状態遷移・HTML 検査はすべて提供コマンドで行った。仕様からの逸脱と決定は D-1〜D-28 にまとめ、フィードバック計画（0022）の入力にする。フック本体は作らず <code>settings.json</code> にも登録していないので、この時点でフックによるロックアウトの経路は無い。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>7</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>D-23: <code>tool_response</code> の終了コードのフィールド名を仮置きした（実機未確認。<a href="#f8">8</a>）</li>
+        <li>D-27: 案内側フックが <code>scope.sh</code> を source すると読み込み失敗が deny JSON になる（<a href="#f8">8</a>）</li>
+        <li>D-26 / D-6: §11 に無い観点（判定順・ops 分類）を HK-T11 の ID に付けた。ID を増やすか（<a href="#f8">8</a>）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>逸脱 D-1〜D-28 の内容と、0022 で仕様へ反映する方針（<a href="#next">設計への反映</a>）</li>
+        <li>ルール 4 本の frontmatter（<code>category</code> / <code>paths</code> / <code>applies_when</code>。D-1・D-28。<a href="#f9">9</a>）</li>
+        <li>redact のパターン（`/` を含む 40 文字超の語をマスクしない。D-25。<a href="#f8">8</a>）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>テスト 55 ID の全通過と ID の突合（<a href="#verified">検証の結果</a>）</li>
+        <li>HTML 6 本の <code>check-html.sh</code> 通過と参照更新の再検索（<a href="#f9">9</a>）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>0018 / 0021: HTML テンプレート 2 本と HTML 6 本のブラウザでの実表示（ライト / ダーク・サイドバーの sticky）。この環境にブラウザ操作が無く、機械検査（RV001〜007）のみ通過（<a href="#f5">5</a>・<a href="#f9">9</a>）</li>
+      <li>0020: eval 定義 15 件は未実行。指示文（SKILL.md・ルール）の効果は測っていない（<a href="#f7">7</a>）</li>
+      <li>0015: <code>tool_response</code> の実際の形（終了コードのフィールド名・有無）は実機で未確認。push 検知はフィールドが無ければ終了コード 0 とみなす（D-23。<a href="#f8">8</a>）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">0013 S1: 設定・定義 <span class="chip good">◎良</span> <span class="basis">根拠: フック共通仕様 §8、00-workflow-issue-mr-driven 仕様 OUT ひな形、rules/work-defaults 要件</span></h3>
+      <p><code>.gitattributes</code>（`*.sh` `*.tsv` `*.json` `*.html` を LF）、<code>task-types.tsv</code>（15 行 + `#` ヘッダ）、<code>scope-limits.json</code>（`common` 5 キー・15 種すべてに `ops`）、<code>work-defaults.md</code>（15 行の表。行動ルールとして `applies_when` で宣言）。</p>
+      <details>
+        <summary>根拠を見る（検査）</summary>
+        <pre><code>jq . scope-limits.json が通る / types のキー 15 = tsv の type 15 = work-defaults の行 15（diff で一致）
+.gitattributes 追加後の git status に既存ファイルの変更が出ない</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>3 データの整合は 0014 の HK-T02 で機械検査に置き換えた。逸脱 D-1（`applies_when`）・D-2（tsv ヘッダ）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">0014 S2-1・S3-1: shell-script の scripts と HK-T02 <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-shell-script 仕様 OUT ひな形・Script 処理（読み込み行 / logger / frontmatter / run-tests / test-lib）</span></h3>
+      <p>雛形 2 本（読み込み行 `__ss_load &lt;lib&gt; &lt;policy&gt;` を 1 行で持つ）、<code>test-lib.sh</code>、<code>logger.sh</code>（`printf '%(...)T'`・失敗は握りつぶす）、<code>frontmatter.sh</code>（純 bash。`fm_extract` / `fm_get` / `fm_list` / `fm_has`）、<code>run-tests.sh</code>（TR001〜006）、テスト 5 本・20 ID。</p>
+      <details>
+        <summary>根拠を見る（テスト）</summary>
+        <pre><code>run-tests.sh --ids → OK: 5 本 / 20 件（FR-T01〜05 / HK-T02 / LG-T01〜05 / SS-T01〜04 / TR-T01〜05）
+初回 FAIL 3 件はテスト側の期待の誤り。実装側の修正は frontmatter の「キーと : の間の空白」1 件
+bash -n 11 ファイル通過。shellcheck は本環境に無く省略</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>以後のすべての sh がこの雛形と test-lib から作られた。逸脱 D-3（`FATAL:`）・D-4（`HOOK_DENY_ID`）・D-5・D-6。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">0016 S2-3: commit.sh / push.sh / exclude-patterns.txt（切り替え境目 A） <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-commit-push 仕様 Script 処理、CP001〜006</span></h3>
+      <p><code>commit.sh</code>（件名規約・フッター検出・除外パターン・指定パスだけをコミット）、<code>push.sh</code>（4 項目を全件実施。項目 4 はスキップ不可）、除外パターン一覧、テスト CP-T01〜07。境目 A 以降のコミットと push はすべて提供コマンド経由。</p>
+      <details>
+        <summary>根拠を見る（テスト・境目）</summary>
+        <pre><code>run-tests.sh --ids → OK: 7 本 / 27 件（CP-T01〜07 を含む）
+初回 CP-T05 の 2 件 FAIL はテスト側（appendix の語 / grep 't'）。実装側の修正なし
+境目 A: 成果物コミットを commit.sh で実行（OK: 7 ファイルをコミットした（7db4bfc）。除外: なし）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>手動の `git commit` / `git push` はここで終わり。逸脱 D-7〜D-9（失敗時の識別子・ステージできないパス・スキップ記録の行の形）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">0017 S2-4: ticket.sh と ticket.template.md（切り替え境目 B） <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-ticket 仕様 Script 処理 create / start / complete / cancel / next、TK001〜007</span></h3>
+      <p>チケットテンプレート（frontmatter 全項目・作業ログ 10 見出し）と <code>ticket.sh</code>（状態変更は `commit.sh` 経由。拒否時は作業ツリーと index を戻す。frontmatter は `frontmatter.sh` だけで読む）、テスト TICKET-T01〜11（79 assert）。</p>
+      <details>
+        <summary>根拠を見る（テスト・境目）</summary>
+        <pre><code>run-tests.sh --ids → OK: 8 本 / 38 件（TICKET-T01〜11 を含む）
+初回 39 件 FAIL → テスト側 1 件（一時リポジトリの logs/ が gitignore されていない）、実装側 1 件（commit.sh 拒否後に index に残る追加・削除 → do_commit の失敗経路で git reset。TICKET-T10 が捕まえた）
+境目 B: このチケット自身を ticket.sh complete 0017 で完了し、next が 0018 を返した</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>手動の `mv` によるチケットの状態変更はここで終わり。逸脱 D-10〜D-15（create の引数・next の返却・cancel の記録・未知の種類・T10 の再現方法・現在地の判定語）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5">0018 S2-5: check-html.sh と report / plan テンプレート（切り替え境目 C） <span class="chip warn">△注意</span> <span class="basis">根拠: 20-common-step-report-view 仕様 OUT ひな形・Script 処理 RV001〜007</span></h3>
+      <p>サイドバー型のテンプレート 2 本（`&lt;body data-template="report|plan"&gt;`、必須節は `data-required`）と <code>check-html.sh</code>（コメントを除いてから 7 項目。RV006 はテンプレートから導出）、テスト RV-T01〜06（36 assert）。試し埋め 2 本で境目 C を確認。</p>
+      <details>
+        <summary>根拠を見る（テスト・境目）</summary>
+        <pre><code>run-tests.sh --ids → OK: 9 本 / 44 件（RV-T01〜06 を含む）
+初回 12 件 FAIL → コメント内のプレースホルダ表記の語 / CSS の取り込み宣言の二重カウント / pipefail 下の grep で関数が落ちて RV-T04 の出力が空（負のコントロールの経路が壊れていた実装バグ）
+境目 C: wip/tmp/trial/0011-...plan.html（id 11 / リンク 8）と 0003-investigation.html（id 16 / リンク 9）が OK</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>機械検査は通るが、ブラウザでの実表示は未確認（この環境にブラウザ操作が無い）。逸脱 D-16〜D-18（`data-template` 属性・計画書の節・必須要素の id）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">0019 S4-1: SKILL.md 4 本と ai-asset-creator のテンプレート 2 本 <span class="chip good">◎良</span> <span class="basis">根拠: ai-asset-creator 仕様 OUT ひな形、各スキル仕様の処理フロー・参照ナレッジ・Script 処理</span></h3>
+      <p><code>skill.template.md</code>（frontmatter の description に Use when。目的 / 手順 / 参照 / エラー時の対処）と <code>eval.template.md</code>、shell-script / ticket / commit-push / report-view の SKILL.md（手順は仕様の処理フロー番号と対応。規約は再掲せず参照）。</p>
+      <details>
+        <summary>根拠を見る（対応）</summary>
+        <pre><code>機械テストなし（指示文）。SKILL.md の節（手順 / 参照 / エラー時の対処）と仕様の節の対応表をレポート本文に記載
+Claude Code が 4 本のスキルを認識（セッションの利用可能スキル一覧）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>提供コマンド 4 本の使い方がスキルとして読める状態になった。逸脱 D-19（SKILL.md の frontmatter は name / description のみ）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">0020 S4-2: SKILL.md 5 本・assets 4 本・eval 定義 5 本 <span class="chip good">◎良</span> <span class="basis">根拠: ai-asset-creator / feature-mr / issue / requirement / spec の各仕様、eval.template</span></h3>
+      <p>スクリプトを持たない共通ステップ 5 本の SKILL.md、テンプレート（MR 本文 / issue 本文 / 追記 / 要件定義書）、eval 定義 5 本（AC-E / FM-E / IS-E / RQ-E / SP-E 各 3 行。with / without × 3 回。未実行の明記）。</p>
+      <details>
+        <summary>根拠を見る（対応・検査）</summary>
+        <pre><code>eval 5 本は eval.template.md のコピー + プレースホルダ 8 個の置換で生成（残り 0）
+プレースホルダ 0 / 旧名 0 / CR 0 / frontmatter OK / 許可範囲内。5 本ともスキル一覧に出現</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>共通ステップ 9 本の SKILL.md が揃った。eval は定義のみで未実行。逸脱 D-20（`type: requirement`）・D-21（追記テンプレートの受け入れ条件）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">8</span>
+      <h3 id="f8">0015 S2-2: hooks/lib 5 本（hook-common / cmdpos / scope / push-detect / transcript） <span class="chip warn">△注意</span> <span class="basis">根拠: フック共通仕様 §2〜§5・§7〜§10、post-push-compact-prompt / usage-report 仕様、§11 HK-T03〜T14</span></h3>
+      <p><code>hook-common.sh</code>（入力読取・`tool_class`・緊急停止・`redact`・deny / ask / additionalContext・`decisions.jsonl`・セッション状態・fail-closed・ヘッドレス）、<code>cmdpos.sh</code>（参考実装の正規化部を流用し、セグメント列 API に書き直し。PowerShell 前処理・縮退・提供コマンド識別）、<code>scope.sh</code>（判定順 (1)〜(7)・glob・宣言の絞り込み・ops 分類・設定検査）、<code>push-detect.sh</code>、<code>transcript.sh</code>、テスト 5 本。</p>
+      <details>
+        <summary>根拠を見る（テスト）</summary>
+        <pre><code>run-tests.sh --ids → OK: 14 本 / 55 件（HK-T03 / T04 / T05 / T06 / T07 / T08 / T10 / T11 / T12 / T13 / T14 が新規 PASS）
+個別: hook_common 79 / cmdpos 135 / scope 105 / push_detect 26 / transcript 21 assert
+実装側の修正 4 件: redact の Bearer が *** に再一致して無限ループ（HK-T10）/ scope_classify の local 展開順（set -u）/ ln -s の値付きオプション / Windows の jq 1.6 で strptime 不可（HK-T14）
+PATH を空にしても前置フィルタと cmdpos は動く（fork ゼロ。HK-T13）</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>2/3 のフック本体が乗れる状態。ただし `tool_response` の形（D-23）と案内側フックの読み込みポリシー（D-27）は実機と 2/3 で確認が要る。逸脱 D-22〜D-27。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">9</span>
+      <h3 id="f9">0021 S4-3・S5-1: ルール 3 本・参照更新・HTML 遡及 <span class="chip good">◎良</span> <span class="basis">根拠: rules/{logger,design-docs,ai-asset-design-docs} 要件、ルール体系「成果物ルールの章スキーマ」、report-view 仕様</span></h3>
+      <p>成果物ルール 3 本（7 章固定・該当なしは根拠 1 行・`paths`）、計画 3 本・レポート 3 本の HTML（すべて `check-html.sh` OK）、`wip/push-check-skip.md` の削除、参照更新の再検索（1 / 26 / 26 / 31 / 25 で計画書の値と同数。新規アセットには 0 件）、全テスト、結果レポートの集約。</p>
+      <details>
+        <summary>根拠を見る（検査）</summary>
+        <pre><code>ルール 3 本: 見出し 7 章が規定の文言と順で一致。該当なし 4 章（design-docs 2 / ai-asset-design-docs 2）に根拠 1 行
+HTML: 0002 id 10 / リンク 7、0006 id 9 / リンク 6、0011 id 11 / リンク 8、0003 id 16 / リンク 9、0008 id 17 / リンク 10、0013 は本ファイル
+run-tests.sh --ids → OK: 14 本 / 55 件（最終）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>本 issue の実装を閉じた。以後の push は 4 項目すべてを実施する。逸脱 D-28（ルールの frontmatter キー）。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>機械テスト（最終）</td><td><code>run-tests.sh --ids</code> → OK: 14 本 / 55 件。CP 7 / LG 5 / SS 4 / FR 5 / TR 5 / TICKET 11 / RV 6 / HK 12。FAIL なし・重複なし。HK-T01・T09 はフック本体が要るため 2/3</td></tr>
+      <tr><td>eval</td><td>15 件を定義済み・未実行（人間の明示的な依頼時に実行）</td></tr>
+      <tr><td>プレースホルダ・frontmatter・旧名・CR</td><td>全チケットで 0 件（テンプレート `assets/*.template.*` は対象外）</td></tr>
+      <tr><td>H1 / H2（0015）</td><td>`log_*` の呼び出しは redact 済みの値のみ（HK-T06）。`logs/**` は判定対象外、`state_files` は除外しない（HK-T11）</td></tr>
+      <tr><td>参照更新の再検索（0021）</td><td>1 / 26 / 26 / 31 / 25 — 計画書の記録と同数。すべて旧ワークフロースキル 2 本の中（3/3 で置換）</td></tr>
+      <tr><td>HTML（0021）</td><td>計画 3 本・レポート 3 本が `check-html.sh` OK。`wip/push-check-skip.md` を削除</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>0022（フィードバック計画）</strong>: 逸脱 D-1〜D-28 の仕様への反映（要件・仕様・DDR のどれに書くか、2/3 へ送るもの）、残りのルール 11 本の送り先、計画の保留 4 件（`SP` 接頭辞の衝突、`build-test` と `hook-test` の重なり、プレースホルダ表記、`commands.build-test` が空）</li>
+    <li><strong>2/3（フック本体）</strong>: HK-T01 / T09 / T03 の登録部分、`tool_response` の実物の形（D-23）、案内側フックの `scope.sh` 読み込みポリシー（D-27）、クォートで割ったサブコマンド `_` の扱い、§11 への HK-T15 候補（D-26）、H6 に jq 1.6 の strptime 不可</li>
+    <li><strong>3/3（ワークフロースキル）</strong>: 旧ワークフロースキル 2 本に残る旧名の置換、`issue-addendum.template.md` の新旧の重複整理</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>0014: 読み込み行の関数内で `BASH_SOURCE[1]` が呼び手を指す</td><td>`bash -c` から直接呼ぶと空になる</td><td>テストは必ずファイルから実行する</td></tr>
+      <tr><td>0014: ログの出どころはテンプレートの名前</td><td>`$0` の basename（仕様どおり）</td><td>テストの期待を直した</td></tr>
+      <tr><td>0020: Bash ツールで複数ファイルをヒアドキュメントの列で書ける</td><td>3 回とも unexpected EOF で落ちた（小さな単体は通る）</td><td>Write ツールで 1 ファイルずつ。生成物への影響なし</td></tr>
+      <tr><td>0015: jq の `fromdateiso8601` で時刻を変換できる</td><td>Windows の jq 1.6 では strptime が動かず全部 null</td><td>参考実装と同じ自前の暦計算に置換（H6 に追加すべき事項）</td></tr>
+      <tr><td>0015: redact の置換は 1 回で収束する</td><td>`Bearer` パターンが `***` に再一致して無限ループ。テストがタイムアウト</td><td>除外文字に `*` を追加。パターンごとに「置換結果が再び当たらない」ことを確かめる</td></tr>
+      <tr><td>0015: 参考実装の走査部を流用できる</td><td>真偽値を返す述語で、セグメント列を返す形には使えない</td><td>正規化部だけ無改造で流用し、走査部を全面的に書き直した（付録 A の見立てどおり）</td></tr>
+      <tr><td>0021: レポートへの節の機械的な差し込みは安全</td><td>`$(cat)` が末尾の改行を落とし、見出し行が前の行に連結された</td><td>差し込み後に見出しの数を数える検査を入れて修正</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>0022 の入力</strong>: 逸脱 D-1〜D-28 の反映先、ルール 11 本（成果物 `markdown-docs` / `plan-report` / `html-view` / `bash-script` / `ai-asset-authoring`、行動 `agent-common` / `directory-structure` / `document-lifecycle` / `git-workflow` / `ai-command-style` / `headless-awareness`）の送り先、計画の保留 4 件</li>
+    <li><strong>2/3 へ</strong>: HK-T01 / T09 / T03 登録部分、`tool_response` の形（D-23）、`scope.sh` の読み込みポリシー（D-27）、`git 'commit'` の扱い、HK-T15 候補（D-26）、H6 の追記</li>
+    <li><strong>3/3 へ</strong>: 旧名の置換（`work-boundary.sh` 26 / `merge-prep.sh` 26 / `10-work-` 31 / `20-task-gh-` 25 / `workflow-lib.sh` 1）、`issue-addendum.template.md` の重複整理</li>
+    <li><strong>確認できていないもの</strong>: HTML のブラウザ表示、eval 15 件の実行、`shellcheck`</li>
+    <li><strong>小さな改善</strong>: `hook_payload` に `session_id` の指定、`skill.template.md` のガイド、実装計画のチケット表の実行順</li>
+  </ul>
+</section>
+
+<footer>issue #6 / PR #7 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

@@ -14,11 +14,14 @@ tags: [report, ai-asset-implementation, issue-6]
 
 ## 要約
 
-（0021 で集約）
+issue #6（実装 1/3: ルール・フック共通基盤・共通ステップスキルと提供コマンド）の実装をチケット 0013〜0021（+ 設計差し戻し 0024・計画修正 0023）で完了した。作成したのは、設定・定義 3 本（`task-types.tsv` / `scope-limits.json` / `.gitattributes`）、ルール 4 本（`work-defaults` / `logger` / `design-docs` / `ai-asset-design-docs`）、フック共通ライブラリ 5 本（`hook-common` / `cmdpos` / `scope` / `push-detect` / `transcript`）、提供コマンド 5 本（`commit.sh` / `push.sh` / `ticket.sh` / `check-html.sh` / `run-tests.sh`）と共有ライブラリ 3 本（`logger.sh` / `frontmatter.sh` / `test-lib.sh`）、テンプレート 12 本（sh 2・チケット 1・HTML 2・SKILL / eval 2・MR / issue / 追記 / 要件 4 ほか）、共通ステップスキル 9 本の SKILL.md、eval 定義 5 本。テストは `run-tests.sh` で 14 本 / 55 ID が全 PASS（HK-T01・T09 はフック本体が要るため 2/3）。切り替え境目 A（0016）/ B（0017）/ C（0018）以降、コミット・push・チケットの状態遷移・HTML 検査はすべて提供コマンドで行った。仕様からの逸脱と決定は D-1〜D-28 として下表にまとめ、フィードバック計画（0022）の入力にする。フック本体は作らず `settings.json` にも登録していないので、この時点でフックによるロックアウトの経路は無い。
 
 ## 確かめられなかったこと
 
 - 0018: HTML テンプレート 2 本のブラウザでの実表示（ライト / ダーク・サイドバーの sticky）。この環境にブラウザ操作が無く未確認。機械検査（RV001〜007）のみ通過
+- 0021: 0002 / 0006 / 0008 / 0013 の HTML と 0011 / 0003 の正式配置分も同様にブラウザ未確認（`check-html.sh` のみ）
+- 0020: eval 定義 15 件は未実行。指示文（SKILL.md・ルール）の効果は測っていない
+- 0015: `tool_response` の実際の形（終了コードのフィールド名・有無）は実機で未確認。push 検知はフィールドが無ければ終了コード 0 とみなす（D-23）
 
 ## 作成・更新したアセット（仕様の節との対応）
 
@@ -102,7 +105,28 @@ tags: [report, ai-asset-implementation, issue-6]
 | `.claude/hooks/lib/push-detect.sh` | `post-push-compact-prompt` 仕様「push 検知」1〜3、§11 HK-T13 | `push_detect <cmd> <tool_response> [shell] [root]`。前置フィルタ（fork ゼロ）→ cmdpos（提供コマンド `push.sh` か実行位置の `git push`。縮退時は部分一致）→ 終了コード → HEAD == `@{upstream}` → `origin/<b>` → 終了コード 0 の縮退 → `push-state.json[b].sha` != HEAD |
 | `.claude/hooks/lib/transcript.sh` | `post-push-usage-report` 仕様 `--accumulate` 2・5、§11 HK-T14 | `transcript_aggregate <path> [cursor]`。カーソル（行数）以降を 1 回の jq で集計（4 指標・`tool_calls`・`responses`・タイムスタンプ列・`parse_errors`・`new_offset`）。ファイルパスを jq に渡し中身を引数に載せない。エポック変換は strptime に依存しない自前実装 |
 | `.claude/hooks/lib/tests/test_{hook_common,cmdpos,scope,push_detect,transcript}.sh` | §11 HK-T03（lib 部分）/ T04 / T05 / T06 / T07 / T08 / T10 / T11 / T12 / T13 / T14 | 雛形 `test.template.sh` 由来。ドライバ sh を一時リポジトリに置いて別プロセスで実行（fail-closed・fork ゼロ・PATH 制限を観察できる形）。フック本体が要る HK-T01・T09・T03 の登録部分は 2/3 |
+### 0021 S4-3・S5-1: ルール 3 本と参照更新・HTML 遡及
+
+| アセット | 仕様の節 | 備考 |
+|---|---|---|
+| `.claude/rules/logger.md` | 要件 `00_requirement/rules/logger.md`「ルールが定める内容」（使い方・レベル・内部仕様の参照・禁止）、`ルール体系.md`「成果物ルールの章スキーマ」 | 7 章固定（適用範囲 / 構造・配置 / 書式・可読性 / セキュリティ / 堅牢性 / パフォーマンス / テスト・機械的検査）。`paths` は `.claude/skills/*/scripts/**/*.sh` と `.claude/hooks/**/*.sh`。内部仕様（行フォーマット・出力先・失敗時）は `20-common-step-shell-script` 仕様を参照し再掲しない |
+| `.claude/rules/design-docs.md` | 要件 `00_requirement/rules/design-docs.md`（配置 / 正史のみ / 書き分け / DDR / 用語辞書 / 例外） | `paths: ["docs/**"]`。セキュリティ・パフォーマンスは「該当なし」+ 根拠 1 行 |
+| `.claude/rules/ai-asset-design-docs.md` | 要件 `00_requirement/rules/ai-asset-design-docs.md`（配置と 1:1:1 / 正史 / 外部視点 / DDR / 用語辞書 / 要件書の形 / 例外） | `paths: [".claude/docs/**"]`。`design-docs` と重なる規定は同じ文言で独立に持つ。セキュリティ・パフォーマンスは「該当なし」+ 根拠 1 行 |
+| `wip/20_plans/{0002-investigation-plan,0006-ai-asset-design-plan,0011-ai-asset-implementation-plan}.html`、`wip/30_reports/{0003-investigation,0008-ai-asset-design,0013-ai-asset-implementation}.html` | `20-common-step-report-view` 仕様（処理フロー・OUT ひな形）。0011 / 0003 は 0018 の試し埋め（`wip/tmp/trial/`）を正式配置 | 6 本とも `check-html.sh` で `OK: 検査 7 項目すべて通過`（0002 id 10 / リンク 7、0006 id 9 / リンク 6、0011 id 11 / リンク 8、0003 id 16 / リンク 9、0008 id 17 / リンク 10）。付録 `0003-investigation-appendix-{A,B,C}.md` は対象外 |
+| `wip/push-check-skip.md`（削除） | `20-common-step-commit-push` 仕様（push 前チェック項目 3） | md / html の対が揃ったので項目 3 のスキップ記録を削除。以後の push は 4 項目すべてを実施 |
+
 ## テスト結果
+
+### 0021（最終）
+
+- `run-tests.sh --ids` → `OK: 14 本 / 55 件`、FAIL なし、重複なし。PASS ID と仕様の「テスト観点」の突合:
+  - `20-common-step-commit-push`: CP-T01〜07（7 / 7）
+  - `20-common-step-shell-script`: LG-T01〜05、SS-T01〜04、FR-T01〜05、TR-T01〜05（19 / 19）
+  - `20-common-step-ticket`: TICKET-T01〜11（11 / 11）
+  - `20-common-step-report-view`: RV-T01〜06（6 / 6）
+  - フック共通仕様 §11: HK-T02〜T08、T10〜T14（12 / 14。HK-T01・HK-T09 と HK-T03 の登録部分はフック本体と `settings.json` 登録が要るため 2/3）
+- eval: 15 件（AC-E / FM-E / IS-E / RQ-E / SP-E 各 3）を定義済み・**未実行**（人間の明示的な依頼時に実行）
+- ルール 3 本: 機械テストなし（指示文）。章スキーマの検査は下記「検査結果」
 
 ### 0015
 
@@ -111,7 +135,9 @@ tags: [report, ai-asset-implementation, issue-6]
 - 性能の観点: 前置フィルタと cmdpos は外部プロセスを起動しない（PATH を空にしても `command not found` が出ないことを HK-T13 で確認）
 - `bash -n`: 10 ファイル全て通過。shellcheck は本環境に無く省略
 - eval: なし
-- 2/3 送り: HK-T01（`settings.json` の登録照合）・HK-T09（登録ラッパーの deny）・HK-T03 の登録部分（フック本体の停止経路）はフック本体と登録が要るため書いていない### 0020
+- 2/3 送り: HK-T01（`settings.json` の登録照合）・HK-T09（登録ラッパーの deny）・HK-T03 の登録部分（フック本体の停止経路）はフック本体と登録が要るため書いていない
+
+### 0020
 
 - 機械テスト: なし（SKILL.md・テンプレート・eval 定義は指示文。`run-tests.sh` の対象に変更なし）
 - eval: 5 本を定義（AC-E01〜03 / FM-E01〜03 / IS-E01〜03 / RQ-E01〜03 / SP-E01〜03）。実行はしていない（定義のみ。人間の明示的な依頼時に実行）
@@ -159,6 +185,14 @@ tags: [report, ai-asset-implementation, issue-6]
 
 ## 検査結果
 
+### 0021
+
+- ルール 3 本の章スキーマ: `## ` 見出しが 適用範囲 / 構造・配置 / 書式・可読性 / セキュリティ / 堅牢性 / パフォーマンス / テスト・機械的検査 の 7 つ・この順（3 本とも一致）。「該当なし」は design-docs 2 章・ai-asset-design-docs 2 章で、いずれも根拠 1 行付き。frontmatter は `type` / `title` / `description` / `tags` / `keywords` / `category` / `paths`
+- プレースホルダ（`{{ }}` / `TODO` / `TBD`）: ルール 3 本・HTML 6 本で 0 件（`check-html.sh` RV001 を含む）。CR 0
+- 参照更新の再検索（S5-1）: `workflow-lib.sh` 1 / `work-boundary.sh` 26 / `merge-prep.sh` 26 / `10-work-` 31 / `20-task-gh-` 25 — 計画書の記録と同数で増えていない。すべて旧ワークフロースキル 2 本（`.claude/skills/00-workflow-*`。3/3 で置換）の中で、新規アセット（`.claude/hooks/lib/**`・`.claude/skills/20-common-step-*/**`・`.claude/rules/**`・`.claude/evals/**`・`.claude/hooks/config/**`）には 0 件
+- HTML: 6 本すべて `check-html.sh` で `OK: 検査 7 項目すべて通過`。`wip/20_plans/*.md`・`wip/30_reports/*.md`（付録を除く）の対が揃い、`wip/push-check-skip.md` を削除した
+- 許可範囲: `git diff --name-only 5b33582` は `.claude/rules/**` と `wip/**` のみ
+
 ### 0015
 
 - プレースホルダ（`{{ }}` / `TODO` / `TBD`）: 0 件（対象 10 ファイル）
@@ -166,7 +200,9 @@ tags: [report, ai-asset-implementation, issue-6]
 - 参照更新の再検索: 新規 10 ファイルに旧名（`workflow-lib.sh` / `work-boundary.sh` / `merge-prep.sh` / `10-work-` / `20-task-gh-`）と参考固有の記述（`.claude/hooks/.state`・`shell-script-style`）なし。CR なし
 - H1（redact を通す前にログへ書く経路が無い）: `hook-common.sh` の `log_*` 呼び出しは `hook_record` 内の 1 か所だけで、`target` は `__hc_redact_to_reply` 済み。deny / ask / additionalContext の本文と `decisions.jsonl` の `target` / `note` はすべてヘルパの内側で redact を通る（HK-T06 が記録と出力の両方を検査）
 - H2（無視リストは `logs/**`）: `scope_resolve` の (1) で `logs/**` を対象外にし、`state_files` だけ除外しない（HK-T11 で `logs/sh/x.log` = skip、`logs/mr.json` = 判定続行を確認）
-- 許可範囲: `git diff --name-only d36cfea` は `.claude/hooks/lib/**` と `wip/` のみ### 0020
+- 許可範囲: `git diff --name-only d36cfea` は `.claude/hooks/lib/**` と `wip/` のみ
+
+### 0020
 
 - プレースホルダ（`{{ }}` / `TODO` / `TBD`。`assets/*.template.*` 4 本は対象外）: 0 件（対象 10 ファイル。規約の説明文中の語を除く）
 - frontmatter: SKILL.md 5 本の `name` がディレクトリ名と一致、description に `Use when`。eval 5 本は `type: eval` + title / description / tags / keywords。`requirements.template.md` は `type: requirement`（D-20）
@@ -241,6 +277,7 @@ tags: [report, ai-asset-implementation, issue-6]
 | D-25 | 0015 | `redact` の「40 文字以上の 16 進 / base64 様の語」は `/` を含む語を対象外にした（`[A-Za-z0-9+=_-]{40,}`） | `/` を含めると `.claude/skills/20-common-step-shell-script/scripts/logger.sh` のようなパスの一部（`/` で区切られた 40 文字超の並び）がマスクされ HK-T10 の「通常のパスを壊さない」と両立しない | 0022 → §3 のパターンに注記 |
 | D-26 | 0015 | `scope.sh` の判定順・宣言の絞り込み・ops の分類・設定の検査のテストを HK-T11 の ID で書いた（§11 には glob と confirm の優先だけ） | §11 に該当する ID が無く、実装計画が「テスト ID の無いアセット」を起こせないため、最も近い ID に付けた（D-6 と同じ運用） | 0022 → §11 に HK-T15（判定順と ops 分類）の追加を検討 |
 | D-27 | 0015 | `scope.sh` は `frontmatter.sh` を読み込み行の `deny` ポリシーで source する（チケットの DoD どおり）。案内側フック（diff-check / subagent-stop-check）が source したときも読めなければ deny JSON を出して終了 0 になる | 読み込み行のポリシーはファイル単位で固定。案内側の「何も出さずに通す」と食い違うが、frontmatter.sh が無い状態は機構全体の破損であり、PostToolUse の permissionDecision は無視される | 0022 → 2/3 で案内側の挙動を確認し、必要なら scope.sh を `nop` にして呼び手が判定 |
+| D-28 | 0021 | 成果物ルールの frontmatter に `category: artifact` と `paths: [...]` を置いた（`work-defaults` は `category: behavior` + `applies_when`（D-1）） | `paths` は `ルール体系` 要件が定めるが、`category` のキー名と値、`applies_when` は `markdown-docs` ルール（未作成）が定める想定で未定義。収集・抽出の実装が読む形を先に固定した | 0022 → `markdown-docs` ルール（または `ルール体系` の仕様）に `category` / `paths` / `applies_when` を明記 |
 
 ## 想定と異なった点
 
@@ -250,7 +287,12 @@ tags: [report, ai-asset-implementation, issue-6]
 - 0015: Windows の jq 1.6 では `fromdateiso8601`（strptime）が動かず、タイムスタンプが全部 null になった。参考実装が自前の暦計算を持っていた理由がこれ（H6 に追加すべき事項）
 - 0015: `redact` の `Bearer` パターンが置換後の `***` に再一致して無限ループになり、テストがタイムアウトした。置換結果が再び当たらないことをパターンごとに確かめる必要がある
 - 0015: 参考実装の走査部（真偽値を返す述語）はそのままでは使えず、セグメント列を積む形に全面的に書き直した（正規化部は無改造で流用）。付録 A の見立てどおり
+- 0021: レポートへ節を差し込む perl で `$(cat)` が末尾の改行を落とし、見出し行が前の行に連結された（`### 0020` が 2 か所で消えた）。差し込み後に見出しの数を数える検査で気づいて修正。文書の機械的な差し込みにも「差し込み後の構造検査」が要る
 
 ## 残課題
 
-（0021 で集約）
+- **0022（フィードバック計画）の入力**: 逸脱 D-1〜D-28 の仕様への反映（要件・仕様・DDR のどれに書くか、2/3 へ送るもの）、`work-defaults` 以外のルール 11 本（成果物 4: `markdown-docs` / `plan-report` / `html-view` / `bash-script` / `ai-asset-authoring`、行動 6: `agent-common` / `directory-structure` / `document-lifecycle` / `git-workflow` / `ai-command-style` / `headless-awareness`）の送り先、計画の保留 4 件（`SP` 接頭辞の衝突（SP-E と subagent-stop-check の SP-T）、`build-test` と `hook-test` の重なり、テンプレートのプレースホルダ表記 `<...>` と `{{ }}`、`commands.build-test` が空）
+- **2/3（フック本体）へ**: HK-T01（`settings.json` の登録照合）・HK-T09（登録ラッパーの deny）・HK-T03 の登録部分。`tool_response` の実物の形（D-23）。案内側フックが `scope.sh` を source したときの読み込み行ポリシー（D-27）。`git 'commit'` のようにクォートで割った語はサブコマンドが `_` になる（`block-direct-git` は「特定できない」として扱う）。§11 に判定順・ops 分類の ID（HK-T15 候補、D-26）。フック共通仕様 H6 に「jq 1.6（Windows）では `strptime` / `fromdateiso8601` が使えない」を追加
+- **3/3（ワークフロースキル）へ**: 旧ワークフロースキル 2 本に残る旧名（`work-boundary.sh` 26 / `merge-prep.sh` 26 / `10-work-` 31 / `20-task-gh-` 25 / `workflow-lib.sh` 1）の置換。`00-workflow-issue-mr-driven/assets/issue-addendum.template.md`（旧）と `20-common-step-issue/assets/issue-addendum.template.md`（新）の重複整理
+- **確認できていないもの**: HTML テンプレート 2 本と HTML 6 本のブラウザでの実表示（ライト / ダーク・サイドバーの sticky）。eval 15 件の実行（人間の依頼時）。`shellcheck` による静的検査（本環境に無い）
+- **小さな改善**: `test-lib.sh` の `hook_payload` に `session_id` の指定を足す（HK-T07 は手書きの JSON で代替した）。`skill.template.md` のガイドに「冒頭段落は禁止事項の要約」を書く。実装計画のチケット表の実行順（`next` の最小連番）と計画の記述順を揃える

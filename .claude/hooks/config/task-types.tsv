@@ -1,0 +1,16 @@
+#	type	タスク名	担当	スキル名	対の相手
+1	overall-plan	全体計画	メインエージェント	10-task-overall-plan	-
+2	investigation-plan	調査計画	サブエージェント	10-task-investigation-plan	investigation
+3	investigation	調査実施	サブエージェント	10-task-investigation-exec	investigation-plan
+4	design-plan	設計計画	サブエージェント	10-task-design-plan	design
+5	design	設計実施	サブエージェント	10-task-design-exec	design-plan
+6	implementation-plan	実装・テスト計画	サブエージェント	10-task-implementation-plan	implementation
+7	implementation	実装・テスト実施	サブエージェント	10-task-implementation-exec	implementation-plan
+8	feedback-plan	フィードバック計画	メインエージェント	10-task-feedback-plan	-
+9	design-feedback-plan	設計反映計画	サブエージェント	10-task-design-feedback-plan	design-feedback
+10	design-feedback	設計反映実施	サブエージェント	10-task-design-feedback-exec	design-feedback-plan
+11	ai-asset-design-plan	AI アセット設計計画	サブエージェント	10-task-ai-asset-design-plan	ai-asset-design
+12	ai-asset-design	AI アセット設計実施	サブエージェント	10-task-ai-asset-design-exec	ai-asset-design-plan
+13	ai-asset-implementation-plan	AI アセット実装・テスト計画	サブエージェント	10-task-ai-asset-implementation-plan	ai-asset-implementation
+14	ai-asset-implementation	AI アセット実装・テスト実施	サブエージェント	10-task-ai-asset-implementation-exec	ai-asset-implementation-plan
+15	overall-summary	全体まとめ	メインエージェント	10-task-overall-summary	-

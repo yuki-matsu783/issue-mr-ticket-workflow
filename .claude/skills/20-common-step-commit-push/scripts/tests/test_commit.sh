@@ -85,7 +85,8 @@ assert_exit "CP-T03" 0
 assert_contains "CP-T03" "除外: src/.env（.env）"
 assert_contains "CP-T03" "OK: 1 ファイルをコミットした"
 
-# CP-T04 全除外が CP003、差分なしが CP004、対象未指定・一括指定・glob が CP001、--allow-empty の空コミット
+# CP-T04 全除外が CP003、差分なしが CP004、--allow-empty の空コミット
+# （対象未指定・一括指定・glob・存在しないパスの CP001 は仕様が CP-T03 に置くので、この節でも ID は CP-T03）
 run_cmd bash "$COMMIT" -m "chore: 秘密" .env
 assert_exit "CP-T04" 1
 assert_contains "CP-T04" "CP003:"
@@ -93,22 +94,22 @@ run_cmd bash "$COMMIT" -m "chore: 変更なし" e.txt
 assert_exit "CP-T04" 1
 assert_contains "CP-T04" "CP004:"
 run_cmd bash "$COMMIT" -m "chore: なし"
-assert_exit "CP-T04" 2
-assert_contains "CP-T04" "CP001:"
+assert_exit "CP-T03" 2
+assert_eq "CP-T03" "CP001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 run_cmd bash "$COMMIT" -m "chore: 一括" .
-assert_exit "CP-T04" 2
-assert_contains "CP-T04" "CP001:"
+assert_exit "CP-T03" 2
+assert_eq "CP-T03" "CP001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 run_cmd bash "$COMMIT" -m "chore: 一括" -A
-assert_exit "CP-T04" 2
+assert_exit "CP-T03" 2
 run_cmd bash "$COMMIT" -m "chore: glob" '*.txt'
-assert_exit "CP-T04" 2
-assert_contains "CP-T04" "CP001:"
+assert_exit "CP-T03" 2
+assert_eq "CP-T03" "CP001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 run_cmd bash "$COMMIT" -m "chore: amend" --amend e.txt
 assert_exit "CP-T08" 2   # 存在しないオプションは引数の誤り（CP007）
 assert_contains "CP-T08" "CP007:"
 run_cmd bash "$COMMIT" -m "chore: 存在しない" nosuch.txt
-assert_exit "CP-T04" 2
-assert_contains "CP-T04" "CP001:"
+assert_exit "CP-T03" 2
+assert_eq "CP-T03" "CP001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 before="$(count_commits)"
 run_cmd bash "$COMMIT" --allow-empty -m "chore: start #1 x"
 assert_exit "CP-T04" 0
@@ -140,12 +141,15 @@ mv .claude/skills/20-common-step-shell-script/scripts/logger.sh logger.sh.bak
 run_cmd env -u CLAUDE_PROJECT_DIR -u LOGGER_ROOT bash "$COMMIT" -m "docs: logger 不在でもコミットできる" g.txt
 assert_exit "CP-T01" 0
 assert_exit "CP-T08" 0   # logger を退避しても最終行の契約が守られる
+assert_eq "CP-T08" "OK" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"   # 最終行の型（規約: exact に固定する）
+assert_eq "CP-T08" "" "$R_ERR"
 assert_contains "CP-T01" "OK: 1 ファイルをコミットした"
 echo h > h.txt
 run_cmd env -u CLAUDE_PROJECT_DIR -u LOGGER_ROOT bash "$COMMIT" -m "bad subject" h.txt
 assert_exit "CP-T01" 1
 assert_contains "CP-T01" "CP002:"
 assert_eq "CP-T01" "" "$R_ERR"
+assert_eq "CP-T08" "CP002" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"   # 失敗側も logger 不在で最終行の型が守られる
 mv logger.sh.bak .claude/skills/20-common-step-shell-script/scripts/logger.sh
 
 finish

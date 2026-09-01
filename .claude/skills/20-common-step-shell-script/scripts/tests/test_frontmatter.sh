@@ -32,6 +32,17 @@ predecessors: ["9999"]
 EOF
 printf '%s\r\n' '---' 'ticket_type  :  design  ' 'predecessors: [ "0001" ,"0002" ]  # c' 'allow:' '  ops: ["read"]' '---' 'body' > crlf.md
 printf '%s\n' '# 見出しだけ' 'ticket_type: nope' > nofm.md
+cat > esc.md <<'EOF'
+---
+type: ticket
+human_review: {required: true, reason: "a\"b\\c & d | e"}
+adversarial_review: {required: false, reason: "見出し # は本文"}
+allow:
+  write: ["x/**", "y\"z", "p\\q"]
+cancel_reason: "不要 & 重複 | \"引用\" \\ 記号"
+---
+body
+EOF
 printf '%s\n' '---' 'predecessors:' '  - a' '  - b' 'ticket_type: x' '---' > block.md
 
 # 純 bash で呼ぶ: PATH を無効化した bash の中で source して実行する（外部プロセスを起動していれば command not found が出る）
@@ -68,6 +79,18 @@ fm fm_get ticket.md adversarial_review.reason
 assert_eq "FR-T03" "x #1" "$R_OUT"
 fm fm_get ticket.md adversarial_review.required
 assert_eq "FR-T03" "false" "$R_OUT"
+
+# FR-T03（追記）二重引用符の中のエスケープ: \" は区切りにならず、読むときに \" → " / \\ → \ に戻る
+fm fm_get esc.md human_review.reason
+assert_eq "FR-T03" 'a"b\c & d | e' "$R_OUT"
+fm fm_get esc.md cancel_reason
+assert_eq "FR-T03" '不要 & 重複 | "引用" \ 記号' "$R_OUT"
+fm fm_list esc.md allow.write
+assert_eq "FR-T03" $'x/**\ny"z\np\\q' "$R_OUT"
+fm fm_get esc.md human_review.required
+assert_eq "FR-T03" "true" "$R_OUT"
+fm fm_get esc.md adversarial_review.reason
+assert_eq "FR-T03" '見出し # は本文' "$R_OUT"
 
 # FR-T04 CRLF・キー前後の空白・行末コメント
 fm fm_get crlf.md ticket_type

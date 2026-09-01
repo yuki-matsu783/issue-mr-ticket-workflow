@@ -140,6 +140,16 @@ run_cmd bash "$CHECK" "$WORK/not-html.txt"
 assert_exit "RV-T07" 2
 assert_eq "RV-T07" "RV008: .html 以外は検査しない: $WORK/not-html.txt" "${R_OUT##*$'\n'}"
 assert_not_contains "RV-T07" "RV001"
+# 読めないファイル（権限を落とせる環境でだけ検査する。Windows の NTFS では chmod が効かないことがある）
+cp "$R" "$WORK/noperm.html"
+chmod 000 "$WORK/noperm.html" 2>/dev/null || true
+if [ ! -r "$WORK/noperm.html" ]; then
+  run_cmd bash "$CHECK" "$WORK/noperm.html"
+  assert_exit "RV-T07" 2
+  assert_eq "RV-T07" "RV008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+  assert_contains "RV-T07" "読めない"
+fi
+chmod 644 "$WORK/noperm.html" 2>/dev/null || true
 # 負のケースの正の期待値: data-template 無し + 置き場外は RV006 で終了 1（引数・ファイルは正しいので RV008 を出さない）
 run_cmd bash "$CHECK" "$E2"
 assert_exit "RV-T07" 1

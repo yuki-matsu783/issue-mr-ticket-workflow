@@ -121,7 +121,7 @@
 
   <p class="counts" id="counts" data-required>
     <span class="chip good">◎良 3</span>
-    <span class="chip warn">△注意 1</span>
+    <span class="chip warn">△注意 2</span>
     <span class="chip stop">✕問題 0</span>
   </p>
 
@@ -137,6 +137,7 @@
           <li><a href="#f2"><span class="mk warn">△</span> 2. 0034: ticket.sh の TK008・yaml_escape・見出し重複検査、TICKET-T12</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. 0035: check-html.sh の RV008、hook_payload --session、HK-T15 の付番、RV-T07 と 3 テストの追記</a></li>
           <li><a href="#f4"><span class="mk good">◎</span> 4. 0036: SKILL.md 7 本と eval 2 本を仕様に合わせ、参照更新 11 検索語を再実行</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. 0039: 切れ目のレビュー I2-1〜I2-22 の反映（往復の不具合・契約違反・識別力の無いテスト・訂正 6 件）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -161,7 +162,7 @@
   <p class="lead">設計 0028〜0032 が仕様に書き戻した内容のうち実装を伴う 9 件を、計画 0031 の固定順で実装する。各チケットはテストを先に書いて失敗を確認してから実装し、<code>run-tests.sh --ids</code> の全件と参照更新の検索で確かめる。「自分が使っている提供コマンドを自分で変える」チケットは、変更後の自分のコマンドで自分をコミット・完了させることを最初の実機確認にする。このレポートは 0033 が作り、0034〜0036 が節を追記する。0036 で 4 チケットすべて完了: 実装 9 件を実施し、全件 14 本 / 59 件 PASS、参照更新 11 検索語が期待どおり、逸脱 D2-1〜D2-4 はいずれも仕様の振る舞いを変えない。</p>
   <ul class="kpis">
     <li class="kpi good"><b>3</b><span>◎良</span></li>
-    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
@@ -208,7 +209,7 @@
       <table>
         <thead><tr><th>アセット</th><th>変更</th><th>仕様の節</th></tr></thead>
         <tbody>
-          <tr><td><code>skill.template.md</code></td><td>冒頭段落のガイド（禁止事項の要約・frontmatter 2 項目）と プレースホルダ PROHIBITIONS、<code>## 目的</code></td><td>ai-asset-creator OUT ひな形</td></tr>
+          <tr><td><code>skill.template.md</code></td><td>冒頭段落のガイド（禁止事項の要約・frontmatter 2 項目）と、埋め込み箇所を示すプレースホルダ（名前は PROHIBITIONS）、<code>## 目的</code></td><td>ai-asset-creator OUT ひな形</td></tr>
           <tr><td><code>requirements.template.md</code></td><td>補足の後置と <code>####</code> 小節の許容をガイドに 1 文</td><td>requirement 処理フロー 3</td></tr>
           <tr><td><code>commit.sh</code></td><td>CP007 4 か所（<code>-m</code> 値なし・<code>--amend</code> / <code>--no-verify</code>・不明オプション・ルート）、CP008 2 か所（<code>git commit</code> 失敗）</td><td>commit.sh 2・5</td></tr>
           <tr><td><code>push.sh</code></td><td>CP007 5 か所（引数・<code>git</code> 不在・ルート・detached HEAD・<code>jq</code> 不在）。CP005 / CP006 を本来の条件に</td><td>push.sh 0</td></tr>
@@ -251,6 +252,20 @@
       <p>テスト先行: 旧実装で <code>test_check_html.sh</code> FAIL 4 / <code>test_hook_common.sh</code> FAIL 7（他 4 本の追記は既存の振る舞いの追認で PASS）→ 実装後 51 / 108 とも全 PASS。全件: 個別実行で 14 本すべて PASS（<code>test_check_html.sh</code> が 121 秒で <code>run-tests.sh</code> の上限 120 秒に当たっていたため <code>strip_comments</code> を直し 41 秒に）、<code>run-tests.sh --ids</code> → <code>OK: 14 本 / 59 件</code>（+ RV-T07 + HK-T15。重複 ID の報告は 0033 の CP-T08 のみ）。0034 の申し送り（<code>frontmatter.sh</code> のアンエスケープ）は許可範囲の割れ（読み手は 0035、TICKET-T05 は 0034 側）で実行できず 3/3 へ。</p>
     </li>
     <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5">0039: 切れ目のレビュー I2-1〜I2-22 の反映 <span class="chip warn">△注意</span> <span class="basis">根拠: テスト先行（test_ticket FAIL 38 / test_frontmatter FAIL 3 → 0）、全件 14 本 / 59 件（assert は test_ticket 117・test_frontmatter 41）、新旧 ticket.sh の index 比較。注意は訂正 6 件（0033 の DoD 根拠が偽・チケット外コミット）</span></h3>
+      <table>
+        <thead><tr><th>変更</th><th>内容</th><th>指摘</th></tr></thead>
+        <tbody>
+          <tr><td><code>frontmatter.sh</code></td><td>二重引用符の中のバックスラッシュで次の 1 文字を逃がし（<code>\"</code> で要素を割らない）、読むときに <code>\"</code> → <code>"</code> / <code>\\</code> → <code>\</code> を戻す。<code>scope.sh</code> が <code>allow.write</code> を読む経路の構造破壊を解消</td><td>I2-6 / I2-7 / I2-8</td></tr>
+          <tr><td><code>ticket.sh</code></td><td><code>need_val</code>（値なしオプションで最終行を出さず終了 1 していた契約違反 → TK008 終了 2）、<code>--executor</code> の語彙検査、見出しの末尾空白・CR を許す、<code>do_commit</code> と重複する <code>git reset</code> 4 か所を削除</td><td>I2-3 / I2-18 / I2-14 / I2-5</td></tr>
+          <tr><td><code>check-html.sh</code> / <code>test-lib.sh</code> / <code>commit.sh</code></td><td>未使用定数の削除と「読めないファイル」の RV008、<code>--session</code> の値なしで落ちない、冒頭コメントの分類</td><td>I2-12 / I2-15 / I2-21 / I2-24</td></tr>
+          <tr><td>テスト 4 本</td><td>TICKET-T05 を実際の往復に・T10 の index を 4 経路・T12 に値なし 3 件と executor・T03 に末尾空白 / FR-T03 にエスケープ / CP001 を CP-T03 へ・CP-T08 の最終行 exact / RV-T07 に読めないファイル</td><td>I2-5 / I2-9 / I2-10 / I2-17</td></tr>
+        </tbody>
+      </table>
+      <p>訂正 6 件: 0033 の DoD「HTML は check-html.sh OK」は完了時点では偽だった（通したのは次のコミット <code>146f218</code>）/ そのコミットはチケット外（作業中 0 枚の区間）/ HK-T15 の assert は 92（93 はコメント込みの <code>grep -c</code>）/ D2-4 は末尾の改行だけ異なる / 受け入れ条件 4 の「1:1」は本文構成（<code>## 目的</code>）については未達 / 0033・0034 のチケット DoD 根拠の「重複 ID なし」は誤り。3/3 へ送るもの: I2-19（complete 3 の見出し存在）・I2-22（TK007 の終了コード）・I2-21（test-lib のテスト ID）・I2-25・I2-27・I2-28、別 issue（小改善）へ: I2-26（全件テストの所要）。</p>
+    </li>
+    <li class="tl-item">
       <span class="tl-dot good">4</span>
       <h3 id="f4">0036: SKILL.md 7 本と eval 2 本を仕様に合わせ、参照更新 11 検索語を再実行 <span class="chip good">◎良</span> <span class="basis">根拠: 仕様の行 × SKILL.md の行の対応表（チケット 0036 作業ログ）、参照更新 11 検索語すべて期待どおり、全件 14 本 / 59 件、プレースホルダ・frontmatter の新たな残存 0</span></h3>
       <table>
@@ -281,7 +296,7 @@
     <thead><tr><th>#</th><th>受け入れ条件</th><th>この回の実装</th><th>根拠</th></tr></thead>
     <tbody>
       <tr><td>3</td><td><code>task-types.tsv</code> / <code>scope-limits.json</code> の整合</td><td>変更なし</td><td><code>test_config_integrity.sh</code>（HK-T02）が全件 PASS に含まれる</td></tr>
-      <tr><td>4</td><td>SKILL.md 9 本と assets が仕様と 1:1</td><td>0033（テンプレート 2 本）、0036（SKILL.md 7 本・eval 2 本）</td><td>チケット 0036 作業ログの対応表、プレースホルダ・frontmatter 検査（新たな残存 0）</td></tr>
+      <tr><td>4</td><td>SKILL.md 9 本と assets が仕様と 1:1（識別子表・処理フロー・OUT ひな形の範囲。本文構成の <code>## 目的</code> は未達 — 訂正 5）</td><td>0033（テンプレート 2 本）、0036（SKILL.md 7 本・eval 2 本）</td><td>チケット 0036 作業ログの対応表、プレースホルダ・frontmatter 検査（新たな残存 0）</td></tr>
       <tr><td>5</td><td>4 提供コマンドが仕様どおりに動き TICKET-T* / CP-T* / RV-T* が通る</td><td>0033 / 0034 / 0035</td><td>TICKET-T01〜T12 / CP-T01〜T08 / RV-T01〜T07 全 PASS</td></tr>
       <tr><td>6</td><td>sh が shell-script の規約に従う</td><td>0035（<code>--session</code>、SS-T04 / TR-T04 / FR-T05、HK-T15）</td><td>SS / TR / FR / HK-T15 全 PASS、<code>bash -n</code> OK（shellcheck 不在）</td></tr>
       <tr><td>7</td><td>食い違いは仕様書へ書き戻し DDR に残す</td><td>実装フェーズは <code>.claude/docs/**</code> に書けない</td><td>逸脱 D2-1〜D2-4 と残課題を 3/3 の設計へ申し送り</td></tr>
@@ -294,9 +309,12 @@
   <table>
     <thead><tr><th>#</th><th>チケット</th><th>逸脱</th><th>理由</th><th>送り先</th></tr></thead>
     <tbody>
-      <tr><td>D2-1</td><td>0033</td><td>冒頭段落のプレースホルダ名を PROHIBITIONS とした（仕様は名前を定めない）</td><td>ひな形の規約（二重波括弧形式）</td><td>なし</td></tr>
+      <tr><td>D2-1</td><td>0033</td><td>冒頭段落のプレースホルダ名を PROHIBITIONS とした（仕様は名前を定めない）</td><td>ひな形は埋める箇所を名前付きで示す規約</td><td>なし</td></tr>
       <tr><td>D2-2</td><td>0034</td><td><code>fm_get</code> / <code>fm_list</code> がクォート内のエスケープを解除せず、<code>create</code> の値が往復で元に戻らない</td><td><code>frontmatter.sh</code> は 0034 の、<code>test_ticket.sh</code> は 0035 の許可範囲外（書き手と読み手が別チケット）</td><td>3/3（アンエスケープと TICKET-T05 の期待値を同じチケットで。仕様に明記）</td></tr>
       <tr><td>D2-3</td><td>0034</td><td>TICKET-T12 の負のコントロールを <code>complete 9999</code> にした</td><td><code>start</code> は TK002 を先に見る</td><td>なし</td></tr>
+      <tr><td>D2-5</td><td>0034 → 0039 で解消</td><td>見出しの存在検査を前方一致から完全一致に厳格化（仕様は重複検査しか求めていない）</td><td><code>grep -c</code> へ変えた副作用。逸脱に記録していなかった（I2-14）</td><td>0039 で末尾の空白・CR を許す形に。TICKET-T03 にケース追加</td></tr>
+      <tr><td>D2-6</td><td>0033 → 0039 で解消</td><td>計画が決めた「CP-T04 は差分なし・全除外だけ」に反し CP001 の 4 assert が CP-T04 に残った</td><td>仕様 CP-T03 が CP001 を持つことの見落とし（I2-9）</td><td>0039 で CP-T03 に移設し最終行を exact に</td></tr>
+      <tr><td>D2-7</td><td>0034 → 0039 で解消</td><td>拒否時の <code>git reset</code> 4 か所が <code>do_commit</code> と重複（旧版でも index は空）</td><td>実装済みの経路を確かめずに呼び手側で担保しようとした（I2-5）</td><td>0039 で削除し、TICKET-T10 の index 検査を 4 経路に</td></tr>
       <tr><td>D2-4</td><td>0035</td><td>計画の A6 に無い <code>strip_comments</code> の置き換え（bash → awk）。仕様の振る舞いは不変</td><td><code>test_check_html.sh</code> が上限 120 秒に当たり全件 PASS を満たせない。許可範囲の内側で出力一致を確認</td><td>なし（3/3 で awk 前提を仕様に足すか判断）</td></tr>
     </tbody>
   </table>
@@ -320,7 +338,8 @@
     <li>（0034 → 0035 → 3/3）<code>frontmatter.sh</code> の <code>__fm_unquote</code> でエスケープ解除、TICKET-T05 の期待値を元の値に戻す（同じチケットで）。<code>fm_get</code> の「クォートは外す」にエスケープ解除を明記</li>
     <li>（0036）3/3 の設計へ: (a) <code>fm_get</code> のエスケープ解除 / (b) <code>check-html.sh</code> の awk 前提と <code>strip_comments</code> の置き換え（D2-4）/ (c) 1 テスト ID を 2 ファイルに置く可否（CP-T08）/ (d) 計画スキルに「値の往復が要る修正は書き手と読み手を同じチケットに」/ (e) <code>run-tests.sh</code> の対象本数の数え方（<code>.claude/hooks/tests/</code> も拾う）</li>
     <li>（0036）2/3 へ: 片付けの提供コマンド（全体まとめの完了）が無く、0037 は仕様の処理フロー 2〜9 を手作業で代替する。レビュー依頼・完了・draft 解除の記録は PR コメントと本文で残す</li>
-    <li>（0036）別 issue 候補: <code>check-html.sh</code> の残りの所要時間（1 検査 2.5〜3 秒）と <code>run-tests.sh</code> の全件 5 分（直列）。テストが増えるほど上限（1 本 120 秒）に近づく</li>
+    <li>（0036 / 0039）別 issue 候補: <code>check-html.sh</code> の残りの所要時間（1 検査 2.5〜3 秒）と <code>run-tests.sh</code> の全件 5 分（直列）。<code>test_ticket.sh</code> も 117 assert で 60 秒台。1 本 120 秒の上限に対する余裕が小さい</li>
+    <li>（0039）3/3 の設計へ（追加）: 完了検査は完了コミットの直前に実際の版で回す（I2-1 / I2-2）、complete 3 に「固定見出しがすべてある」（I2-19）、TK007 の終了コード（I2-22）、<code>test-lib.sh</code> 自身のテスト ID（I2-21）、<code>RS</code> の可搬性（I2-25）、md と HTML の節構成（I2-27）、<code>commit.sh</code> の <code>cd</code> 前のディレクトリ判定（I2-28）</li>
   </ul>
 </section>
 

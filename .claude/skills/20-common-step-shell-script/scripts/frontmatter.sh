@@ -37,11 +37,16 @@ fm_extract() {
 
 # 内部: 行から # コメント（クォート外）を除き前後の空白を落として REPLY に返す
 __fm_clean() {
-  local s="$1" out="" q="" i c
+  local s="$1" out="" q="" i c bs='\'
   for (( i = 0; i < ${#s}; i++ )); do
     c="${s:i:1}"
     if [[ -n "$q" ]]; then
       out+="$c"
+      # 二重引用符の中のバックスラッシュは次の 1 文字を逃がす（\" でクォートを閉じない）
+      if [[ "$q" == '"' && "$c" == "$bs" && $((i + 1)) -lt ${#s} ]]; then
+        i=$((i + 1)); out+="${s:i:1}"
+        continue
+      fi
       [[ "$c" == "$q" ]] && q=""
       continue
     fi
@@ -58,12 +63,17 @@ __fm_clean() {
 
 # 内部: 文字列を区切り文字（クォート外）で分割し __FM_PARTS に入れる
 __fm_split() {
-  local s="$1" sep="$2" q="" cur="" i c
+  local s="$1" sep="$2" q="" cur="" i c bs='\'
   __FM_PARTS=()
   for (( i = 0; i < ${#s}; i++ )); do
     c="${s:i:1}"
     if [[ -n "$q" ]]; then
       cur+="$c"
+      # 二重引用符の中のバックスラッシュは次の 1 文字を逃がす（\" を要素の終わりと見ない）
+      if [[ "$q" == '"' && "$c" == "$bs" && $((i + 1)) -lt ${#s} ]]; then
+        i=$((i + 1)); cur+="${s:i:1}"
+        continue
+      fi
       [[ "$c" == "$q" ]] && q=""
       continue
     fi
@@ -76,14 +86,31 @@ __fm_split() {
   __FM_PARTS+=("$cur")
 }
 
-# 内部: 前後の空白とクォートを外して REPLY に返す
+# 内部: 前後の空白とクォートを外して REPLY に返す。
+# 二重引用符スタイルの中では YAML のエスケープ（\" → " / \\ → \）を元に戻す（書き手は ticket.sh の yaml_escape）
 __fm_unquote() {
-  local s="$1"
+  local s="$1" out="" i c n bs='\'
   s="${s#"${s%%[![:space:]]*}"}"
   s="${s%"${s##*[![:space:]]}"}"
   if [[ ${#s} -ge 2 ]]; then
     case "$s" in
-      \"*\") s="${s:1:${#s}-2}" ;;
+      \"*\")
+        s="${s:1:${#s}-2}"
+        n=${#s}
+        for (( i = 0; i < n; i++ )); do
+          c="${s:i:1}"
+          if [[ "$c" == "$bs" && $((i + 1)) -lt $n ]]; then
+            i=$((i + 1)); c="${s:i:1}"
+            # 知っているエスケープだけ戻す（未知の \x は文字どおり残す）
+            case "$c" in
+              \"|"$bs") out+="$c" ;;
+              *) out+="$bs$c" ;;
+            esac
+            continue
+          fi
+          out+="$c"
+        done
+        s="$out" ;;
       \'*\') s="${s:1:${#s}-2}" ;;
     esac
   fi

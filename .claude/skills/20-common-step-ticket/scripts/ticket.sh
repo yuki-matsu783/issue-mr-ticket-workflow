@@ -106,6 +106,11 @@ set_field() { # $1=file $2=key $3=value（frontmatter の `key: ""` 行を置き
   sed -i "s|^$2: \"\"|$2: \"$REPLY\"|" "$1"
 }
 
+# 値を取るオプションの検査。値が無いまま shift すると set -e で最終行を出さずに落ちるので、先に見る（仕様 Script 処理「最終行」）
+need_val() { # $1=オプション名 $2=残りの引数の数（$#）
+  [ "$2" -ge 2 ] || result_ng 008 "$1 には値が必要（$1 <値> の形で指定する）" 2
+}
+
 # ---------------------------------------------------------------- create
 cmd_create() {
   [ $# -ge 1 ] || result_ng 008 "create には種類を指定する（task-types.tsv の type）" 2
@@ -114,24 +119,26 @@ cmd_create() {
   local dod=() work=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --title) title="${2:-}"; shift ;;
-      --purpose) purpose="${2:-}"; shift ;;
-      --dod) dod+=("${2:-}"); shift ;;
-      --work) work+=("${2:-}"); shift ;;
-      --predecessors) preds="${2:-}"; shift ;;
-      --executor) executor="${2:-}"; shift ;;
-      --human-review) hr="${2:-}"; shift ;;
-      --human-review-reason) hr_reason="${2:-}"; shift ;;
-      --adversarial-review) ar="${2:-}"; shift ;;
-      --adversarial-review-reason) ar_reason="${2:-}"; shift ;;
-      --allow-write) aw="${2:-}"; shift ;;
-      --allow-ops) ao="${2:-}"; shift ;;
+      --title) need_val "$1" $#; title="$2"; shift ;;
+      --purpose) need_val "$1" $#; purpose="$2"; shift ;;
+      --dod) need_val "$1" $#; dod+=("$2"); shift ;;
+      --work) need_val "$1" $#; work+=("$2"); shift ;;
+      --predecessors) need_val "$1" $#; preds="$2"; shift ;;
+      --executor) need_val "$1" $#; executor="$2"; shift ;;
+      --human-review) need_val "$1" $#; hr="$2"; shift ;;
+      --human-review-reason) need_val "$1" $#; hr_reason="$2"; shift ;;
+      --adversarial-review) need_val "$1" $#; ar="$2"; shift ;;
+      --adversarial-review-reason) need_val "$1" $#; ar_reason="$2"; shift ;;
+      --allow-write) need_val "$1" $#; aw="$2"; shift ;;
+      --allow-ops) need_val "$1" $#; ao="$2"; shift ;;
       *) result_ng 008 "create の不明な引数: $1" 2 ;;
     esac
     shift
   done
   type_known "$type" || result_ng 008 "種類 '$type' は $TASK_TYPES に無い" 2
   [ -n "$title" ] && [ -n "$purpose" ] && [ "${#dod[@]}" -gt 0 ] || result_ng 008 "--title / --purpose / --dod（1 つ以上）は必須" 2
+  # executor は frontmatter に引用符なしで入るので、語彙（main / モデル名）に限る
+  [[ "$executor" =~ ^(main|[A-Za-z][A-Za-z0-9._-]*)$ ]] || result_ng 008 "--executor は main かモデル名（英数字と . _ -）で指定する: $executor" 2
   case "$hr" in true|false) ;; *) result_ng 008 "--human-review は true か false" 2 ;; esac
   case "$ar" in true|false) ;; *) result_ng 008 "--adversarial-review は true か false" 2 ;; esac
   [ -f "$TEMPLATE" ] || result_ng 008 "テンプレートが無い: $TEMPLATE（環境の誤り）" 2
@@ -188,7 +195,7 @@ cmd_create() {
     result_ok "$path を作成した（未着手。overall-plan はコミットしない — feature ブランチの開始コミットに載る）"
   fi
   if ! do_commit "chore: チケット $num を作成" "$path"; then
-    git reset -q -- "$path" >/dev/null 2>&1 || true; rm -f "$path"
+    rm -f "$path"   # index は do_commit が戻す
     fail_with_commit_last
   fi
   result_ok "$path を作成した（未着手。$COMMIT_LAST）"
@@ -226,7 +233,6 @@ cmd_start() {
   fi
   if ! do_commit "chore: チケット $n に着手" "$T_PATH" "$new"; then
     mv "$new" "$T_PATH"; printf '%s\n' "$orig" > "$T_PATH"
-    git reset -q -- "$T_PATH" "$new" >/dev/null 2>&1 || true
     fail_with_commit_last
   fi
   result_ok "${new##*/} を作業中にした（開始 $ts / 基準点 ${sha:-なし}。$COMMIT_LAST）"
@@ -257,7 +263,8 @@ cmd_complete() {
   [ -z "$noroot2" ] || unmet+=("チェック済み DoD に根拠欄「（根拠: ）」そのものが無い（チェック済み項目の ${noroot2}番目）。欄を消して通さない")
   local hc
   for h in "${LOG_HEADINGS[@]}"; do
-    hc="$(grep -c "^### $h\$" "$T_PATH" || true)"
+    # 見出しの一致は末尾の空白・CR を許し、前方一致の別見出し（### 現在地の続き）は数えない
+    hc="$(grep -cE "^### $h[[:space:]]*\$" "$T_PATH" || true)"
     if [ "$hc" -eq 0 ]; then unmet+=("作業ログの見出し「$h」が無い")
     elif [ "$hc" -ge 2 ]; then unmet+=("作業ログの見出し「$h」が重複している（$hc 回。テンプレートの見出しを残したまま追記していないか）")
     fi
@@ -282,7 +289,6 @@ cmd_complete() {
   log_info "complete $n -> $new completed_at=$ts"
   if ! do_commit "chore: チケット $n を完了" "$T_PATH" "$new"; then
     mv "$new" "$T_PATH"; printf '%s\n' "$orig" > "$T_PATH"
-    git reset -q -- "$T_PATH" "$new" >/dev/null 2>&1 || true
     fail_with_commit_last
   fi
   result_ok "${new##*/} を完了にした（完了 $ts。$COMMIT_LAST）"
@@ -291,7 +297,7 @@ cmd_complete() {
 # ---------------------------------------------------------------- cancel
 cmd_cancel() {
   local n="${1:-}" reason=""; shift || true
-  while [ $# -gt 0 ]; do case "$1" in --reason) reason="${2:-}"; shift ;; *) result_ng 008 "cancel の不明な引数: $1" 2 ;; esac; shift; done
+  while [ $# -gt 0 ]; do case "$1" in --reason) need_val "$1" $#; reason="$2"; shift ;; *) result_ng 008 "cancel の不明な引数: $1" 2 ;; esac; shift; done
   [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 008 "cancel には 4 桁の番号を指定する" 2
   [ -n "$reason" ] || result_ng 007 "取り消し理由が空。--reason <理由> を指定する" 1
   find_ticket "$n" || result_ng 004 "チケット $n が見つからない" 1
@@ -307,7 +313,6 @@ cmd_cancel() {
   log_info "cancel $n -> $new reason=$reason"
   if ! do_commit "chore: チケット $n を取り消し" "$T_PATH" "$new"; then
     mv "$new" "$T_PATH"; printf '%s\n' "$orig" > "$T_PATH"
-    git reset -q -- "$T_PATH" "$new" >/dev/null 2>&1 || true
     fail_with_commit_last
   fi
   result_ok "${new##*/} を取り消した（$ts: $reason。$COMMIT_LAST）"

@@ -131,7 +131,10 @@ tl_jq() {
 hook_payload() {
   local event="$1" tool="$2" sid="testsession" kv key val args=()
   shift 2
-  if [[ "${1:-}" == "--session" ]]; then sid="$2"; shift 2; fi
+  if [[ "${1:-}" == "--session" ]]; then
+    shift
+    if [[ $# -gt 0 ]]; then sid="$1"; shift; fi   # 値が無ければ既定（testsession）のまま
+  fi
   local filter='{hook_event_name: $ev, tool_name: $tn, session_id: $sid, cwd: $cwd, tool_input: {}}'
   for kv in "$@"; do
     key="${kv%%=*}"

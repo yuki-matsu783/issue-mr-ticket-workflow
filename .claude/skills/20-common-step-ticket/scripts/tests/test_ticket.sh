@@ -86,9 +86,14 @@ rm -f stray.txt
 sed -i 's/^- \[ \] d（根拠: ）$/- [x] d（根拠: ok）/; s/^- \[x\] e（根拠: ）$/- [x] e（根拠: ok）/; s/^### 拒否・確認・迂回の記録$/### 判断と根拠\n\n### 拒否・確認・迂回の記録/' "$f"
 sed -i 's/^- \[x\] g$/- [x] g（根拠: ok）/' "$f"
 perl -0pi -e 's/### うまくいったこと\n\n### うまくいったこと\n/### うまくいったこと\n/' "$f"
+# 見出しの末尾に空白があっても「無い」と誤判定しない。前方一致の別見出し（### 現在地の続き）は重複に数えない
+sed -i 's/^### 現在地$/### 現在地 /' "$f"
+printf '\n### 現在地の続き\n\n- 補足\n' >> "$f"
 fulfill "$f"
 run_cmd bash "$T" complete 0002
 assert_exit "TICKET-T03" 0
+assert_not_contains "TICKET-T03" "見出し「現在地」が無い"
+assert_not_contains "TICKET-T03" "見出し「現在地」が重複"
 
 # TICKET-T04 全体まとめの complete が TK005
 run_cmd bash "$T" create overall-summary --title "まとめ" --purpose "p" --dod "d"
@@ -173,11 +178,13 @@ assert_exit "TICKET-T10" 1
 assert_contains "TICKET-T10" "CP008:"
 assert_eq "TICKET-T10" "CP008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 if ls wip/10_tickets/00_todo/0011-*.md >/dev/null 2>&1; then fail "TICKET-T10" "create の拒否でファイルが残った"; else pass "TICKET-T10"; fi
+assert_eq "TICKET-T10" "" "$(git diff --cached --name-only)"   # index にも残らない（create）
 orig="$(cat wip/10_tickets/00_todo/0010-investigation.md)"
 run_cmd bash "$T" start 0010
 assert_exit "TICKET-T10" 1
 assert_eq "TICKET-T10" "CP008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 if [ -f wip/10_tickets/00_todo/0010-investigation.md ] && [ "$(cat wip/10_tickets/00_todo/0010-investigation.md)" = "$orig" ] && [ ! -e wip/10_tickets/10_doing/0010-investigation.md ]; then pass "TICKET-T10"; else fail "TICKET-T10" "start の拒否で元に戻っていない"; fi
+assert_eq "TICKET-T10" "" "$(git diff --cached --name-only)"   # index にも残らない（start）
 run_cmd bash "$T" cancel 0010 --reason "x"
 assert_exit "TICKET-T10" 1
 assert_eq "TICKET-T10" "" "$(git diff --cached --name-only)"   # index にも残らない
@@ -192,6 +199,7 @@ printf '#!/bin/sh\nexit 1\n' > .git/hooks/pre-commit; chmod +x .git/hooks/pre-co
 run_cmd bash "$T" complete 0010
 assert_exit "TICKET-T10" 1
 if [ -f wip/10_tickets/10_doing/0010-investigation.md ] && [ "$(cat wip/10_tickets/10_doing/0010-investigation.md)" = "$orig" ] && [ ! -e wip/10_tickets/20_done/0010-investigation.md ]; then pass "TICKET-T10"; else fail "TICKET-T10" "complete の拒否で元に戻っていない"; fi
+assert_eq "TICKET-T10" "" "$(git diff --cached --name-only)"   # index にも残らない（complete）
 rm -f .git/hooks/pre-commit
 assert_eq "TICKET-T10" "$before" "$(count_commits)"
 run_cmd bash "$T" complete 0010
@@ -249,16 +257,19 @@ assert_eq "TICKET-T11" "$before" "$(count_commits)"
 
 # TICKET-T05（追記）create の理由・glob に記号（" \ & |）があっても frontmatter が壊れず、fm_get / fm_list で元の値が読める
 reason='a"b\c & d | e'
-run_cmd bash "$T" create investigation --title "記号" --purpose "p" --dod "d" --human-review-reason "$reason" --allow-write 'x/**,y"z' --predecessors "0001"
+run_cmd bash "$T" create investigation --title "記号" --purpose "p" --dod "d" --human-review-reason "$reason" --allow-write 'x/**,y"z,p\q' --predecessors "0001"
 assert_exit "TICKET-T05" 0
 f13="$(ls wip/10_tickets/00_todo/0013-*.md)"
-# ファイルには YAML エスケープ済みの形で書かれ、fm_get / fm_list は壊れずに読める（クォート内のエスケープ解除は frontmatter.sh 側の扱い — 0035 で FR-T05 と一緒に）
+# ファイルには YAML エスケープ済みの形で書かれ、読むと元の値に戻る（書き手 ticket.sh と読み手 frontmatter.sh の往復）
 if grep -qF 'reason: "a\"b\\c & d | e"' "$f13"; then pass "TICKET-T05"; else fail "TICKET-T05" "理由の YAML エスケープが期待と違う: $(grep -m1 human_review "$f13")"; fi
-assert_eq "TICKET-T05" 'a\"b\\c & d | e' "$(fm_get "$f13" human_review.reason)"
-assert_eq "TICKET-T05" "2" "$(fm_list "$f13" allow.write | wc -l | tr -d ' ')"
-if grep -qF 'write: ["x/**", "y\"z"]' "$f13"; then pass "TICKET-T05"; else fail "TICKET-T05" "allow.write の YAML エスケープが期待と違う: $(grep -m1 'write:' "$f13")"; fi
+assert_eq "TICKET-T05" "$reason" "$(fm_get "$f13" human_review.reason)"
+if grep -qF 'write: ["x/**", "y\"z", "p\\q"]' "$f13"; then pass "TICKET-T05"; else fail "TICKET-T05" "allow.write の YAML エスケープが期待と違う: $(grep -m1 'write:' "$f13")"; fi
+assert_eq "TICKET-T05" "3" "$(fm_list "$f13" allow.write | wc -l | tr -d ' ')"
+assert_eq "TICKET-T05" $'x/**\ny"z\np\\q' "$(fm_list "$f13" allow.write)"
 assert_eq "TICKET-T05" "0001" "$(fm_list "$f13" predecessors)"
 if grep -q '^executor: main$' "$f13"; then pass "TICKET-T05"; else fail "TICKET-T05" "executor が壊れた"; fi
+# cancel の理由も同じく読み戻せる（仕様 TICKET-T05「fm_get で読み戻せる」）
+assert_eq "TICKET-T05" '不要 & 重複 | "引用" \ 記号' "$(fm_get wip/10_tickets/30_cancelled/0005-investigation.md cancel_reason)"
 
 # TICKET-T12 引数・環境の誤りは TK008・終了 2（最終行は TK008:）。対象が無いのは TK004・終了 1 のまま（負のケースの正の期待値）
 run_cmd bash "$T" badsub
@@ -274,6 +285,20 @@ run_cmd bash "$T" start 12
 assert_exit "TICKET-T12" 2
 assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 run_cmd bash "$T" cancel 0013 --bogus
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+# 値を取るオプションが引数列の末尾に来て値が無い（最終行を出さずに落ちない）
+run_cmd bash "$T" create investigation --title
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$T" create investigation --title "t" --purpose "p" --dod "d" --allow-write
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+run_cmd bash "$T" cancel 0013 --reason
+assert_exit "TICKET-T12" 2
+assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+# --executor は語彙（main / モデル名）に限る（frontmatter に無引用符で入るため）
+run_cmd bash "$T" create investigation --title "t" --purpose "p" --dod "d" --executor 'bad: value" x'
 assert_exit "TICKET-T12" 2
 assert_eq "TICKET-T12" "TK008" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 run_cmd bash "$T" complete 9999   # 作業中があっても find_ticket の失敗は TK004

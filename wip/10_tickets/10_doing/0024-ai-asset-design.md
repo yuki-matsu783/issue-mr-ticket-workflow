@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "差分が 1 文書・50 行未満
 allow:
   write: [".claude/docs/10_spec/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-01T13:53:09+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "040e228"
 ---
 
 # 0024 AI アセット設計実施（追加）— hooks/lib の push-detect / transcript にテスト ID を追加

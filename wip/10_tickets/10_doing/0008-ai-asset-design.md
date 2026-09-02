@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズの敵対的レビュ
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:56:12+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a26e10f"
 ---
 
 # 0008 設計: フック共通仕様の許可範囲と残りの置き場の参照

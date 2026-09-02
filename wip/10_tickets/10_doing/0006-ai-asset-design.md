@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ユーザー合意により人間
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T08:02:59+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "95653c7"
 ---
 
 # 0006 レビュー反映: メインフローのノード数上限を 15 にし、上限以下でも分割してよいことを明記する

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "フェーズごとに 1 回の敵�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:49:52+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b4cd926"
 ---
 
 # 0006 設計: ルールの要件書 3 本と置き場の DDR

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T11:47:02+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "aba9a51"
 ---
 
 # 0005 issue #27 の全体まとめと振り返り

@@ -203,6 +203,18 @@ case_bad_input() {
   assert_contains_out "WF509"
 }
 
+# ---- 付随: ホットパスの外部プロセス（HK-T19）: jq は 1 回、git / date / sed / find は呼ばない ----
+case_hotpath() {
+  local bash_bin; bash_bin="$(command -v bash)"
+  make_counting_path jq git date sed find awk grep cat tr cut head tail wc sort uniq
+  run_cmd env PATH="$COUNTING_PATH" "$bash_bin" -c     "printf '%s' '$(hook_payload PreToolUse Bash command='chmod +x a')' | '$bash_bin' '$TMP_HOOK'"
+  assert_eq "BC-T05" "1" "$(counted_calls jq)"
+  assert_eq "BC-T05" "0" "$(counted_calls git)"
+  assert_eq "BC-T05" "0" "$(counted_calls date)"
+  assert_eq "BC-T05" "0" "$(counted_calls sed)"
+  assert_eq "BC-T05" "0" "$(counted_calls find)"
+}
+
 # ---- 付随: 緊急停止（§4）では何も出さない ----
 case_enforce() {
   local out
@@ -232,6 +244,7 @@ case_wrapper
 case_list
 case_fastpath
 case_bad_input
+case_hotpath
 case_enforce
 case_record
 finish

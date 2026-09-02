@@ -46,7 +46,11 @@ src/vscode-ticket-board/
     scan.test.ts
     board.test.ts
     render.test.ts
+    fixtures/
+      0011-implementation.md   ticket.sh が実際に書き出したチケットの写し
 ```
+
+`test/fixtures/` には実物のチケットを 1 枚置く。テンプレート（`ticket.sh` の `assets/ticket.template.md`）が変わって解析が誤検知を出すようになったとき、単体テストで気づけるようにするため。
 
 `out/` は `tsc` の出力先。`main` は `./out/src/extension.js`。
 
@@ -102,7 +106,7 @@ src/vscode-ticket-board/
 | `ticketBoard.open` | `チケットボード: ボードを開く` |
 | `ticketBoard.refresh` | `チケットボード: ボードを更新` |
 
-`extension.ts` は `activate(context: vscode.ExtensionContext): void` と `deactivate(): void` を export する。`activate` は次を行い、戻り値の `Disposable` をすべて `context.subscriptions` に積む。
+`extension.ts` は `activate(context: vscode.ExtensionContext): void` と `deactivate(): void` を export する。`activate` は次を行い、**コマンド登録の `Disposable` を** `context.subscriptions` に積む。パネル由来の `Disposable`（`onDidReceiveMessage` / `onDidChangeViewState` / `onDidDispose` / watcher）は積まず、パネルの寿命に紐づける（「表示と更新 7」が後始末を担うため。両方に積むと破棄の経路が二重になる）。
 
 1. `vscode.commands.registerCommand("ticketBoard.open", …)` を登録する
 2. `vscode.commands.registerCommand("ticketBoard.refresh", …)` を登録する
@@ -112,7 +116,7 @@ src/vscode-ticket-board/
 
 ### `ticketBoard.open` の判定順
 
-1. `vscode.workspace.workspaceFolders?.[0]` を取る。無ければ `vscode.window.showInformationMessage` で「ワークスペースが開かれていないため、チケットボードを表示できない」と伝えて終了する
+1. `vscode.workspace.workspaceFolders?.[0]` を取る。無ければ `vscode.window.showInformationMessage` で「ワークスペースが開かれていないため、チケットボードを表示できない」と伝えて終了する。**見るのは最初のフォルダだけ**で、マルチルートワークスペースの 2 つ目以降は対象にしない。ワークスペースのフォルダ構成が開いた後に変わっても追随しない
 2. `scanTickets(folder.uri.fsPath)` を呼ぶ。`found` が `false` なら「`wip/10_tickets` が見つからないため、チケットボードを表示できない」と伝えて終了する
 3. 既にパネルがあれば `panel.reveal(panel.viewColumn)` して内容を更新する。無ければ新しく作る
 
@@ -146,12 +150,14 @@ export type FrontmatterEntry =
 
 export interface FrontmatterDocument {
   readonly entries: ReadonlyMap<string, FrontmatterEntry>;
+  /** 終端の区切りより後ろの本文。見出しの探索を frontmatter の外に限るために持つ */
+  readonly body: string;
 }
 
 export function parseFrontmatter(text: string): FrontmatterDocument | undefined;
 ```
 
-キーはドット区切りに平坦化する（`human_review.required` / `allow.write` など）。
+キーはドット区切りに平坦化する（`human_review.required` / `allow.write` など）。`body` を返すのは、区切りの探索を `parseTicket` 側で重ねて書かないためである（見出しの探索範囲は「処理フロー（チケットの解析）」手順 5）。
 
 `core/ticket.ts`。
 
@@ -182,7 +188,14 @@ export interface Ticket {
 export function parseTicket(
   filePath: string, fileName: string, state: TicketState, text: string,
 ): Ticket;
+
+/** ファイルを読み取れなかったときの代替表現。issues は TB007 の 1 件だけ */
+export function unreadableTicket(
+  filePath: string, fileName: string, state: TicketState,
+): Ticket;
 ```
+
+読み取り失敗を `parseTicket` の分岐にせず独立した関数にする。`parseTicket` の入力は本文の文字列であり、「本文が無い」場合を同じ関数で扱うと引数の意味が二重になるため。
 
 `core/scan.ts`。
 
@@ -193,7 +206,8 @@ export interface StateColumnDef {
   readonly label: string;
 }
 
-export const TICKETS_DIR = "wip/10_tickets";
+/** 走査に使うパス。OS の区切りに合わせるため path.join で作る */
+export const TICKETS_DIR = path.join("wip", "10_tickets");
 export const STATE_COLUMNS: readonly StateColumnDef[] = [
   { state: "todo",      dir: "00_todo",      label: "未着手" },
   { state: "doing",     dir: "10_doing",     label: "作業中" },
@@ -236,7 +250,6 @@ export function isKnownTicketPath(board: Board, filePath: string): boolean;
 ```ts
 export interface RenderOptions {
   readonly nonce: string;
-  readonly cspSource: string;
 }
 
 export function renderBoard(board: Board, options: RenderOptions): string;
@@ -260,16 +273,18 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
 
 ### frontmatter の解析（`parseFrontmatter`）
 
-1. 入力を `\r?\n` で分割する。1 行目が `---` でなければ `undefined` を返す
-2. 2 行目以降で最初に現れる `---` の行を終端とする。見つからなければ `undefined` を返す
+1. 入力の先頭に BOM（`\uFEFF`）があれば剥がし、`\r?\n` で分割する。1 行目が区切り行でなければ `undefined` を返す。区切り行の判定は前後の空白を落とした結果が `---` であること（BOM 付きで保存されたファイルや行末に空白の入ったファイルを「読み取れない」にしないため）
+2. 2 行目以降で最初に現れる区切り行を終端とする。見つからなければ `undefined` を返す。終端より後ろの全体を `body` として返す
 3. 終端までの各行について、インデント 0 の行は `^([A-Za-z0-9_-]+)\s*:\s*(.*)$` で分解する。一致しない行は無視する
 4. 値の形で分岐する
    - 空 → 入れ子マッピングの親。以降のインデントのある行を子として読む
    - `{` で始まり `}` で終わる → インラインマップ。**先頭の `{` と末尾の `}` を先に取り除いてから** `,` で分割し（引用符の外に現れる `,` だけを区切りとみなす）、各要素を最初の `:` で分け、左をキー、右を値として `<親>.<子>` のキーで登録する。子の値は常に `kind: "scalar"` とし、引用符を外す
    - `[` で始まり `]` で終わる → フロー配列。**先頭の `[` と末尾の `]` を先に取り除いてから** `,` で分割し（同上）、各要素の引用符を外して `kind: "list"` で登録する。空の `[]` は要素 0 個のリストとして登録する
    - それ以外 → スカラー。引用符を外して `kind: "scalar"` で登録する
-5. インデントのある行は、直前のインデント 0 の行が値を持たない親であるときだけ `^([A-Za-z0-9_-]+)\s*:\s*(.*)$` で分解し、`<親>.<子>` のキーで登録する。**子の値にも手順 4 の分岐をそのまま適用する**（`allow:` の下の `write: ["wip/**"]` はフロー配列として `kind: "list"` で登録される）。`-` で始まる行（ブロック配列）はキーを登録せずに読み飛ばす
+5. インデントのある行は、直前のインデント 0 の行が値を持たない親であるときだけ `^([A-Za-z0-9_-]+)\s*:\s*(.*)$` で分解し、`<親>.<子>` のキーで登録する。**子として認めるのは 1 段だけ**で、その親について最初に現れた子と同じインデント幅の行に限る。それより深い行（孫）はキーを登録せずに読み飛ばす（孫が同じ名前を持つと親の値を上書きしてしまうため）。**子の値には手順 4 の分岐をそのまま適用する**（`allow:` の下の `write: ["wip/**"]` はフロー配列として `kind: "list"` で登録される）。`-` で始まる行（ブロック配列）はキーを登録せずに読み飛ばす
 6. 引用符の外し方: `"` で始まり `"` で終わる場合だけ外し、`\"` は `"` に、`\\` は `\` に戻す。`"` で始まるのに閉じていない値は**登録しない**（欠落として扱う）。`'` で始まり `'` で終わる場合は引用符を外すだけでエスケープの復元はしない
+
+YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implementation # メモ` の値は `implementation # メモ` になる。`ticket.sh` は値の後ろにコメントを書かないため、サブセットの範囲に含めない。
 
 手順 6 の「閉じていない値は登録しない」は、提供ライブラリ `frontmatter.sh` の挙動に対する意図的な差異である。経緯は DDR [i0013-03](../20_ddr/i0013-03-frontmatterを自前のサブセットパーサで読む.md)。
 
@@ -278,21 +293,20 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
 不備は見つけるたびに `issues` へ追加し、途中で処理を止めない。
 
 1. `number` はファイル名の先頭 4 桁を採る（呼び出し元が `TICKET_FILE_PATTERN` で選別済み）。`predecessors` / `started_at` / `completed_at` / `base_sha` は表示しないので読まない
-2. `parseFrontmatter(text)` を呼ぶ。`undefined` なら TB001 を追加し、frontmatter 由来の項目をすべて未設定のままにして手順 5 へ進む
-3. 各項目を取り出す
-   - `ticket_type` / `executor`: スカラーとして取る。無ければ TB002（`detail` に欠けたキー名）
-   - `human_review.required` / `adversarial_review.required`: スカラーとして取り、`true` / `false` のいずれかなら真偽値にする。無ければ TB002、それ以外の値なら TB003（`detail` にキー名と実際の値）
-4. `ticket_type` が既知の 15 種に無ければ TB004（`detail` に実際の値）
-5. 本文から最初の `^#\s+(\S+)\s+(.+)$` を探す
+2. `parseFrontmatter(text)` を呼ぶ。`undefined` なら TB001 を追加し、frontmatter 由来の項目をすべて未設定のままにして手順 6 へ進む
+3. 必須の 4 項目（`ticket_type` / `executor` / `human_review.required` / `adversarial_review.required`）をスカラーとして取り出す。**スカラーとして取れなかったものはすべて TB002 とする**。キー自体が無い場合と、キーはあるが形が違う場合（フロー配列・入れ子マッピング）を区別して `detail` に書く（不備が 1 件も出ないまま項目だけが消えるのを防ぐため）。TB002 は次の手順の TB003 より先に `issues` へ積む
+4. `human_review.required` / `adversarial_review.required` の値が `true` / `false` のいずれかなら真偽値にする。それ以外の値なら TB003（`detail` にキー名と実際の値）
+5. `ticket_type` が既知の 15 種に無ければ TB004（`detail` に実際の値）
+6. **本文（`FrontmatterDocument.body`。frontmatter が読めなかった場合は入力全体）** から最初の `^#\s+(\S+)\s+(.+)$` を探す。コードフェンス（行頭の ``` または ~~~ が 3 つ以上）に囲まれた行は本文の見出しとして扱わない。frontmatter の YAML コメント行やシェル片の中の `#` をタイトルに採らないため
    - 見つからなければ TB005 を追加し、`title` をファイル名にする
    - 見つかった場合、1 つ目の捕捉が `number` と異なれば TB006（`detail` に両方の値）。`title` は 2 つ目の捕捉を採る
-6. `Ticket` を返す
+7. `Ticket` を返す
 
 ### 走査（`scanTickets`）
 
 1. `path.join(workspaceRoot, TICKETS_DIR)` が存在しディレクトリであることを確認する。そうでなければ `{ found: false, ticketsByState: 空 }` を返す
 2. `STATE_COLUMNS` の各要素について、`<tickets>/<dir>` を `fs.readdirSync` で読む。ディレクトリが無い場合は空として扱う（不備としない）
-3. `TICKET_FILE_PATTERN` に一致するファイルだけを対象にする
+3. `TICKET_FILE_PATTERN` に一致するファイルだけを対象にする。シンボリックリンクを実体と区別しない（`ticket.sh` はリンクを作らないため、区別する仕組みを持たない）
 4. 各ファイルを `fs.readFileSync(…, "utf8")` で読む。読み取りに例外が出た場合は、`number` をファイル名の先頭 4 桁、`title` をファイル名、`state` を走査中の状態とし、`issues` に TB007 だけを持つチケットとして扱い、走査を止めない。他のすべての項目は未設定にする
 5. `parseTicket` を呼び、番号の昇順に並べる。番号が同じものが同じ列にある場合はファイル名の辞書順（`String` の比較）で並べる
 6. `{ found: true, ticketsByState }` を返す
@@ -307,12 +321,12 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
 1. パネルは 1 つだけ持つ（モジュール内の変数で保持する）。デバウンスのタイマーと watcher も同じ変数の組で持つ
 2. 生成は `vscode.window.createWebviewPanel("ticketBoard", "チケットボード", vscode.ViewColumn.One, { enableScripts: true, enableForms: false, localResourceRoots: [], retainContextWhenHidden: false })`
 3. watcher は**パネルを新しく作ったときだけ**登録する。既にパネルがある経路（`reveal`）では登録しない。二重登録を防ぐため
-4. 更新は `panel.webview.html = renderBoard(board, { nonce, cspSource: panel.webview.cspSource })`。nonce は更新のたびに `crypto.randomBytes(16).toString("base64")`（`node:crypto`）で生成する
+4. 更新は `panel.webview.html = renderBoard(board, { nonce })`。nonce は更新のたびに `crypto.randomBytes(16).toString("base64")`（`node:crypto`）で生成する。CSP は nonce だけで閉じるため `webview.cspSource` は渡さない
 5. 更新の前に `scanTickets` を呼び、`found` が `false` なら HTML を差し替えず、`showInformationMessage` で対象が失われた旨を伝えて `panel.dispose()` する
 6. `panel.webview.onDidReceiveMessage` で `{ type: "open", filePath: string }` を受ける。`isKnownTicketPath(board, filePath)` が `false` なら**何もしない**（不正なパスを開かない）。`true` なら `vscode.workspace.openTextDocument(filePath)` → `vscode.window.showTextDocument(doc)` を呼ぶ。`openTextDocument` は対象が存在しない・読み込めない場合に reject するので、捕まえて `showInformationMessage` で開けなかった旨を伝え、続けてボードを読み直す
 7. `panel.onDidDispose` で、デバウンスのタイマーを取り消し、watcher を破棄し、パネルの保持を解く
-8. `panel.onDidChangeViewState` で `panel.visible` が真になったときに更新する
-9. watcher は `vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, "wip/10_tickets/**/*.md"))`。`onDidCreate` / `onDidChange` / `onDidDelete` のいずれでも同じ更新処理を予約する
+8. `panel.onDidChangeViewState` で `panel.visible` が偽から真へ**変わったとき**に更新する。このイベントは `active` の変化でも発火するため、直前の `visible` を保持して遷移だけを見る（隣のエディタへフォーカスを移すたびに Webview を作り直さないため）。`ticketBoard.open` の `reveal` 経路では、`reveal` の前に「表」として記録してから明示的に更新し、二重に読み直さない
+9. watcher は `vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, "wip/10_tickets/**/*.md"))`。glob は OS によらず `/` 区切りのため、`path.join` で作る `TICKETS_DIR` は使わず、`board-panel.ts` に `/` 区切りの定数を別に持つ。`onDidCreate` / `onDidChange` / `onDidDelete` のいずれでも同じ更新処理を予約する
 10. 予約は 120 ミリ秒のデバウンス。予約済みのタイマーがあれば取り消して張り直す。タイマーが発火したとき、パネルが既に破棄されていれば何もしない
 
 値の決定の経緯は DDR [i0013-05](../20_ddr/i0013-05-デバウンスの値.md)。
@@ -326,6 +340,7 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy"
       content="default-src 'none'; base-uri 'none'; form-action 'none';
                style-src 'nonce-{nonce}'; script-src 'nonce-{nonce}';">
@@ -338,6 +353,7 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
     <span class="total">全 {totalCount} 件</span>
     <span class="issues">不備 {issueCount} 件</span>
   </header>
+  <p class="board-empty">チケットが 1 枚もありません</p>   <!-- 全体で 0 件のときだけ -->
   <div class="board">
     <section class="column" data-state="todo">
       <h2>未着手 <span class="count">3</span></h2>
@@ -372,6 +388,8 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
 - ボード全体で 0 件のときは、`header` に加えてボード上部に「チケットが 1 枚もありません」を出す
 - `ul.issues` は不備のあるカードだけに出す。不備のあるカードには `class="card has-issue"` を付ける
 - レビュー要否のバッジは `要` / `不要` / `不明`（値が読み取れなかったとき）の 3 通り
+- `ticket_type` / `executor` が読み取れなかったカードには、バッジに「種類不明」「実行者不明」と出す（バッジそのものを消さない。何が読めなかったかが `ul.issues` の TB002 と対応して見えるようにするため）
+- DoD のチェック進捗（`- [x]` の数）はカードに出さない。本文の走査が要り、frontmatter だけを読む方針から外れるため（調査 0003 の申し送りに対する決定）
 - タイトルは折り返して全文を出す（`overflow-wrap: anywhere`）。省略記号で切らない。列の幅は固定し、ボード全体を横スクロールさせる
 - スクリプトは `nonce` 付きインライン 1 つだけ。冒頭で `acquireVsCodeApi()` を 1 回だけ呼び、カードの `click` と `Enter` キーで `vscode.postMessage({ type: "open", filePath })` を送る
 - `<style>` も `nonce` 付きにする。`style-src` に `'unsafe-inline'` を許さない（調査 0007 章 2 が挙げた `style-src ${webview.cspSource}` は外部のスタイルシートを許す形で、埋め込みの `<style>` 1 つには nonce のほうが狭い）
@@ -398,7 +416,7 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
 | 識別子 | 意味 | カードに出す文言の型 |
 |---|---|---|
 | TB001 | frontmatter が読み取れない | `TB001: frontmatter を読み取れない` |
-| TB002 | 必須の項目が欠けている | `TB002: {キー名} が読み取れない` |
+| TB002 | 必須の項目が欠けている、または scalar として読み取れない | `TB002: {キー名} が読み取れない` / `TB002: {キー名} が読み取れない（scalar でない）` |
 | TB003 | 真偽値として解釈できない | `TB003: {キー名} が true/false でない（{値}）` |
 | TB004 | チケットの種類が既知の一覧に無い | `TB004: 未知のチケットの種類（{値}）` |
 | TB005 | 本文の見出しが読み取れない | `TB005: 見出しが読み取れない。ファイル名を表示している` |
@@ -418,7 +436,7 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
 | TB-T03 | `parseFrontmatter` | 二重引用符が閉じていない値をキーごと登録しない |
 | TB-T04 | `parseFrontmatter` | ブロック配列（`- x`）のキーを登録せず、他のキーの解釈を壊さない。空のフロー配列 `[]` を要素 0 個で登録する |
 | TB-T05 | `parseFrontmatter` | CRLF 改行でも解釈できる。`\"` と `\\` のエスケープを戻す |
-| TB-T06 | `parseTicket` | 正常なチケットから 6 つの表示項目を取り出し、`issues` が空になる |
+| TB-T06 | `parseTicket` | 正常なチケットから 6 つの表示項目を取り出し、`issues` が空になる。`test/fixtures/` に置いた実物のチケットの写しでも `issues` が空になる |
 | TB-T07 | `parseTicket` | frontmatter が無いとき TB001 を付け、他の処理を続ける |
 | TB-T08 | `parseTicket` | 必須キーの欠落で TB002、真偽値でない値で TB003 を付ける |
 | TB-T09 | `parseTicket` | 未知の `ticket_type` で TB004 を付け、値はそのまま保持する |

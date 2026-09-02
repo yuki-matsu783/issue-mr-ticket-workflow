@@ -393,19 +393,29 @@ __hc_state_arg() {
 #   cwd（= stdin）を読んで初めて決まるため 1 回目には渡せない。よって 2 回目に移している（逸脱。0032 で書き戻す）。
 #   戻り 1 = jq 不在（呼び手が扱いを決める）
 hook_read_state() {
-  local a out sec nm
+  local a out sec nm want
   local -a names=() jqargs=()
   for a in "$@"; do
-    case "$a" in
-      review)    __hc_state_arg review    "$HOOK_WORKTREE/logs/review-state.json" ;;
-      merge)     __hc_state_arg merge     "$HOOK_WORKTREE/logs/merge-state.json" ;;
-      approvals) __hc_state_arg approvals "$HOOK_WORKTREE/logs/sessions/$HOOK_SESSION_ID/approvals.json" ;;
-      entry)     __hc_state_arg entry     "$HOOK_WORKTREE/logs/sessions/$HOOK_SESSION_ID/entry.json" ;;
-      *) continue ;;
-    esac
-    names+=("$a"); jqargs+=("${__HC_STATE_ARG[@]}")
+    case "$a" in review|merge|approvals|entry) names+=("$a") ;; esac
   done
   [[ "${#names[@]}" -gt 0 ]] || return 0
+  # jq のプログラムは 4 つの変数をすべて参照するので、要求されていないものも `null` で必ず定義する。
+  # 1 つでも欠けると jq がコンパイルに失敗し、出力が空になって**全部が missing に化ける**（実測で確認）
+  for nm in review merge approvals entry; do
+    want=0
+    for a in "${names[@]}"; do [[ "$a" == "$nm" ]] && want=1; done
+    if (( want )); then
+      case "$nm" in
+        review)    __hc_state_arg review    "$HOOK_WORKTREE/logs/review-state.json" ;;
+        merge)     __hc_state_arg merge     "$HOOK_WORKTREE/logs/merge-state.json" ;;
+        approvals) __hc_state_arg approvals "$HOOK_WORKTREE/logs/sessions/$HOOK_SESSION_ID/approvals.json" ;;
+        entry)     __hc_state_arg entry     "$HOOK_WORKTREE/logs/sessions/$HOOK_SESSION_ID/entry.json" ;;
+      esac
+    else
+      __HC_STATE_ARG=(--argjson "$nm" null)
+    fi
+    jqargs+=("${__HC_STATE_ARG[@]}")
+  done
   if ! command -v jq >/dev/null 2>&1; then
     for nm in "${names[@]}"; do __hc_side_state "$nm" ""; done
     return 1

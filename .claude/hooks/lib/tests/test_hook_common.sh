@@ -274,6 +274,26 @@ case_side_input() {
   hook_read_input limits <<<"$IN"
   assert_eq "HK-T18" "ok" "$HC_LIMITS_STATE"
   rm -f "$cfg"
+
+  # 要求した副入力だけを名前で渡しても、要求したものが ok になる（要求しなかったものは missing）。
+  # jq のプログラムは 4 つの変数をすべて参照するため、渡し漏れがあるとコンパイルに失敗し、
+  # 出力が空になって**全部が missing に化ける**（実測で見つけた退行。DDR i0009-47 の縮退と紛らわしい）
+  mkdir -p "$TMP_REPO/logs/sessions/s1"
+  printf '%s' '{"prompt_seq":3,"declared_skill":"00-workflow-quick-request"}' > "$TMP_REPO/logs/sessions/s1/entry.json"
+  printf '%s' '{"state":"requested"}' > "$TMP_REPO/logs/review-state.json"
+  rm -f "$TMP_REPO/logs/merge-state.json" "$TMP_REPO/logs/sessions/s1/approvals.json"
+  hook_read_input <<<"$IN"
+  hook_read_state entry
+  assert_eq "HK-T18" "ok" "$HC_ENTRY_STATE"
+  [[ "$HC_ENTRY" == *"prompt_seq"* ]] && pass "HK-T18" || fail "HK-T18" "entry の本体が空: [$HC_ENTRY]"
+  hook_read_input <<<"$IN"
+  hook_read_state review merge
+  assert_eq "HK-T18" "ok" "$HC_REVIEW_STATE"
+  assert_eq "HK-T18" "missing" "$HC_MERGE_STATE"
+  hook_read_input <<<"$IN"
+  hook_read_state approvals
+  assert_eq "HK-T18" "missing" "$HC_APPROVALS_STATE"
+  rm -f "$TMP_REPO/logs/review-state.json" "$TMP_REPO/logs/sessions/s1/entry.json"
 }
 
 # HK-T19: 副入力を要求しても jq の呼び出しは 1 回（要求しなければ 1 回）

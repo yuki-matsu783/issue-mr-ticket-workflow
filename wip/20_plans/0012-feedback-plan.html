@@ -1,0 +1,313 @@
+<!--
+  計画書（wip/20_plans/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。全体計画書（wip/00_overall_plan/）には HTML を作らない。
+
+  節の並び（計画タスク共通の節に対応）: サイドバー（題名・目次・メタ = 対象）→ この計画で何をするか →
+  対象と範囲（変更対象・調査観点）→ 方法とステップ（対象と方法・許可範囲・依存）→ 検証（テスト方針・成果物の形）→
+  チケット → リスク・復旧（任意）→ スコープ外（任意）→ 保留した点 / 対象なし
+
+  計画には「これから何をするか」だけを書き、実施結果はレポートへ。
+  外部依存: 無し（<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チケットボード拡張のフィードバック計画</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査計画 / 調査） -->
+  <p class="kind">フィードバック計画 / フィードバック</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>チケットボード拡張のフィードバック計画</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す -->
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象（issue / PR）は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/13">#13</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/14">#14</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/vscode-ticket-visualization-ci8etr</code></dd></div>
+    <div><dt>チケット</dt><dd>0012-feedback-plan</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: この計画で何をするか（結論方針。1〜3 文 + 決めたこと） -->
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">完了した 14 枚のチケットの作業ログに溜まった反映候補 22 件を、「本 issue の設計反映フェーズで直す」「別 issue に切り出す」「対応しない」の 3 つに振り分ける。振り分けの結果、設計反映フェーズを立て、AI アセット設計 / AI アセット実装のフェーズは本 issue では立てない。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li>◎ 設計反映フェーズを立てる。対象は実装が仕様より広い / 狭い分の 11 件（A1〜A11）で、いずれも <code>docs/</code> だけで閉じる</li>
+      <li>◎ AI アセット（<code>.claude/</code>）の反映候補 9 件は本 issue では扱わず、4 本の別 issue の案（B1〜B4）にまとめる</li>
+      <li>△ 別 issue の作成そのものは外部への副作用のため、本計画では案の提示に留め、起票は完了処理でユーザーの承認を得てから行う</li>
+      <li>△ 2 件（C1・C2）は対応しない。判断の材料が足りない、または issue #13 の受け入れ条件を超えるため</li>
+      <li>◎ 次の計画チケット <code>0016-design-feedback-plan</code> を未着手で起こす</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 必須: 対象と範囲（変更対象・調査観点・根拠とする文書） -->
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td>A1 <code>FrontmatterDocument.body</code></td><td>終端の区切りより後ろの本文を返す項目が仕様に無い</td><td>0015 逸脱 1 / 仕様「データの形」</td></tr>
+      <tr><td>A2 見出しの探索範囲</td><td>本文に限り、コードフェンスの中を除くことが仕様に無い</td><td>0015 逸脱 3 / 仕様「処理フロー（チケットの解析）」手順 5</td></tr>
+      <tr><td>A3 TB002 の文言</td><td>「（scalar でない）」の型が台帳に無い</td><td>0015 逸脱 2 / 仕様「不備の識別子とメッセージ」</td></tr>
+      <tr><td>A4 必須キーの検査</td><td>キーがあっても scalar でなければ TB002 とすることが仕様に無い</td><td>レビュー R2 / 仕様「処理フロー（チケットの解析）」手順 3</td></tr>
+      <tr><td>A5 入れ子マッピングの深さ</td><td>1 段の字下げだけを子として認めることが仕様に無い</td><td>レビュー R3 / 仕様「処理フロー（frontmatter の解析）」手順 5</td></tr>
+      <tr><td>A6 BOM と区切り行の空白</td><td>許容することが仕様に無い</td><td>レビュー R4 / 同手順 1・2</td></tr>
+      <tr><td>A7 <code>RenderOptions.cspSource</code></td><td>宣言されているが使われていない</td><td>レビュー M1 / 仕様「データの形」</td></tr>
+      <tr><td>A8 YAML コメント</td><td>解釈しないことが仕様に無い</td><td>レビュー M5 / 仕様と DDR i0013-03</td></tr>
+      <tr><td>A9 <code>&lt;meta name=&quot;viewport&quot;&gt;</code></td><td>HTML の骨格に無い</td><td>0010 逸脱 / レビュー M7</td></tr>
+      <tr><td>A10 「種類不明」「実行者不明」</td><td>未設定時の表示が仕様に無い</td><td>レビュー M8 / 仕様「HTML の構造と CSP」</td></tr>
+      <tr><td>A11 実装側の 3 つの逸脱</td><td><code>unreadableTicket</code> の独立・監視用パス定数の分離・Disposable の持たせ方</td><td>0010・0011 の逸脱 / 仕様「データの形」「配置」「起動と入口」</td></tr>
+      <tr><td>B1 用語と実体の不整合</td><td>タスク名・最終フェーズ名の食い違い、未実装機構への依存、実体の無いルール</td><td>0001・0005 の作業ログ（別 issue 案）</td></tr>
+      <tr><td>B2 許可範囲の穴</td><td><code>commands.build-test</code> が空、<code>implementation.allow</code> に <code>docs/**</code> が無い、未追跡ファイルで検査が止まる</td><td>0005・0013・0015 の作業ログ（別 issue 案）</td></tr>
+      <tr><td>B3 設計文書スキルのアプリ対応</td><td>アプリ向けの節構成・置き場・識別子台帳・受け入れ条件の対応表</td><td>0006・0008・0014 の作業ログ（別 issue 案）</td></tr>
+      <tr><td>B4 手引きの補強</td><td>調査での API 事実の確定、手動確認の成果物化、レビュー依頼の観点、節順の不一致、1 タスク 1 レポートの検査</td><td>0007・0009・0011・0013・0015 の作業ログ（別 issue 案）</td></tr>
+      <tr><td>C1 <code>frontmatter.sh</code> の引用符</td><td>閉じ忘れを検出しない。本拡張は自前パーサで対処済み</td><td>0003 の作業ログ（対応しない）</td></tr>
+      <tr><td>C2 複数ルート / シンボリックリンク</td><td>仕様にも要件にも無い挙動の追加</td><td>レビュー M3・M6（対応しない）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 方法とステップ（対象と方法・許可範囲・依存・順序） -->
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>反映候補を集める</h3>
+      <p>完了した 14 枚のチケットの作業ログ「AI アセットに反映すべき内容」「スコープ外で見つけたこと」「仕様からの逸脱」と、実装ワークの敵対的レビューの指摘を突き合わせ、22 件に整理した。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>行き先で振り分ける</h3>
+      <p><code>docs/</code> だけで閉じ、issue #13 の受け入れ条件の解釈を変えないものを本 issue の設計反映へ（A1〜A11）。<code>.claude/</code> の変更を要するものを別 issue へ（B1〜B4）。材料が足りないもの・受け入れ条件を超えるものを対応しないへ（C1・C2）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>後続フェーズを決める</h3>
+      <p>設計反映フェーズを立てる。AI アセット設計 / AI アセット実装は本 issue では立てない（<code>.claude/**</code> への書き込み許可をどのフェーズも持たず、CLAUDE.md も専用のフェーズ列を求めているため）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>次の計画チケットを起こす</h3>
+      <p><code>0016-design-feedback-plan</code> を未着手で作る。対象は A1〜A11。全体まとめのチケットは設計反映フェーズの完了後に起こす。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">5</span>
+      <h3>別 issue の起票を完了処理へ送る</h3>
+      <p>B1〜B4 は案の提示に留め、起票はユーザーの承認を得てから行う。<code>reset-wip</code> で <code>wip/</code> が消えるため、要約を PR 本文と issue コメントに残す。</p>
+    </li>
+    <!-- ステップの数だけ li.step を繰り返す（番号は連番） -->
+  </ol>
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>1〜5（本チケット 0012）</td><td><code>wip/**</code></td><td><code>read</code></td></tr>
+      <tr><td>設計反映の実施チケット（0016 が起こす）</td><td><code>docs/**</code></td><td><code>read</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 検証（テスト方針・テスト ID の割付・成果物の形） -->
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>A1〜A11 の取りこぼしが無い</td><td>設計反映の実施チケットの DoD と本計画書の表を 1 対 1 で照合する</td><td>本計画書「反映候補の棚卸し」A の表</td></tr>
+      <tr><td>要件との対応が崩れない</td><td>設計反映の後、仕様書「要件との対応」の行数が受け入れ基準 26 件と一致することを数える</td><td><code>docs/10_spec/vscode-ticket-board.md</code></td></tr>
+      <tr><td>本計画書の HTML ビュー</td><td><code>check-html.sh</code> の 7 項目を通す</td><td><code>wip/20_plans/0012-feedback-plan.html</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: チケット（実施チケット群と次の計画チケット・依存） -->
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0012</td><td>feedback-plan</td><td>本計画（振り分けの確定）</td><td>0011</td></tr>
+      <tr><td>0016</td><td>design-feedback-plan</td><td>設計反映の計画。対象は A1〜A11</td><td>0012</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 任意: リスクと復旧（ロックアウト対策・巻き戻し）。無ければ節ごと削除 -->
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td>仕様を実装に合わせた結果、要件の受け入れ基準と食い違う</td><td>「要件との対応」表の行が実現箇所を失う</td><td>要件側を変えず、実装と仕様のどちらが正かを DDR に残して決め直す</td></tr>
+      <tr><td>A11 が 3 つの逸脱をまとめており、実施チケットで取りこぼされる</td><td>DoD の根拠欄が「A11」とだけ書かれる</td><td>設計反映計画で A11 を 3 つに割る</td></tr>
+      <tr><td>別 issue の起票が承認されず、AI アセットの不備が記録ごと消える</td><td>完了処理の <code>reset-wip</code> で <code>wip/</code> が消える</td><td>起票前に PR 本文と issue コメントへ B1〜B4 の要約を残す</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 任意: スコープ外。無ければ節ごと削除 -->
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li><code>.claude/</code> 配下のいかなる変更（B1〜B4 の実作業）</li>
+    <li>別 issue の作成そのもの</li>
+    <li>C2 の挙動追加（複数ルート・シンボリックリンク・<code>capabilities</code> の宣言）</li>
+  </ul>
+</section>
+
+<!-- 必須: 保留した点 / 対象なし。無ければ「無し」 -->
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>B1 と既存 issue #9 / #10 / #11 の重複範囲</td><td>起票の直前に確認する。本チケットの許可範囲は <code>wip/**</code> の書き込みと読み取りのみで、GitHub 操作はチケット作業の外で行うため</td></tr>
+      <tr><td>A7 を「型から <code>cspSource</code> を削る」か「仕様に受け取るだけと書く」か</td><td>設計反映で決める。型を削ると <code>src/**</code> の変更も要るため、仕様側に寄せる案を既定とする</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/13">#13</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/14">#14</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

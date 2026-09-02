@@ -1,0 +1,432 @@
+<!--
+  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
+       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。
+
+  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
+  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
+  設計への反映 → 想定と異なった点 → 残課題
+
+  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
+  レビューの重みは色相を使わず ◆特に見てほしい / ◇承認が欲しい / ・細かいレビュー不要。
+  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
+
+  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0030 AI アセット実装結果 — 拒否側フック 4 本（entry / state-guard / direct-git / guard）</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
+  <p class="kind">AI アセット実装結果レポート / AI アセット実装</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>0030 AI アセット実装結果 — 拒否側フック 4 本（entry / state-guard / direct-git / guard）</h1>
+
+  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 0</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 5</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk stop">✕</span> 1. .. を挟むと保護範囲をすり抜けられた</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. 作業ツリーの外が承認単位になっていた</a></li>
+          <li><a href="#f3"><span class="mk stop">✕</span> 3. ふつうのシェルのループが既定拒否で止まった</a></li>
+          <li><a href="#f4"><span class="mk stop">✕</span> 4. hook_read_state が常に空を返していた（共有ライブラリ）</a></li>
+          <li><a href="#f5"><span class="mk stop">✕</span> 5. WF208 が入れ子の宣言行をすり抜けた</a></li>
+          <li><a href="#f6"><span class="mk warn">△</span> 6. テストが重く、フック 1 回が約 1.9 秒かかる</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0030（先行 0028 / 0029）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
+<section id="overview" data-required>
+  <p class="lead">拒否側のフック 4 本（workflow-entry / workflow-state-guard / block-direct-git / workflow-guard）を実装した。判定規則はフック側に持たせず、共有ライブラリ（cmdpos.sh / scope.sh / hook-common.sh）の戻り値だけで分岐している。<b>敵対的セルフレビューは 2 巡</b>行い、1 巡目を「拒否をすり抜けられるか」、2 巡目を「正当な操作を止めていないか（= ロックアウト）」に分けた。実物へ入力を流すプローブで、読みだけでは出なかった 3 件が実測で出た。あわせて共有ライブラリの重大バグ（hook_read_state が常に空）を見つけて直した。全件テストは 2 ロケールで 25 本 / 161 件・FAIL 0。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>0</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>5</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><b>r1（△注意）python が既定拒否（WF204）になること</b>。実作業では一時スクリプトを python wip/tmp/x.py で走らせる場面が実際にある（このチケットでも使った）。commands.build-test に足すか、「wip/tmp/** のスクリプト実行」という分類を作るか、既定拒否のまま都度 ops を宣言するかの判断が要る</li>
+        <li><b>r2（△注意）作業ツリーの外への書き込みを WF209（判定不能）で拒否したこと</b>。「範囲外だから WF201」でも「未記載だから WF202」でもなく、判定できない側に倒した。<b>リポジトリの外に出す正当な作業（別リポジトリの参照など）を止める</b>方に倒した判断なので見てほしい</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><b>r3</b>: WF208 の判定に入れ子の write: / ops: の行を足したこと（字下げのある行に限った）</li>
+        <li><b>r4</b>: シェルのキーワードを scope.sh の読み取り扱いに足したこと（フック側に規則を複製しない方針を優先）</li>
+        <li><b>r5</b>: 提供コマンドの引数のパス判定を「パスらしい語」だけに当てたこと</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>hook_read_state のバグ修正（要求しない副入力も null で渡す）と HK-T18 への退行テスト</li>
+        <li>cmdpos.sh の opaque に invoke-expression / iex を足したこと</li>
+        <li>各フックの識別子・文面（回復手順を必ず入れ、値そのものは出さない）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><b>本番のフックとして動かしていない</b>。settings.json への登録は 0031（人間の操作）。ここまでは bash &lt;hook&gt; &lt; 入力 JSON の単体実行とテストだけ</li>
+      <li><b>ロックアウトの実測をしていない</b>。2 巡目のプローブは「このチケットでやった操作」を並べただけ</li>
+      <li><b>PowerShell の読み取り系がすべて WF204 になる</b>ことは分かっているが、直していない（§8 の読み取り一覧は bash 前提）</li>
+      <li><b>hook_read_state のバグが本番でどこまで影響していたか</b>は追っていない（未登録なので実害は無いはず）</li>
+      <li><b>フックの実行時間を「1 本あたり」でしか測っていない</b>。5 本登録したときの待ちは 0031 の実測に委ねる</li>
+      <li><b>shellcheck は 8 巡連続で未導入</b></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>チケット: wip/10_tickets/20_done/0030-ai-asset-implementation.md（DoD 10 件）</li>
+    <li>仕様: 10_spec/hooks/10-UserPromptSubmit/workflow-entry.md / 20-PreToolUse の 3 本 / フック共通仕様 §1〜§10</li>
+    <li>実体: 拒否側フック 4 本 + テスト 4 本。共有ライブラリ hook-common.sh / cmdpos.sh / scope.sh の修正</li>
+    <li>環境: Windows 10 Pro / Git Bash・jq あり・shellcheck 無し</li>
+  </ul>
+</section>
+
+<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot stop">1</span>
+      <h3 id="f1">.. を挟むと保護範囲をすり抜けられた <span class="chip stop">✕問題</span> <span class="basis">根拠: プローブ A1 の実測（ask → deny）</span></h3>
+      <p>hook_rel_path はルート相対にするだけで . / .. を畳まない。wip/../.claude/settings.json は .claude/** のglob に一致しないので、保護範囲の拒否（WF201）ではなく未記載の確認（WF202）になっていた。確認は人間が答えれば通る経路なので、保護範囲が「確認すれば書ける範囲」に化けていた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>（直す前）Write wip/../.claude/settings.json
+{"permissionDecision":"ask","permissionDecisionReason":"WF202: wip/../.claude/settings.json は上限設定にも…"}
+（直した後）
+{"permissionDecision":"deny","permissionDecisionReason":"WF201: .claude/settings.json は 作業中チケット…"}</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>workflow-guard の中でルート相対に直したあとに段を畳み、畳んだ結果で判定する。WG-T03 に . / .. を挟んだ 4 件を足して固定した。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">作業ツリーの外が承認単位になっていた <span class="chip stop">✕問題</span> <span class="basis">根拠: プローブ B の実測（ask（承認単位 ..）→ deny）</span></h3>
+      <p>同じ経路で、リポジトリの外を指すパスは .. を承認単位として提示していた。承認されると ../ で始まるあらゆるパスが同じ扱いになる。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>（直す前）WF202: ../outside-evil.txt は…承認すると .. 以下が同じ扱いになる
+（直した後）WF209: …は作業ツリー（&lt;root&gt;）の外を指すので、やってよいことの内側か判定できない</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>畳んだ結果が絶対パスまたは .. で始まるものは WF209（判定不能）で拒否する。workflow-diff-check が 0038 で決めた「ルート相対でないパスを承認単位にしない」と同じ立場に揃えた。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">3</span>
+      <h3 id="f3">ふつうのシェルのループが既定拒否で止まった <span class="chip stop">✕問題</span> <span class="basis">根拠: プローブ（2 巡目・偽陽性）の実測（deny → 許可）</span></h3>
+      <p>workflow-guard は分類できないコマンドを WF204 で拒否する（既定拒否）。cmdpos.sh は ; で段に割るので、for f in a b; do echo $f; done は 3 段になり、for と done が「分類外のコマンド」になっていた。拒否側フックの偽陽性はそのままロックアウトになる。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>（直す前）for f in a b; do echo $f; done
+{"permissionDecision":"deny","permissionDecisionReason":"WF204: for はどの分類にも当たらない（既定拒否）…"}
+（直した後）無出力（許可）</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>scope.sh に _SC_SHELL_KEYWORDS（for / done / fi / esac / case / select / coproc / function）を足し、読み取り扱いにした。リダイレクトは段に残るので done > src/api/a.ts は従来どおり WF205 で止まる。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">4</span>
+      <h3 id="f4">hook_read_state が常に空を返していた（共有ライブラリ） <span class="chip stop">✕問題</span> <span class="basis">根拠: workflow-entry のテストが全滅 → HK-T18 に退行テストを追加</span></h3>
+      <p>jq のプログラムは $review / $merge / $approvals / $entry の 4 つすべてを参照するのに、要求された副入力だけを渡していたためコンパイルに失敗し、出力が空になっていた。呼び手からは「壊れている」ではなく「無い（missing）」に見えるので、縮退と区別がつかない。0027/0028 由来で、workflow-diff-check の承認の記憶と subagent-stop-check の approvals 参照は効いていなかった。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>（直す前）hook_read_state entry → HC_ENTRY_STATE=missing（ファイルはある）
+（直した後）ent=[ok] prompt_seq=1 declared_skill=00-workflow-quick-request</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>要求しなかったものも null で必ず渡す。修正後に workflow-diff-check（48 件）と subagent-stop-check（57 件）を回し直して FAIL 0 を確認した。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">5</span>
+      <h3 id="f5">WF208 が入れ子の宣言行をすり抜けた <span class="chip stop">✕問題</span> <span class="basis">根拠: WG-T09 に write / ops の行だけを差し替える 2 件を追加</span></h3>
+      <p>着手済みチケットの ticket_type / allow などの改変は WF208 で拒否する。判定は hook_read_input が jq で作る HOOK_FM_KEYS_TOUCHED に依るが、正規表現が行頭の allow: しか見ておらず、字下げされた write: の行だけを差し替える編集が素通りしていた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>def fmkeys: "(^|\\n)([ \\t-]*(ticket_type|allow|executor|human_review|adversarial_review|predecessors)|[ \\t]+(write|ops))[ \\t]*:";</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>字下げのある write: / ops: の行を判定に足した。- ops: … のような箇条書きは対象外なので、作業ログの追記は巻き込まない（負のコントロールもテストに入れた）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">6</span>
+      <h3 id="f6">テストが重く、フック 1 回が約 1.9 秒かかる <span class="chip warn">△注意</span> <span class="basis">根拠: time による実測（test_workflow_guard.sh 単体で 5 分 07 秒）</span></h3>
+      <p>判定 1 件がフック 1 プロセスになるため、147 件のテストが run-tests.sh の既定の上限（120 秒）を超える。内訳は bash 起動 0.3 秒 + 共有ライブラリ 3 本の読み込み 0.48 秒（hook-common 0.26 / cmdpos 0.12 / scope 0.10） + 内部の jq 0.24 秒 + 記録の書き込み。5 本を登録すると 1 ツール呼び出しあたりの待ちが無視できない。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ time bash .claude/hooks/20-PreToolUse/tests/test_workflow_guard.sh
+passed=147 failures=0
+real 5m07.096s</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>全件テストは --timeout 600 で回して FAIL 0 を確認した。テストを軽くするか既定値を上げるかは 0032 で決める。フック自体の速さは 0031 の実測（T1〜T4）に送る。</p>
+      </div>
+    </li>
+    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+  </ol>
+</section>
+
+<!-- 任意: 検証の結果を一覧で示す場合。各章で示しているなら削除 -->
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>test_workflow_entry.sh（新規。WE-T01〜T09・T11）</td><td>65 件 FAIL 0</td></tr>
+      <tr><td>test_workflow_state_guard.sh（新規。SG-T01〜T11）</td><td>87 件 FAIL 0</td></tr>
+      <tr><td>test_block_direct_git.sh（新規。BG-T01〜T11）</td><td>76 件 FAIL 0</td></tr>
+      <tr><td>test_workflow_guard.sh（新規。WG-T01〜T17）</td><td>147 件 FAIL 0</td></tr>
+      <tr><td>test_block_chmod.sh（BC-T05 にホットパス検査を追加）</td><td>93 件 FAIL 0</td></tr>
+      <tr><td>test_hook_common.sh（HK-T18 に退行テストを追加）</td><td>187 件 FAIL 0</td></tr>
+      <tr><td>test_scope.sh（キーワードの分類を追加）</td><td>312 件 FAIL 0</td></tr>
+      <tr><td>test_workflow_diff_check.sh / test_subagent_stop_check.sh（影響確認）</td><td>48 件 / 57 件 FAIL 0</td></tr>
+      <tr><td>test_templates.sh（SS-T05: __ss_load 行のバイト一致）</td><td>43 件 FAIL 0</td></tr>
+      <tr><td>プローブ wip/tmp/adv0030.sh（すり抜け 15 本）/ adv0030b.sh（偽陽性 11 本）</td><td>直す前の再現と直した後の解消を実測</td></tr>
+      <tr><td>全件テスト（既定ロケール / LC_ALL=C。--timeout 600）</td><td>25 本 / 161 件 FAIL 0（両ロケール）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>フック共通仕様 §1: hook_read_state は要求しない副入力も null で渡す（jq のプログラムが 4 変数すべてを参照するため）</li>
+    <li>フック共通仕様 §7: _CP_OPAQUE_WORDS に invoke-expression / iex。語が 1 つも無い段は「読めない段」と区別して通す</li>
+    <li>フック共通仕様 §8: シェルのキーワードだけの段は読み取り扱い。python と PowerShell の読み取り系の扱いを決める</li>
+    <li>workflow-guard.md: パスの . / .. を畳んでから判定し、作業ツリーの外は WF209</li>
+    <li>workflow-guard.md: WF208 の判定は入れ子の write: / ops: の行も見る</li>
+    <li>workflow-guard.md: WG-T05（confirm の例示）と WG-T17（wget --method=GET）を実装に合わせて直す</li>
+    <li>workflow-guard.md: 作業中が 2 枚以上のとき、プランモードも WF207 に含める</li>
+    <li>20-common-step-shell-script.md: run-tests.sh の既定の上限（120 秒）に収まらないテストの扱い</li>
+  </ol>
+</section>
+
+<!-- 必須: 想定と異なった点。無ければ「無し」 -->
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>4 本を順に書けば終わる</td><td>3 本目（workflow-entry）のテストが全滅し、原因は共有ライブラリのバグだった</td><td>ライブラリを直し、影響を受ける既存テストを回し直した</td></tr>
+      <tr><td>敵対的レビューは「すり抜け」を見れば足りる</td><td>拒否側は偽陽性がロックアウトになるので、正当な操作を止めていないかの巡が要った</td><td>2 巡目を偽陽性専用にした</td></tr>
+      <tr><td>仕様のテスト観点をそのまま固定できる</td><td>WG-T05 / WG-T17 は仕様の例示が実装（scope.sh の判定順）と食い違う</td><td>実装に合わせてテストを書き、仕様の修正を 0032 へ送った</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 残課題。無ければ「無し」 -->
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li>0031（人間の操作）: settings.json への段階登録 ①② と TBD T1〜T4 / T9 の実測</li>
+    <li>0032（設計反映）: 上記 8 件 + 0029 / 0038 からの累積</li>
+    <li>python と PowerShell の読み取り系が既定拒否（r1）。設定・仕様の判断が要る</li>
+    <li>ロックアウトの実測が無い。0031 の段階登録で、実際に止まる操作を観察する</li>
+    <li>テストが重い / フックが遅い: run-tests.sh の既定の上限（120 秒）を超えるテストが 5 本</li>
+    <li>shellcheck 未導入（8 巡連続）／check-html.sh が md と HTML の内容一致を検査しない（19 回連続）</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

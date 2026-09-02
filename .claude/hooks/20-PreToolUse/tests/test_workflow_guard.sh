@@ -142,6 +142,11 @@ case_protected() {
   assert_eq "WG-T03" "WF201" "$(tf '.claude/hooks/lib/x.sh')"
   assert_eq "WG-T03" "WF201" "$(tf '.claude/docs/10_spec/x.md')"
   assert_eq "WG-T03" "WF201" "$(tf '.gitignore')"
+  # `.` や `..` を挟んだ書き方で保護範囲の glob をすり抜けられない
+  assert_eq "WG-T03" "WF201" "$(tf './.claude/settings.json')"
+  assert_eq "WG-T03" "WF201" "$(tf 'wip/../.claude/settings.json')"
+  assert_eq "WG-T03" "WF201" "$(tf 'src/api/../../.claude/hooks/x.sh')"
+  assert_eq "WG-T03" "WF205" "$(tc 'echo x > wip/tmp/../../.claude/settings.json')"
   set_ticket 0006-ai-asset-design
   assert_eq "WG-T03" "allow" "$(tf '.claude/docs/10_spec/x.md')"   # types.allow で保護範囲を上書き
   assert_eq "WG-T03" "WF201" "$(tf '.claude/hooks/lib/x.sh')"
@@ -264,6 +269,9 @@ case_undecidable() {
   assert_eq "WG-T10" "WF209" "$(tc "$long")"
   assert_eq "WG-T10" "WF209" "$(run Bash file_path x)"                      # command が無い
   assert_eq "WG-T10" "WF209" "$(run Write command x)"                       # file_path が無い
+  # 作業ツリーの外は、どの範囲にも属さないので承認単位にもしない（拒否側に倒す）
+  assert_eq "WG-T10" "WF209" "$(tf '../outside.txt')"
+  assert_eq "WG-T10" "WF209" "$(tf 'wip/../../outside.txt')"
 }
 
 # ---- WG-T11: 設定・種類の異常 ----

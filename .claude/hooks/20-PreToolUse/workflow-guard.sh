@@ -58,9 +58,32 @@ case "$__WG_CLASS" in
 esac
 
 # ---- 共通の補助 ----
+# ルート相対に直したうえで `.` と `..` を畳む。畳んでも作業ツリーの外に出るパスは判定できないので拒否側に倒す
+# （`wip/../.claude/settings.json` のような書き方で保護範囲の glob をすり抜けられるため。プローブで確認した）
 __wg_rel() { # $1=パス → REPLY にルート相対（末尾の / を落とす）
-  hook_rel_path "$1" >/dev/null
-  REPLY="${REPLY%/}"
+  local raw p seg out=""
+  raw="$1"
+  hook_rel_path "$raw" >/dev/null
+  p="${REPLY%/}"
+  if [[ "$p" == *"/../"* || "$p" == "../"* || "$p" == *"/.." || "$p" == ".."      || "$p" == *"/./"* || "$p" == "./"* || "$p" == *"/." ]]; then
+    while [[ -n "$p" ]]; do
+      if [[ "$p" == */* ]]; then seg="${p%%/*}"; p="${p#*/}"; else seg="$p"; p=""; fi
+      case "$seg" in
+        ""|".") ;;
+        "..")
+          if [[ -z "$out" || "$out" == ".." || "$out" == *"/.." ]]; then out="${out:+$out/}.."
+          elif [[ "$out" == */* ]]; then out="${out%/*}"
+          else out=""; fi ;;
+        *) out="${out:+$out/}$seg" ;;
+      esac
+    done
+    p="$out"
+  fi
+  # 作業ツリーの外（絶対パス・先頭の ..）は、どの範囲にも属さないので承認単位にもしない
+  if [[ -z "$p" || "$p" == ".." || "$p" == "../"* || "$p" == /* || "$p" =~ ^[A-Za-z]:/ ]]; then
+    hook_deny WF209 "$raw は作業ツリー（$HOOK_WORKTREE）の外を指すので、やってよいことの内側か判定できない。作業はリポジトリの中で行い、外に出す必要があるならユーザーに報告すること。$__WG_NO_BYPASS" "$raw"
+  fi
+  REPLY="$p"
   return 0
 }
 

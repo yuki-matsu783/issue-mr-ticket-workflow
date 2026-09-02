@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T05:28:07+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "33b4f5f"
 ---
 
 # 0003 チケット Markdown の実形と壊れ方の調査

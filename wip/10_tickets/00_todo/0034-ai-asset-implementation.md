@@ -7,7 +7,7 @@ human_review: {required: true, reason: "基準どおり（承認④により opu
 adversarial_review: {required: false, reason: "基準から外す: 記録の是正だけで振る舞いが変わらず、差分は 2 文書に閉じる（work-defaults の「差分が 1 文書・50 行未満なら省略してよい」に準じる）"}
 allow:
   write: ["wip/**"]
-  ops: ["build-test"]
+  ops: ["read", "build-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""

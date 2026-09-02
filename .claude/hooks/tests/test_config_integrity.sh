@@ -107,10 +107,14 @@ assert_eq "HK-T02" "deny WF201 3 -" "$(resolve_real ai-asset-design apl/vscode-t
 assert_eq "HK-T02" "deny WF201 2 -" "$(resolve_real implementation .claude/skills/x/SKILL.md)"
 # アプリルートの外側（apl/ 直下のファイル）は許可範囲に入らない
 assert_eq "HK-T02" "ask WF202 7 apl" "$(resolve_real implementation apl/README.md)"
-# 旧置き場: 計画・調査は deny、実施タスクは ask WF202（移行の一度きりの承認を通す）
-assert_eq "HK-T02" "deny WF201 3 -" "$(resolve_real investigation docs/10_spec/x.md)"
-assert_eq "HK-T02" "deny WF201 3 -" "$(resolve_real implementation-plan src/vscode-ticket-board/src/a.ts)"
-assert_eq "HK-T02" "ask WF202 7 src/vscode-ticket-board/src" "$(resolve_real implementation src/vscode-ticket-board/src/a.ts)"
-assert_eq "HK-T02" "ask WF202 7 docs/10_spec" "$(resolve_real design-feedback docs/10_spec/x.md)"
+# 旧置き場（リポジトリ直下の src/ docs/）の移行は完了済み。特別扱いを残さず、他の未記載のパスと同じ ask WF202 に落ちる
+assert_eq "HK-T02" "ask WF202 7 docs/10_spec" "$(resolve_real investigation docs/10_spec/x.md)"
+assert_eq "HK-T02" "ask WF202 7 src/vscode-ticket-board/src" "$(resolve_real implementation-plan src/vscode-ticket-board/src/a.ts)"
+# 計画・調査タスクは成果物（apl/** と .claude/**）を書けない状態を保つ
+assert_eq "HK-T02" "deny WF201 3 -" "$(resolve_real investigation apl/vscode-ticket-board/src/core/a.ts)"
+assert_eq "HK-T02" "deny WF201 3 -" "$(resolve_real design-plan apl/vscode-ticket-board/docs/10_spec/x.md)"
+# .claude/** は common.protected でもあるので、type の deny より先に判定順 (2) で落ちる
+assert_eq "HK-T02" "deny WF201 2 -" "$(resolve_real implementation-plan .claude/rules/x.md)"
+assert_eq "HK-T02" "deny WF201 3 -" "$(resolve_real ai-asset-design-plan apl/vscode-ticket-board/package.json)"
 
 finish

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の定義�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:17:07+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1050d4b"
 ---
 
 # 0020 レビュー指摘: 制御方式の穴（MCP・削除・設定破損・WF801 の到達）（R4・R5・R13・R20・R21・R23・S1）

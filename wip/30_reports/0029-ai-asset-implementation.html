@@ -1,0 +1,429 @@
+<!--
+  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
+       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。
+
+  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
+  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
+  設計への反映 → 想定と異なった点 → 残課題
+
+  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
+  レビューの重みは色相を使わず ◆特に見てほしい / ◇承認が欲しい / ・細かいレビュー不要。
+  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
+
+  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0029 AI アセット実装結果 — 案内側フック 6 本</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
+  <p class="kind">AI アセット実装結果レポート / AI アセット実装</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>0029 AI アセット実装結果 — 案内側フック 6 本</h1>
+
+  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 2</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. <code>workflow-diff-check</code> — 承認の記憶と差分の検知</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. <code>post-push-usage-report</code> — 1 本を 2 つの契機で使う</a></li>
+          <li><a href="#f3"><span class="mk warn">△</span> 3. <code>subagent-start-check</code> — 2 つのイベント、2 つの経路</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. <code>subagent-stop-check</code> — status で分け、縮退はセッション単位で引く</a></li>
+          <li><a href="#f5"><span class="mk stop">✕</span> 5. 4c プローブ — 仕様から 2 件逸脱して値を落とす</a></li>
+          <li><a href="#f6"><span class="mk stop">✕</span> 6. 実装中に見つけた自分のバグ 2 件（<code>post-push-compact-prompt</code>）</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0029</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
+<section id="overview" data-required>
+  <p class="lead">登録段階 ① に載る<b>案内側フック 6 本</b>を書いた。案内側は「判定できないときは黙って通す」ので、fail-closed ラッパーを付けていない。本体に判定規則は 1 つも無く、許可範囲は scope.sh、push の検知は push-detect.sh、transcript の解析は transcript.sh、コマンド位置は cmdpos.sh に閉じている。新規テストは 237 件、全件テストは 2 ロケールで 21 本 / 112 件・FAIL 0。実装中に仕様との差を 7 件見つけ、うち 2 件は仕様の側を直す必要がある（0032 へ）。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>2</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><b>r1（△注意）subagent-stop-check の縮退判定を agentId で引けない</b>。PreToolUse Agent の時点では agentId がまだ発行されていないので、subagent-start-check は記録に載せようがない。実装はセッション単位で引いたが、「同じセッションで 1 回でも Agent を起動していれば以後は縮退でないと判定する」副作用がある</li>
+        <li><b>r2（△注意）git status に -uall を足したこと</b>。既定では未追跡がディレクトリ単位に畳まれ、中身の許可範囲を判定できない（実測で wip/ が WF601 に化けた）。代償は未追跡が大量にあるリポジトリで走査が重くなること</li>
+        <li><b>r3（△注意）workflow-diff-check が approvals.json にロックを取らないこと</b>。ホットパスから hc_lock を呼ぶと find が毎回 fork する。競合時に失われるのは承認 1 件に留まる、という判断</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><b>r4</b>: workflow-diff-check が「今回承認された範囲」をその場の差分判定にも反映すること</li>
+        <li><b>r5</b>: subagent-start-check の 2 経路出力を hook-common の private ヘルパで組み立てたこと（公開 API 化は 0032 へ）</li>
+        <li><b>r6</b>: WF911 / WF913 の識別子を本文の先頭に自分で置いたこと（hook_inject は識別子を付けない）</li>
+        <li><b>r7</b>: --accumulate は停止中に decisions.jsonl へ何も書かないこと</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>post-push-compact-prompt の 2 件のバグ修正</li>
+        <li>SP-T08 のテストで executor を sub-opus ではなく opus にしたこと</li>
+        <li>session-start のテストを SE-T05 後半・SE-T06 後半に絞ったこと（DDR i0009-09 と同じ理由）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><b>本番のフックとして動かしていない</b>。6 本とも settings.json に未登録（登録は ① で人間の操作・0031）。T1〜T4 / T9 はまだ 1 つも測れていない</li>
+      <li><b>boundary.sh が無いので session-start の注入の整形は空</b>。SE-T01〜T04・T07〜T09 は 3/3（issue #10）へ送った</li>
+      <li><b>--accumulate を本物の transcript で動かしていない</b>。テストは固定の JSONL</li>
+      <li><b>並行実行を測っていない</b>。approvals.json / usage/&lt;branch&gt;.json の同時書き込みは未検査</li>
+      <li><b>shellcheck は 6 巡連続で未導入</b></li>
+      <li><b>PowerShell 側の経路は薄い</b>。テストは bash の入力しか通していない</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>チケット: wip/10_tickets/20_done/0029-ai-asset-implementation.md（DoD 11 件）</li>
+    <li>計画: wip/20_plans/0016-ai-asset-implementation-plan.md ステップ 3</li>
+    <li>仕様: 各フック仕様 6 本、フック共通仕様 §1〜§12</li>
+    <li>実体: .claude/hooks/00-SessionStart/、12-SubagentStart/、13-SubagentStop/、22-PostToolUse/、lib/probe-4c.sh</li>
+    <li>環境: Windows 10 Pro / Git Bash・jq あり・shellcheck 無し・block-chmod のみ登録済み</li>
+  </ul>
+</section>
+
+<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1"><code>workflow-diff-check</code> — 承認の記憶と差分の検知 <span class="chip good">◎良</span> <span class="basis">根拠: DC-T01〜T07 = 43 件 FAIL 0</span></h3>
+      <p>2 つの仕事を 1 本に持つ。<b>承認の記憶</b>は「書き込み操作が PostToolUse に届いた = 人間が承認して実行された」と読み、WF202（未記載）だった対象の承認単位（親ディレクトリ。file_granular とルート直下はファイル単位）を approvals.json に追記する。WF203（毎回確認）は記憶しない。対象パスは Edit / Write なら tool_input.file_path、Bash なら cmdpos + scope_classify の SC_TARGETS から取る。<b>差分の検知</b>は git status --porcelain=v2 -z -uall と git diff --name-status -z &lt;base_sha&gt; を合わせ、パスごとに scope_resolve する。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/hooks/22-PostToolUse/tests/test_workflow_diff_check.sh
+passes=43 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>許可範囲の判定は scope.sh の scope_resolve だけを使い、独自の範囲を持たない。今回承認された範囲はその場の差分判定にも反映する（足さないと、承認されて実行された直後の Write が WF601 に列挙される）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2"><code>post-push-usage-report</code> — 1 本を 2 つの契機で使う <span class="chip good">◎良</span> <span class="basis">根拠: UR-T01〜T07 = 36 件 FAIL 0</span></h3>
+      <p>--accumulate（Stop / SubagentStop）で logs/usage/&lt;branch&gt;.json に加算し、既定（PostToolUse）で合算してレポート本文を作る。二重計上の防止は last_offset（transcript の処理済み行数）。SubagentStop は agent_transcript_path を読む（transcript_path はメインのものなので、読むとメイン分が subagents[] に二重計上される）。起点は自分の状態から渡すので、並列に走る post-push-compact-prompt が先に状態を進めても検知が壊れない（DDR i0009-24）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/hooks/22-PostToolUse/tests/test_post_push_usage_report.sh
+passes=36 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実作業時間は transcript.sh が返す timestamps を呼び手側で足す（ユーザー入力の直前と 10 分超の間隔を除く）。transcript.sh の契約は「タイムスタンプ列を返す」までなので、計算は本体に置いた。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">3</span>
+      <h3 id="f3"><code>subagent-start-check</code> — 2 つのイベント、2 つの経路 <span class="chip warn">△注意</span> <span class="basis">根拠: SA-T01〜T09 = 56 件 FAIL 0</span></h3>
+      <p>同じスクリプトを SubagentStart と PreToolUse Agent に登録し、hook_event_name で分ける。SubagentStart には model が来ないので比較できるのは PreToolUse だけ（DDR i0009-06）。WF801 / WF803 は systemMessage と additionalContext の両方に出す。前者はユーザーにその場で表示され、サブエージェントが動き出す前に人間が気づける唯一の経路。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/hooks/12-SubagentStart/tests/test_subagent_start_check.sh
+passes=56 failures=0</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>通知しなかったときも skip を理由つきで記録する（DDR i0009-52）。理由は 6 通り（一致 / 対象チケット無し / executor の記載無し / 実行者がメイン / model が特定できない / subagent_type が対象外）。2 経路の出力は hook-common に公開 API が無く、private ヘルパを直に使った（0032 で公開 API 化を提案）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4"><code>subagent-stop-check</code> — status で分け、縮退はセッション単位で引く <span class="chip warn">△注意</span> <span class="basis">根拠: SP-T01〜T08 = 51 件 FAIL 0</span></h3>
+      <p>tool_response.status が async_launched（background へ移った = まだ作業していない）なら作業後の検査をしない。行うと作業前の作業領域を見ることになる。代わりに WF814 を出す。completed なら SubagentStop が残した記録をtool_response.agentId（camelCase）で引き、無ければその場で検査する。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/hooks/13-SubagentStop/tests/test_subagent_stop_check.sh
+passes=51 failures=0</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>仕様は WF801 の縮退判定を「同じ agentId の記録があるか」と書くが、PreToolUse Agent の時点では agentId がまだ発行されていないので記録に載せられない。実装は「このセッションの subagent-start-check の記録が 1 件でもあるか」で引く。縮退は登録行が外れているというセッション横断の条件なので、単位としてはこちらのほうが実態に合う。0032 で仕様側に書き戻す。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">5</span>
+      <h3 id="f5">4c プローブ — 仕様から 2 件逸脱して値を落とす <span class="chip stop">✕問題</span> <span class="basis">根拠: 既定で副作用ゼロを 4 本のテストが固定</span></h3>
+      <p>decisions.jsonl は §5 で 10 キー固定なので permission_mode / model / tool_response / agent_type を入れる場所が無い。systemMessage を出す WF801 / WF803 は subagent_type が task-executor で executor が main 以外のときにしか発火しないので、そのままでは T9（systemMessage が届くか）が測れない。lib/probe-4c.sh を足し、6 本すべてが入力の読み込み直後・早期 return より前で probe_4c を呼ぶ。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 既定（環境変数なし）では 1 行目で戻る
+probe_4c() {
+  [[ "${WORKFLOW_PROBE_4C:-0}" == "1" ]] || return 0</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>逸脱 2 件: (1) rules/logger.md の「値ではなく有無・長さ」から外れて 7 フィールドの値を落とす、(2) フック共通仕様 §5 の logs/ の表に無いパス（logs/hooks/probe-4c.jsonl）を増やす。0031 の実測が終わったら、このファイルと呼び出し 1 行を削除する。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">6</span>
+      <h3 id="f6">実装中に見つけた自分のバグ 2 件（<code>post-push-compact-prompt</code>） <span class="chip stop">✕問題</span> <span class="basis">根拠: PP-T01 / PP-T04 が拾った</span></h3>
+      <p>どちらも 0029 で書いたコードで、テストが拾った。push-state.json が 1 度も書けていなかったこと（jq --slurpfile にプロセス置換 /dev/fd/63 を渡していて Windows の jq が開けない）と、logs/mr.json の MR 番号を .number // .iid で読んでいたこと（正のキーは .mr）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>FAIL PP-T01: expected 'd8be06c...' actual ''
+FAIL PP-T01: expected '1' actual ''</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>どちらもファイルを直に読む形・正のキーを先に見る形へ直した。--slurpfile + プロセス置換が他に無いかは 0032 で見る。</p>
+      </div>
+    </li>
+    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+  </ol>
+</section>
+
+<!-- 任意: 検証の結果を一覧で示す場合。各章で示しているなら削除 -->
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>test_session_start.sh（SE-T05 後半 / SE-T06 後半）</td><td>14 件 FAIL 0</td></tr>
+      <tr><td>test_workflow_diff_check.sh（DC-T01〜T07）</td><td>43 件 FAIL 0</td></tr>
+      <tr><td>test_post_push_compact_prompt.sh（PP-T01〜T08）</td><td>37 件 FAIL 0</td></tr>
+      <tr><td>test_post_push_usage_report.sh（UR-T01〜T07）</td><td>36 件 FAIL 0</td></tr>
+      <tr><td>test_subagent_start_check.sh（SA-T01〜T09）</td><td>56 件 FAIL 0</td></tr>
+      <tr><td>test_subagent_stop_check.sh（SP-T01〜T08）</td><td>51 件 FAIL 0</td></tr>
+      <tr><td>test_templates.sh（SS-T05 = __ss_load のバイト一致を含む）</td><td>43 件 FAIL 0</td></tr>
+      <tr><td>全件テスト（既定ロケール / LC_ALL=C.UTF-8）</td><td>21 本 / 112 件 FAIL 0（両ロケール）</td></tr>
+      <tr><td>bash -n（本体 6 本）</td><td>すべて通過</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>仕様 workflow-diff-check.md 制御方式 4 に -uall を書く（未追跡はファイル単位で判定する）</li>
+    <li>仕様 subagent-stop-check.md 制御方式 2 の縮退判定を「セッション単位」に直す（agentId では引けない理由つき）</li>
+    <li>hook-common に 2 経路出力（systemMessage + additionalContext）の公開 API を置く</li>
+    <li>フック共通仕様 §3 に hook_notify と hook_inject の識別子の扱いの差を書く</li>
+    <li>仕様 subagent-stop-check.md SP-T08 の sub-opus を opus（model-aliases.txt にある族名）へ直す</li>
+    <li>logs/mr.json の MR 番号のキーが .mr であることを明記する</li>
+  </ol>
+</section>
+
+<!-- 必須: 想定と異なった点。無ければ「無し」 -->
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>テスト用リポジトリは外に出ない</td><td>post-push-compact-prompt のリンク形式を見るために origin を fake URL に差し替えたまま git push し、github.com への認証プロンプトがユーザーに見えた</td><td>push 先をローカルの bare に固定し、GIT_TERMINAL_PROMPT=0 と空の credential.helper を下ごしらえに入れた</td></tr>
+      <tr><td>subagent-start-check の記録に agentId を載せられる</td><td>PreToolUse Agent の時点では agentId がまだ発行されていない</td><td>縮退判定をセッション単位で引く形にし、0032 で仕様側に書き戻す</td></tr>
+      <tr><td>hook_inject は hook_notify と対称に識別子を付ける</td><td>hook_inject は識別子を付けない（additionalContext に WF911 の文字列が現れない）</td><td>本文の先頭に自分で識別子を置き、§3 への追記を 0032 へ送った</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 残課題。無ければ「無し」 -->
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li>0030（拒否側 4 本）: workflow-guard / workflow-state-guard / workflow-entry-guard / block-gh-ready</li>
+    <li>0031（人間の操作）: 段階登録 ①② と T1〜T4 / T9 の実測（WORKFLOW_PROBE_4C=1 の新しいセッションが要る）</li>
+    <li>0032（設計反映）: 上記に加えて累積分（フック共通仕様 §7 の CP_DATA・区切りバイトの割り当て表・push_detect の終了コード検査の除去ほか）</li>
+    <li>shellcheck 未導入（6 巡連続）</li>
+    <li>check-html.sh が md と HTML の内容一致を検査しない（17 回連続の申し送り）</li>
+    <li>hc_append_jsonl / hc_json_write の並行書き込みが未検査</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

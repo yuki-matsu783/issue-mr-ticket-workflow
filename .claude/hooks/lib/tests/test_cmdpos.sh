@@ -18,9 +18,9 @@ dump() { # $1=コマンド [$2=shell]
   cmdpos_parse "$1" "${2:-bash}"
   printf 'count=%s degraded=%s\n' "$CP_COUNT" "$CP_DEGRADED"
   for ((i = 0; i < CP_COUNT; i++)); do
-    printf 'seg%s: exe=%s sub=%s args=[%s] redir=[%s] write=[%s] opaque=%s provided=%s gitlike=%s\n' \
+    printf 'seg%s: exe=%s sub=%s args=[%s] redir=[%s] write=[%s] opaque=%s provided=%s gitlike=%s data=%s\n' \
       "$i" "${CP_EXE[i]}" "${CP_SUBCMD[i]}" "${CP_ARGS[i]//$us/ }" "${CP_REDIRECTS[i]//$us/ }" "${CP_WRITE_TARGETS[i]//$us/ }" \
-      "${CP_OPAQUE[i]}" "${CP_PROVIDED[i]}" "${CP_GITLIKE[i]}"
+      "${CP_OPAQUE[i]}" "${CP_PROVIDED[i]}" "${CP_GITLIKE[i]}" "${CP_DATA[i]}"
   done
 }
 has_git() { # $1=sub → yes/no
@@ -258,7 +258,56 @@ case_hk_t12() {
   done
 }
 
+# ---- HK-T05: データだけの段（ヒアドキュメント本文・コメント行）を実行位置と区別する ----
+# `cmdpos` は「クォート・コメント・ヒアドキュメント本文」を同じ `_` に潰すので、
+# 呼び手は「潰れたクォート由来の `_`（実行位置）」と「データ由来の `_`（実行位置ではない）」を
+# 区別できなかった。bash はヒアドキュメント本文もコメントも決して実行しない
+case_hk_t05_data() {
+  local c
+  # ヒアドキュメント 4 形。本文の段は data=1、開いた段は data=0
+  for c in $'cat > o.py <<\'PY\'\nE = ["x"]\nPY' \
+           $'cat > o.py <<PY\nE = ["x"]\nPY' \
+           $'cat > o.py <<-PY\n\tE = ["x"]\n\tPY' \
+           $'cat > o.py << PY\nE = ["x"]\nPY'; do
+    run_cmd dump "$c"
+    assert_contains "HK-T05" "seg0: exe=cat"
+    assert_contains "HK-T05" "data=0"
+    assert_contains "HK-T05" "seg1: exe=_"
+    assert_contains "HK-T05" "data=1"
+  done
+  # コメントだけの行も data=1
+  run_cmd dump $'ls\n# git commit\necho b'
+  assert_contains "HK-T05" "seg1: exe=_"
+  assert_contains "HK-T05" "data=1"
+  # 行末のコメントは段そのものをデータにしない（実行位置は ls のまま）
+  run_cmd dump 'ls # git commit'
+  assert_contains "HK-T05" "seg0: exe=ls"
+  assert_contains "HK-T05" "data=0"
+  # 潰れたクォート由来の `_` は実行位置なので data=0（上の data=1 との対照）
+  run_cmd dump "'git' commit"
+  assert_contains "HK-T05" "exe=_"
+  assert_contains "HK-T05" "data=0"
+  run_cmd dump '"chmod" +x a'
+  assert_contains "HK-T05" "exe=_"
+  assert_contains "HK-T05" "data=0"
+  # 生のプレースホルダ（\x03）を混ぜても段はデータにならない。
+  # ここが破れると、実行位置を「実行位置ではない」と言い張れてしまう。
+  # 段がプレースホルダ 1 個だけになる形でないと、補強の有無を区別できない（変異で確かめた）
+  run_cmd dump $'ls\n\x03\necho b'
+  assert_contains "HK-T05" "seg1: exe=_"
+  assert_not_contains "HK-T05" "data=1"
+  run_cmd dump $'\x03'
+  assert_not_contains "HK-T05" "data=1"
+  run_cmd dump $'\x03chmod +x a'
+  assert_contains "HK-T05" "data=0"
+  # ヒアドキュメントの後ろに続く実行位置は data=0（本文と混ざらない）
+  run_cmd dump $'cat > o.py <<PY\nx\nPY\nls -la'
+  assert_contains "HK-T05" "seg2: exe=ls"
+  assert_contains "HK-T05" "data=0"
+}
+
 case_hk_t05_compound
+case_hk_t05_data
 case_hk_t05_negative
 case_hk_t05_opaque
 case_hk_t05_redirect_write

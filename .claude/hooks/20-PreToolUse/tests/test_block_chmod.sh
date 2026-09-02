@@ -83,6 +83,16 @@ case_block() {
   local pad
   pad="$(printf 'a%.0s' $(seq 1 5000))"
   assert_eq "BC-T01" "WF501" "$(judge "ch\$( )mod +x a # $pad")"
+  # ヒアドキュメント本文を実行位置から外しても、本文の「外」にある実行位置は拒否のまま。
+  # 上の BC-T02 と同数の対照を置く（片側だけ見ると取りこぼしと過剰拒否を往復する）
+  local hdx
+  for hdx in $'cat > o.py <<PY\nx\nPY\nchmod +x a' \
+             $'chmod +x a\ncat > o.py <<PY\nx\nPY' \
+             $'chmod +x a <<PY\nx\nPY' \
+             $'bash -c "chmod +x a" <<PY\nx\nPY' \
+             $'cat > o.py <<PY\nx\nPY\nls | xargs chmod +x'; do
+    assert_eq "BC-T01" "WF501" "$(judge "$hdx")"
+  done
 }
 
 # ---- BC-T02: クォート・検索語・地の文の chmod は通る ----
@@ -116,6 +126,25 @@ case_pass() {
   assert_eq "BC-T02" "allow" "$(judge 'sed -n "1,5p" chmod-notes.md')"
   assert_eq "BC-T02" "allow" "$(judge 'ls chmod_backup/')"
   assert_eq "BC-T02" "allow" "$(judge 'diff a.md b.md')"
+  # ヒアドキュメントの本文は実行位置ではない（bash は決して実行しない）。
+  # cmdpos は「クォート・コメント・ヒアドキュメント本文」を同じ `_` に潰すので、
+  # 実行体が `_` = 難読化と読むと、本文に禁止語を書いただけで拒否側に倒れる。
+  # 0028 の実測で、登録から 3 回目の Bash 呼び出しがこれで止まった
+  local hd
+  for hd in $'cat > o.py <<\'PY\'\nE = ["chmod --version"]\nPY' \
+            $'cat > o.py <<PY\nE = ["chmod --version"]\nPY' \
+            $'cat > o.py <<-PY\n\tE = ["chmod --version"]\n\tPY' \
+            $'cat > o.py << PY\nE = ["chmod --version"]\nPY'; do
+    assert_eq "BC-T02" "allow" "$(judge "$hd")"
+  done
+  # 0028 の切り分けで対照に使った形（ヒアドキュメント無しで禁止語 + クォート + 変数展開）。
+  # 0036 が「代償」として想定していたのはこの形だが、実際には通る。
+  # 過剰拒否の原因がヒアドキュメントだけだったことを、この対照が固定する
+  assert_eq "BC-T02" "allow" "$(judge 'echo "chmod" "${HOME}"')"
+  assert_eq "BC-T02" "allow" "$(judge 'echo "chmod --version" > note.md')"
+  assert_eq "BC-T02" "allow" "$(judge 'echo "${HOME}/chmod"')"
+  # コメントだけの行に禁止語がある形も通る（コメントも実行されない）
+  assert_eq "BC-T02" "allow" "$(judge $'ls -la\n# chmod は使わない\necho b')"
 }
 
 # ---- BC-T03: bash -c / xargs 経由でも拒否する ----

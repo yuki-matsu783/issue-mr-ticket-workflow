@@ -11,6 +11,10 @@
 #   CP_WRITE_TARGETS[i] cp mv tee touch mkdir rm truncate sed -i install ln の書き込み先（US 区切り）
 #   CP_OPAQUE[i]       1 = 文字列をコードとして受け取る実行系（eval / bash -c / xargs / find -exec / pwsh 等）
 #   CP_PROVIDED[i]     提供コマンドならそのルート相対パス（§7-8）。それ以外は空
+#   CP_DATA[i]         1 = その段はデータだけ（ヒアドキュメント本文・コメント行）で実行位置ではない。
+#                      bash はどちらも決して実行しないので、実行体の判定から外してよい。
+#                      正規化は「潰れたクォート」も「データ」も同じ `_` にするため、呼び手は
+#                      この印でしか両者を区別できない（`_` が実行位置かどうかが変わる）
 #   CP_GITLIKE[i]      1 = 実行体は特定できない（`_`）が生の文字列に git を含む（PowerShell の判定不能を呼び出し側が拒否側に倒すため）
 #   CP_LOWER           小文字化した元の文字列（縮退時の部分一致用）
 # 呼び出し側はこの出力だけを見て判定し、コマンド文字列を再パースしない（規則の複製禁止）。
@@ -20,6 +24,9 @@
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 0; fi
 
 _CP_NL=$'\n'
+# データだけの内容（ヒアドキュメント本文・コメント）に使う内部プレースホルダ。
+# 段を組み立てるときに `_` へ戻すので、呼び手から見える値は従来どおり `_` のまま
+_CP_DATA_PH=$'\x03'   # \x01 は _CP_DUP、\x02 は _CP_AMPRED が使っているので \x03
 _CP_BT='`'
 _CP_US=$'\x1e'
 _CP_DUP=$'\x01'     # `>&` `<&`（fd 複製）の保護
@@ -46,12 +53,14 @@ _CP_GIT_OPTS_WITH_VALUE=' -c --git-dir --work-tree --namespace --exec-path --sup
 _CP_WRITE_CMDS=' cp mv tee touch mkdir rm truncate install ln sed '
 
 CP_DEGRADED=0; CP_COUNT=0; CP_LOWER=""
-CP_EXE=(); CP_ARGS=(); CP_SUBCMD=(); CP_REDIRECTS=(); CP_WRITE_TARGETS=(); CP_OPAQUE=(); CP_PROVIDED=(); CP_GITLIKE=()
+CP_EXE=(); CP_ARGS=(); CP_SUBCMD=(); CP_REDIRECTS=(); CP_WRITE_TARGETS=(); CP_OPAQUE=(); CP_PROVIDED=(); CP_GITLIKE=(); CP_DATA=()
 
 # ---- 正規化（参考実装から流用）----
 # クォート・コメント・ヒアドキュメント本文をプレースホルダ `_` へ潰す。ダブルクォート内の $( ) と ` ` はコードとして残す
 _cp_normalize_to_reply() {
-  local raw="$1"
+  # 入力に生のプレースホルダが混じっていると、段がデータだけに見えて実行位置の判定から外れる。
+  # 出力に現れるプレースホルダは正規化が置いたものだけにする
+  local raw="${1//$_CP_DATA_PH/_}"
   local -a lines=()
   mapfile -t lines <<<"$raw"
   local out='' state='code' rest head c prev=''
@@ -70,8 +79,11 @@ _cp_normalize_to_reply() {
             "'") state='sq'; out+='_'; prev='_'; rest="${rest:1}" ;;
             '"') state='dq'; out+='_'; prev='_'; rest="${rest:1}" ;;
             '#')
+              # 行頭（直前が改行）も語の切れ目。ここを外すと `# コメント` が実行体 `#` の段になり、
+              # コメントの中の語が引数として残る（bash はコメント行を丸ごと無視する）
               case "$prev" in
-                '' | ' ' | $'\t' | $'\r' | ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT") out+='_'; prev='_'; rest='' ;;
+                '' | ' ' | $'\t' | $'\r' | ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT" | "$_CP_NL")
+                  out+="$_CP_DATA_PH"; prev='_'; rest='' ;;
                 *) out+='#'; prev='#'; rest="${rest:1}" ;;
               esac ;;
             '\')
@@ -140,7 +152,8 @@ _cp_normalize_to_reply() {
           [[ "$body_line" == "$d" ]] && break
         done
       done
-      out+="_$_CP_NL"; prev="$_CP_NL"
+      # 本文は実行位置ではない（bash は決して実行しない）。データの印を付けて 1 段として出す
+      out+="$_CP_DATA_PH$_CP_NL"; prev="$_CP_NL"
     fi
   done
   REPLY="$out"
@@ -229,7 +242,15 @@ _cp_join_us_to_reply() { # 配列要素を US で結合
 
 # 1 セグメント分のトークン列（配列 _CP_SEG）を解析して CP_* に 1 行積む
 _cp_emit_segment() {
-  local -a toks=("$@")
+  # データのプレースホルダは `_` に戻したうえで、段そのものがデータだけかを記録する。
+  # `ls # コメント` は実行位置 ls を持つので data=0、コメントだけの行と
+  # ヒアドキュメント本文は全トークンがプレースホルダなので data=1
+  local -a toks=()
+  local data=1 _t
+  for _t in "$@"; do
+    if [[ "$_t" == "$_CP_DATA_PH" ]]; then toks+=("_"); else toks+=("$_t"); data=0; fi
+  done
+  (( ${#toks[@]} > 0 )) || data=0
   local n=${#toks[@]} i=0 t tl base exe="" j
   local -a args=() redirects=() writes=()
   local opaque=0 provided="" gitlike=0 subcmd="" sticky=1 in_prefix=0 prefix_base="" leading_value=0
@@ -329,6 +350,7 @@ _cp_emit_segment() {
   _cp_join_us_to_reply "${redirects[@]}"; CP_REDIRECTS+=("$REPLY")
   _cp_join_us_to_reply "${writes[@]}"; CP_WRITE_TARGETS+=("$REPLY")
   CP_EXE+=("$exe"); CP_SUBCMD+=("$subcmd"); CP_OPAQUE+=("$opaque"); CP_PROVIDED+=("$provided"); CP_GITLIKE+=("$gitlike")
+  CP_DATA+=("$data")
   CP_COUNT=$((CP_COUNT + 1))
   return 0
 }
@@ -338,7 +360,7 @@ _cp_emit_segment() {
 cmdpos_parse() {
   local s="${1:-}" shell="${2:-bash}" norm m
   CP_DEGRADED=0; CP_COUNT=0; CP_LOWER="${s,,}"
-  CP_EXE=(); CP_ARGS=(); CP_SUBCMD=(); CP_REDIRECTS=(); CP_WRITE_TARGETS=(); CP_OPAQUE=(); CP_PROVIDED=(); CP_GITLIKE=()
+  CP_EXE=(); CP_ARGS=(); CP_SUBCMD=(); CP_REDIRECTS=(); CP_WRITE_TARGETS=(); CP_OPAQUE=(); CP_PROVIDED=(); CP_GITLIKE=(); CP_DATA=()
   [[ -n "$s" ]] || return 0
   # 縮退（§7-7）: bash 4.3 未満、または 4096 文字超
   if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )) || (( ${#s} > _CP_MAX_LEN )); then

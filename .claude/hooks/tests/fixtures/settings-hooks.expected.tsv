@@ -1,0 +1,20 @@
+# HK-T01 の期待値。正は .claude/docs/10_spec/フック共通仕様.md §1 の表
+# 列: イベント	matcher（無しは空）	位置（同じイベント内の配列上の位置）	command（逐語）
+# 生成器: wip/tmp/fixture.py（このファイル自身が正ではない）
+SessionStart		1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/00-SessionStart/session-start.sh"
+UserPromptSubmit		1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh"
+PreToolUse	Skill	1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh"
+PreToolUse	Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow|mcp__.*	2	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF109: フック workflow-entry を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
+PreToolUse	Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|mcp__.*	3	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/workflow-state-guard.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF309: フック workflow-state-guard を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
+PreToolUse	Bash|PowerShell	4	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF509: フック block-chmod を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
+PreToolUse	Bash|PowerShell	5	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-direct-git.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF409: フック block-direct-git を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
+PreToolUse	Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow	6	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/workflow-guard.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF209: フック workflow-guard を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
+PreToolUse	Agent	7	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/12-SubagentStart/subagent-start-check.sh"
+PostToolUse	Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell	1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/workflow-diff-check.sh"
+PostToolUse	Bash|PowerShell	2	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-compact-prompt.sh"
+PostToolUse	Bash|PowerShell	3	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh"
+PostToolUse	Agent	4	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/13-SubagentStop/subagent-stop-check.sh"
+SubagentStart		1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/12-SubagentStart/subagent-start-check.sh"
+SubagentStop		1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/13-SubagentStop/subagent-stop-check.sh"
+SubagentStop		2	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh" --accumulate
+Stop		1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh" --accumulate

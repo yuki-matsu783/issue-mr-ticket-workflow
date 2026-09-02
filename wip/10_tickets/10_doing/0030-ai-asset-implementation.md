@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核。ロッ�
 allow:
   write: [".claude/hooks/**", "wip/10_tickets/**", "wip/30_reports/**", "wip/tmp/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T22:25:44+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c6d4013"
 ---
 
 # 0030 拒否側フックの残り 4 本とテスト

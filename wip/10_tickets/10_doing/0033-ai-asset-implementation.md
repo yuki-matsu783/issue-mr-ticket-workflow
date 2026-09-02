@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 6 の敵対的レビ
 allow:
   write: [".claude/rules/**", ".claude/hooks/tests/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:45:35+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a598e7e"
 ---
 
 # 0033 実装: ルール本体に DDR の状態の語彙を反映し、テストの deny の網羅を戻す

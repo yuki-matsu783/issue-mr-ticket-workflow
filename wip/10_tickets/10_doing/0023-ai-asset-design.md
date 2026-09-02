@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の定義�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:36:48+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c540482"
 ---
 
 # 0023 レビュー指摘: ホットパスの外部プロセス上限と読み取り経路の再設計（A1・A2・B11・B12）

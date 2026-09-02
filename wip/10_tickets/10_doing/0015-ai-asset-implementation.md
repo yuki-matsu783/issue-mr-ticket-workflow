@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 3 の敵対的レビ
 allow:
   write: [".claude/rules/**", ".claude/evals/**", ".claude/skills/**", ".claude/hooks/config/scope-limits.json", ".claude/hooks/lib/tests/**", ".claude/hooks/tests/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:51:28+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "6a29f3e"
 ---
 
 # 0015 実装: 敵対的レビュー（フェーズ3）の指摘のうち本体に当たる 6 件を直す

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:19:55+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "7fd5cac"
 ---
 
 # 0009 AI アセット実装計画: ルール本体・スキル本体・scope-limits.json

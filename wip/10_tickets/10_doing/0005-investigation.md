@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画の方針の差分 4 �
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T05:39:10+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1630845"
 ---
 
 # 0005 既存機構との境界と成果物の置き場の調査

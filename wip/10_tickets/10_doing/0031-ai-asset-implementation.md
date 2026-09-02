@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の登録�
 allow:
   write: [".claude/hooks/**", ".claude/settings.json", ".claude/skills/20-common-step-shell-script/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-03T00:57:36+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c3440fc"
 ---
 
 # 0031 段階登録 ①② の 16 行とフェーズ 4c の実測・HK-T01・全件テスト

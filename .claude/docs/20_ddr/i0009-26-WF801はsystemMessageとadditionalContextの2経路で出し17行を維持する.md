@@ -52,3 +52,5 @@ keywords: [WF801, systemMessage, additionalContext, next to the tool result, Pre
 - `00_requirement/hooks/12-SubagentStart/subagent-start-check.md` メインフロー（到達の時点）
 - `10_spec/フック共通仕様.md` §3（`systemMessage` の行を追加・PreToolUse の到達時点の注記）
 - §1 の登録表は **17 行のまま**（`i0009-06` の結論を維持）
+- `10_spec/フック共通仕様.md` §12 **T9**（`systemMessage` が実際にユーザーへ表示されるかの実測。17 行を保つ唯一の支えなので、外れたら 16 行に戻す。`i0009-54`）
+- **追記（0024）**: サブエージェントは既定で background で走るため、`additionalContext` は「走り終わった後」ではなく「起動した直後」に届く（`i0009-50`）。この DDR が「AI へは遅くとも結果と同時に」とした想定より**早い**

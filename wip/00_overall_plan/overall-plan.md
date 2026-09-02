@@ -141,6 +141,8 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 | T2 | サブエージェント内のツール呼び出しの `session_id` が親と同じか | `decisions.jsonl` の `session_id` を親子で比較 |
 | T3 | `claude -p` を入力から判別できるか / `defer` の実在 | ヘッドレス実行時の入力（`permission_mode` 等）を `decisions.jsonl` に記録して比較 |
 | T4 | `SubagentStart` イベントと `model` / `agent_id` の実在 | ①の登録後にサブエージェントを起動し、`logs/` に記録が残るかを見る |
+| T9 | `systemMessage` が PreToolUse で**ユーザーに実際に表示されるか** | ②-2（7 行目 `subagent-start-check` の登録）の後、`executor` と違うモデルでサブエージェントを 1 つ起動し、警告がその場で表示されるかを見る。**登録表を 17 行に保つ唯一の支え**（共通仕様 §12 T9・DDR i0009-54） |
+| — | `Agent` の `tool_response.status` が既定で `async_launched` になるか（サブエージェントが既定で background） | 同じ起動で `logs/` に落ちた `tool_response` を見る。`completed` なら `subagent-stop-check` の分岐は使われない（共通仕様 §2・DDR i0009-50） |
 | T6 | PreToolUse の deny が `permissionDecision` + 終了 0 で効くか | 段階登録の ②-1（拒否側 1 本目 `block-chmod` の登録）で真っ先に確かめる。効かなければ `exit 2` + stderr へ切り替え、§1 の登録ラッパーも作り直す |
 | T7 | `tool_response` の終了コードのフィールド名 | `post-push-*` が読む値を `logs/` に落として実物を見る。**公式で「終了コードのフィールドは存在しない」と分かっている（§12 T7）が、受け入れ条件 5 が「実物の確認に基づいて」を求めるため実測は省かない**（DDR i0009-43） |
 | — | `agent_type` の実物（`subagent-stop-check` が読む値。受け入れ条件 5） | T4 と同じサブエージェント起動で `logs/` に残る値を見る |

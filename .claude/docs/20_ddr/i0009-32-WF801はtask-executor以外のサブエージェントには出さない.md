@@ -38,4 +38,5 @@ keywords: [subagent_type, task-executor, adversarial-reviewer, Explore, WF801, �
 ## 影響
 
 - `10_spec/hooks/12-SubagentStart/subagent-start-check.md` 制御方式 4・`SA-T07`（新規）
+- `00_requirement/hooks/12-SubagentStart/subagent-start-check.md` メインフロー（**Shall not に「タスクの実施者でないときは通知しない」を追加**。仕様が要件より先に変わっていた状態を 0024 で解消）
 - **実装フェーズへ**: `task-executor` という `subagent_type` の名前は `.claude/agents/` の実体と一致させる（実体の作成は 3/3）

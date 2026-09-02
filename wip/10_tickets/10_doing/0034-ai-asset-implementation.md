@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準から外す: 記録の是�
 allow:
   write: ["wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-02T18:08:26+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "54dab20"
 ---
 
 # 0034 レビュー 1 巡目の是正 2/2: 0027 のチケット・結果報告・HTML の記述を実体に合わせる

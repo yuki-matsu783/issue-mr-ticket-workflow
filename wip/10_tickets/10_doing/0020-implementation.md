@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "未使用の引数 1 つの削除
 allow:
   write: ["src/**", "wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-02T07:14:43+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "4278ced"
 ---
 
 # 0020 使われていない RenderOptions.cspSource を型から削る

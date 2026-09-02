@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり（棚卸しと要
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T03:03:00+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "8a2c25f"
 ---
 
 # 0032 実測結果と仕様からの逸脱の棚卸し、フェーズ 6 の要否

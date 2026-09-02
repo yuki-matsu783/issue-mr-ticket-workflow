@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チケット Markdown の実形と壊れ方の調査結果</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査結果レポート / 調査</p>
+  <h1 id="title" data-required>チケット Markdown の実形と壊れ方の調査結果</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 置き場・ファイル名・状態の表し方</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. frontmatter のキーと値の形</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 本文の見出し構造</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. 壊れ方 9 パターンの実測</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. 拡張が持つべきパーサの範囲</a></li>
+        </ol>
+      </li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/13">#13</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/14">#14</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/vscode-ticket-visualization-ci8etr</code></dd></div>
+    <div><dt>チケット</dt><dd>0003-investigation</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">カードに出す 6 項目はすべて機械的に取得できる。番号とタイトルは H1 見出し、ticket_type / executor / 人間レビュー要否 / 敵対的レビュー要否は frontmatter、状態は置かれているディレクトリから取れる。frontmatter は YAML そのものではなく、書き手（<code>ticket.sh</code>）と読み手（<code>frontmatter.sh</code>）が合意したサブセットで、拡張はこのサブセットだけを解釈すれば足りる。壊れ方は 9 パターンを実測し、参照実装が例外を投げない設計であることを確認した。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>拡張が <code>frontmatter.sh</code> と同じサブセットだけを解釈する方針でよいか。ブロック配列を人が手で書いた場合、機構自身も読めないので拡張も読めなくてよい、という整理（<a href="#f5">章 5</a>）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>「不備が分かる表示」の粒度。キー単位で「取得できなかった」を出す案が受け入れ条件 7 を満たす最小（<a href="#f4">章 4</a>）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>状態がディレクトリで表されること、ファイル名が <code>&lt;4 桁連番&gt;-&lt;ticket_type&gt;.md</code> であること（<a href="#f1">章 1</a>）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>実在するチケットは本ブランチで作った 6 枚だけで、<code>30_cancelled/</code> の実物が無い。取り消し済みチケットの frontmatter は <code>ticket.sh cancel</code> の実装からの推定（<a href="#f1">章 1</a>）</li>
+      <li>日本語以外・絵文字・長いタイトルの表示崩れは、パーサではなく Webview の見た目の問題なので調べていない</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>リポジトリ <code>/home/user/issue-mr-ticket-workflow</code>、ブランチ <code>claude/vscode-ticket-visualization-ci8etr</code></li>
+    <li>読んだ実装: <code>ticket.sh</code>、<code>frontmatter.sh</code>、<code>ticket.template.md</code>、<code>task-types.tsv</code></li>
+    <li>壊れ方の実測は <code>wip/tmp/fm-probe/</code> に使い捨ての 9 ファイルを作り、<code>frontmatter.sh</code> を source して <code>fm_get</code> で読ませた。書き込みは <code>wip/tmp/</code> のみ</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">置き場・ファイル名・状態の表し方 <span class="chip good">◎良</span> <span class="basis">根拠: ticket.sh:22、ls -d wip/10_tickets/*/</span></h3>
+      <p>状態はディレクトリで表され 4 つある。<code>00_todo</code>（未着手）、<code>10_doing</code>（作業中）、<code>20_done</code>（完了）、<code>30_cancelled</code>（取り消し）。ファイル名は <code>&lt;4 桁ゼロ埋め連番&gt;-&lt;ticket_type&gt;.md</code> で、連番は取り消し済みを含む全チケットの最大 + 1。4 ディレクトリはいずれも <code>.gitkeep</code> を持ち、チケットが 0 枚でもディレクトリは存在する。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ ls wip/10_tickets/*/[0-9]*.md
+wip/10_tickets/00_todo/0004-investigation.md
+wip/10_tickets/00_todo/0005-investigation.md
+wip/10_tickets/00_todo/0006-design-plan.md
+wip/10_tickets/10_doing/0003-investigation.md
+wip/10_tickets/20_done/0001-overall-plan.md
+wip/10_tickets/20_done/0002-investigation-plan.md
+
+$ sed -n 22p .claude/skills/20-common-step-ticket/scripts/ticket.sh
+readonly TODO="$TICKETS/00_todo" DOING="$TICKETS/10_doing" DONE="$TICKETS/20_done" CANCELLED="$TICKETS/30_cancelled"</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>拡張はこの 4 ディレクトリを列とし、<code>[0-9][0-9][0-9][0-9]-*.md</code> に一致するファイルだけをカードにする。<code>.gitkeep</code> は自然に除外される。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">frontmatter のキーと値の形 <span class="chip good">◎良</span> <span class="basis">根拠: ticket.template.md、frontmatter.sh:4、実在チケット</span></h3>
+      <p>frontmatter は YAML 全体ではなく 5 種類の形に限られる。フラットなスカラー、クォート付きスカラー、フロー配列、インラインマップ、入れ子マッピング（2 段）。明示的に対象外なのはブロック配列と複数行スカラー。<code>started_at</code> / <code>completed_at</code> / <code>base_sha</code> は作成時が空文字で、<code>set_field</code> が後から書き換える。つまり空文字は「まだその段階に来ていない」を意味し、欠落とは違う。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ sed -n 1,14p wip/10_tickets/00_todo/0004-investigation.md
+---
+type: ticket
+ticket_type: investigation
+predecessors: ["0002"]
+executor: main
+human_review: {required: true, reason: "テストランナーの選択が実装フェーズ全体を左右する（基準どおり）"}
+adversarial_review: {required: false, reason: "基準どおり"}
+allow:
+  write: ["wip/**"]
+  ops: ["read", "build-test", "web"]
+started_at: ""
+completed_at: ""
+base_sha: ""
+---
+
+$ sed -n 4p .claude/skills/20-common-step-shell-script/scripts/frontmatter.sh
+# 対象: フラットなスカラー / フロー配列 ["a", "b"] / 入れ子マッピング（2 段） / インラインマップ {k: v, k2: "v2"}</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>カードの 6 項目の取得元が確定した。番号はファイル名の先頭 4 桁、タイトルは H1 の番号より後ろ、残る 4 項目は frontmatter の <code>ticket_type</code> / <code>executor</code> / <code>human_review.required</code> / <code>adversarial_review.required</code>。<code>ticket_type</code> の値域は <code>task-types.tsv</code> の 15 種。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">本文の見出し構造 <span class="chip good">◎良</span> <span class="basis">根拠: ticket.template.md、ticket.sh:26</span></h3>
+      <p>frontmatter の直後は必ず <code>#</code> の H1 で、4 桁番号とタイトルが空白 1 つで並ぶ。その下に <code>## 目的</code> / <code>## DoD</code> / <code>## 作業内容</code> / <code>## 作業ログ</code> が並び、作業ログの下に 10 個の <code>###</code> 見出しが固定順で入る。<code>## DoD</code> の中身はチェックリストで、<code>ticket.sh complete</code> が未チェックの有無を検査している。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ grep -n '^#\{1,3\} ' wip/10_tickets/00_todo/0004-investigation.md
+16:# 0004 VS Code 拡張のビルド・テスト環境の成立性調査
+18:## 目的
+22:## DoD
+29:## 作業内容
+33:## 作業ログ
+35:### 現在地
+39:### うまくいったこと
+41:### うまくいかなかったこと
+43:### 仕様からの逸脱
+45:### 判断と根拠
+47:### 拒否・確認・迂回の記録
+49:### 使った AI アセットと効き目
+51:### スコープ外で見つけたこと
+53:### AI アセットに反映すべき内容
+55:### 備考</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>タイトルは H1 から取る。ファイル名の番号と H1 の番号は通常一致するが手編集でずれうるので、ファイル名を正とする。DoD のチェック数はカードの進捗表示に使える材料になる。受け入れ条件には無いので採否は設計で決める。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">壊れ方 9 パターンの実測 <span class="chip warn">△注意</span> <span class="basis">根拠: wip/tmp/fm-probe/run.sh の出力</span></h3>
+      <p>参照実装は「壊れた入力でも例外を投げず、取れないキーを取れないと返す」設計になっている。拡張も同じ方針を採れば受け入れ条件 7 を満たせる。ただし二重引用符の閉じ忘れ（4）と未知の <code>ticket_type</code>（9）は取得失敗にならず、値の妥当性検査を別に持つ必要がある。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>壊れ方</th><th>読み取りの挙動</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>正常</td><td>全キー取得できる</td></tr>
+          <tr><td>2</td><td>frontmatter が無い</td><td>全キー取得失敗。例外は出ない</td></tr>
+          <tr><td>3</td><td>終端の <code>---</code> が欠落</td><td>全キー取得失敗。例外は出ない</td></tr>
+          <tr><td>4</td><td>二重引用符の閉じ忘れ</td><td>他のキーは正常に取得でき、該当キーだけゴミの値が返る</td></tr>
+          <tr><td>5</td><td><code>allow.write</code> をブロック配列に手書き</td><td><code>allow.*</code> だけ取得失敗、他は取得できる</td></tr>
+          <tr><td>6</td><td>空ファイル</td><td>全キー取得失敗。例外は出ない</td></tr>
+          <tr><td>7</td><td>CRLF 改行</td><td>全キー正常に取得できる</td></tr>
+          <tr><td>8</td><td><code>executor</code> キーの欠落</td><td>そのキーだけ取得失敗、他は取得できる</td></tr>
+          <tr><td>9</td><td>未知の <code>ticket_type</code></td><td>値としてそのまま返る。検証はしていない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash wip/tmp/fm-probe/run.sh
+--- 正常 ---
+  ticket_type                = investigation
+  executor                   = main
+  human_review.required      = true
+  allow.write                = ["wip/**"]
+
+--- 二重引用符の閉じ忘れ ---
+  ticket_type                = investigation
+  human_review.required      = true
+（reason だけがゴミの値）
+$ fm_get wip/tmp/fm-probe/unclosed.md human_review.reason
+"閉じ忘れ
+
+--- allow.write がブロック配列 ---
+  allow.write                = &lt;取得失敗&gt;
+  allow.ops                  = &lt;取得失敗&gt;
+
+--- 空ファイル / frontmatter なし / 終端の --- が欠落 ---
+  （全キー &lt;取得失敗&gt;。例外は発生しない）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>拡張は取得失敗を例外ではなく欠落として扱い、そのうえで値の妥当性検査を別に持つ。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5">拡張が持つべきパーサの範囲 <span class="chip warn">△注意</span> <span class="basis">根拠: 章 1〜4 の総合</span></h3>
+      <p><code>frontmatter.sh</code> は bash 実装なので拡張から再利用できない。拡張は同じサブセットを解釈する独自パーサを持つことになる。汎用 YAML ライブラリを入れる案もあるが、読むキーは 8 個で形は 5 種類に限られること、汎用パーサはむしろ壊れた入力で例外を投げて受け入れ条件 7 のために握り潰しが要ること、依存を増やしたくないこと（Q3 の結果次第）から、サブセット専用の自前パーサが妥当と考える。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>設計では frontmatter を 5 種類の形だけ解釈する小さなパーサとし、キー単位で「取れた / 取れなかった」を返す型にする。値の妥当性検査はパーサの外に置く。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>列は 4 状態のディレクトリで固定し、4 桁連番で始まる .md だけを対象にする（<a href="#f1">章 1</a>）</li>
+    <li>frontmatter パーサは 5 種類の形だけを解釈し、キー単位で取得可否を返す型にする（<a href="#f5">章 5</a>）</li>
+    <li>値の妥当性検査をパーサの外に置き、<code>ticket_type</code> が 15 種にあるか・<code>required</code> が真偽値かを検査する（<a href="#f4">章 4</a>）</li>
+    <li>番号はファイル名を正とし、H1 との不一致は不備として表示する（<a href="#f3">章 3</a>）</li>
+    <li>空文字（未着手の <code>started_at</code>）と欠落を区別する（<a href="#f2">章 2</a>）</li>
+    <li>「不備が分かる表示」は、取得できなかったキー名と不正な値をカードに列挙する形にする（<a href="#f4">章 4</a>）</li>
+    <li>DoD のチェック進捗をカードに出すかを設計で決める。受け入れ条件には無い（<a href="#f3">章 3</a>）</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>frontmatter は普通の YAML なので YAML パーサを入れれば済む</td><td>書き手も読み手もサブセットしか扱わず、ブロック配列は機構自身が読めない</td><td>汎用 YAML ではなくサブセット専用パーサを設計方針として提案（<a href="#f5">章 5</a>）</td></tr>
+      <tr><td>壊れた frontmatter は「読めない」に倒れる</td><td>二重引用符の閉じ忘れだけは読めてしまい、ゴミの値が通る</td><td>値の妥当性検査をパーサの外に置く方針にした（<a href="#f4">章 4</a>）</td></tr>
+      <tr><td><code>started_at</code> が空なのは異常</td><td>未着手のチケットでは空が正常</td><td>空文字と欠落を区別して扱う（<a href="#f2">章 2</a>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><code>30_cancelled/</code> の実物が無く、取り消し済みの frontmatter を実測できていない。設計では他の状態と同じ形と仮定し、実装のテストで取り消し相当のファイルを作って確かめる</li>
+    <li><code>ticket_type</code> の 15 種を拡張が持つとして、<code>task-types.tsv</code> の変更に追従する仕組み（読み込むか、拡張に焼き込むか）は設計で決める</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/13">#13</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/14">#14</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

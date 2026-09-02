@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T05:23:24+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3e96f2f"
 ---
 
 # 0002 チケットボード拡張の調査計画

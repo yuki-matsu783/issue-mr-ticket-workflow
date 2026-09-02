@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり（計画書は反
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T07:06:48+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "fb497ed"
 ---
 
 # 0016 設計反映の計画（実装との差分 A1〜A11 を仕様へ）

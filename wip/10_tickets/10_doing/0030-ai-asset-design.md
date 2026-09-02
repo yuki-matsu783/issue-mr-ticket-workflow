@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 6 の敵対的レビ
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:31:51+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3dcc082"
 ---
 
 # 0030 設計: 旧置き場の記述をフック共通仕様 §8 から落とす

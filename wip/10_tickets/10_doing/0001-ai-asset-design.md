@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "敵対的レビューエージェ
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T11:34:02+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a798d3b"
 ---
 
 # 0001 削除を含むコミットの扱いを要件定義書と仕様書に定める

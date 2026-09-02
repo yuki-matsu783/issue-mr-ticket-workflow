@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0032 フィードバック計画 — 実測と逸脱の棚卸し、フェーズ 6 の要否</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">フィードバック計画 / フェーズ 5</p>
+  <h1 id="title" data-required>0032 フィードバック計画 — 実測と逸脱の棚卸し、フェーズ 6 の要否</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0032-feedback-plan</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">フェーズ 4（実装）の 5 枚が終わり、<strong>フックは本番の <code>settings.json</code> に 16 行で登録されて稼働している</strong>。その 5 枚の作業ログには「仕様と実装のずれ」と「後で反映すべきこと」が <strong>41 件</strong>溜まっているが、実装フェーズは <code>.claude/docs/**</code> に書けないので 1 件も正史に入っていない。この計画はそれを棚卸しし、書き戻しの範囲と DDR の番号を確定して、フェーズ 6 の要否を決める。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li><strong>フェーズ 6（ai-asset-design）は起こす。</strong>省略できない理由は 3 つ（正史の変更が 22 件ある／C1 は機構の穴で仕様を直さないと実装も直せない／§12 を消すには A1・B1 が前提）</li>
+      <li><strong>共通仕様 §12 は節ごと削除できる。</strong>9 項目すべてが解決または実測で決着した。ただし T9 は「前提が外れた」決着なので、消す前に A1・B1 の書き戻しが済んでいることが条件</li>
+      <li><strong>DDR は i0009-63〜72 の 10 件</strong>を割り当てる。DoD が求める 6 件はすべて含まれている</li>
+      <li><strong>D 群（運用の摩擦）6 件と E 群（規約・雛形）3 件はフェーズ 6 に含めない。</strong>対象が <code>.claude/skills/**</code> と <code>.claude/rules/**</code> で、仕様の書き戻しとは別の作業になる</li>
+    </ul>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td>読む</td><td><code>wip/10_tickets/20_done/0027〜0031</code> の作業ログ 2 節（「仕様からの逸脱」「AI アセットに反映すべき内容」）</td><td>各チケットの作業ログ</td></tr>
+      <tr><td>読む</td><td><code>.claude/docs/10_spec/フック共通仕様.md</code> §12（実装時に検証する TBD の一覧）</td><td>§12</td></tr>
+      <tr><td>書く</td><td>この計画書と HTML、次のチケット 1 枚</td><td>—</td></tr>
+      <tr><td>書かない</td><td><code>.claude/docs/**</code>（このフェーズは計画であって書き戻しではない）、<code>.claude/hooks/**</code>、<code>.claude/settings.json</code></td><td>チケットの <code>allow.write</code> は <code>wip/**</code></td></tr>
+      <tr><td>扱わない</td><td>全体計画の「#10（3/3）への申し送り」5 件</td><td>フェーズ 7 の issue コメントで引き継ぐ</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>棚卸し表（41 件を 5 群に畳む）</h3>
+      <p>出所は 0027 が 10 件 / 0028 が 5 件 / 0029 が 20 件 / 0030 が 10 件 / 0031 が 10 件。行き先で 5 群に分かれる。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>群</th><th>件数</th><th>行き先</th><th>代表例</th></tr></thead>
+        <tbody>
+          <tr><td><strong>A</strong> フック共通仕様</td><td>14</td><td><code>フック共通仕様.md</code> の §1・§2・§3・§5・§7・§8・§9</td><td><strong>A1</strong> 登録表を 16 行にする（T9 の縮退）／<strong>A6</strong> exit≠0 では PostToolUse が起動しない／<strong>A11</strong> <code>SC_TARGETS</code> はスカラ</td></tr>
+          <tr><td><strong>B</strong> 個別のフック仕様</td><td>8</td><td><code>subagent-start-check.md</code> ほか 4 文書</td><td><strong>B1</strong> <code>PreToolUse</code> <code>Agent</code> の経路を落とす／<strong>B5</strong> <code>git status</code> に <code>-uall</code></td></tr>
+          <tr><td><strong>C</strong> 仕様の穴（実装の直しを伴う）</td><td>4</td><td>仕様 + <code>settings.json</code> + フック本体</td><td><strong>C1（✕重い）</strong> <code>workflow-guard</code> の matcher に <code>mcp__.*</code> が無い</td></tr>
+          <tr><td><strong>D</strong> 運用の摩擦</td><td>6</td><td><code>.claude/skills/**</code>・分類表</td><td><strong>D1</strong> <code>report-view</code> の手順の <code>cp</code> が WF205 と衝突／<strong>D2</strong> 改行入りコミットメッセージが WF204</td></tr>
+          <tr><td><strong>E</strong> 規約・雛形</td><td>3</td><td>全体計画の既定・<code>test-lib.sh</code>・<code>.claude/rules/**</code></td><td><strong>E1</strong> <code>allow.write</code> に <code>wip/10_tickets/**</code> を必ず含める規約</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>§12 を空にできるか — できる</h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>ID</th><th>判定</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>T1 / T8</td><td>既に解決（取り消し線）</td><td>公式の記述と HK-T16</td></tr>
+          <tr><td>T6</td><td>既に解決</td><td>0028 の段階 ⓪ で deny が実物で効いた</td></tr>
+          <tr><td>T2 / T3 / T4 / T5 / T7</td><td><strong>消せる</strong></td><td>フェーズ 4c の実測がすべて前提どおり。縮退は 1 つも発動していない</td></tr>
+          <tr><td>T9</td><td><strong>消せる（外れた側で確定）</strong></td><td>人間に通知が来ない。縮退を発動して登録表は 16 行（A1・B1）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">順序の条件</p>
+        <p>§12 を消すのは A1・B1 の後。順序を守らないと「実装は 16 行、仕様は 17 行、TBD は空」というもっとも読み違えやすい状態になる。</p>
+      </div>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>DDR の番号割り当て（i0009-63〜72 の 10 件）</h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>DDR</th><th>内容</th><th>出所</th></tr></thead>
+        <tbody>
+          <tr><td>i0009-63</td><td><code>SC_TARGETS</code> をスカラにし <code>SC_CLASS</code> に <code>write</code> / <code>opaque</code> を足した</td><td>0027</td></tr>
+          <tr><td>i0009-64</td><td>上向き探索で見つけた <code>.claude</code> が HOOK_ROOT の worktree であることを確かめる</td><td>0027</td></tr>
+          <tr><td>i0009-65</td><td><code>markdown-docs.md</code> と <code>ai-asset-authoring.md</code> の 1:1:1 の整備</td><td>0027</td></tr>
+          <tr><td>i0009-66</td><td>4c プローブが必要だった理由</td><td>0029</td></tr>
+          <tr><td>i0009-67</td><td>§1 の review-state / merge-state を jq の 2 回目へ移した</td><td>0027</td></tr>
+          <tr><td>i0009-68</td><td>bash のパターン照合はパターンが長いと壊滅的に遅い（4000 字で 58 秒 → 101ms）</td><td>0027</td></tr>
+          <tr><td>i0009-69</td><td>フックの登録はセッションの途中でも反映される</td><td>0028</td></tr>
+          <tr><td>i0009-70</td><td>拒否に倒す設計は、拒否理由が実際に踏む状況と噛み合っているかまで設計する</td><td>0028</td></tr>
+          <tr><td>i0009-71</td><td><strong>T9 が外れたので登録表を 16 行に縮退させた</strong></td><td>0031</td></tr>
+          <tr><td>i0009-72</td><td>区切りバイト（0x1D / 0x1E / 0x1F）の割り当てを 1 か所にまとめる</td><td>0027</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>フェーズ 6 の要否 — 起こす</h3>
+      <p>省略できない理由は 3 つ。(1) A 群 14 件と B 群 8 件は正史の変更で、とくに <strong>A1 と B1 はいま仕様と実装が食い違っている</strong>ので放置すると次に読んだ人が 17 行で作り直す。(2) <strong>C1 は機構の穴</strong>で、仕様を直さないと実装も直せない。(3) §12 を消すには A1・B1 が前提。</p>
+    </li>
+  </ol>
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>1〜4（このチケット）</td><td><code>wip/**</code>（実効は <code>common.allow</code>）</td><td><code>read</code> <code>remote-read</code></td></tr>
+      <tr><td>0039（フェーズ 6）</td><td><code>.claude/docs/**</code>（設計フェーズのみ書ける）</td><td><code>read</code> <code>remote-read</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>棚卸しの網羅</td><td>各行に出所（どのチケット）と行き先（どの文書のどこ / DDR）があること</td><td>この計画書のステップ 1</td></tr>
+      <tr><td>§12 の判定</td><td>9 項目すべてに判定があること</td><td>この計画書のステップ 2</td></tr>
+      <tr><td>DDR の番号</td><td>重複せず i0009-63 から連番であること</td><td>この計画書のステップ 3</td></tr>
+      <tr><td>次のチケット</td><td>1 枚起きて <code>predecessors</code> に 0027〜0031 が入っていること</td><td><code>ticket.sh next</code></td></tr>
+      <tr><td>HTML ビュー</td><td><code>check-html.sh</code> が OK を返すこと</td><td>検査 7 項目</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0039</td><td>ai-asset-design</td><td>A 群 14 件・B 群 8 件の書き戻しと §12 の削除、C 群 4 件の方針決定、DDR i0009-63〜72 の起票</td><td>0027, 0028, 0029, 0030, 0031, 0032</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>D 群・E 群はこのチケットに含めない。フェーズ 6 の中で扱うか別 issue にするかは 0039 の見通しがついた時点で決める。</p>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td>C1 の直しは <code>settings.json</code> の再登録を伴う</td><td><code>workflow-guard</code> を触るのでロックアウトしうる</td><td>人間の操作。<code>WORKFLOW_GUARD_ENFORCE=0</code> の新セッションを復旧経路として用意してから行う</td></tr>
+      <tr><td>D1 が直るまで HTML ビューが手順どおりに作れない</td><td>計画書・結果報告の作成が毎回引っかかる</td><td>当面は Read → Write で代替する（0031 と同じ）</td></tr>
+      <tr><td>§12 を A1・B1 より先に消す</td><td>「実装は 16 行、仕様は 17 行、TBD は空」というもっとも読み違えやすい状態になる</td><td>0039 の中で順序を固定する</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li>全体計画の「#10（3/3）への申し送り」5 件（フェーズ 7 の issue コメントで引き継ぐ）</li>
+    <li>PR #12 の本文の更新（<code>remote-write:mr-edit</code> の宣言が要る。ワークの切れ目で行う）</li>
+    <li><code>shellcheck</code> の導入（8 巡連続で未了）</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>フェーズ 7 を通す手</td><td>第 1 案（<code>WORKFLOW_STATE_GUARD_ENFORCE=0</code> の新セッション）を既定として確定済み。フェーズ 7 の直前に人間と最終確認する</td></tr>
+      <tr><td>A12（<code>scope_load</code> 系の戻り値を仕様と実装のどちらに寄せるか）</td><td>0039 の中で決める。HK-T16 が実装側を固定しているので、仕様を実装に合わせる側に倒す見込み</td></tr>
+      <tr><td>D 群・E 群の扱い（フェーズ 6 の中か別 issue か）</td><td>0039 の全体の見通しがついた時点</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

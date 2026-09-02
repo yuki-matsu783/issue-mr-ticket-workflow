@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 6 の敵対的レビ
 allow:
   write: ["apl/*/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:47:11+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2a4f05b"
 ---
 
 # 0034 設計反映: 節名の改名の波及を仕様書と DDR に反映する

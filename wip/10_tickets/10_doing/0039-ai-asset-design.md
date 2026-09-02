@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（差分が複数�
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T03:23:56+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "5bb7ebe"
 ---
 
 # 0039 実測と逸脱の書き戻し（A 群 14 件・B 群 8 件）と §12 の削除、C 群 4 件の方針決定

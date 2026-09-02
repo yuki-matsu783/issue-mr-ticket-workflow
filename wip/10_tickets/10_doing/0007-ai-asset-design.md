@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ユーザー合意により人間
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T08:17:46+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "e513dbf"
 ---
 
 # 0007 DDR i0017-03 の見本件数を 3 件に揃える

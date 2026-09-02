@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画の方針の差分 4 �
 allow:
   write: ["wip/**"]
   ops: ["read", "web"]
-started_at: ""
+started_at: "2026-09-02T05:43:15+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "59d54ab"
 ---
 
 # 0007 VS Code 拡張 API の外部技術調査

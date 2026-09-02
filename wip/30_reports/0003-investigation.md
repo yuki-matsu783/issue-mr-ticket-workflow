@@ -153,6 +153,60 @@ frontmatter の直後は必ず `# <4 桁番号> <タイトル>` の H1。その�
 | 8 | `executor` キーの欠落 | そのキーだけ取得失敗、他は取得できる |
 | 9 | 未知の `ticket_type` | 値としてそのまま返る。検証はしていない |
 
+実際の出力（`wip/tmp/fm-probe/run.sh`。実測後に削除したので、ここに転記して正文に残す）。
+
+```
+--- 正常 ---
+  ticket_type                = investigation
+  executor                   = main
+  predecessors               = ["0002"]
+  human_review.required      = true
+  adversarial_review.required = false
+  allow.write                = ["wip/**"]
+  allow.ops                  = ["read", "build-test", "web"]
+
+--- frontmatter なし / 終端の --- が欠落 / 空ファイル ---
+  （全キー <取得失敗>。例外は発生しない）
+
+--- 二重引用符の閉じ忘れ ---
+  ticket_type                = investigation
+  human_review.required      = true
+  allow.write                = ["wip/**"]
+$ fm_get wip/tmp/fm-probe/unclosed.md human_review.reason
+"閉じ忘れ
+
+--- allow.write がブロック配列 ---
+  ticket_type                = investigation
+  allow.write                = <取得失敗>
+  allow.ops                  = <取得失敗>
+
+--- CRLF 改行 ---
+  （全キー正常に取得できる）
+
+--- executor キーの欠落 ---
+  executor                   = <取得失敗>
+  （他のキーは取得できる）
+
+--- 未知の ticket_type ---
+  ticket_type                = unknown-type
+```
+
+**発生経路の切り分け（敵対的レビューの指摘 10）**。9 パターンのうち、書き手である `ticket.sh` 経由で起こりうるものと、人手の編集でしか起こらないものを分ける。`ticket.sh` の `yaml_escape`（91〜95 行）は `\` と `"` を必ず逃がすので、引用符の閉じ忘れは書き手からは生じない。
+
+| # | 壊れ方 | 発生経路 |
+|---|---|---|
+| 1 | 正常 | — |
+| 2 | frontmatter が無い | 人手のみ（`ticket.sh` 以外が置いた .md がディレクトリに紛れた場合を含む） |
+| 3 | 終端の `---` が欠落 | 人手のみ |
+| 4 | 二重引用符の閉じ忘れ | 人手のみ（`yaml_escape` が逃がすため） |
+| 5 | ブロック配列 | 人手のみ |
+| 6 | 空ファイル | 人手のみ。作成の途中で中断した場合もありうる |
+| 7 | CRLF 改行 | 書き手からも起こりうる（Windows の編集経由） |
+| 8 | キーの欠落 | 人手のみ。ただしテンプレートが変わった直後の古いチケットでも起こりうる |
+| 9 | 未知の `ticket_type` | 書き手からも起こりうる（`task-types.tsv` に種類が増えたとき） |
+
+拡張は 9 パターンすべてに耐える必要がある。人手の編集が現実にあり（このリポジトリのチケットも作業ログを人手で書き足している）、7 と 9 は書き手からも起こるためである。
+
 **結論**: 参照実装は「壊れた入力でも例外を投げず、取れないキーを取れないと返す」設計になっている。拡張も同じ方針を採れば受け入れ条件 7（落ちない）を満たせる。ただしパターン 4 と 9 は**取得失敗にならない**ため、値の妥当性検査を別に持つ必要がある。
 
 ### 5. 拡張が持つべきパーサの範囲 △注意

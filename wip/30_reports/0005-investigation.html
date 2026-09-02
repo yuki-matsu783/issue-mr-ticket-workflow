@@ -294,18 +294,36 @@ $ git status --porcelain
       <span class="tl-dot good">5</span>
       <h3 id="f5">逃げ道は入れ子の .gitignore <span class="chip good">◎良</span> <span class="basis">根拠: git status --porcelain の実測</span></h3>
       <p><code>src/vscode-ticket-board/.gitignore</code> のように拡張ディレクトリの中に <code>.gitignore</code> を置けば git は正しく無視する。このパスはリポジトリルート相対の <code>.gitignore</code> とは別物なので <code>common.protected</code> に当たらず、<code>implementation</code> の allow である <code>src/**</code> に収まる。</p>
+      <div class="box warn">
+        <p class="label">訂正（敵対的レビューの指摘 2）</p>
+        <p>当初この節は、入れ子 <code>.gitignore</code> を置いた直後の <code>git status --porcelain</code> が <code>?? src/</code> のままであるにもかかわらず「消えた」と書いていた。消えたことを示していたのは <code>--untracked-files=all</code> の出力で、これは検査が見る指標ではない。対照実験を含めてやり直した。</p>
+      </div>
       <details>
         <summary>根拠を見る（実行コマンドと出力）</summary>
-        <pre><code>$ printf 'node_modules/\nout/\n' &gt; src/probe/.gitignore
+        <pre><code>$ mkdir -p src/probe/node_modules/foo src/probe/out
+$ echo x &gt; src/probe/node_modules/foo/a.js; echo y &gt; src/probe/out/a.js; echo z &gt; src/probe/main.ts
+$ printf 'node_modules/\nout/\n' &gt; src/probe/.gitignore
+
+（1）追加直後。ディレクトリ全体が未追跡なので中身は畳まれて見える
 $ git status --porcelain
 ?? src/
-$ git status --porcelain --untracked-files=all
-?? src/probe/.gitignore
-?? src/probe/main.ts</code></pre>
+
+（2）追跡すべきファイルを add した後。node_modules と out は現れない
+$ git add src/probe/.gitignore src/probe/main.ts
+$ git status --porcelain
+A  src/probe/.gitignore
+A  src/probe/main.ts
+
+（3）対照。.gitignore を外すと未追跡として現れ、検査を止める
+$ rm src/probe/.gitignore
+$ git status --porcelain
+A  src/probe/main.ts
+?? src/probe/node_modules/
+?? src/probe/out/</code></pre>
       </details>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>実装フェーズは <code>src/vscode-ticket-board/.gitignore</code> を最初のコミットに含める。上限設定の変更も root <code>.gitignore</code> の変更も要らない。</p>
+        <p>（2）でコミットまで進めば <code>git status --porcelain</code> は空になり検査は通る。（3）は <code>.gitignore</code> が無い場合に検査が止まることを示す対照。実装フェーズは <code>src/vscode-ticket-board/.gitignore</code> を最初のコミットに含め、追跡すべきファイルも同じコミットに含める。上限設定の変更も root <code>.gitignore</code> の変更も要らない。</p>
       </div>
     </li>
 

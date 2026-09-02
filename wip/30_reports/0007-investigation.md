@@ -48,15 +48,19 @@ tags: [report, investigation]
 
 ## 実施した内容と結果
 
+各章の「実行コマンドと出力」は、`grep` / `sed` の生の出力から doc コメントと文脈行を落として読みやすく整形した抜粋である（敵対的レビューの指摘 7）。行番号は実測のものをそのまま載せている。
+
+
 ### 1. 拡張の最小構成 ◎良
 
-根拠: `@types/vscode@1.90.0` の `index.d.ts`、および Extension Anatomy / Activation Events のドキュメント
+根拠: `@types/vscode@1.90.0` の `index.d.ts`（`registerCommand` の署名と `ExtensionContext`）と Web 検索の要約（`package.json` のフィールドと `activationEvents` の自動生成）
 
 `package.json` に要るフィールド。
 
 | フィールド | 内容 |
 |---|---|
-| `name` / `version` / `publisher` | 拡張の識別 |
+| `name` / `version` | 拡張の識別 |
+| `publisher` | 拡張の識別。Marketplace へのパッケージング時に必須。ローカルで読み込むだけなら省略できるかは未確認 |
 | `engines.vscode` | 対応する VS Code の最小バージョン。`@types/vscode` のバージョンと揃える |
 | `main` | エントリの JS。`tsc` の出力先を指す（例 `./out/src/extension.js`） |
 | `activationEvents` | いつ拡張を起こすか。**VS Code 1.74 以降、`contributes.commands` に宣言したコマンドの `onCommand:` は自動生成される**ので、コマンドだけで起動するなら空配列でよい |
@@ -137,7 +141,7 @@ $ grep -n "export interface FileSystemWatcher" -A 40 node_modules/@types/vscode/
 1800:   readonly onDidDelete: Event<Uri>;
 ```
 
-イベントは 3 つだけで、リネーム・移動を表すものが無い。チケットの状態変更は `ticket.sh` による `git mv` なので、watcher からは移動元の `onDidDelete` と移動先の `onDidCreate` として届く。順序も保証されていない。
+イベントは 3 つだけで、リネーム・移動を表すものが無い。チケットの状態変更は `ticket.sh` による `mv`（`ticket.sh` の 229 / 288 / 312 行。`git mv` は使っていない）なので、watcher からは移動元の `onDidDelete` と移動先の `onDidCreate` として届く。順序も保証されていない。
 
 生成の署名。
 
@@ -159,7 +163,7 @@ doc コメントの注記で押さえておくべき点。
 
 根拠: 章 3 の事実からの帰結
 
-`git mv` 1 回で最低 2 イベント、`ticket.sh complete` のように frontmatter の書き換えと移動が続く操作では 3 イベント以上が短時間に届く。そのたびに全部読み直すと、1 回の操作でボードが数回再描画される。
+`mv` 1 回で最低 2 イベント、`ticket.sh complete` のように frontmatter の書き換えと移動が続く操作では 3 イベント以上が短時間に届く。そのたびに全部読み直すと、1 回の操作でボードが数回再描画される。
 
 **結論**: イベントを受けたら短い遅延（数十ミリ秒〜100 ミリ秒程度）でまとめてから 1 回だけ読み直す。値は設計で決める。
 
@@ -171,6 +175,42 @@ doc コメントの注記で押さえておくべき点。
 
 **結論**: コマンド実行時に `workspace.workspaceFolders?.[0]` を見て、無ければ情報メッセージを出して終える。あっても `wip/10_tickets` が存在しなければ同様に扱う。
 
+### 6. カードの選択でファイルを開く API ◎良
+
+根拠: `index.d.ts` の `workspace.openTextDocument` / `window.showTextDocument` / `Uri.file`（敵対的レビューの指摘 1 を受けて追加した節）
+
+受け入れ条件 4（カードのクリックで該当 .md をエディタで開く）に使う API の署名。
+
+```
+$ grep -n "export function openTextDocument" node_modules/@types/vscode/index.d.ts
+13382: export function openTextDocument(uri: Uri): Thenable<TextDocument>;
+13391: export function openTextDocument(path: string): Thenable<TextDocument>;
+13401: export function openTextDocument(options?: { … }): Thenable<TextDocument>;
+
+$ grep -n "export function showTextDocument" node_modules/@types/vscode/index.d.ts
+10488: export function showTextDocument(document: TextDocument, column?: ViewColumn, preserveFocus?: boolean): Thenable<TextEditor>;
+10498: export function showTextDocument(document: TextDocument, options?: TextDocumentShowOptions): Thenable<TextEditor>;
+10509: export function showTextDocument(uri: Uri, options?: TextDocumentShowOptions): Thenable<TextEditor>;
+
+$ grep -n "static file(path: string): Uri" node_modules/@types/vscode/index.d.ts
+1441: static file(path: string): Uri;
+```
+
+`openTextDocument(uri: Uri)` の doc コメントに、見落とせない記述がある。
+
+```
+* `file`-scheme: Open a file on disk (`openTextDocument(Uri.file(path))`). Will be rejected if the file
+* does not exist or cannot be loaded.
+```
+
+**ファイルが存在しない、または読み込めない場合は reject される**。`openTextDocument(path: string)` は `openTextDocument(Uri.file(path))` の短縮形である。
+
+これは実際に起こりうる。ボードを描画してから利用者がカードをクリックするまでの間に、`ticket.sh` の `mv` でチケットが別の状態ディレクトリへ移動していれば、カードが持つパスはもう存在しない。watcher の通知とデバウンスの遅延を挟むので、表示とファイルシステムのずれは常にありうる。
+
+`showTextDocument` は `TextDocument` を渡す形と `Uri` を渡す形の両方がある。前者は `openTextDocument` の解決値をそのまま渡せる。
+
+**結論**: 拡張ホスト層は `vscode.workspace.openTextDocument(filePath)` → `vscode.window.showTextDocument(doc)` を使い、**reject を捕まえて情報メッセージを出し、ボードを読み直す**。捕まえずに放置すると、移動直後のクリックで未処理の Promise 拒否になる。仕様書の「表示と更新」に失敗時の振る舞いを足す必要がある。
+
 ## 想定と異なった点
 
 | 計画時の見込み | 実際 | どう扱ったか |
@@ -178,6 +218,8 @@ doc コメントの注記で押さえておくべき点。
 | 公式ドキュメントを直接読める | code.visualstudio.com へのアクセスがネットワーク制限で遮断された | `@types/vscode` の型定義を一次資料にし、慣行は Web 検索で補った。「確かめられなかったこと」に明記した |
 | FileSystemWatcher にファイル移動のイベントがある | 3 イベントのみで移動は「削除 + 作成」に割れる | 差分更新をやめ、イベントを合図に全体を読み直す方式にした（章 3） |
 | `activationEvents` に `onCommand:` を書く必要がある | VS Code 1.74 以降は `contributes.commands` から自動生成される | `engines.vscode` を 1.90 にして `activationEvents` を空配列にする（章 1） |
+| ファイルを開く API は素直に呼べば済む | `openTextDocument` は対象が存在しないと reject する。表示とファイルシステムのずれは常にありうる | 失敗時の振る舞いを仕様に足すことにした（章 6） |
+| チケットの状態変更は `git mv` で行われる | `ticket.sh` は素の `mv` を使っている（229 / 288 / 312 行） | 結論（削除 + 作成に割れる）は変わらないが、根拠の記述を訂正した（章 3） |
 
 ## 設計への反映
 
@@ -189,9 +231,12 @@ doc コメントの注記で押さえておくべき点。
 6. watcher は `wip/10_tickets/**/*.md` の 1 本。3 イベントのいずれでも全体を読み直す（章 3）
 7. 連続イベントは短い遅延でまとめて 1 回の読み直しにする。遅延の値は設計で決める（章 4）
 8. `workspace.workspaceFolders` が空・`wip/10_tickets` が無い場合は情報メッセージを出して静かに終える（章 5）
+9. カードの選択は `workspace.openTextDocument(filePath)` → `window.showTextDocument(doc)`。**reject を捕まえて情報メッセージを出し、ボードを読み直す**（章 6）
+10. `workspaceFolders?.[0]` だけを見るため、マルチルートワークスペースの 2 つ目以降のフォルダは対象にしない。要件の前提条件に「ワークスペースの直下に `wip/10_tickets/` がある」と書いてあるので範囲内だが、制約として仕様に明記する（章 5）
 
 ## 残課題
 
 - 公式ドキュメントに直接当たれていない。型定義とその doc コメントは一次資料だが、ガイドにしか書かれていない注意点を取りこぼしている可能性がある。実装フェーズで挙動が想定と違ったら、その時点で人間に確認を依頼する
 - 実機で拡張を動かした確認ができていない。受け入れ条件 1〜8 のうち画面に関わる部分は、HTML 生成関数の出力を検査する自動テストに落とし、実機確認は人間に委ねる（0004 の結論と同じ）
 - 連続イベントをまとめる遅延の具体値は決めていない。設計で決める
+- VS Code 拡張を開発ホストで起動する標準の入口は、リポジトリ直下の `.vscode/launch.json` である。このパスは上限設定の `implementation.allow`（`src/**`・`tests/**`）にも `common.allow` にも入らず、拡張ディレクトリ配下に置いても開発ホストは読まない。実機確認の入口をどこに置くかは決まっていない。README に手順を書いて人間が用意する形が現実的だが、フィードバック計画で扱いを決める（敵対的レビューの指摘 19）

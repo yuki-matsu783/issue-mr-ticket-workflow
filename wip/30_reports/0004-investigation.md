@@ -121,7 +121,7 @@ $ node --experimental-strip-types --test test/parse.ts.test.ts
 # fail 0
 ```
 
-ただし import 指定子を `../src/parse.ts` と書く必要があり、`tsc` の `Node16` 解決とは両立しない（`allowImportingTsExtensions` が要る）。
+ただし import 指定子を `../src/parse.ts` と書く必要があり、既定の設定のままでは `tsc` が拒否する。
 
 ```
 $ ./node_modules/.bin/tsc -p .
@@ -129,7 +129,9 @@ test/parse.ts.test.ts(3,34): error TS5097: An import path can only end with a '.
 extension when 'allowImportingTsExtensions' is enabled.
 ```
 
-**結論**: Q4 の答えは「満たせる」。ただし `tsc` によるビルドと同時には使えないので、Q3 が肯定である以上こちらは採らない。
+**訂正（敵対的レビューの指摘 9）**: 当初この節は「`tsc` の `Node16` 解決とは両立しない」と書いていたが、それは誤りである。TypeScript 5.7 以降には `rewriteRelativeImportExtensions` があり、`allowImportingTsExtensions` と併せれば `.ts` 指定子のままコンパイルが通り、出力側では `.js` に書き換えられる。今回入れた TypeScript 5.9.3 はこのオプションを持つ。
+
+**結論**: Q4 の答えは「満たせる」。採らない理由は「両立しない」ではなく、**Q3 が肯定でありビルド前提の構成が素直に組めるため**である。オプションを 2 つ足して型注釈除去に寄せる利点が無い。
 
 ### 5. テストランナー候補の入手性 △注意
 

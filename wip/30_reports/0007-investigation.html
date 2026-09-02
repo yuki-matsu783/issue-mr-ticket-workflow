@@ -130,7 +130,7 @@
   <h1 id="title" data-required>VS Code 拡張 API の外部技術調査結果</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 3</span>
+    <span class="chip good">◎良 4</span>
     <span class="chip warn">△注意 2</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -149,6 +149,7 @@
           <li><a href="#f3"><span class="mk warn">△</span> 3. watcher にファイル移動のイベントが無い</a></li>
           <li><a href="#f4"><span class="mk warn">△</span> 4. 短時間に連続するイベントの扱い</a></li>
           <li><a href="#f5"><span class="mk good">◎</span> 5. ワークスペースが無い場合の入口</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. カードの選択でファイルを開く API</a></li>
         </ol>
       </li>
       <li><a href="#next">設計への反映</a></li>
@@ -172,7 +173,7 @@
 <section id="overview" data-required>
   <p class="lead">設計に必要な API 事実は確定した。拡張の最小構成は <code>package.json</code> の 6 フィールドとエントリの <code>activate</code> / <code>deactivate</code> で足りる。Webview は <code>window.createWebviewPanel</code> で作り、HTML を <code>webview.html</code> に文字列で与える。受け入れ条件 5 に関わる重要な事実として、<b><code>FileSystemWatcher</code> にはファイル移動を表すイベントが無く</b>、チケットの状態変更は「削除 + 作成」の 2 イベントとして届く。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
     <li class="kpi warn"><b>2</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -223,16 +224,18 @@
 
 <section id="findings" data-required>
   <h2>実施した内容と結果</h2>
+  <p>各章の「実行コマンドと出力」は、<code>grep</code> / <code>sed</code> の生の出力から doc コメントと文脈行を落として読みやすく整形した抜粋である（敵対的レビューの指摘 7）。行番号は実測のものをそのまま載せている。</p>
   <ol class="tl">
 
     <li class="tl-item">
       <span class="tl-dot good">1</span>
-      <h3 id="f1">拡張の最小構成 <span class="chip good">◎良</span> <span class="basis">根拠: @types/vscode@1.90.0 index.d.ts:10261、Extension Anatomy</span></h3>
+      <h3 id="f1">拡張の最小構成 <span class="chip good">◎良</span> <span class="basis">根拠: index.d.ts:10261（署名）と Web 検索の要約（マニフェストのフィールド）</span></h3>
       <div class="tablewrap">
       <table>
         <thead><tr><th>package.json のフィールド</th><th>内容</th></tr></thead>
         <tbody>
-          <tr><td><code>name</code> / <code>version</code> / <code>publisher</code></td><td>拡張の識別</td></tr>
+          <tr><td><code>name</code> / <code>version</code></td><td>拡張の識別</td></tr>
+          <tr><td><code>publisher</code></td><td>拡張の識別。パッケージング時に必須。ローカル読み込みのみで省略できるかは未確認</td></tr>
           <tr><td><code>engines.vscode</code></td><td>対応する VS Code の最小バージョン。<code>@types/vscode</code> と揃える</td></tr>
           <tr><td><code>main</code></td><td>エントリの JS。<code>tsc</code> の出力先を指す</td></tr>
           <tr><td><code>activationEvents</code></td><td>VS Code 1.74 以降、<code>contributes.commands</code> のコマンドの <code>onCommand:</code> は自動生成されるので空配列でよい</td></tr>
@@ -300,7 +303,7 @@ script-src 'nonce-${nonce}';</code></pre>
     <li class="tl-item">
       <span class="tl-dot warn">3</span>
       <h3 id="f3">watcher にファイル移動のイベントが無い <span class="chip warn">△注意</span> <span class="basis">根拠: index.d.ts:1767-1800, 13286</span></h3>
-      <p>イベントは <code>onDidCreate</code> / <code>onDidChange</code> / <code>onDidDelete</code> の 3 つだけで、リネーム・移動を表すものが無い。チケットの状態変更は <code>ticket.sh</code> による <code>git mv</code> なので、watcher からは移動元の <code>onDidDelete</code> と移動先の <code>onDidCreate</code> として届く。順序も保証されていない。doc コメントは「監視するパスは存在している必要があり、監視中のパスがリネーム・削除されると監視が止まることがある」「再帰監視は資源を食うので最小限に」「使い終わったら dispose する」とも述べている。</p>
+      <p>イベントは <code>onDidCreate</code> / <code>onDidChange</code> / <code>onDidDelete</code> の 3 つだけで、リネーム・移動を表すものが無い。チケットの状態変更は <code>ticket.sh</code> による <code>mv</code>（229 / 288 / 312 行。<code>git mv</code> は使っていない）なので、watcher からは移動元の <code>onDidDelete</code> と移動先の <code>onDidCreate</code> として届く。順序も保証されていない。doc コメントは「監視するパスは存在している必要があり、監視中のパスがリネーム・削除されると監視が止まることがある」「再帰監視は資源を食うので最小限に」「使い終わったら dispose する」とも述べている。</p>
       <details>
         <summary>根拠を見る（実行コマンドと出力）</summary>
         <pre><code>$ grep -n "export interface FileSystemWatcher" -A 40 node_modules/@types/vscode/index.d.ts
@@ -324,7 +327,7 @@ script-src 'nonce-${nonce}';</code></pre>
     <li class="tl-item">
       <span class="tl-dot warn">4</span>
       <h3 id="f4">短時間に連続するイベントの扱い <span class="chip warn">△注意</span> <span class="basis">根拠: 章 3 の事実からの帰結</span></h3>
-      <p><code>git mv</code> 1 回で最低 2 イベント、<code>ticket.sh complete</code> のように frontmatter の書き換えと移動が続く操作では 3 イベント以上が短時間に届く。そのたびに全部読み直すと、1 回の操作でボードが数回再描画される。</p>
+      <p><code>mv</code> 1 回で最低 2 イベント、<code>ticket.sh complete</code> のように frontmatter の書き換えと移動が続く操作では 3 イベント以上が短時間に届く。そのたびに全部読み直すと、1 回の操作でボードが数回再描画される。</p>
       <div class="box ok">
         <p class="label">結論</p>
         <p>イベントを受けたら短い遅延（数十ミリ秒〜100 ミリ秒程度）でまとめてから 1 回だけ読み直す。値は設計で決める。</p>
@@ -338,6 +341,35 @@ script-src 'nonce-${nonce}';</code></pre>
       <div class="box ok">
         <p class="label">結論</p>
         <p>コマンド実行時に <code>workspace.workspaceFolders?.[0]</code> を見て、無ければ情報メッセージを出して終える。あっても <code>wip/10_tickets</code> が存在しなければ同様に扱う。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">カードの選択でファイルを開く API <span class="chip good">◎良</span> <span class="basis">根拠: index.d.ts:13382, 13391, 10488-10509, 1441</span></h3>
+      <p>敵対的レビューの指摘 1 を受けて追加した節。受け入れ条件 4 に使う API を型定義で確定した。<code>openTextDocument(uri: Uri)</code> の doc コメントは「<b>ファイルが存在しない、または読み込めない場合は reject される</b>」と明記している。<code>openTextDocument(path: string)</code> はその短縮形。これは実際に起こりうる。ボードを描画してから利用者がカードをクリックするまでの間に <code>ticket.sh</code> の <code>mv</code> でチケットが移動していれば、カードが持つパスはもう存在しない。watcher の通知とデバウンスの遅延を挟むので、表示とファイルシステムのずれは常にありうる。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ grep -n "export function openTextDocument" node_modules/@types/vscode/index.d.ts
+13382: export function openTextDocument(uri: Uri): Thenable&lt;TextDocument&gt;;
+13391: export function openTextDocument(path: string): Thenable&lt;TextDocument&gt;;
+13401: export function openTextDocument(options?: { … }): Thenable&lt;TextDocument&gt;;
+
+$ grep -n "export function showTextDocument" node_modules/@types/vscode/index.d.ts
+10488: export function showTextDocument(document: TextDocument, column?: ViewColumn, preserveFocus?: boolean): Thenable&lt;TextEditor&gt;;
+10498: export function showTextDocument(document: TextDocument, options?: TextDocumentShowOptions): Thenable&lt;TextEditor&gt;;
+10509: export function showTextDocument(uri: Uri, options?: TextDocumentShowOptions): Thenable&lt;TextEditor&gt;;
+
+$ grep -n "static file(path: string): Uri" node_modules/@types/vscode/index.d.ts
+1441: static file(path: string): Uri;
+
+doc コメント（13369-13371）:
+* `file`-scheme: Open a file on disk (`openTextDocument(Uri.file(path))`). Will be rejected if the file
+* does not exist or cannot be loaded.</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>拡張ホスト層は <code>workspace.openTextDocument(filePath)</code> → <code>window.showTextDocument(doc)</code> を使い、<b>reject を捕まえて情報メッセージを出し、ボードを読み直す</b>。捕まえずに放置すると移動直後のクリックで未処理の Promise 拒否になる。仕様書の「表示と更新」に失敗時の振る舞いを足す必要がある。</p>
       </div>
     </li>
 
@@ -355,6 +387,8 @@ script-src 'nonce-${nonce}';</code></pre>
     <li>watcher は <code>wip/10_tickets/**/*.md</code> の 1 本。3 イベントのいずれでも全体を読み直す（<a href="#f3">章 3</a>）</li>
     <li>連続イベントは短い遅延でまとめて 1 回の読み直しにする。遅延の値は設計で決める（<a href="#f4">章 4</a>）</li>
     <li><code>workspace.workspaceFolders</code> が空・<code>wip/10_tickets</code> が無い場合は情報メッセージを出して静かに終える（<a href="#f5">章 5</a>）</li>
+    <li>カードの選択は <code>workspace.openTextDocument(filePath)</code> → <code>window.showTextDocument(doc)</code>。reject を捕まえて情報メッセージを出し、ボードを読み直す（<a href="#f6">章 6</a>）</li>
+    <li><code>workspaceFolders?.[0]</code> だけを見るため、マルチルートワークスペースの 2 つ目以降のフォルダは対象にしない。制約として仕様に明記する（<a href="#f5">章 5</a>）</li>
   </ol>
 </section>
 
@@ -367,6 +401,8 @@ script-src 'nonce-${nonce}';</code></pre>
       <tr><td>公式ドキュメントを直接読める</td><td>ドキュメントサイトへのアクセスがネットワーク制限で遮断された</td><td><code>@types/vscode</code> の型定義を一次資料にし、慣行は Web 検索で補った。「確かめられなかったこと」に明記した</td></tr>
       <tr><td>FileSystemWatcher にファイル移動のイベントがある</td><td>3 イベントのみで移動は「削除 + 作成」に割れる</td><td>差分更新をやめ、イベントを合図に全体を読み直す方式にした（<a href="#f3">章 3</a>）</td></tr>
       <tr><td><code>activationEvents</code> に <code>onCommand:</code> を書く必要がある</td><td>VS Code 1.74 以降は <code>contributes.commands</code> から自動生成される</td><td><code>engines.vscode</code> を 1.90 にして空配列にする（<a href="#f1">章 1</a>）</td></tr>
+      <tr><td>ファイルを開く API は素直に呼べば済む</td><td><code>openTextDocument</code> は対象が存在しないと reject する</td><td>失敗時の振る舞いを仕様に足すことにした（<a href="#f6">章 6</a>）</td></tr>
+      <tr><td>チケットの状態変更は <code>git mv</code> で行われる</td><td><code>ticket.sh</code> は素の <code>mv</code> を使っている</td><td>結論は変わらないが根拠の記述を訂正した（<a href="#f3">章 3</a>）</td></tr>
     </tbody>
   </table>
   </div>
@@ -378,6 +414,7 @@ script-src 'nonce-${nonce}';</code></pre>
     <li>公式ドキュメントに直接当たれていない。型定義とその doc コメントは一次資料だが、ガイドにしか書かれていない注意点を取りこぼしている可能性がある。実装フェーズで挙動が想定と違ったら人間に確認を依頼する</li>
     <li>実機で拡張を動かした確認ができていない。画面に関わる部分は HTML 生成関数の出力を検査する自動テストに落とし、実機確認は人間に委ねる（0004 の結論と同じ）</li>
     <li>連続イベントをまとめる遅延の具体値は決めていない。設計で決める</li>
+    <li>VS Code 拡張を開発ホストで起動する標準の入口はリポジトリ直下の <code>.vscode/launch.json</code> だが、このパスは <code>implementation.allow</code> にも <code>common.allow</code> にも入らず、拡張ディレクトリ配下に置いても開発ホストは読まない。実機確認の入口をどこに置くかは決まっていない。README に手順を書いて人間が用意する形が現実的だが、フィードバック計画で扱いを決める（敵対的レビューの指摘 19）</li>
   </ul>
 </section>
 

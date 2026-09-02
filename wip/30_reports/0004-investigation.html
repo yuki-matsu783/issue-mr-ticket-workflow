@@ -299,7 +299,7 @@ Error: Cannot find module 'vscode'
     <li class="tl-item">
       <span class="tl-dot good">4</span>
       <h3 id="f4">依存ゼロの退避路 <span class="chip good">◎良</span> <span class="basis">根拠: node --experimental-strip-types --test の出力</span></h3>
-      <p>Q3 が肯定だったので採らないが、退避路が実在することは確認した。Node 22 の型注釈除去で TypeScript をコンパイルせず直接テストできる。ただし import 指定子を <code>.ts</code> で書く必要があり、<code>tsc</code> の <code>Node16</code> 解決とは両立しない。</p>
+      <p>Q3 が肯定だったので採らないが、退避路が実在することは確認した。Node 22 の型注釈除去で TypeScript をコンパイルせず直接テストできる。ただし import 指定子を <code>.ts</code> で書く必要があり、既定の設定のままでは <code>tsc</code> が拒否する。</p><p><b>訂正（敵対的レビューの指摘 9）</b>: 当初この節は「<code>tsc</code> の <code>Node16</code> 解決とは両立しない」と書いていたが誤り。TypeScript 5.7 以降の <code>rewriteRelativeImportExtensions</code> を <code>allowImportingTsExtensions</code> と併せれば <code>.ts</code> 指定子のままコンパイルが通り、出力は <code>.js</code> に書き換わる。今回入れた 5.9.3 はこのオプションを持つ。</p>
       <details>
         <summary>根拠を見る（実行コマンドと出力）</summary>
         <pre><code>$ node --experimental-strip-types --test test/parse.ts.test.ts
@@ -313,7 +313,7 @@ extension when 'allowImportingTsExtensions' is enabled.</code></pre>
       </details>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>Q4 の答えは「満たせる」。ただし <code>tsc</code> でのビルドと同時には使えないので、Q3 が肯定である以上こちらは採らない。</p>
+        <p>Q4 の答えは「満たせる」。採らない理由は「両立しない」ではなく、Q3 が肯定でありビルド前提の構成が素直に組めるためである。オプションを 2 つ足して型注釈除去に寄せる利点が無い。</p>
       </div>
     </li>
 

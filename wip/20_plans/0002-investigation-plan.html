@@ -192,7 +192,7 @@
     <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
     <tbody>
       <tr><td>1（チケット 0003）</td><td><code>wip/**</code></td><td>read</td></tr>
-      <tr><td>2（チケット 0004）</td><td><code>wip/**</code></td><td>read, build-test</td></tr>
+      <tr><td>2（チケット 0004）</td><td><code>wip/**</code></td><td>read, build-test（起票時は web も含めたが、Q7 を 0007 に分けたため実際に使ったのは build-test まで）</td></tr>
       <tr><td>3（チケット 0005）</td><td><code>wip/**</code></td><td>read</td></tr>
       <tr><td>4（チケット 0007）</td><td><code>wip/**</code></td><td>read, web</td></tr>
     </tbody>
@@ -202,7 +202,7 @@
 
 <section id="verify" data-required>
   <h2>検証</h2>
-  <p>成果物は調査結果レポート <code>wip/30_reports/0003-investigation.md</code> / <code>0004-investigation.md</code> / <code>0005-investigation.md</code> と同名の HTML。設計計画が判断できる状態を次の 3 点で確かめる。</p>
+  <p>成果物は調査結果レポート <code>wip/30_reports/0003-investigation.md</code> / <code>0004-investigation.md</code> / <code>0005-investigation.md</code> / <code>0007-investigation.md</code> と同名の HTML。仕様は「1 タスク 1 レポート、以降は節を追記」と定めているが、本 issue ではチケットごとに 1 本ずつ計 4 本に分けた（仕様からの逸脱として作業ログに記録）。設計計画が判断できる状態を次の 3 点で確かめる。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>

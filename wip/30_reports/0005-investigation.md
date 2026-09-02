@@ -121,18 +121,34 @@ root の `.gitignore` は `node_modules` も `out` も無視していない。�
 
 `src/vscode-ticket-board/.gitignore` のように、拡張ディレクトリの中に `.gitignore` を置けば git は正しく無視する。このパスは `.gitignore`（リポジトリルート相対）とは別物なので `common.protected` に当たらず、`implementation` の allow である `src/**` に収まる。
 
+**訂正（敵対的レビューの指摘 2）**: 当初この節は、入れ子 `.gitignore` を置いた直後の `git status --porcelain` が `?? src/` のままであるにもかかわらず「`node_modules/` と `out/` が消えた」と書いていた。消えたことを示していたのは `--untracked-files=all` の出力で、これは検査が見る指標ではない。検査（`push.sh` 項目 1 と `ticket.sh complete`）が見るのは素の `git status --porcelain` である。対照実験を含めてやり直した。
+
 ```
+$ mkdir -p src/probe/node_modules/foo src/probe/out
+$ echo x > src/probe/node_modules/foo/a.js; echo y > src/probe/out/a.js; echo z > src/probe/main.ts
 $ printf 'node_modules/\nout/\n' > src/probe/.gitignore
+
+（1）追加直後。ディレクトリ全体が未追跡なので中身は畳まれて見える
 $ git status --porcelain
 ?? src/
-$ git status --porcelain --untracked-files=all
-?? src/probe/.gitignore
-?? src/probe/main.ts
+
+（2）追跡すべきファイルを add した後。node_modules と out は現れない
+$ git add src/probe/.gitignore src/probe/main.ts
+$ git status --porcelain
+A  src/probe/.gitignore
+A  src/probe/main.ts
+
+（3）対照。.gitignore を外すと未追跡として現れ、検査を止める
+$ rm src/probe/.gitignore
+$ git status --porcelain
+A  src/probe/main.ts
+?? src/probe/node_modules/
+?? src/probe/out/
 ```
 
-`node_modules/` と `out/` が消え、追跡すべきファイルだけが残った。
+（2）でコミットまで進めば `git status --porcelain` は空になり、検査は通る。（3）は `.gitignore` が無い場合に検査が止まることを示す対照である。ディレクトリ全体が未追跡の間（1）は中身が畳まれるため、この段階の出力では `.gitignore` の効き目を判定できない。
 
-**結論**: 実装フェーズは `src/vscode-ticket-board/.gitignore` を最初のコミットに含める。上限設定の変更も root `.gitignore` の変更も要らない。
+**結論**: 実装フェーズは `src/vscode-ticket-board/.gitignore` を最初のコミットに含め、追跡すべきファイルもそのコミットに含める。上限設定の変更も root `.gitignore` の変更も要らない。
 
 ### 上限設定の変更が要る場合の扱い（敵対的レビューの指摘 10 への回答）
 

@@ -350,9 +350,26 @@ $ fm_get wip/tmp/fm-probe/unclosed.md human_review.reason
 --- 空ファイル / frontmatter なし / 終端の --- が欠落 ---
   （全キー &lt;取得失敗&gt;。例外は発生しない）</code></pre>
       </details>
+      <p><b>発生経路の切り分け（敵対的レビューの指摘 10）</b>。書き手である <code>ticket.sh</code> の <code>yaml_escape</code>（91〜95 行）は <code>\</code> と <code>"</code> を必ず逃がすので、引用符の閉じ忘れは書き手からは生じない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>壊れ方</th><th>発生経路</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>正常</td><td>—</td></tr>
+          <tr><td>2</td><td>frontmatter が無い</td><td>人手のみ（<code>ticket.sh</code> 以外が置いた .md の紛れ込みを含む）</td></tr>
+          <tr><td>3</td><td>終端の <code>---</code> が欠落</td><td>人手のみ</td></tr>
+          <tr><td>4</td><td>二重引用符の閉じ忘れ</td><td>人手のみ（<code>yaml_escape</code> が逃がすため）</td></tr>
+          <tr><td>5</td><td>ブロック配列</td><td>人手のみ</td></tr>
+          <tr><td>6</td><td>空ファイル</td><td>人手のみ。作成の途中で中断した場合もありうる</td></tr>
+          <tr><td>7</td><td>CRLF 改行</td><td>書き手からも起こりうる（Windows の編集経由）</td></tr>
+          <tr><td>8</td><td>キーの欠落</td><td>人手のみ。テンプレート変更直後の古いチケットでも起こりうる</td></tr>
+          <tr><td>9</td><td>未知の <code>ticket_type</code></td><td>書き手からも起こりうる（<code>task-types.tsv</code> に種類が増えたとき）</td></tr>
+        </tbody>
+      </table>
+      </div>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>拡張は取得失敗を例外ではなく欠落として扱い、そのうえで値の妥当性検査を別に持つ。</p>
+        <p>拡張は 9 パターンすべてに耐える必要がある。人手の編集が現実にあり（このリポジトリのチケットも作業ログを人手で書き足している）、7 と 9 は書き手からも起こるため。取得失敗を例外ではなく欠落として扱い、そのうえで値の妥当性検査を別に持つ。</p>
       </div>
     </li>
 

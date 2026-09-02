@@ -59,7 +59,7 @@ Q3 と Q4 はコマンドの実行と npm レジストリへの到達を伴い�
 | チケット | write | ops |
 |---|---|---|
 | 0003 | `wip/**` | read |
-| 0004 | `wip/**` | read, build-test |
+| 0004 | `wip/**` | read, build-test（起票時は web も含めたが、Q7 を 0007 に分けたため実際に使ったのは build-test まで） |
 | 0005 | `wip/**` | read |
 | 0007 | `wip/**` | read, web |
 
@@ -75,7 +75,9 @@ Q3 と Q4 はコマンドの実行と npm レジストリへの到達を伴い�
 
 ## 成果物の形
 
-調査結果レポート `wip/30_reports/0003-investigation.md` / `0004-investigation.md` / `0005-investigation.md` と同名の HTML。設計計画が判断できるよう、各レポートに次を入れる。
+調査結果レポート `wip/30_reports/0003-investigation.md` / `0004-investigation.md` / `0005-investigation.md` / `0007-investigation.md` と同名の HTML。
+
+仕様（`10-task-investigation-exec` 共通手順 4）は「最初のチケットでレポートを 1 本作り、以降のチケットは同じレポートに節を追記する」と定めているが、本 issue ではチケットごとに 1 本ずつ、計 4 本に分けた。仕様からの逸脱として各チケットの作業ログに記録する。設計計画が判断できるよう、各レポートに次を入れる。
 
 - 問いごとの答えと、その根拠（ファイルと行、またはコマンドと出力）
 - 答えが設計のどの判断に効くか（例: 「Q3 が否なので依存ゼロ構成を採る」）

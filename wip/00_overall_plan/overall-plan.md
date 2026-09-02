@@ -79,11 +79,13 @@ tags: [overall-plan]
 | フェーズ | write | ops |
 |---|---|---|
 | 調査 | `wip/**` | read |
-| 設計 | `wip/**`, `.claude/docs/00_requirement/**`, `.claude/docs/10_spec/**` | read |
-| 実装・テスト | `wip/**`, `tools/vscode-ticket-board/**` | read, build, test |
+| 設計 | `wip/**`, `docs/**` | read |
+| 実装・テスト | `wip/**`, `src/vscode-ticket-board/**` | read, build-test |
 | フィードバック計画 / 全体まとめ | `wip/**` | read |
 
-`.claude/` 配下の機構本体（hooks / skills / settings.json / rules）はどのフェーズでも変更しない。設計フェーズが `.claude/docs/` に要件・仕様を書くのは、このリポジトリの設計文書の置き場がそこであるため。
+`.claude/` 配下（機構本体も `.claude/docs/` も）はどのフェーズでも変更しない。
+
+**訂正（2026-09-02。調査 0005 と敵対的レビューの指摘 5）**。この表は当初、設計の write に `.claude/docs/00_requirement/**` と `.claude/docs/10_spec/**` を挙げ「このリポジトリの設計文書の置き場がそこであるため」と書き、実装の write に `tools/vscode-ticket-board/**` を挙げていた。どちらも誤りだった。上限設定 `scope-limits.json` の `design` は `.claude/**` を deny して `docs/**` を許可し、`implementation` は `src/**` と `tests/**` だけを許可する。`.claude/docs/` はアプリではなく AI アセットの設計文書の置き場である（`ai-asset-design` type の領分）。調査 0005 章 1・2 の結論に合わせて上の表を直した。
 
 ## 保留した点
 

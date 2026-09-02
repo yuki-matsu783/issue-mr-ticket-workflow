@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "正史（要件・仕様）の変�
 allow:
   write: ["docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T07:11:33+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "cba621f"
 ---
 
 # 0018 仕様書と要件書への書き戻し（差分 19 件）

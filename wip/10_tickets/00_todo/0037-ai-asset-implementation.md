@@ -6,7 +6,7 @@ executor: sub
 human_review: {required: true, reason: "基準どおり（承認④により opus の敵対的自己レビューで代替）。中核（cmdpos）を触る"}
 adversarial_review: {required: true, reason: "基準どおり: 振る舞いが変わり、取りこぼしと過剰拒否のトレードオフに触れる"}
 allow:
-  write: [".claude/hooks/**"]
+  write: [".claude/hooks/**", "wip/10_tickets/**", "wip/30_reports/**", "wip/tmp/**"]
   ops: ["read", "hook-test", "build-test"]
 started_at: ""
 completed_at: ""

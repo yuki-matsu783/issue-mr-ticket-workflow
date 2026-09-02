@@ -111,7 +111,7 @@ export function parseTicket(
   }
 
   // 見出しは本文からだけ探す。frontmatter の YAML コメントやコードフェンスの中の
-  // `#` 行をタイトルに採らないため（仕様「処理フロー / チケットの解析」手順 5）
+  // `#` 行をタイトルに採らないため（仕様「処理フロー / チケットの解析」手順 6）
   const heading = findHeading(document ? document.body : text);
   let title: string;
   if (!heading) {

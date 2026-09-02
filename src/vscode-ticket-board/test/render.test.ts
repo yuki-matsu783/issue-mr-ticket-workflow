@@ -144,3 +144,23 @@ test("TB-T14 列のラベルと状態もエスケープを通す", () => {
   assert.ok(html.includes('data-state="cancelled"'));
   assert.ok(html.includes("取り消し"));
 });
+
+test("TB-T14 種類と実行者が未設定のカードに「種類不明」「実行者不明」を出す", () => {
+  const html = renderBoard(
+    buildBoard(scan({
+      todo: [ticket({
+        ticketType: undefined,
+        executor: undefined,
+        issues: [
+          { code: "TB002", detail: "ticket_type が読み取れない" },
+          { code: "TB002", detail: "executor が読み取れない" },
+        ],
+      })],
+    })),
+    OPTIONS,
+  );
+  // バッジそのものを消さない。ul.issues の TB002 と対応して見えるようにするため
+  assert.ok(html.includes('<span class="badge type">種類不明</span>'));
+  assert.ok(html.includes('<span class="badge executor">実行者不明</span>'));
+  assert.ok(html.includes("TB002: ticket_type が読み取れない"));
+});

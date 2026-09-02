@@ -10,7 +10,7 @@ keywords: [eval, design-docs, with-without, 効果測定, 設計文書, 正史, 
 
 ## 目的
 
-`.claude/rules/design-docs.md`（`docs/**` の設計文書の規約）が `paths` の一致で読み込まれているときに、要件定義書・仕様書を現在の正史だけで書き、経緯は DDR に分け、要件は外部視点で書き、1:1:1 の配置を守る振る舞いが安定するかを確かめる。
+`.claude/rules/design-docs.md`（`apl/**` の設計文書の規約）が `paths` の一致で読み込まれているときに、要件定義書・仕様書を現在の正史だけで書き、経緯は DDR に分け、要件は外部視点で書き、1:1:1 の配置を守る振る舞いが安定するかを確かめる。
 
 ## 評価シナリオ
 
@@ -24,7 +24,7 @@ keywords: [eval, design-docs, with-without, 効果測定, 設計文書, 正史, 
 
 ## 比較条件
 
-- with: `.claude/rules/design-docs.md` が `paths`（`docs/**`）の一致で読み込まれている状態で各シナリオのプロンプトを与える
+- with: `.claude/rules/design-docs.md` が `paths`（`apl/**`）の一致で読み込まれている状態で各シナリオのプロンプトを与える
 - without: `design-docs.md` を読み込まない状態で、CLAUDE.md と requirement / spec の共通ステップ仕様だけを文脈に置いて同じプロンプトを与える
 - 実施回数: シナリオごとに with / without を各 3 回
 

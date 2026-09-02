@@ -50,6 +50,16 @@ case_block() {
   # 実行体が変数展開なら何が走るか分からないので拒否側に倒す
   assert_eq "BC-T01" "WF501" "$(judge 'CMD=chmod; $CMD +x a.sh')"
   assert_eq "BC-T01" "WF501" "$(judge 'eval "chmod +x a"')"
+  # 中身の見えない展開を挟んで実行体を割る形。bash はいずれも chmod として実行する
+  # （`bash -c 'chmod$@ --version'` が chmod のバージョンを出すことを実測で確認した）
+  assert_eq "BC-T01" "WF501" "$(judge 'chmod$() +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge "chmod\$'' +x a")"
+  assert_eq "BC-T01" "WF501" "$(judge 'chmod$(true) +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'chmod${x} +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'chmod$@ +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'chmod$* +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'ch$()mod +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'chmod`` +x a')"
 }
 
 # ---- BC-T02: クォート・検索語・地の文の chmod は通る ----
@@ -61,6 +71,14 @@ case_pass() {
   # 別の段のデータとして現れただけの語では拒否しない（opaque な段の中身に無いのに全体を見ると過剰拒否になる）
   assert_eq "BC-T02" "allow" "$(judge 'grep chmod f | xargs echo')"
   assert_eq "BC-T02" "allow" "$(judge 'cat notes.md | grep chmod')"
+  # 引用符の中に区切り文字と禁止語が並ぶ形。難読化の除去でクォートを構文ごと落とすと、
+  # 文字列の中の `;` `|` `(` `)` が本物の区切りに昇格して、これらが軒並み拒否になる。
+  # このプロジェクトはコミットメッセージや文書で chmod に言及するので現実に踏む
+  assert_eq "BC-T02" "allow" "$(judge 'git commit -m "fix: 権限は触らない; chmod は使わない"')"
+  assert_eq "BC-T02" "allow" "$(judge 'echo "NG: cd x; chmod +x a" >> wip/tmp/note.md')"
+  assert_eq "BC-T02" "allow" "$(judge 'grep -n "a | chmod" doc.md')"
+  assert_eq "BC-T02" "allow" "$(judge 'echo "使うな: (chmod)"')"
+  assert_eq "BC-T02" "allow" "$(judge 'printf "%s" "a; chmod 600 f" >> notes.md')"
 }
 
 # ---- BC-T03: bash -c / xargs 経由でも拒否する ----

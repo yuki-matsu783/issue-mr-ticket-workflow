@@ -48,16 +48,14 @@ _bc_load_blocked
 (( ${#_bc_blocked[@]} > 0 )) || hook_allow
 
 # 制御方式 2: 高速前置判定（外部プロセスなし・cmdpos.sh も読まない）。
-# 生の文字列だけを見ると `c\hmod` `ch""mod` のようにクォート・エスケープで隠せるので、
-# それらを取り除いた複製にも当てる（パラメータ展開 3 回。ここは毎ツール呼び出しで走る）
+# 生の文字列だけを見ると `c\hmod` `ch""mod` `ch$()mod` のように実行体を割って隠せるので、
+# 難読化に使える記号を落としただけの複製にも当てる（パラメータ展開だけ。走査もループもしない）。
+# ここは絞り込みなので、多少通しすぎても後段（制御方式 3〜5）が正しく判定する
 _bc_lower="${HOOK_COMMAND,,}"
-_bc_dequoted="${HOOK_COMMAND//\\/}"
-_bc_dequoted="${_bc_dequoted//\"/}"
-_bc_dequoted="${_bc_dequoted//\'/}"
-_bc_dequoted="${_bc_dequoted,,}"
+_bc_bare="${_bc_lower//[\$\\\"\'()\{\}\`]/}"
 _bc_hit=0
 for _bc_c in "${_bc_blocked[@]}"; do
-  if [[ "$_bc_lower" == *"$_bc_c"* || "$_bc_dequoted" == *"$_bc_c"* ]]; then _bc_hit=1; break; fi
+  if [[ "$_bc_lower" == *"$_bc_c"* || "$_bc_bare" == *"$_bc_c"* ]]; then _bc_hit=1; break; fi
 done
 (( _bc_hit )) || hook_allow
 
@@ -95,7 +93,7 @@ _bc_check_exes
 #   別の段のデータとして現れただけの語で拒否してしまう（過剰拒否）
 _bc_seg_unknown() { # $1=段 → 中身が見えないなら 0
   local i="$1" t
-  [[ "${CP_EXE[$i]:-}" == \$* ]] && return 0
+  [[ "${CP_EXE[$i]:-}" == *\$* ]] && return 0
   local IFS=$'\x1e'
   for t in ${CP_ARGS[$i]:-}; do [[ "$t" == "_" ]] && return 0; done
   return 1
@@ -110,17 +108,53 @@ for (( _bc_i = 0; _bc_i < CP_COUNT; _bc_i++ )); do
   fi
   if [[ "${CP_OPAQUE[$_bc_i]:-0}" == 1 ]] && _bc_seg_unknown "$_bc_i"; then
     for _bc_c in "${_bc_blocked[@]}"; do
-      [[ "${CP_LOWER}" == *"$_bc_c"* || "$_bc_dequoted" == *"$_bc_c"* ]] && _bc_deny "$_bc_c" 1
+      [[ "${CP_LOWER}" == *"$_bc_c"* || "$_bc_bare" == *"$_bc_c"* ]] && _bc_deny "$_bc_c" 1
     done
   fi
   :
 done
 
-# 制御方式 5: クォート・エスケープを取り除いた形でも実行位置を見る。
-#   `ch""mod` は正規化だけでは実行体が chmod にならない（`ch_mod` になる）。
-#   取り除いた文字列を別に解析して実行位置だけを照合するので、`echo "chmod"` は exe=echo のまま通る
-if [[ "$_bc_dequoted" != "$_bc_lower" ]]; then
-  cmdpos_parse "$_bc_dequoted"
+# 制御方式 5: 難読化を取り除いた形でも実行位置を見る。
+#   `ch""mod` `ch$()mod` `chmod${x}` は bash が chmod として実行するのに、正規化後の実行体は
+#   `ch_mod` / `chmod` にならない。落とすのは「空のクォート対」と「中身の見えない展開」だけで、
+#   中身のあるクォートは残す — 構文ごと落とすと文字列の中の `;` `|` `(` `)` が本物の区切りに昇格し、
+#   `git commit -m "…; chmod は使わない"` のような無関係なコマンドを拒否してしまう
+_bc_deobfuscate() { # $1=コマンド文字列 → REPLY
+  local str="$1" out="" i=0 n c nx depth
+  n=${#str}
+  while (( i < n )); do
+    c="${str:i:1}"
+    case "$c" in
+      '$')
+        nx="${str:i+1:1}"
+        case "$nx" in
+          '(')  depth=0; i=$(( i + 1 ))
+                while (( i < n )); do
+                  case "${str:i:1}" in
+                    '(') depth=$(( depth + 1 )) ;;
+                    ')') depth=$(( depth - 1 )); (( depth == 0 )) && { i=$(( i + 1 )); break; } ;;
+                  esac
+                  i=$(( i + 1 ))
+                done ;;
+          '{')  i=$(( i + 2 ))
+                while (( i < n )) && [[ "${str:i:1}" != '}' ]]; do i=$(( i + 1 )); done
+                i=$(( i + 1 )) ;;
+          "'"|'"') i=$(( i + 1 )) ;;          # $'…' / $"…" のクォートは次の反復で見る
+          *)    i=$(( i + 1 ))
+                while (( i < n )) && [[ "${str:i:1}" == [A-Za-z0-9_@*#?] ]]; do i=$(( i + 1 )); done ;;
+        esac ;;
+      "'"|'"'|'`')
+        if [[ "${str:i+1:1}" == "$c" ]]; then i=$(( i + 2 ))   # 空の対だけ落とす
+        else out+="$c"; i=$(( i + 1 )); fi ;;
+      *) out+="$c"; i=$(( i + 1 )) ;;
+    esac
+  done
+  REPLY="$out"
+}
+_bc_deobfuscate "$HOOK_COMMAND"
+_bc_deob="$REPLY"
+if [[ "$_bc_deob" != "$HOOK_COMMAND" ]]; then
+  cmdpos_parse "$_bc_deob"
   _bc_check_exes
 fi
 

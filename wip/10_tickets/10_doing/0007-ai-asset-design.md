@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズの敵対的レビュ
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:52:42+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "aa1fc58"
 ---
 
 # 0007 設計: 共通ステップ 2 本の要件・仕様と対応表の DDR

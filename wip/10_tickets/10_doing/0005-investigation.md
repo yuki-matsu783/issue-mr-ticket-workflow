@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "同フェーズの敵対的レビ
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:40:25+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "27e1bd0"
 ---
 
 # 0005 調査の追加: 敵対的レビュー指摘（Major 7 / Minor 8）の反映

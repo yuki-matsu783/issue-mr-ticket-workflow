@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:20:57+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "5ea0dc0"
 ---
 
 # 0002 調査計画: 置き場依存箇所と #20 の 5 論点の現状

@@ -280,6 +280,21 @@ case_classify() {
   assert_eq "HK-T15" "wip/tmp/r.json" "$SC_TARGETS"
   # 標準出力へ書く形は書き込みに当たらない
   assert_eq "HK-T15" "web" "$(classify_all 'curl -o - http://example.com/a')"
+  # wget の -o / --output-file / --append-output は「ログファイル」で、本体は依然として
+  # URL の basename をカレントに落とす。ログを出力先として数えたせいで既定の `_` が落ちると、
+  # 実際に落ちてくるファイルが呼び手から見えなくなる
+  wtargets() { cmdpos_parse "$1"; scope_classify 0 >/dev/null; printf '%s\n' "${SC_TARGETS//$_SC_US/,}"; }
+  assert_eq "HK-T15" "log.txt,_" "$(wtargets 'wget -o log.txt http://example.com/evil.sh')"
+  assert_eq "HK-T15" "log.txt,_" "$(wtargets 'wget --output-file=log.txt http://example.com/evil.sh')"
+  assert_eq "HK-T15" "log.txt,_" "$(wtargets 'wget --append-output=log.txt http://example.com/evil.sh')"
+  # 本体の出力先を指定していれば既定の `_` は足さない
+  assert_eq "HK-T15" "out.sh"    "$(wtargets 'wget -O out.sh http://example.com/evil.sh')"
+  assert_eq "HK-T15" "log.txt,out.sh" "$(wtargets 'wget -q -o log.txt -O out.sh http://example.com/a')"
+  assert_eq "HK-T15" "_"         "$(wtargets 'wget http://example.com/evil.sh')"
+  assert_eq "HK-T15" "web"       "$(classify_all 'wget -O - http://example.com/a')"
+  # curl の --libcurl もファイルを作る
+  assert_eq "HK-T15" "write"     "$(classify_all 'curl --libcurl out.c http://example.com/a')"
+  assert_eq "HK-T15" "out.c"     "$(wtargets 'curl --libcurl out.c http://example.com/a')"
   assert_eq "HK-T15" "web" "$(classify_all 'curl -H "A: b" http://example.com/a')"
   assert_eq "HK-T15" "write" "$(classify_all "sed -i 's/a/b/' f")"
   assert_eq "HK-T15" "read" "$(classify_all "sed 's/a/b/' f")"

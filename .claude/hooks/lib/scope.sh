@@ -264,7 +264,7 @@ _sc_web_is_get() { local m="${1^^}"; [[ "$m" == GET || "$m" == HEAD ]]; }
 # シェルのリダイレクト（`curl <url> > <path>`）は cmdpos が CP_REDIRECTS に持っているので必ず合流させる。
 # 注: curl は 200 以上のオプションを持つので、この列挙が網羅的かは確かめられない（.curlrc 経由の指定も見ていない）
 _sc_classify_web() {
-  local exe="$1" seg="$2" a nxt val rest ch vopts i n j last send=0 dash_o=0 took=0
+  local exe="$1" seg="$2" a nxt val rest ch vopts i n j last send=0 dash_o=0 took=0 body_out=0
   local -a outs=()
   if [[ "$exe" == curl ]]; then vopts="$_SC_WEB_VOPT_CURL"; else vopts="$_SC_WEB_VOPT_WGET"; fi
   n="${#REPLY_ARGS[@]}"
@@ -279,18 +279,24 @@ _sc_classify_web() {
         case "$a" in
           --data*|--form*|--upload-file*|--json|--json=*|--mail-from*|--mail-rcpt*) send=1 ;;
           --request|--request=*) [[ "$a" == *=* ]] || { val="$nxt"; took=1; }; _sc_web_is_get "$val" || send=1 ;;
-          --output|--output-dir|--dump-header|--cookie-jar|--etag-save|--stderr|--trace|--trace-ascii)
+          --output|--output-dir)
+            val="$nxt"; took=1; body_out=1; _sc_web_add_out "$val" ;;
+          --output=*|--output-dir=*)
+            body_out=1; _sc_web_add_out "$val" ;;
+          --dump-header|--cookie-jar|--etag-save|--stderr|--trace|--trace-ascii|--libcurl)
             val="$nxt"; took=1; _sc_web_add_out "$val" ;;
-          --output=*|--output-dir=*|--dump-header=*|--cookie-jar=*|--etag-save=*|--stderr=*|--trace=*|--trace-ascii=*)
+          --dump-header=*|--cookie-jar=*|--etag-save=*|--stderr=*|--trace=*|--trace-ascii=*|--libcurl=*)
             _sc_web_add_out "$val" ;;
-          --remote-name|--remote-name-all) outs+=("_") ;;
+          --remote-name|--remote-name-all) body_out=1; outs+=("_") ;;
         esac
       else
         case "$a" in
           --post-data*|--post-file*|--body-data*|--body-file*) send=1 ;;
           --method|--method=*) [[ "$a" == *=* ]] || { val="$nxt"; took=1; }; _sc_web_is_get "$val" || send=1 ;;
-          --output-document|--output-file|--append-output) val="$nxt"; took=1; _sc_web_add_out "$val" ;;
-          --output-document=*|--output-file=*|--append-output=*) _sc_web_add_out "$val" ;;
+          --output-document) val="$nxt"; took=1; body_out=1; _sc_web_add_out "$val" ;;
+          --output-document=*) body_out=1; _sc_web_add_out "$val" ;;
+          --output-file|--append-output) val="$nxt"; took=1; _sc_web_add_out "$val" ;;   # ログ。本体は別に落ちる
+          --output-file=*|--append-output=*) _sc_web_add_out "$val" ;;
         esac
       fi
       (( took )) && i=$(( i + 1 ))
@@ -309,9 +315,11 @@ _sc_classify_web() {
       case "$ch" in
         d|T|F) [[ "$exe" == curl ]] && send=1 ;;
         X)     [[ "$exe" == curl ]] && { _sc_web_is_get "$val" || send=1; } ;;
-        o)     _sc_web_add_out "$val" ;;
+        o)     [[ "$exe" == curl ]] && body_out=1     # wget の -o はログファイル。本体は別に落ちる
+               _sc_web_add_out "$val" ;;
         D|c|C) [[ "$exe" == curl ]] && _sc_web_add_out "$val" ;;
-        O)     if [[ "$exe" == curl ]]; then outs+=("_"); else _sc_web_add_out "$val"; fi ;;
+        O)     body_out=1
+               if [[ "$exe" == curl ]]; then outs+=("_"); else _sc_web_add_out "$val"; fi ;;
       esac
       if [[ "$vopts" == *"$ch"* ]]; then
         (( took )) && i=$(( i + 1 ))
@@ -319,8 +327,10 @@ _sc_classify_web() {
       fi
     done
   done
-  # wget は既定で URL の basename に書く（-O - でも -O file でもなければ出力先を持つ）
-  if [[ "$exe" == wget ]] && (( ${#outs[@]} == 0 )) && (( ! dash_o )); then outs+=("_"); fi
+  # wget は既定で URL の basename に書く。本体の出力先（-O / --output-document）を指定していなければ
+  # 必ず `_` を足す。ログファイル（-o / --output-file / --append-output）を出力先として数えたせいで
+  # `_` が落ちると、実際に落ちてくるファイルが呼び手から見えなくなる
+  if [[ "$exe" == wget ]] && (( ! body_out )) && (( ! dash_o )); then outs+=("_"); fi
   # シェルのリダイレクトと、cmdpos が拾った書き込み先を必ず合流させる
   local extra
   for extra in "${CP_WRITE_TARGETS[$seg]:-}" "${CP_REDIRECTS[$seg]:-}"; do

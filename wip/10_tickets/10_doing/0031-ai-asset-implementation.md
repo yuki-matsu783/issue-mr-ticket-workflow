@@ -49,7 +49,12 @@ base_sha: "c3440fc"
 
 ### 現在地
 
-- 未着手
+- **人間の登録待ち**。AI 側の下ごしらえは済んでいる:
+  - HK-T01 の期待値 `.claude/hooks/tests/fixtures/settings-hooks.expected.tsv`（17 行の逐語）と、HK-T01 / HK-T09 のテスト（`.claude/hooks/tests/test_config_integrity.sh`）
+  - 段階ごとに貼り替える settings.json 全文 6 本（`wip/tmp/settings-stage1.json` / `settings-stage2-1..5.json`）
+  - **手順とロックアウトの復旧手順は `wip/tmp/0031-handoff.md`**（セッションをまたぐのでここから読む）
+- 次にやること: 人間が `cp wip/tmp/settings-stage1.json .claude/settings.json` して Claude Code を再起動 → AI が軽い操作を通してコミット
+- 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（settings.json が未登録のため。登録が終われば通る）
 
 ### うまくいったこと
 

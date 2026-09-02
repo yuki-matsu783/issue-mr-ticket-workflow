@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "同一ワークの再レビュー
 allow:
   write: ["docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T07:24:33+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b3074f7"
 ---
 
 # 0021 設計反映の敵対的レビュー指摘への対応（手順番号・テスト観点表・残る食い違い）

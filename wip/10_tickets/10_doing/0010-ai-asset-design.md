@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズの敵対的レビュ
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:12:48+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "47be479"
 ---
 
 # 0010 設計の追加: 敵対的レビュー指摘（Critical 3 / Major 8 / Minor 5）の反映

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T08:18:25+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1a5c62d"
 ---
 
 # 0005 全体まとめ: PR 本文の最終整形・issue コメント・片付け

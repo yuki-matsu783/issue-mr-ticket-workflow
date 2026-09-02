@@ -380,3 +380,24 @@ cmdpos_has_provided() {
   for ((i = 0; i < CP_COUNT; i++)); do [[ "${CP_PROVIDED[i]}" == "$p" ]] && return 0; done
   return 1
 }
+
+# cmdpos_operands <セグメント番号> → REPLY_OPERANDS 配列（§7-9・DDR i0009-39）
+#   CP_ARGS[i] から `-` で始まる語と `--` 以降の区切りを除いた位置引数を展開する。
+#   例: `rm -rf a b` → a b / `mv -v src dst` → src dst / `rm -- -weird` → -weird
+#   削除対象か宛先かの解釈は呼び手が行う（workflow-state-guard は rm / git rm なら全部を「元」、
+#   mv なら最後を宛先・それ以外を元として扱う）。呼び手が引数列を自前で再パースしない。
+cmdpos_operands() {
+  local i="$1" a end=0 skip=""
+  REPLY_OPERANDS=()
+  # git はサブコマンド自身が位置引数に混ざるので 1 つだけ落とす（`git rm x y` → x y）
+  [[ "${CP_EXE[$i]:-}" == git && -n "${CP_SUBCMD[$i]:-}" && "${CP_SUBCMD[$i]}" != "_" ]] && skip="${CP_SUBCMD[$i]}"
+  cmdpos_args "$i"
+  for a in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
+    if (( end )); then REPLY_OPERANDS+=("$a"); continue; fi
+    if [[ "$a" == "--" ]]; then end=1; continue; fi
+    [[ "$a" == -* ]] && continue
+    if [[ -n "$skip" && "$a" == "$skip" ]]; then skip=""; continue; fi
+    REPLY_OPERANDS+=("$a")
+  done
+  return 0
+}

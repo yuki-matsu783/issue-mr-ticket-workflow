@@ -6,10 +6,12 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 # shellcheck disable=SC1091
+# scope.sh は hook_read_input が用意する HC_* を読む（DDR i0009-48）ので hook-common.sh も要る
+. "$LOGGER_ROOT/.claude/hooks/lib/hook-common.sh"
 . "$LOGGER_ROOT/.claude/hooks/lib/cmdpos.sh"
 # shellcheck disable=SC1091
 . "$LOGGER_ROOT/.claude/hooks/lib/scope.sh"
@@ -35,15 +37,37 @@ cat > "$CFG" <<'JSON'
 }
 JSON
 
+# 上限設定は hook_read_input が HC_LIMITS に読む形になった（DDR i0009-48）。
+# テストは偽のルートに設定を置き、最小の stdin で hook_read_input を回して HC_LIMITS を作る。
+FAKE_ROOT="$TMP_DIR/fakeroot"
+mkdir -p "$FAKE_ROOT/.claude/hooks/config"
+load_limits() { # $1=設定 JSON のパス（省略で不在）
+  local dst="$FAKE_ROOT/.claude/hooks/config/scope-limits.json"
+  rm -f "$dst"
+  [[ -n "${1:-}" && -f "$1" ]] && cp "$1" "$dst"
+  HOOK_ROOT="$FAKE_ROOT" hook_read_input limits <<<'{"session_id":"t","tool_name":"Bash"}' || true
+}
+load_approvals() { # $1=approvals.json のパス（- / 空で無し）
+  local f="${1:-}" v
+  HC_APPROVALS=""; HC_APPROVALS_STATE="missing"; HC_APPROVALS_ERROR=""
+  [[ -n "$f" && "$f" != "-" && -f "$f" ]] || return 0
+  HC_APPROVALS_STATE="ok"
+  while IFS= read -r v; do
+    [[ -n "$v" ]] || continue
+    HC_APPROVALS+="${HC_APPROVALS:+$_SC_US}scope${_SC_KV}${v}"
+  done < <(tl_jq -r 'if type == "array" then .[].scope // empty else empty end' "$f")
+}
+
 mk_ticket() { # $1=path $2=type $3=allow.write(JSON 配列) $4=allow.ops(JSON 配列)
   printf -- '---\ntype: ticket\nticket_type: %s\npredecessors: []\nexecutor: main\nhuman_review: {required: false, reason: "x"}\nadversarial_review: {required: false, reason: "x"}\nallow:\n  write: %s\n  ops: %s\nstarted_at: ""\ncompleted_at: ""\nbase_sha: ""\n---\n\n# t\n' "$2" "$3" "$4" > "$1"
 }
 
 # 判定を 1 行にする: <decision> <id> <stage> <askscope>
 resolve() { # $1=type $2=ticket(- で無し) $3=approvals(- で無し) $4=path
-  scope_load "$CFG" "$1" || { echo "load-error rc=$? $SC_ERROR"; return; }
+  load_limits "$CFG"
+  scope_load "$1" || { echo "load-error rc=$? $SC_ERROR"; return; }
   if [[ "$2" != "-" ]]; then scope_load_ticket "$2" || { echo "ticket-error"; return; }; else SC_DECL_WRITE=(); SC_DECL_OPS=(); fi
-  if [[ "$3" != "-" ]]; then scope_load_approvals "$3"; else SC_APPROVED=(); fi
+  load_approvals "$3"; scope_load_approvals
   scope_resolve "$4"
   printf '%s %s %s %s\n' "$SC_DECISION" "${SC_ID:--}" "$SC_STAGE" "${SC_ASK_SCOPE:--}"
 }
@@ -144,14 +168,14 @@ case_declaration() {
 case_ops() {
   local t="$TMP_DIR/t-ops.md"
   mk_ticket "$t" ai-asset-implementation '[]' '["read", "build-test"]'
-  scope_load "$CFG" ai-asset-implementation; scope_load_ticket "$t"
+  load_limits "$CFG"; scope_load ai-asset-implementation; scope_load_ticket "$t"
   assert_eq "HK-T15" "0" "$(scope_op_declared build-test; echo $?)"
   assert_eq "HK-T15" "1" "$(scope_op_declared hook-test; echo $?)"
   assert_eq "HK-T15" "0" "$(scope_op_declared read; echo $?)"
   assert_eq "HK-T15" "0" "$(scope_op_declared remote-read; echo $?)"
   assert_eq "HK-T15" "1" "$(scope_op_declared remote-write:push; echo $?)"
   mk_ticket "$t" overall-plan '[]' '["read", "remote-write:push", "hook-test"]'
-  scope_load "$CFG" overall-plan; scope_load_ticket "$t"
+  load_limits "$CFG"; scope_load overall-plan; scope_load_ticket "$t"
   assert_eq "HK-T15" "0" "$(scope_op_declared remote-write:push; echo $?)"
   assert_eq "HK-T15" "1" "$(scope_op_declared hook-test; echo $?)"   # 宣言しても上限に無ければ不可
   assert_eq "HK-T15" "true" "$SC_TYPE_PLAN_MODE"
@@ -159,7 +183,7 @@ case_ops() {
 
 # ---- コマンドの分類 ----
 case_classify() {
-  scope_load "$CFG" implementation
+  load_limits "$CFG"; scope_load implementation
   assert_eq "HK-T15" "read" "$(classify_all 'ls -la')"
   assert_eq "HK-T15" "read read" "$(classify_all 'cat x | head')"
   assert_eq "HK-T15" "write" "$(classify_all 'cat x > y.txt')"
@@ -210,7 +234,24 @@ case_classify() {
   assert_eq "HK-T15" "read" "$(classify_all 'git config --get user.name')"
   assert_eq "HK-T15" "unknown" "$(classify_all 'git config user.name x')"
   assert_eq "HK-T15" "opaque" "$(classify_all 'eval "$x"')"
-  assert_eq "HK-T15" "unknown" "$(classify_all 'curl http://example.com')"
+  # curl / wget は web の 3 段判定に入る（DDR i0009-56 / i0009-57）
+  assert_eq "HK-T15" "web" "$(classify_all 'curl http://example.com')"
+  assert_eq "HK-T15" "web" "$(classify_all 'curl -X GET http://example.com')"
+  assert_eq "HK-T15" "web" "$(classify_all 'wget -O - http://example.com')"
+  # (1) 送信側は宣言の有無によらず拒否側へ
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl -T a.md http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl -d @a.json http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl -X POST http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'wget --post-file=a.md http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'wget --method=PUT http://example.com/u')"
+  # (2) 出力先を持つ形は書き込み。SC_TARGETS に出力先が入り、`://` を含む語は URL として除く
+  assert_eq "HK-T15" "write" "$(classify_all 'curl -o out.md http://example.com/a')"
+  assert_eq "HK-T15" "write" "$(classify_all 'curl -O http://example.com/a')"
+  assert_eq "HK-T15" "write" "$(classify_all 'wget http://example.com/a')"
+  cmdpos_parse 'curl -o wip/tmp/x http://example.com/a'; scope_classify 0 >/dev/null
+  assert_eq "HK-T15" "wip/tmp/x" "$SC_TARGETS"
+  cmdpos_parse 'curl -O http://example.com/a'; scope_classify 0 >/dev/null
+  assert_eq "HK-T15" "_" "$SC_TARGETS"
   assert_eq "HK-T15" "write" "$(classify_all "sed -i 's/a/b/' f")"
   assert_eq "HK-T15" "read" "$(classify_all "sed 's/a/b/' f")"
   assert_eq "HK-T15" "read" "$(classify_all 'bash -n x.sh')"
@@ -225,28 +266,28 @@ case_classify() {
 case_load_errors() {
   local bad="$TMP_DIR/bad.json" rc
   tl_jq 'del(.common.state_files)' "$CFG" > "$bad"
-  scope_load "$bad" implementation; rc=$?
+  load_limits "$bad"; scope_load implementation; rc=$?
   assert_eq "HK-T15" "1" "$rc"
   assert_contains_var() { [[ "$SC_ERROR" == *"$1"* ]] && pass "HK-T15" || fail "HK-T15" "SC_ERROR='$SC_ERROR' に '$1' が無い"; }
   assert_contains_var "state_files"
   tl_jq 'del(.types.design.ops)' "$CFG" > "$bad"
-  scope_load "$bad" implementation; rc=$?
+  load_limits "$bad"; scope_load implementation; rc=$?
   assert_eq "HK-T15" "1" "$rc"
   assert_contains_var "ops"
   tl_jq '.types.design.extra = 1' "$CFG" > "$bad"
-  scope_load "$bad" implementation; rc=$?
+  load_limits "$bad"; scope_load implementation; rc=$?
   assert_eq "HK-T15" "1" "$rc"
   tl_jq '.common.bogus = []' "$CFG" > "$bad"
-  scope_load "$bad" implementation; rc=$?
+  load_limits "$bad"; scope_load implementation; rc=$?
   assert_eq "HK-T15" "1" "$rc"
   printf 'not json' > "$bad"
-  scope_load "$bad" implementation; rc=$?
+  load_limits "$bad"; scope_load implementation; rc=$?
   assert_eq "HK-T15" "1" "$rc"
-  scope_load "$CFG" no-such-type; rc=$?
-  assert_eq "HK-T15" "2" "$rc"
-  scope_load "$TMP_DIR/missing.json" implementation; rc=$?
+  load_limits "$CFG"; scope_load no-such-type; rc=$?
+  assert_eq "HK-T15" "1" "$rc"   # types に無い種類も「記載不正」= 1（2 は frontmatter.sh の破損だけ。§8）
+  load_limits ""; scope_load implementation; rc=$?
   assert_eq "HK-T15" "1" "$rc"
-  scope_load "$CFG" implementation; rc=$?
+  load_limits "$CFG"; scope_load implementation; rc=$?
   assert_eq "HK-T15" "0" "$rc"
   assert_eq "HK-T15" "4" "${#SC_TYPES[@]}"
 }

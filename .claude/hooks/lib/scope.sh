@@ -14,10 +14,11 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 0; fi
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load frontmatter deny
 
-_SC_US=$'\x1e'
+_SC_US=$'\x1e'   # レコード区切り（hook_read_input の副入力と同じ）
+_SC_KV=$'\x1f'   # レコードの key/value 区切り
 SC_ERROR=""; SC_TYPE=""; SC_TYPES=()
 SC_COMMON_ALLOW=(); SC_COMMON_PROTECTED=(); SC_COMMON_CONFIRM=(); SC_COMMON_FILE_GRANULAR=(); SC_COMMON_STATE_FILES=()
 SC_TYPE_ALLOW=(); SC_TYPE_DENY=(); SC_TYPE_CONFIRM=(); SC_TYPE_OPS=(); SC_TYPE_PLAN_MODE="false"
@@ -30,89 +31,86 @@ _SC_READ_ONLY_CMDS=' ls cat head tail grep rg egrep fgrep jq wc sort uniq diff c
 _SC_GIT_READ_SUBCMDS=' status log diff show branch rev-parse fetch ls-files ls-remote ls-tree rev-list describe blame shortlog cat-file merge-base reflog grep for-each-ref symbolic-ref check-ignore var count-objects whatchanged name-rev show-ref diff-tree diff-index diff-files '
 
 # ---- 上限設定の読み込み（§8）----
-# scope_load <scope-limits.json> [type]。戻り 1 = 設定不正（SC_ERROR に理由。WF210）、2 = type が types に無い（WF211）
+# scope_load [type]
+#   hook_read_input が読んだ HC_LIMITS を SC_* に詰め替えるだけで、JSON のファイルを開かない（DDR i0009-48）。
+#   JSON を読むのは jq 1 か所に限り、scope.sh を source する 4 本のフックが「自分が何回 jq を呼ぶか」を数えられるようにする。
+#   戻り 1 = 設定が読めない / 設定不正 / types に無い種類（SC_ERROR に理由。呼び手は WF210 / WF211）
 scope_load() {
-  local json="$1" t="${2:-}" out k v
+  local t="${1:-}" s rec k v found=0 x
   SC_ERROR=""; SC_TYPE="$t"; SC_TYPES=()
   SC_COMMON_ALLOW=(); SC_COMMON_PROTECTED=(); SC_COMMON_CONFIRM=(); SC_COMMON_FILE_GRANULAR=(); SC_COMMON_STATE_FILES=()
   SC_TYPE_ALLOW=(); SC_TYPE_DENY=(); SC_TYPE_CONFIRM=(); SC_TYPE_OPS=(); SC_TYPE_PLAN_MODE="false"; SC_BUILD_TEST_CMDS=()
-  [[ -f "$json" ]] || { SC_ERROR="設定ファイルが無い: $json"; return 1; }
-  command -v jq >/dev/null 2>&1 || { SC_ERROR="jq が無い"; return 1; }
-  out="$(jq -r --arg t "$t" '
-    def bad($m): error($m);
-    def arr($x; $m): if ($x | type) == "array" and ([ $x[] | type == "string" ] | all) then $x else bad($m) end;
-    if type != "object" then bad("root is not an object") else . end
-    | if (.common | type) != "object" then bad("common missing") else . end
-    | (.common | keys) as $ck
-    | (["allow","protected","confirm","file_granular","state_files"] - $ck) as $missing
-    | if ($missing | length) > 0 then bad("common missing keys: " + ($missing | join(","))) else . end
-    | ($ck - ["allow","protected","confirm","file_granular","state_files"]) as $extra
-    | if ($extra | length) > 0 then bad("common unknown keys: " + ($extra | join(","))) else . end
-    | if (.types | type) != "object" then bad("types missing") else . end
-    | if ([ .types | to_entries[] | (.value | type) == "object" and (.value | has("ops")) and (((.value | keys) - ["allow","deny","confirm","ops","plan_mode"]) | length) == 0 ] | all)
-      then . else bad("types entry invalid (ops required / unknown keys)") end
-    | if ((.commands // {}) | type) != "object" then bad("commands invalid") else . end
-    | (.types[$t] // {}) as $ty
-    | ( (arr(.common.allow; "common.allow")[] | "common.allow\t\(.)"),
-        (arr(.common.protected; "common.protected")[] | "common.protected\t\(.)"),
-        (arr(.common.confirm; "common.confirm")[] | "common.confirm\t\(.)"),
-        (arr(.common.file_granular; "common.file_granular")[] | "common.file_granular\t\(.)"),
-        (arr(.common.state_files; "common.state_files")[] | "common.state_files\t\(.)"),
-        (.types | keys[] | "type\t\(.)"),
-        (arr($ty.allow // []; "types.allow")[] | "t.allow\t\(.)"),
-        (arr($ty.deny // []; "types.deny")[] | "t.deny\t\(.)"),
-        (arr($ty.confirm // []; "types.confirm")[] | "t.confirm\t\(.)"),
-        (arr($ty.ops // []; "types.ops")[] | "t.ops\t\(.)"),
-        ("t.plan_mode\t" + (($ty.plan_mode // false) | tostring)),
-        (arr((.commands // {})["build-test"] // []; "commands.build-test")[] | "build-test\t\(.)") )
-  ' "$json" 2>&1)" || { SC_ERROR="設定を解釈できない: ${out//$'\n'/ }"; return 1; }
-  out="${out//$'\r'/}"
-  while IFS=$'\t' read -r k v; do
+  case "${HC_LIMITS_STATE:-missing}" in
+    ok) ;;
+    broken) SC_ERROR="${HC_LIMITS_ERROR:-設定を解釈できない}"; return 1 ;;
+    *)      SC_ERROR="設定ファイルが無い（.claude/hooks/config/scope-limits.json）"; return 1 ;;
+  esac
+  s="${HC_LIMITS:-}"
+  while [[ -n "$s" ]]; do
+    if [[ "$s" == *"$_SC_US"* ]]; then rec="${s%%"$_SC_US"*}"; s="${s#*"$_SC_US"}"; else rec="$s"; s=""; fi
+    [[ "$rec" == *"$_SC_KV"* ]] || continue
+    k="${rec%%"$_SC_KV"*}"; v="${rec#*"$_SC_KV"}"
     case "$k" in
-      common.allow) SC_COMMON_ALLOW+=("$v") ;;
-      common.protected) SC_COMMON_PROTECTED+=("$v") ;;
-      common.confirm) SC_COMMON_CONFIRM+=("$v") ;;
-      common.file_granular) SC_COMMON_FILE_GRANULAR+=("$v") ;;
-      common.state_files) SC_COMMON_STATE_FILES+=("$v") ;;
-      type) SC_TYPES+=("$v") ;;
-      t.allow) SC_TYPE_ALLOW+=("$v") ;;
-      t.deny) SC_TYPE_DENY+=("$v") ;;
-      t.confirm) SC_TYPE_CONFIRM+=("$v") ;;
-      t.ops) SC_TYPE_OPS+=("$v") ;;
-      t.plan_mode) SC_TYPE_PLAN_MODE="$v" ;;
-      build-test) SC_BUILD_TEST_CMDS+=("$v") ;;
+      common.allow)          SC_COMMON_ALLOW+=("$v") ;;
+      common.protected)      SC_COMMON_PROTECTED+=("$v") ;;
+      common.confirm)        SC_COMMON_CONFIRM+=("$v") ;;
+      common.file_granular)  SC_COMMON_FILE_GRANULAR+=("$v") ;;
+      common.state_files)    SC_COMMON_STATE_FILES+=("$v") ;;
+      type)                  SC_TYPES+=("$v") ;;
+      build-test)            SC_BUILD_TEST_CMDS+=("$v") ;;
+      "t.$t.allow")          SC_TYPE_ALLOW+=("$v") ;;
+      "t.$t.deny")           SC_TYPE_DENY+=("$v") ;;
+      "t.$t.confirm")        SC_TYPE_CONFIRM+=("$v") ;;
+      "t.$t.ops")            SC_TYPE_OPS+=("$v") ;;
+      "t.$t.plan_mode")      SC_TYPE_PLAN_MODE="$v" ;;
     esac
-  done <<<"$out"
+  done
   if [[ -n "$t" ]]; then
-    local found=0 x
-    for x in "${SC_TYPES[@]}"; do [[ "$x" == "$t" ]] && found=1; done
-    (( found )) || { SC_ERROR="types に無い種類: $t"; return 2; }
+    for x in ${SC_TYPES[@]+"${SC_TYPES[@]}"}; do [[ "$x" == "$t" ]] && found=1; done
+    (( found )) || { SC_ERROR="types に無い種類: $t"; return 1; }
   fi
   return 0
 }
 
 # ---- チケットの宣言（§9）----
-# scope_load_ticket <チケットファイル>。戻り 1 = 読めない / ticket_type が無い
+# scope_load_ticket <チケットファイル>
+#   戻り 0 = 読めた / 1 = frontmatter は読めたが ticket_type が無い・対象外の形（呼び手は WF211）/
+#        2 = frontmatter.sh を読み込めていない（機構の破損。呼び手は WFx09。DDR i0009-16）
+#   呼び出し規約（DDR i0009-35）: local と代入を同じ行に書かず、`|| true` で戻り値を捨てない
 scope_load_ticket() {
-  local f="$1" v
+  local f="$1" v rc=0
   SC_TICKET_TYPE=""; SC_DECL_WRITE=(); SC_DECL_OPS=(); SC_TICKET_LOADED=0
-  [[ -f "$f" ]] || return 1
-  SC_TICKET_TYPE="$(fm_get "$f" ticket_type 2>/dev/null || true)"
-  SC_TICKET_TYPE="${SC_TICKET_TYPE//$'\r'/}"
-  [[ -n "$SC_TICKET_TYPE" ]] || return 1
-  while IFS= read -r v; do v="${v//$'\r'/}"; [[ -n "$v" ]] && SC_DECL_WRITE+=("$v"); done < <(fm_list "$f" allow.write 2>/dev/null || true)
-  while IFS= read -r v; do v="${v//$'\r'/}"; [[ -n "$v" ]] && SC_DECL_OPS+=("$v"); done < <(fm_list "$f" allow.ops 2>/dev/null || true)
+  if [[ "${FM_AVAILABLE:-0}" != "1" ]]; then SC_ERROR="frontmatter.sh を読み込めていない"; return 2; fi
+  [[ -f "$f" ]] || { SC_ERROR="チケットが無い: $f"; return 1; }
+  local tt
+  tt="$(fm_get "$f" ticket_type)" || rc=$?
+  (( rc == 2 )) && { SC_ERROR="frontmatter.sh を読み込めていない"; return 2; }
+  SC_TICKET_TYPE="${tt//$'\r'/}"
+  [[ -n "$SC_TICKET_TYPE" ]] || { SC_ERROR="ticket_type が無い: $f"; return 1; }
+  while IFS= read -r v; do v="${v//$'\r'/}"; [[ -n "$v" ]] && SC_DECL_WRITE+=("$v"); done < <(fm_list "$f" allow.write)
+  while IFS= read -r v; do v="${v//$'\r'/}"; [[ -n "$v" ]] && SC_DECL_OPS+=("$v"); done < <(fm_list "$f" allow.ops)
   SC_TICKET_LOADED=1
   return 0
 }
 
-# scope_load_approvals <approvals.json>（無ければ空）
+# scope_load_approvals
+#   hook_read_state が読んだ HC_APPROVALS を SC_APPROVED に詰め替えるだけ（パスを引数に取らない。DDR i0009-48）
+#   戻り 1 = 記録が壊れている（呼び手は無視して続けてよい。承認の記憶が空になるだけ）
 scope_load_approvals() {
-  local f="$1" v
+  local s rec k v
   SC_APPROVED=()
-  [[ -f "$f" ]] || return 0
-  command -v jq >/dev/null 2>&1 || return 0
-  while IFS= read -r v; do v="${v//$'\r'/}"; [[ -n "$v" ]] && SC_APPROVED+=("$v"); done < <(jq -r 'if type == "array" then .[].scope // empty else empty end' "$f" 2>/dev/null || true)
+  case "${HC_APPROVALS_STATE:-missing}" in
+    ok) ;;
+    broken) SC_ERROR="承認の記憶を解釈できない"; return 1 ;;
+    *) return 0 ;;
+  esac
+  s="${HC_APPROVALS:-}"
+  while [[ -n "$s" ]]; do
+    if [[ "$s" == *"$_SC_US"* ]]; then rec="${s%%"$_SC_US"*}"; s="${s#*"$_SC_US"}"; else rec="$s"; s=""; fi
+    [[ "$rec" == *"$_SC_KV"* ]] || continue
+    k="${rec%%"$_SC_KV"*}"; v="${rec#*"$_SC_KV"}"
+    [[ "$k" == "scope" && -n "$v" ]] && SC_APPROVED+=("$v")
+  done
   return 0
 }
 
@@ -242,6 +240,60 @@ _sc_classify_gh() { # $1=exe(gh|glab) $2..=args → REPLY=分類
   esac
 }
 
+# ---- curl / wget の 3 段判定（§8・DDR i0009-56 / i0009-57）----
+# 判定順を変えると穴が開く: (1) 送信側 → remote-write:upload（呼び手は宣言を見ずに deny WF206）/
+# (2) 出力先を持つ形 → write（SC_TARGETS に出力先。呼び手は §8 の判定を当てて WF205）/ (3) 残りが web。
+# 出力先は cmdpos_operands では取れない（オプション本体が落ち、URL と出力先を区別できない）。
+# cmdpos_args の引数列を先頭から走査し、出力先オプションの「次の語」を取る。`://` を含む語は URL とみなす。
+# `-O` / `--remote-name` と wget の既定は出力先の語を取らず、URL の basename を作業ツリー基準のカレントに作る（`_`）。
+# 注: curl は 200 以上のオプションを持つので、この列挙が網羅的かは確かめられない（.curlrc 経由の指定も見ていない）
+_SC_WEB_CMDS=' curl wget '
+_sc_web_is_get() { local m="${1^^}"; [[ "$m" == GET || "$m" == HEAD ]]; }
+_sc_classify_web() { # $1=実行体（REPLY_ARGS は呼び手が cmdpos_args 済み）
+  local exe="$1" a nxt val i n send=0 seen_o=0 dash_o=0
+  local -a outs=()
+  n="${#REPLY_ARGS[@]}"
+  for (( i = 0; i < n; i++ )); do
+    a="${REPLY_ARGS[i]}"
+    nxt="${REPLY_ARGS[i+1]:-}"
+    if [[ "$exe" == curl ]]; then
+      case "$a" in
+        -T|--upload-file|-d|--data|--data-raw|--data-binary|--data-urlencode|-F|--form) send=1 ;;
+        --data=*|--data-raw=*|--data-binary=*|--data-urlencode=*|--form=*|--upload-file=*) send=1 ;;
+        -X|--request) _sc_web_is_get "$nxt" || send=1 ;;
+        --request=*) val="${a#*=}"; _sc_web_is_get "$val" || send=1 ;;
+        -X?*) val="${a#-X}"; _sc_web_is_get "$val" || send=1 ;;
+        -o|--output|--output-dir) seen_o=1; [[ "$nxt" == "-" ]] && dash_o=1 || { [[ -n "$nxt" && "$nxt" != *://* ]] && outs+=("$nxt"); } ;;
+        --output=*|--output-dir=*) val="${a#*=}"; if [[ "$val" == "-" ]]; then dash_o=1; else seen_o=1; [[ -n "$val" && "$val" != *://* ]] && outs+=("$val"); fi ;;
+        -O|--remote-name) seen_o=1; outs+=("_") ;;
+      esac
+    else
+      case "$a" in
+        --post-file|--post-data|--body-file|--body-data) send=1 ;;
+        --post-file=*|--post-data=*|--body-file=*|--body-data=*) send=1 ;;
+        --method) _sc_web_is_get "$nxt" || send=1 ;;
+        --method=*) val="${a#*=}"; _sc_web_is_get "$val" || send=1 ;;
+        -O|--output-document) seen_o=1; [[ "$nxt" == "-" ]] && dash_o=1 || { [[ -n "$nxt" && "$nxt" != *://* ]] && outs+=("$nxt"); } ;;
+        --output-document=*) val="${a#*=}"; if [[ "$val" == "-" ]]; then dash_o=1; else seen_o=1; [[ -n "$val" && "$val" != *://* ]] && outs+=("$val"); fi ;;
+      esac
+    fi
+  done
+  # (1) 送信側は宣言の有無によらず拒否側へ（remote-write:<種別> の統制が迂回されるため）
+  if (( send )); then SC_CLASS="remote-write:upload"; SC_TARGETS=""; return 0; fi
+  # wget は既定で URL の basename に書く（-O - でなければ出力先を持つ）
+  if [[ "$exe" == wget ]] && (( ! seen_o )) && (( ! dash_o )); then outs+=("_"); fi
+  # (2) 出力先を持つ形は書き込みとして扱う
+  if (( ${#outs[@]} > 0 )); then
+    SC_CLASS="write"
+    SC_TARGETS=""
+    for a in "${outs[@]}"; do SC_TARGETS+="${SC_TARGETS:+$_SC_US}$a"; done
+    return 0
+  fi
+  # (3) 残りが web（`curl <url>` の既定は標準出力、`wget -O -` も書き込みに当たらない）
+  SC_CLASS="web"; SC_TARGETS=""
+  return 0
+}
+
 # scope_classify <セグメント番号>（cmdpos_parse 済み）→ provided / hook-test / build-test / read / remote-read /
 #   remote-write:<種別> / merge-base / write（SC_TARGETS に宛先）/ opaque / unknown を出力
 scope_classify() {
@@ -255,6 +307,8 @@ scope_classify() {
     SC_CLASS="hook-test"
   elif [[ -n "${CP_PROVIDED[$i]:-}" ]]; then
     SC_CLASS="provided"
+  elif [[ "$_SC_WEB_CMDS" == *" $exe "* ]]; then
+    _sc_classify_web "$exe"
   elif [[ -n "${CP_REDIRECTS[$i]:-}" || -n "${CP_WRITE_TARGETS[$i]:-}" ]]; then
     SC_CLASS="write"
     SC_TARGETS="${CP_WRITE_TARGETS[$i]:-}${CP_WRITE_TARGETS[$i]:+${CP_REDIRECTS[$i]:+$_SC_US}}${CP_REDIRECTS[$i]:-}"

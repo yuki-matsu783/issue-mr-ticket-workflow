@@ -58,6 +58,21 @@ base_sha: "c3440fc"
   - `session_id` は実 UUID（`ee9cc8e9-…`）。`logs/sessions/<uuid>/entry.json` が作られ、UserPromptSubmit で `prompt_seq=1`、PreToolUse `Skill` で `declared_skill=00-workflow-issue-mr-driven` が記録された
   - Read（matcher 外・無反応）→ Skill 宣言（記録）→ Edit → `commit.sh` の順で通し、**想定外の deny は 0 件**
   - **`WF601` が `settings.json` の変更を毎回列挙する**: このチケットは `.claude/settings.json` を `allow.write` に宣言しているのに、`common.confirm`（判定 4）が許可範囲（判定 5）より先に効いて `WF203` 扱いになるため。登録作業のチケットでは避けられないノイズ（0032 へ）
+- **ホットパスの実行時間を実測した**（`wip/tmp/timing.sh`。`bash <script> < wip/tmp/input.json` を各 10 回。他の重い処理を止めた状態）:
+
+| フック | 10 回 | 1 回 |
+|---|---|---|
+| block-chmod | 3234 ms | **323 ms** |
+| block-direct-git | 3472 ms | **347 ms** |
+| workflow-entry | 4137 ms | **413 ms** |
+| workflow-state-guard | 4840 ms | **484 ms** |
+| workflow-guard | 6423 ms | **642 ms** |
+| post-push-usage-report | 4311 ms | 431 ms |
+| post-push-usage-report --accumulate | 4262 ms | 426 ms |
+
+  - 目安（1 秒以内）は 5 本とも満たす。5 本は**並列に走る**ので 1 ツール呼び出しの待ちは合計（2.2 秒）ではなく最大値（0.64 秒）＋起動のオーバーヘッドに近い
+  - **0030 の結果報告に書いた「フック 1 回 = 約 1.9 秒」は誤り**。全件テストを 2 本同時に走らせている最中に測っていた（競合下の値）。同じ理由で「`test_workflow_guard` は 5 分 07 秒」も誤りで、静かな状態では **1 分 47 秒**（既定の 120 秒に収まる）。0030 の報告と PR 本文を訂正した
+  - `hc_lock` の陳腐化 60 秒は、`--accumulate` が 0.43 秒で終わることに対して十分に長い（ロックを取ったまま落ちたプロセスの検知までの猶予として妥当）
 - 次にやること: 人間が `cp wip/tmp/settings-stage2-1.json .claude/settings.json`（段階 ②-1）
 - 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（段階 ② が終われば通る）
 
@@ -74,6 +89,14 @@ base_sha: "c3440fc"
 ### 使った AI アセットと効き目
 
 ### スコープ外で見つけたこと
+
+- **作業ツリーの外を WF209 で拒否する判断（0030 の r2）は、メモリ機構と衝突する**。Claude Code のメモリは
+  `~/.claude/projects/<project>/memory/` にあり、リポジトリの外にある。段階 ②-4（workflow-guard）を登録すると
+  **メモリの書き込みが全部 WF209 で止まる**（このチケットの途中で 1 件書いた。登録後は書けなくなる）。
+  取りうる案は 3 つ: (a) このまま拒否し、メモリは使わない / (b) 上限設定に「作業ツリー外でも書いてよい場所」を足す /
+  (c) 作業ツリー外はファイル単位の確認（WF202）に戻す。**設定・仕様の判断なので 0032 へ送る**
+- **PR 本文の訂正はこのチケットの `allow.ops` に無い**（`remote-write:mr-edit` を宣言していない）ため、
+  ワークの切れ目（手順 5-3）で行う。0030 の性能の記述を訂正する必要がある
 
 ### AI アセットに反映すべき内容
 

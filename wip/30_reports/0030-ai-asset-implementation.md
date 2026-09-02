@@ -60,7 +60,7 @@ keywords: [workflow-entry, workflow-state-guard, block-direct-git, workflow-guar
 - **PowerShell の読み取り系がすべて WF204 になる**ことは分かっているが、直していない（§8 の読み取り一覧は bash 前提）
 - **`hook_read_state` のバグが本番でどこまで影響していたか**は追っていない（未登録なので実害は無いはずだが、0029 / 0038 のテストは修正後に回し直した）
 - **`shellcheck` は 8 巡連続で未導入**
-- **フックの実行時間を「1 本あたり」でしか測っていない**。5 本を登録したときの 1 ツール呼び出しあたりの待ちは 0031 の実測に委ねる
+- **5 本を登録したときの 1 ツール呼び出しあたりの待ちを実測していない**（1 本あたりの値だけ。並列に走るので最大値に近いはず）
 
 ## 実施条件（読んだ対象）
 
@@ -140,13 +140,21 @@ keywords: [workflow-entry, workflow-state-guard, block-direct-git, workflow-guar
 | `test_workflow_diff_check.sh` / `test_subagent_stop_check.sh`（修正の影響確認） | 48 / 57 | FAIL 0 |
 | `test_templates.sh`（SS-T05: `__ss_load` 行のバイト一致） | 43 | FAIL 0 |
 | プローブ `wip/tmp/adv0030.sh`（すり抜け 15 本（MultiEdit の 1 本を含む））/ `adv0030b.sh`（偽陽性 11 本） | — | 直す前の再現と直した後の解消を実測 |
-| 全件テスト（既定ロケール / `LC_ALL=C`。`--timeout 600`） | 25 本 / 161 件 | FAIL 0（両ロケール） |
+| 全件テスト（既定ロケール / `LC_ALL=C`） | 25 本 / 161 件 | FAIL 0（両ロケール。実行時は `--timeout 600` を付けたが、上の訂正のとおり既定の 120 秒で足りる） |
 
 ホットパス 5 本の外部プロセスは `make_counting_path` で固定した。
 
-**テストの重さ**: `test_workflow_guard.sh` は単体で **5 分 07 秒**かかり、`run-tests.sh` の既定の上限（120 秒）を超える。判定 1 件がフック 1 プロセス（約 1.9 秒）で、147 件あるため。全件テストは `--timeout 600` で回した。既定の 120 秒では 5 本が TIMEOUT する（`test_workflow_guard` / `test_workflow_state_guard` は今回追加、`test_post_push_usage_report` / `test_check_html` / `test_ticket` は既存）。
+**訂正（0031 で測り直した）**: ここに書いていた「フック 1 回 = 約 1.9 秒 / `test_workflow_guard.sh` は 5 分 07 秒 / 既定の 120 秒では 5 本が TIMEOUT」は**競合下の測定で、誤りだった**（全件テストを 2 本同時に走らせている最中に測っていた）。他の重い処理を止めて測り直した値は次のとおりで、`--timeout 600` は必要ない。
 
-**フック 1 回の内訳**（Windows / Git Bash）: bash 起動 0.3 秒 + 共有ライブラリ 3 本の読み込み 0.48 秒（hook-common 0.26 / cmdpos 0.12 / scope 0.10）+ 内部の jq 0.24 秒 + 記録の書き込み。**5 本を登録すると 1 ツール呼び出しあたりの待ちが無視できない**ので、0031 の実測（T1〜T4）で確かめる。
+| フック（10 回の平均） | 1 回 |
+|---|---|
+| block-chmod | 323 ms |
+| block-direct-git | 347 ms |
+| workflow-entry | 413 ms |
+| workflow-state-guard | 484 ms |
+| workflow-guard | 642 ms |
+
+`test_workflow_guard.sh` は単体で **1 分 47 秒**（既定の 120 秒に収まる）。ホットパス 5 本は**並列に走る**ので、1 ツール呼び出しの待ちは合計（2.2 秒）ではなく最大値（0.64 秒）に近い。仕様の目安（1 秒以内）は 5 本とも満たす。
 
 | フック | jq | git / date / sed / find |
 |---|---|---|
@@ -167,7 +175,6 @@ keywords: [workflow-entry, workflow-state-guard, block-direct-git, workflow-guar
 5. `workflow-guard.md`: WF208 の判定は入れ子の `write:` / `ops:` の行も見る
 6. `workflow-guard.md`: WG-T05（`confirm` の例示）と WG-T17（`wget --method=GET`）を実装に合わせて直す
 7. `workflow-guard.md`: 作業中が 2 枚以上のとき、プランモードも WF207 に含める（どちらのチケットの `plan_mode` を見るか決まらないため）
-8. `20-common-step-shell-script.md`: `run-tests.sh` の既定の上限（120 秒）に収まらないテストの扱い（テストを軽くするか、テスト側で上限を宣言できるようにするか）
 
 ## 想定と異なった点
 
@@ -183,5 +190,4 @@ keywords: [workflow-entry, workflow-state-guard, block-direct-git, workflow-guar
 - **0032（設計反映）**: 上記 6 件 + 0029 / 0038 からの累積
 - **`python` と PowerShell の読み取り系が既定拒否**（r1・上記 3）。設定・仕様の判断が要る
 - **ロックアウトの実測が無い**。0031 の段階登録で、実際に止まる操作を観察する
-- **テストが重い / フックが遅い**: `run-tests.sh` の既定の上限（120 秒）を超えるテストが 5 本。テストを軽くするか既定値を上げるかは 0032 で決める
 - `shellcheck` 未導入（8 巡連続）／`check-html.sh` が md と HTML の内容一致を検査しない（19 回連続）

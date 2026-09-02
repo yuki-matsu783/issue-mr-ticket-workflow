@@ -155,8 +155,8 @@
 
   <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 0</span>
-    <span class="chip warn">△注意 1</span>
+    <span class="chip good">◎良 1</span>
+    <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 5</span>
   </p>
 
@@ -175,7 +175,7 @@
           <li><a href="#f3"><span class="mk stop">✕</span> 3. ふつうのシェルのループが既定拒否で止まった</a></li>
           <li><a href="#f4"><span class="mk stop">✕</span> 4. hook_read_state が常に空を返していた（共有ライブラリ）</a></li>
           <li><a href="#f5"><span class="mk stop">✕</span> 5. WF208 が入れ子の宣言行をすり抜けた</a></li>
-          <li><a href="#f6"><span class="mk warn">△</span> 6. テストが重く、フック 1 回が約 1.9 秒かかる</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. ホットパス 5 本はいずれも 1 秒以内（0031 で測り直した）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -202,8 +202,8 @@
 <section id="overview" data-required>
   <p class="lead">拒否側のフック 4 本（workflow-entry / workflow-state-guard / block-direct-git / workflow-guard）を実装した。判定規則はフック側に持たせず、共有ライブラリ（cmdpos.sh / scope.sh / hook-common.sh）の戻り値だけで分岐している。<b>敵対的セルフレビューは 2 巡</b>行い、1 巡目を「拒否をすり抜けられるか」、2 巡目を「正当な操作を止めていないか（= ロックアウト）」に分けた。実物へ入力を流すプローブで、読みだけでは出なかった 3 件が実測で出た。あわせて共有ライブラリの重大バグ（hook_read_state が常に空）を見つけて直した。全件テストは 2 ロケールで 25 本 / 161 件・FAIL 0。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>0</b><span>◎良</span></li>
-    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi good"><b>1</b><span>◎良</span></li>
+    <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>5</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
@@ -245,7 +245,7 @@
       <li><b>ロックアウトの実測をしていない</b>。2 巡目のプローブは「このチケットでやった操作」を並べただけ</li>
       <li><b>PowerShell の読み取り系がすべて WF204 になる</b>ことは分かっているが、直していない（§8 の読み取り一覧は bash 前提）</li>
       <li><b>hook_read_state のバグが本番でどこまで影響していたか</b>は追っていない（未登録なので実害は無いはず）</li>
-      <li><b>フックの実行時間を「1 本あたり」でしか測っていない</b>。5 本登録したときの待ちは 0031 の実測に委ねる</li>
+      <li><b>5 本を登録したときの 1 ツール呼び出しあたりの待ちを実測していない</b>（1 本あたりの値だけ。並列に走るので最大値に近いはず）</li>
       <li><b>shellcheck は 8 巡連続で未導入</b></li>
     </ul>
   </div>
@@ -339,18 +339,18 @@
       </div>
     </li>
     <li class="tl-item">
-      <span class="tl-dot warn">6</span>
-      <h3 id="f6">テストが重く、フック 1 回が約 1.9 秒かかる <span class="chip warn">△注意</span> <span class="basis">根拠: time による実測（test_workflow_guard.sh 単体で 5 分 07 秒）</span></h3>
-      <p>判定 1 件がフック 1 プロセスになるため、147 件のテストが run-tests.sh の既定の上限（120 秒）を超える。内訳は bash 起動 0.3 秒 + 共有ライブラリ 3 本の読み込み 0.48 秒（hook-common 0.26 / cmdpos 0.12 / scope 0.10） + 内部の jq 0.24 秒 + 記録の書き込み。5 本を登録すると 1 ツール呼び出しあたりの待ちが無視できない。</p>
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">ホットパス 5 本はいずれも 1 秒以内（0031 で測り直した） <span class="chip good">◎良</span> <span class="basis">根拠: bash <script> < input.json を各 10 回（他の重い処理を止めた状態）</span></h3>
+      <p>この報告に最初に書いた「フック 1 回 = 約 1.9 秒 / test_workflow_guard.sh は 5 分 07 秒 / 既定の 120 秒では 5 本が TIMEOUT」は競合下の測定で誤りだった（全件テストを 2 本同時に走らせている最中に測っていた）。静かな状態で測り直すと仕様の目安（1 秒以内）を 5 本とも満たし、--timeout 600 も要らない。</p>
       <details>
         <summary>根拠を見る（実行コマンドと出力）</summary>
-        <pre><code>$ time bash .claude/hooks/20-PreToolUse/tests/test_workflow_guard.sh
-passed=147 failures=0
-real 5m07.096s</code></pre>
+        <pre><code>block-chmod 323 ms / block-direct-git 347 ms / workflow-entry 413 ms
+workflow-state-guard 484 ms / workflow-guard 642 ms
+test_workflow_guard.sh 単体 = 1m46.991s（既定の 120 秒に収まる）</code></pre>
       </details>
-      <div class="box warn">
+      <div class="box ok">
         <p class="label">結論</p>
-        <p>全件テストは --timeout 600 で回して FAIL 0 を確認した。テストを軽くするか既定値を上げるかは 0032 で決める。フック自体の速さは 0031 の実測（T1〜T4）に送る。</p>
+        <p>ホットパス 5 本は並列に走るので、1 ツール呼び出しの待ちは合計（2.2 秒）ではなく最大値（0.64 秒）に近い。5 本同時の実測は 0031 に残る。</p>
       </div>
     </li>
     <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
@@ -374,7 +374,7 @@ real 5m07.096s</code></pre>
       <tr><td>test_workflow_diff_check.sh / test_subagent_stop_check.sh（影響確認）</td><td>48 件 / 57 件 FAIL 0</td></tr>
       <tr><td>test_templates.sh（SS-T05: __ss_load 行のバイト一致）</td><td>43 件 FAIL 0</td></tr>
       <tr><td>プローブ wip/tmp/adv0030.sh（すり抜け 15 本）/ adv0030b.sh（偽陽性 11 本）</td><td>直す前の再現と直した後の解消を実測</td></tr>
-      <tr><td>全件テスト（既定ロケール / LC_ALL=C。--timeout 600）</td><td>25 本 / 161 件 FAIL 0（両ロケール）</td></tr>
+      <tr><td>全件テスト（既定ロケール / LC_ALL=C）</td><td>25 本 / 161 件 FAIL 0（両ロケール）</td></tr>
     </tbody>
   </table>
   </div>
@@ -391,7 +391,6 @@ real 5m07.096s</code></pre>
     <li>workflow-guard.md: WF208 の判定は入れ子の write: / ops: の行も見る</li>
     <li>workflow-guard.md: WG-T05（confirm の例示）と WG-T17（wget --method=GET）を実装に合わせて直す</li>
     <li>workflow-guard.md: 作業中が 2 枚以上のとき、プランモードも WF207 に含める</li>
-    <li>20-common-step-shell-script.md: run-tests.sh の既定の上限（120 秒）に収まらないテストの扱い</li>
   </ol>
 </section>
 
@@ -418,7 +417,6 @@ real 5m07.096s</code></pre>
     <li>0032（設計反映）: 上記 8 件 + 0029 / 0038 からの累積</li>
     <li>python と PowerShell の読み取り系が既定拒否（r1）。設定・仕様の判断が要る</li>
     <li>ロックアウトの実測が無い。0031 の段階登録で、実際に止まる操作を観察する</li>
-    <li>テストが重い / フックが遅い: run-tests.sh の既定の上限（120 秒）を超えるテストが 5 本</li>
     <li>shellcheck 未導入（8 巡連続）／check-html.sh が md と HTML の内容一致を検査しない（19 回連続）</li>
   </ul>
 </section>

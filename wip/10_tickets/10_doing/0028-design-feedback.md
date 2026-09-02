@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "フェーズ 6 の敵対的レビ�
 allow:
   write: ["apl/*/docs/**", "docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:28:13+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "af98b4d"
 ---
 
 # 0028 設計反映: 拡張の設計文書を apl/vscode-ticket-board/docs/ へ移し、配置図・DDR の状態・節名を揃える

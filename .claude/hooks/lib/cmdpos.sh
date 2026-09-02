@@ -280,7 +280,9 @@ _cp_emit_segment() {
     *)
       for t in "${args[@]}"; do [[ "$t" == -* ]] && continue; subcmd="${t,,}"; break; done ;;
   esac
-  if [[ "$_CP_OPAQUE_WORDS" == *" $exe "* ]]; then opaque=1
+  # 実行体が変数展開（`$CMD` / `${CMD}`）なら何が走るか分からないので opaque
+  if [[ "$exe" == \$* ]]; then opaque=1
+  elif [[ "$_CP_OPAQUE_WORDS" == *" $exe "* ]]; then opaque=1
   elif [[ "$exe" == find ]]; then
     for t in "${args[@]}"; do [[ "$_CP_FIND_EXEC_OPTS" == *" ${t,,} "* ]] && { opaque=1; break; }; done
   elif [[ "$_CP_OPAQUE_WITH_OPT" == *" $exe "* ]]; then

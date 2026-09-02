@@ -29,6 +29,8 @@ assert_eq "HK-T02" "15" "$(printf '%s\n' "$json_types" | grep -c .)"
 assert_eq "HK-T02" "allow confirm file_granular protected state_files" "$(tl_jq -r '.common | keys | join(" ")' "$JSON")"
 assert_eq "HK-T02" "true" "$(tl_jq -r '[.types[] | has("ops")] | all' "$JSON")"
 assert_eq "HK-T02" "array" "$(tl_jq -r '.commands["build-test"] | type' "$JSON")"
+# HK-T02 アプリのテストコマンドが commands.build-test に列挙されている（列挙が無いと npm test が WF204 で止まる）
+assert_eq "HK-T02" "npm --prefix apl/vscode-ticket-board test / npm test" "$(tl_jq -r '.commands["build-test"] | sort | join(" / ")' "$JSON")"
 assert_eq "HK-T02" "6" "$(awk -F'\t' '{ print NF }' "$TSV" | sort -u | tr -d '\n')"
 # 対の相手が type 集合の中にあるか（- を除く）
 bad_pairs="$(grep -v '^#' "$TSV" | cut -f6 | tr -d '\r' | grep -v '^-$' | sort -u | comm -23 - <(printf '%s\n' "$json_types"))"

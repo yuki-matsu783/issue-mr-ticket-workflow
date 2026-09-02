@@ -23,5 +23,5 @@
     "ai-asset-implementation": {"allow": [".claude/skills/**", ".claude/hooks/**", ".claude/rules/**", ".claude/agents/**", ".claude/settings.json", ".claude/evals/**", "CLAUDE.md", ".gitattributes"], "deny": [".claude/docs/**", "apl/**"], "ops": ["read", "build-test", "hook-test", "remote-read"]},
     "overall-summary": {"ops": ["read", "remote-read", "remote-write:issue-create", "remote-write:mr-edit", "remote-write:mr-comment", "remote-write:attach", "remote-write:push", "remote-write:draft-ready", "merge-base"]}
   },
-  "commands": {"build-test": []}
+  "commands": {"build-test": ["npm test", "npm --prefix apl/vscode-ticket-board test"]}
 }

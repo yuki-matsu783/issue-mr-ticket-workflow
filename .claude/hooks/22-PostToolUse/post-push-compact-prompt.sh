@@ -89,7 +89,8 @@ __cp_default="${__cp_default//$'\r'/}"; __cp_default="${__cp_default#origin/}"
 # MR の記録（無ければ MR 依存のリンクを省く）
 __cp_mr=""
 if [[ -f "$HOOK_WORKTREE/logs/mr.json" ]] && command -v jq >/dev/null 2>&1; then
-  __cp_mr="$(jq -r '(.number // .iid // empty) | tostring' "$HOOK_WORKTREE/logs/mr.json" 2>/dev/null | tr -d '\r' || true)"
+  # 正のキーは mr（00-workflow-issue-mr-driven 仕様の logs/mr.json）。number / iid は別実装からの受け皿
+  __cp_mr="$(jq -r '(.mr // .number // .iid // empty) | tostring' "$HOOK_WORKTREE/logs/mr.json" 2>/dev/null | tr -d '\r' || true)"
   [[ "$__cp_mr" =~ ^[0-9]+$ ]] || __cp_mr=""
 fi
 
@@ -155,11 +156,16 @@ fi
 __cp_now=""
 printf -v __cp_now '%(%Y-%m-%dT%H:%M:%S%z)T' -1
 if command -v jq >/dev/null 2>&1; then
-  __cp_new="$(jq -nc --arg b "$PD_BRANCH" --arg sha "$PD_HEAD" --arg at "$__cp_now" \
+  # 既存の状態はファイルから直に読む。--slurpfile にプロセス置換（/dev/fd/63）を渡すと
+  # Windows の jq が開けず、状態が 1 度も書かれないまま黙って終わる（実測で確認）
+  __cp_cur="{}"
+  if [[ -f "$__CP_STATE" ]]; then
+    __cp_cur="$(jq -c 'if type == "object" then . else {} end' "$__CP_STATE" 2>/dev/null || printf '{}')"
+    [[ -n "$__cp_cur" ]] || __cp_cur="{}"
+  fi
+  __cp_new="$(printf '%s' "$__cp_cur" | jq -c --arg b "$PD_BRANCH" --arg sha "$PD_HEAD" --arg at "$__cp_now" \
       --argjson c "$(( __CP_PREV_COUNT + 1 ))" \
-      --slurpfile cur <(cat "$__CP_STATE" 2>/dev/null || printf '{}') \
-      '(($cur[0] // {}) | if type == "object" then . else {} end)
-       | .[$b] = {sha: $sha, at: $at, count: $c}' 2>/dev/null || true)"
+      '.[$b] = {sha: $sha, at: $at, count: $c}' 2>/dev/null || true)"
   if [[ -n "$__cp_new" ]]; then
     hc_json_write "$__CP_STATE" "$__cp_new" || log_warn "push-state.json を更新できない"
   fi

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "フェーズごとに 1 回の敵�
 allow:
   write: [".claude/rules/**", ".claude/evals/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:22:31+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "20c857d"
 ---
 
 # 0011 実装: design-docs / ai-asset-design-docs ルール本体と eval 定義

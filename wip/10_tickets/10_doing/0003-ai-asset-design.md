@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ユーザー合意により人間
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T07:44:21+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "5da2e8a"
 ---
 
 # 0003 要件定義書の型の改訂（要件書・仕様書）と見本 1〜2 件の書き直し

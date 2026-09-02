@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 # scope.sh — 許可範囲の判定（source 専用）
 # 仕様: .claude/docs/10_spec/フック共通仕様.md §8（上限設定・判定順・glob 規則・ops の分類）、§9（チケットの機械可読項目）
-# 提供: scope_load <scope-limits.json> [type] / scope_load_ticket <チケット> / scope_load_approvals <approvals.json> /
+# 提供: scope_load [type] / scope_load_ticket <チケット> / scope_load_approvals /
 #       scope_match <glob> <path> / scope_resolve <path> / scope_op_declared <分類> / scope_classify <セグメント番号>
 # 結果: scope_resolve → SC_DECISION（skip|deny|ask|allow）/ SC_ID（WF201|WF202|WF203|空）/ SC_STAGE（判定順の番号）/
 #       SC_ASK_SCOPE（WF202 の承認単位）。scope_classify → 分類名を出力し SC_CLASS / SC_TARGETS（US 区切り）に置く
 # 依存: frontmatter.sh（読み込み行。読めなければ deny に倒す）、cmdpos.sh（scope_classify が CP_* を読む）
 # 規則: `*` は `/` を跨がず `**` は跨ぐ。宣言（allow.write / allow.ops）は上限の内側で絞る役（上限外の要素は無視）。
-#       `common.confirm` はどの type の allow より優先して ask になる。純 bash（jq は設定の読み込みで 1 回）
+#       `common.confirm` はどの type の allow より優先して ask になる。純 bash（jq を呼ばない。設定は
+#       hook_read_input が読んだ HC_LIMITS / HC_APPROVALS から詰め替えるだけ。DDR i0009-48）
 
 # 直接実行されたら何もしない
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 0; fi
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load frontmatter deny
 
 _SC_US=$'\x1e'   # レコード区切り（hook_read_input の副入力と同じ）
@@ -248,54 +249,103 @@ _sc_classify_gh() { # $1=exe(gh|glab) $2..=args → REPLY=分類
 # `-O` / `--remote-name` と wget の既定は出力先の語を取らず、URL の basename を作業ツリー基準のカレントに作る（`_`）。
 # 注: curl は 200 以上のオプションを持つので、この列挙が網羅的かは確かめられない（.curlrc 経由の指定も見ていない）
 _SC_WEB_CMDS=' curl wget '
+# 値を取る短オプション（束ねた形 `-sd @f` を正しく割るために要る）。curl の -O は値を取らず、wget の -O は取る
+_SC_WEB_VOPT_CURL='AbcCdDeEFHKmoPrtTuUwxXyYz'
+_SC_WEB_VOPT_WGET='OoaiBtTwQPARDeU'
 _sc_web_is_get() { local m="${1^^}"; [[ "$m" == GET || "$m" == HEAD ]]; }
-_sc_classify_web() { # $1=実行体（REPLY_ARGS は呼び手が cmdpos_args 済み）
-  local exe="$1" a nxt val i n send=0 seen_o=0 dash_o=0
+
+# _sc_classify_web <実行体> <セグメント番号>（REPLY_ARGS は呼び手が cmdpos_args 済み）
+# (1) 送信側（本文・ファイルを送る / GET・HEAD 以外のメソッド）→ remote-write:upload。宣言によらず拒否側へ倒す
+#     （改定前は curl が既定拒否で閉じていた経路。web を通す決定でここを開けてはならない）
+# (2) 出力先を持つ形 → write（SC_TARGETS に宛先。呼び手が §8 の判定を当てて WF205）
+# (3) 残りが web（`curl <url>` の既定は標準出力、`wget -O -` も書き込みに当たらない）
+# 送信側と出力先が同時に成り立つときは SC_CLASS=remote-write:upload のまま SC_TARGETS も埋める。
+# 呼び手は SC_TARGETS が空でなければ WF205 の判定も当てること（片方だけ見ると、もう片方が素通りする）。
+# シェルのリダイレクト（`curl <url> > <path>`）は cmdpos が CP_REDIRECTS に持っているので必ず合流させる。
+# 注: curl は 200 以上のオプションを持つので、この列挙が網羅的かは確かめられない（.curlrc 経由の指定も見ていない）
+_sc_classify_web() {
+  local exe="$1" seg="$2" a nxt val rest ch vopts i n j last send=0 dash_o=0 took=0
   local -a outs=()
+  if [[ "$exe" == curl ]]; then vopts="$_SC_WEB_VOPT_CURL"; else vopts="$_SC_WEB_VOPT_WGET"; fi
   n="${#REPLY_ARGS[@]}"
   for (( i = 0; i < n; i++ )); do
     a="${REPLY_ARGS[i]}"
     nxt="${REPLY_ARGS[i+1]:-}"
-    if [[ "$exe" == curl ]]; then
-      case "$a" in
-        -T|--upload-file|-d|--data|--data-raw|--data-binary|--data-urlencode|-F|--form) send=1 ;;
-        --data=*|--data-raw=*|--data-binary=*|--data-urlencode=*|--form=*|--upload-file=*) send=1 ;;
-        -X|--request) _sc_web_is_get "$nxt" || send=1 ;;
-        --request=*) val="${a#*=}"; _sc_web_is_get "$val" || send=1 ;;
-        -X?*) val="${a#-X}"; _sc_web_is_get "$val" || send=1 ;;
-        -o|--output|--output-dir) seen_o=1; [[ "$nxt" == "-" ]] && dash_o=1 || { [[ -n "$nxt" && "$nxt" != *://* ]] && outs+=("$nxt"); } ;;
-        --output=*|--output-dir=*) val="${a#*=}"; if [[ "$val" == "-" ]]; then dash_o=1; else seen_o=1; [[ -n "$val" && "$val" != *://* ]] && outs+=("$val"); fi ;;
-        -O|--remote-name) seen_o=1; outs+=("_") ;;
-      esac
-    else
-      case "$a" in
-        --post-file|--post-data|--body-file|--body-data) send=1 ;;
-        --post-file=*|--post-data=*|--body-file=*|--body-data=*) send=1 ;;
-        --method) _sc_web_is_get "$nxt" || send=1 ;;
-        --method=*) val="${a#*=}"; _sc_web_is_get "$val" || send=1 ;;
-        -O|--output-document) seen_o=1; [[ "$nxt" == "-" ]] && dash_o=1 || { [[ -n "$nxt" && "$nxt" != *://* ]] && outs+=("$nxt"); } ;;
-        --output-document=*) val="${a#*=}"; if [[ "$val" == "-" ]]; then dash_o=1; else seen_o=1; [[ -n "$val" && "$val" != *://* ]] && outs+=("$val"); fi ;;
-      esac
+    if [[ "$a" == --* ]]; then
+      # 長オプションは前方一致で見る（`--data-raw` `--output-dir` `--form-string` などの派生を取りこぼさない）
+      val=""; took=0
+      case "$a" in *=*) val="${a#*=}" ;; esac
+      if [[ "$exe" == curl ]]; then
+        case "$a" in
+          --data*|--form*|--upload-file*|--json|--json=*|--mail-from*|--mail-rcpt*) send=1 ;;
+          --request|--request=*) [[ "$a" == *=* ]] || { val="$nxt"; took=1; }; _sc_web_is_get "$val" || send=1 ;;
+          --output|--output-dir|--dump-header|--cookie-jar|--etag-save|--stderr|--trace|--trace-ascii)
+            val="$nxt"; took=1; _sc_web_add_out "$val" ;;
+          --output=*|--output-dir=*|--dump-header=*|--cookie-jar=*|--etag-save=*|--stderr=*|--trace=*|--trace-ascii=*)
+            _sc_web_add_out "$val" ;;
+          --remote-name|--remote-name-all) outs+=("_") ;;
+        esac
+      else
+        case "$a" in
+          --post-data*|--post-file*|--body-data*|--body-file*) send=1 ;;
+          --method|--method=*) [[ "$a" == *=* ]] || { val="$nxt"; took=1; }; _sc_web_is_get "$val" || send=1 ;;
+          --output-document|--output-file|--append-output) val="$nxt"; took=1; _sc_web_add_out "$val" ;;
+          --output-document=*|--output-file=*|--append-output=*) _sc_web_add_out "$val" ;;
+        esac
+      fi
+      (( took )) && i=$(( i + 1 ))
+      continue
     fi
+    [[ "$a" == -?* ]] || continue
+    # 束ねた短オプション（`-sd @f` `-sO`）。値を取る文字が末尾なら次の語、途中なら残りが値
+    rest="${a#-}"
+    last=$(( ${#rest} - 1 ))
+    for (( j = 0; j <= last; j++ )); do
+      ch="${rest:j:1}"
+      val=""; took=0
+      if [[ "$vopts" == *"$ch"* ]]; then
+        if (( j == last )); then val="$nxt"; took=1; else val="${rest:j+1}"; fi
+      fi
+      case "$ch" in
+        d|T|F) [[ "$exe" == curl ]] && send=1 ;;
+        X)     [[ "$exe" == curl ]] && { _sc_web_is_get "$val" || send=1; } ;;
+        o)     _sc_web_add_out "$val" ;;
+        D|c|C) [[ "$exe" == curl ]] && _sc_web_add_out "$val" ;;
+        O)     if [[ "$exe" == curl ]]; then outs+=("_"); else _sc_web_add_out "$val"; fi ;;
+      esac
+      if [[ "$vopts" == *"$ch"* ]]; then
+        (( took )) && i=$(( i + 1 ))
+        break
+      fi
+    done
   done
-  # (1) 送信側は宣言の有無によらず拒否側へ（remote-write:<種別> の統制が迂回されるため）
-  if (( send )); then SC_CLASS="remote-write:upload"; SC_TARGETS=""; return 0; fi
-  # wget は既定で URL の basename に書く（-O - でなければ出力先を持つ）
-  if [[ "$exe" == wget ]] && (( ! seen_o )) && (( ! dash_o )); then outs+=("_"); fi
-  # (2) 出力先を持つ形は書き込みとして扱う
-  if (( ${#outs[@]} > 0 )); then
-    SC_CLASS="write"
-    SC_TARGETS=""
-    for a in "${outs[@]}"; do SC_TARGETS+="${SC_TARGETS:+$_SC_US}$a"; done
-    return 0
-  fi
-  # (3) 残りが web（`curl <url>` の既定は標準出力、`wget -O -` も書き込みに当たらない）
-  SC_CLASS="web"; SC_TARGETS=""
+  # wget は既定で URL の basename に書く（-O - でも -O file でもなければ出力先を持つ）
+  if [[ "$exe" == wget ]] && (( ${#outs[@]} == 0 )) && (( ! dash_o )); then outs+=("_"); fi
+  # シェルのリダイレクトと、cmdpos が拾った書き込み先を必ず合流させる
+  local extra
+  for extra in "${CP_WRITE_TARGETS[$seg]:-}" "${CP_REDIRECTS[$seg]:-}"; do
+    while [[ -n "$extra" ]]; do
+      if [[ "$extra" == *"$_SC_US"* ]]; then val="${extra%%"$_SC_US"*}"; extra="${extra#*"$_SC_US"}"; else val="$extra"; extra=""; fi
+      [[ -n "$val" ]] && outs+=("$val")
+    done
+  done
+  SC_TARGETS=""
+  for a in ${outs[@]+"${outs[@]}"}; do SC_TARGETS+="${SC_TARGETS:+$_SC_US}$a"; done
+  if (( send )); then SC_CLASS="remote-write:upload"; return 0; fi
+  if (( ${#outs[@]} > 0 )); then SC_CLASS="write"; return 0; fi
+  SC_CLASS="web"
+  return 0
+}
+# 出力先を 1 つ足す。`-` は標準出力、`://` を含む語は URL なので出力先ではない
+_sc_web_add_out() {
+  local v="${1:-}"
+  if [[ "$v" == "-" ]]; then dash_o=1; return 0; fi
+  [[ -n "$v" && "$v" != *://* ]] && outs+=("$v")
   return 0
 }
 
 # scope_classify <セグメント番号>（cmdpos_parse 済み）→ provided / hook-test / build-test / read / remote-read /
-#   remote-write:<種別> / merge-base / write（SC_TARGETS に宛先）/ opaque / unknown を出力
+#   remote-write:<種別> / remote-write:upload / merge-base / web / write（SC_TARGETS に宛先）/ opaque / unknown を出力
 scope_classify() {
   local i="$1" exe="" first="" segstr="" e t
   exe="${CP_EXE[$i]:-}"
@@ -308,7 +358,7 @@ scope_classify() {
   elif [[ -n "${CP_PROVIDED[$i]:-}" ]]; then
     SC_CLASS="provided"
   elif [[ "$_SC_WEB_CMDS" == *" $exe "* ]]; then
-    _sc_classify_web "$exe"
+    _sc_classify_web "$exe" "$i"
   elif [[ -n "${CP_REDIRECTS[$i]:-}" || -n "${CP_WRITE_TARGETS[$i]:-}" ]]; then
     SC_CLASS="write"
     SC_TARGETS="${CP_WRITE_TARGETS[$i]:-}${CP_WRITE_TARGETS[$i]:+${CP_REDIRECTS[$i]:+$_SC_US}}${CP_REDIRECTS[$i]:-}"

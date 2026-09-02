@@ -6,7 +6,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 # shellcheck disable=SC1091
@@ -252,6 +252,35 @@ case_classify() {
   assert_eq "HK-T15" "wip/tmp/x" "$SC_TARGETS"
   cmdpos_parse 'curl -O http://example.com/a'; scope_classify 0 >/dev/null
   assert_eq "HK-T15" "_" "$SC_TARGETS"
+  # 束ねた短オプションでも判定が外れない（`-sd` は `-d` と同じ。curl は値を取る文字が末尾なら次の語を取る）
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl -sd @secret.txt http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl -dfoo http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl -XPOST http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl -sT a.md http://example.com/u')"
+  assert_eq "HK-T15" "web"                 "$(classify_all 'curl -sXGET http://example.com/a')"
+  # 長オプションは前方一致で見る（派生を取りこぼさない）
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl --json {} http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl --data-ascii aaa http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl --form-string a=b http://example.com/u')"
+  assert_eq "HK-T15" "remote-write:upload" "$(classify_all 'curl --upload-file a.md http://example.com/u')"
+  # 出力先を作る別名（ヘッダ・クッキー・束ねた -O）も write
+  assert_eq "HK-T15" "write" "$(classify_all 'curl -sO http://example.com/evil.sh')"
+  assert_eq "HK-T15" "write" "$(classify_all 'curl -D headers.txt http://example.com/a')"
+  assert_eq "HK-T15" "write" "$(classify_all 'curl --cookie-jar c.txt http://example.com/a')"
+  assert_eq "HK-T15" "write" "$(classify_all 'curl --output-dir out http://example.com/a')"
+  cmdpos_parse 'curl -D wip/tmp/h.txt http://example.com/a'; scope_classify 0 >/dev/null
+  assert_eq "HK-T15" "wip/tmp/h.txt" "$SC_TARGETS"
+  # シェルのリダイレクトを落とさない（落とすと保護パスへの書き込みが web として素通りする）
+  assert_eq "HK-T15" "write" "$(classify_all 'curl http://example.com/x.sh > .claude/hooks/lib/hook-common.sh')"
+  cmdpos_parse 'curl http://example.com/x.sh > .claude/hooks/lib/hook-common.sh'; scope_classify 0 >/dev/null
+  assert_eq "HK-T15" ".claude/hooks/lib/hook-common.sh" "$SC_TARGETS"
+  # 送信側と出力先が同時に成り立つときは remote-write:upload のまま SC_TARGETS も埋まる（呼び手は両方見る）
+  cmdpos_parse 'curl -d @a.json -o wip/tmp/r.json http://example.com/u'; scope_classify 0 >/dev/null
+  assert_eq "HK-T15" "remote-write:upload" "$SC_CLASS"
+  assert_eq "HK-T15" "wip/tmp/r.json" "$SC_TARGETS"
+  # 標準出力へ書く形は書き込みに当たらない
+  assert_eq "HK-T15" "web" "$(classify_all 'curl -o - http://example.com/a')"
+  assert_eq "HK-T15" "web" "$(classify_all 'curl -H "A: b" http://example.com/a')"
   assert_eq "HK-T15" "write" "$(classify_all "sed -i 's/a/b/' f")"
   assert_eq "HK-T15" "read" "$(classify_all "sed 's/a/b/' f")"
   assert_eq "HK-T15" "read" "$(classify_all 'bash -n x.sh')"
@@ -298,4 +327,76 @@ case_declaration
 case_ops
 case_classify
 case_load_errors
+
+# ---- HK-T16: 読み込み系 3 関数の戻り値 0 / 1 / 2 の区別と、frontmatter.sh を隠した環境での無出力 ----
+# 3 状態の規約: 0 = 成功 / 1 = 記載不正（呼び手は WF210・WF211）/ 2 = frontmatter.sh を読み込めていない（呼び手は WFx09）
+# 述語関数と判定関数はこの規約に巻き込まれない（真偽 / 常に 0）
+case_load_return_codes() {
+  local t="$TMP_DIR/t16.md" rc out
+  mk_ticket "$t" implementation '["wip/**"]' '["read"]'
+
+  # scope_load: 0（成功）/ 1（設定が無い・壊れている・types に無い種類）
+  load_limits "$CFG"; scope_load implementation; rc=$?
+  assert_eq "HK-T16" "0" "$rc"
+  load_limits ""; scope_load implementation; rc=$?
+  assert_eq "HK-T16" "1" "$rc"
+  printf '%s' '{ not json' > "$TMP_DIR/broken16.json"
+  load_limits "$TMP_DIR/broken16.json"; scope_load implementation; rc=$?
+  assert_eq "HK-T16" "1" "$rc"
+  load_limits "$CFG"; scope_load no-such-type; rc=$?
+  assert_eq "HK-T16" "1" "$rc"
+
+  # scope_load_ticket: 0 / 1（チケットが無い・ticket_type が無い）/ 2（frontmatter.sh を読み込めていない）
+  load_limits "$CFG"; scope_load implementation
+  scope_load_ticket "$t"; rc=$?
+  assert_eq "HK-T16" "0" "$rc"
+  scope_load_ticket "$TMP_DIR/no-such-ticket.md"; rc=$?
+  assert_eq "HK-T16" "1" "$rc"
+  printf -- '---
+type: ticket
+---
+
+# t
+' > "$TMP_DIR/notype16.md"
+  scope_load_ticket "$TMP_DIR/notype16.md"; rc=$?
+  assert_eq "HK-T16" "1" "$rc"
+  ( FM_AVAILABLE=0; scope_load_ticket "$t"; exit $? ); rc=$?
+  assert_eq "HK-T16" "2" "$rc"
+
+  # scope_load_approvals: 0（記録が無い / 読めた）/ 1（記録が壊れている）
+  load_approvals ""; scope_load_approvals; rc=$?
+  assert_eq "HK-T16" "0" "$rc"
+  HC_APPROVALS_STATE="broken" scope_load_approvals; rc=$?
+  assert_eq "HK-T16" "1" "$rc"
+
+  # frontmatter.sh を隠した環境（FM_AVAILABLE=0）でも scope.sh 自身は何も出力しない
+  out="$( ( FM_AVAILABLE=0
+            load_limits "$CFG"; scope_load implementation
+            scope_load_ticket "$t"
+            scope_load_approvals
+            scope_match 'wip/**' 'wip/a.md'
+            scope_op_declared read
+            scope_resolve 'wip/a.md'
+            cmdpos_parse 'ls -la'; scope_classify 0 >/dev/null ) 2>&1 )"   # scope_classify の結果出力は契約なので除く
+  assert_eq "HK-T16" "" "$out"
+
+  # 述語関数は 3 状態に巻き込まれず真偽（0 / 1）を返す
+  ( FM_AVAILABLE=0; scope_match 'wip/**' 'wip/a.md'; exit $? ); rc=$?
+  assert_eq "HK-T16" "0" "$rc"
+  ( FM_AVAILABLE=0; scope_match 'wip/**' 'other/a.md'; exit $? ); rc=$?
+  assert_eq "HK-T16" "1" "$rc"
+
+  # 判定関数の戻り値は常に 0 で、結果は変数に置かれる
+  load_limits "$CFG"; scope_load implementation; scope_load_ticket "$t"; load_approvals ""; scope_load_approvals
+  scope_resolve 'wip/a.md'; rc=$?
+  assert_eq "HK-T16" "0" "$rc"
+  [[ -n "$SC_DECISION" && -n "$SC_STAGE" ]] && pass "HK-T16" || fail "HK-T16" "scope_resolve の結果が変数に置かれていない"
+  cmdpos_parse 'ls -la'; scope_classify 0 >/dev/null; rc=$?
+  assert_eq "HK-T16" "0" "$rc"
+  assert_eq "HK-T16" "read" "$SC_CLASS"
+  scope_resolve '.claude/hooks/lib/scope.sh'; rc=$?
+  assert_eq "HK-T16" "0" "$rc"
+}
+case_load_return_codes
+
 finish

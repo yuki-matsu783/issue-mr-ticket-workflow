@@ -170,7 +170,6 @@ function update(): void {
   current.board = board;
   current.panel.webview.html = renderBoard(board, {
     nonce: crypto.randomBytes(16).toString("base64"),
-    cspSource: current.panel.webview.cspSource,
   });
 }
 

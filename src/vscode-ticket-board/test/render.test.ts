@@ -5,7 +5,7 @@ import { buildBoard } from "../src/core/board.js";
 import type { ScanResult } from "../src/core/scan.js";
 import type { Ticket, TicketState } from "../src/core/ticket.js";
 
-const OPTIONS = { nonce: "TEST-NONCE-123", cspSource: "vscode-resource://x" };
+const OPTIONS = { nonce: "TEST-NONCE-123" };
 
 function ticket(overrides: Partial<Ticket> = {}): Ticket {
   return {

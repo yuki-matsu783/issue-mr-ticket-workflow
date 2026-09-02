@@ -7,7 +7,6 @@ import type { Ticket } from "./ticket.js";
 
 export interface RenderOptions {
   readonly nonce: string;
-  readonly cspSource: string;
 }
 
 /** レビュー要否のバッジ。値が読み取れなかったときは「不明」 */

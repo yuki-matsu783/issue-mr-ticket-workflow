@@ -128,12 +128,12 @@
 
 <section id="goal" data-required>
   <h2>この計画で何をするか</h2>
-  <p class="lead">設計に入る前に、答えが出ていないと設計を書けない 3 つの問いだけを潰す。答えが後続の計画に効かない問いは含めない。</p>
+  <p class="lead">設計に入る前に、答えが出ていないと設計を書けない問いだけを潰す。答えが後続の計画に効かない問いは含めない。</p>
   <div class="box ok">
     <p class="label">決めたこと</p>
     <ul>
-      <li>調査は 3 観点・3 チケット。1 観点のまとまり = 1 チケット</li>
-      <li>0004 だけは実際にコマンドを動かして確かめる（<code>allow.ops</code> に <code>build-test</code> と <code>web</code>）。0003 と 0005 はリポジトリ内の読み取りに限る</li>
+      <li>7 つの問いを 4 つのまとまりに束ね、1 まとまり = 1 チケット</li>
+      <li>0004 は実際にコマンドを動かして確かめる。0007 は外部技術調査チケットとして VS Code の公式ドキュメントを参照する。0003 と 0005 はリポジトリ内の読み取りに限る</li>
       <li>どのチケットもソースコード・設計文書・<code>.claude/</code> 配下には書き込まない。直したい箇所は結果レポートに書いて後続フェーズへ回す</li>
     </ul>
   </div>
@@ -151,7 +151,8 @@
       <tr><td>Q3</td><td>この実行環境で npm から拡張の開発依存（typescript / @types/vscode / テストランナー）を取得できるか</td><td>受け入れ条件 9・10、全体計画の保留事項「テストランナーの選択」</td></tr>
       <tr><td>Q4</td><td>取得できない場合、依存ゼロで受け入れ条件 9・10 を満たせるか</td><td>Q3 が否のときの退避路</td></tr>
       <tr><td>Q5</td><td>拡張のソースと設計文書の置き場として、機構の上限設定と設計文書ルールが想定するパスはどこか</td><td>全体計画の保留事項「設計文書の置き場」、<code>scope-limits.json</code></td></tr>
-      <tr><td>Q6</td><td>ソース追加が push.sh の push 前チェック 4 項目・<code>.gitignore</code> に触れないか</td><td>実装フェーズで push が止まらないこと</td></tr>
+      <tr><td>Q6</td><td>ソース追加が push.sh の push 前チェック 4 項目・<code>.gitignore</code>・commit.sh の自動除外に触れないか</td><td>実装フェーズで push が止まらないこと</td></tr>
+      <tr><td>Q7</td><td>VS Code 拡張の最小構成（<code>package.json</code> の <code>engines.vscode</code> / <code>activationEvents</code> / <code>contributes.commands</code>）、Webview の生成と <code>postMessage</code>、FileSystemWatcher がファイルの移動をどう見せるかの API 事実は何か</td><td>受け入れ条件 1・4・5。<code>web</code> を持つ type は <code>investigation</code> だけで、設計・実装フェーズからは公式ドキュメントを引けない</td></tr>
     </tbody>
   </table>
   </div>
@@ -168,22 +169,32 @@
     <li class="step">
       <span class="step-no">2</span>
       <h3>ビルド・テスト環境の成立性（Q3・Q4 / チケット 0004）</h3>
-      <p><code>node --version</code> / <code>npm --version</code> とレジストリへの到達確認を行い、<code>wip/tmp/</code> に捨てるプロジェクトを作って <code>npm install --no-save</code> を実際に走らせる。取得できない場合に備え、Node 標準の <code>node:test</code> が同じ環境で動くかを併せて確かめ、VS Code API に触れる部分を分離してテストできるかを構造の観点で検討する。</p>
+      <p><code>node --version</code> / <code>npm --version</code> とレジストリへの到達確認を行い、<code>wip/tmp/</code> に捨てるプロジェクトを作って <code>npm install --no-save</code> を実際に走らせる。取得できない場合に備え、Node 標準の <code>node:test</code> が同じ環境で動くかを併せて確かめる。<code>vscode</code> を import したモジュールが VS Code ホスト外で解決できるかという事実だけを記録し、層の分け方の決定は設計へ回す。VS Code 本体・<code>code</code> CLI の有無と、無い場合の受け入れ確認の代替手段も見る。</p>
     </li>
     <li class="step">
       <span class="step-no">3</span>
       <h3>既存機構との境界と置き場（Q5・Q6 / チケット 0005）</h3>
-      <p><code>scope-limits.json</code> の <code>types</code>、<code>rules/design-docs.md</code>、要件書と仕様書のディレクトリ規約、<code>push.sh</code> の検査 4 項目、<code>exclude-patterns.txt</code>、<code>.gitignore</code> を読む。書き込みは行わない。</p>
+      <p><code>scope-limits.json</code> の <code>types</code>、<code>rules/design-docs.md</code>、要件書と仕様書のディレクトリ規約、<code>push.sh</code> の検査 4 項目、<code>exclude-patterns.txt</code>、<code>.gitignore</code> を読む。上限設定を変えずに置ける選択肢を列挙し、変更が要る場合はどのフェーズの誰がどの承認で行うかまで答える。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>VS Code API の外部技術調査（Q7 / チケット 0007）</h3>
+      <p>敵対的レビューの指摘で追加。VS Code の公式ドキュメント（Extension Anatomy / Webview API / <code>workspace.createFileSystemWatcher</code>）を参照し、拡張の最小構成・Webview の生成と <code>postMessage</code>・watcher がファイルの移動をどう通知するかの API 事実を確定する。<code>allow.ops</code> に <code>web</code> を持つ type は <code>investigation</code> だけで、設計・実装フェーズからは公式ドキュメントを引けないため、ここで拾う。</p>
     </li>
   </ol>
+  <div class="box warn">
+    <p class="label">allow.ops の分類についての補足</p>
+    <p>フック共通仕様の <code>build-test</code> は「上限設定 <code>commands.build-test</code> に列挙されたコマンド、または <code>tests/</code> / <code>test/</code> 直下の <code>*.sh</code>」で、本リポジトリの <code>scope-limits.json</code> は <code>"commands": {"build-test": []}</code> と空である。<code>npm</code> は読み取り専用コマンド一覧にも無いため、フックが有効なら <code>npm</code> の実行は分類されず止まる。現状 <code>.claude/settings.json</code> に <code>hooks</code> キーが無くフックは登録されていないので実際には止まらないが、この前提は保留した点に明記した。</p>
+  </div>
   <h3>許可範囲（やってよいこと）</h3>
   <div class="tablewrap">
   <table>
     <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
     <tbody>
       <tr><td>1（チケット 0003）</td><td><code>wip/**</code></td><td>read</td></tr>
-      <tr><td>2（チケット 0004）</td><td><code>wip/**</code></td><td>read, build-test, web</td></tr>
+      <tr><td>2（チケット 0004）</td><td><code>wip/**</code></td><td>read, build-test</td></tr>
       <tr><td>3（チケット 0005）</td><td><code>wip/**</code></td><td>read</td></tr>
+      <tr><td>4（チケット 0007）</td><td><code>wip/**</code></td><td>read, web</td></tr>
     </tbody>
   </table>
   </div>
@@ -215,7 +226,8 @@
       <tr><td>0003</td><td>investigation</td><td>ステップ 1。Q1・Q2</td><td>0002</td></tr>
       <tr><td>0004</td><td>investigation</td><td>ステップ 2。Q3・Q4</td><td>0002</td></tr>
       <tr><td>0005</td><td>investigation</td><td>ステップ 3。Q5・Q6</td><td>0002</td></tr>
-      <tr><td>0006</td><td>design-plan</td><td>次の計画チケット</td><td>0003, 0004, 0005</td></tr>
+      <tr><td>0007</td><td>investigation</td><td>ステップ 4。Q7（外部技術調査。敵対的レビューの指摘で追加）</td><td>0002</td></tr>
+      <tr><td>0006</td><td>design-plan</td><td>次の計画チケット</td><td>0003, 0004, 0005, 0007</td></tr>
     </tbody>
   </table>
   </div>
@@ -253,6 +265,8 @@
       <tr><td>拡張のソースと設計文書の最終的な置き場</td><td>Q5 の答えを受けて設計計画で決める</td></tr>
       <tr><td>テストランナーの採用</td><td>Q3・Q4 の答えを受けて設計計画で決める</td></tr>
       <tr><td>依存グラフ表示を将来入れる余地を設計に持たせるか</td><td>設計フェーズ。今回の受け入れ条件には無い</td></tr>
+      <tr><td><code>scope-limits.json</code> の <code>commands.build-test</code> が空で、フックが有効なら <code>npm</code> の実行が許可されない。列挙先は <code>.claude/hooks/config/**</code> で調査フェーズからは変更できない</td><td>フィードバック計画。人間の承認または AI アセット実装フェーズで扱う</td></tr>
+      <tr><td><code>scope-limits.json</code> の <code>types.implementation.allow</code> は <code>src/**</code> と <code>tests/**</code> で、issue #13 が書く <code>tools/**</code> を含まない</td><td>Q5 の答えを受けて設計計画で決める</td></tr>
     </tbody>
   </table>
   </div>

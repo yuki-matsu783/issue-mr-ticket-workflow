@@ -1,10 +1,10 @@
 ---
 type: ticket
 ticket_type: design-plan
-predecessors: ["0003", "0004", "0005"]
+predecessors: ["0003", "0004", "0005", "0007"]
 executor: main
-human_review: {required: false, reason: "計画書は設計結果と一緒に見れば足りる（基準どおり）"}
-adversarial_review: {required: false, reason: "基準どおり"}
+human_review: {required: false, reason: "全体計画の方針の差分 4 により、人間レビューはワークごとの敵対的レビューに置き換える"}
+adversarial_review: {required: true, reason: "全体計画の方針の差分 4 により、ワークごとに 1 回の敵対的レビューを行う"}
 allow:
   write: ["wip/**"]
   ops: ["read"]

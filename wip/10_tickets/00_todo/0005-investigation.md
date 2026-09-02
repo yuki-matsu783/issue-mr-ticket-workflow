@@ -3,8 +3,8 @@ type: ticket
 ticket_type: investigation
 predecessors: ["0002"]
 executor: main
-human_review: {required: true, reason: "置き場の結論が設計と実装の許可範囲を決める（基準どおり）"}
-adversarial_review: {required: false, reason: "基準どおり"}
+human_review: {required: false, reason: "全体計画の方針の差分 4 により、人間レビューはワークごとの敵対的レビューに置き換える"}
+adversarial_review: {required: true, reason: "全体計画の方針の差分 4 により、ワークごとに 1 回の敵対的レビューを行う"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
@@ -22,7 +22,8 @@ base_sha: ""
 ## DoD
 
 - [ ] 観点「拡張のソースと設計文書の置き場として、機構の上限設定 scope-limits.json と設計文書ルールが想定するパスはどこか」への答えが調査結果レポートに書かれている（根拠: ）
-- [ ] 観点「ソース追加が push.sh の push 前チェック 4 項目・.gitignore に触れないか」への答えが調査結果レポートに書かれている（根拠: ）
+- [ ] 観点「ソース追加が push.sh の push 前チェック 4 項目・.gitignore・commit.sh の自動除外に触れないか」への答えが調査結果レポートに書かれている（根拠: ）
+- [ ] 上限設定や .gitignore の変更が要る場合、どのフェーズの誰がどの承認で行うかまでが答えに含まれている（敵対的レビューの指摘 10）（根拠: ）
 - [ ] 各答えに根拠（ファイル・行）が添えられている（根拠: ）
 - [ ] 答えが出なかった問いは理由付きで残課題に残っている（根拠: ）
 

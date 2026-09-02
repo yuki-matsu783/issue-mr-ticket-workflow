@@ -16,12 +16,12 @@ tags: [plan, investigation-plan]
 
 ## この計画で何をするか
 
-設計に入る前に、答えが出ていないと設計を書けない 3 つの問いだけを潰す。答えが後続の計画に効かない問いは含めない。
+設計に入る前に、答えが出ていないと設計を書けない問いだけを潰す。答えが後続の計画に効かない問いは含めない。
 
 決めたこと。
 
-- 調査は 3 観点・3 チケット。1 観点 = 1 チケット
-- 0004 だけは実際にコマンドを動かして確かめる（`allow.ops` に `build-test` と `web`）。0003 と 0005 はリポジトリ内の読み取りに限る
+- 7 つの問いを 4 つのまとまりに束ね、1 まとまり = 1 チケット
+- 0004 は実際にコマンドを動かして確かめる。0007 は外部技術調査チケットとして VS Code の公式ドキュメントを参照する。0003 と 0005 はリポジトリ内の読み取りに限る
 - どのチケットもソースコード・設計文書・`.claude/` 配下には書き込まない。直したい箇所が見つかったら結果レポートに書いて後続フェーズへ回す
 
 ## 調査観点
@@ -33,7 +33,8 @@ tags: [plan, investigation-plan]
 | Q3 | この実行環境で npm から拡張の開発依存（typescript / @types/vscode / テストランナー）を取得できるか | 受け入れ条件 9・10。全体計画の保留事項「テストランナーの選択」 |
 | Q4 | 取得できない場合、依存ゼロで受け入れ条件 9・10 を満たせるか | 同上。Q3 が否のときの退避路 |
 | Q5 | 拡張のソースと設計文書の置き場として、機構の上限設定 `scope-limits.json` と設計文書ルールが想定するパスはどこか | 全体計画の保留事項「設計文書の置き場」。設計・実装フェーズの許可範囲 |
-| Q6 | ソース追加が push.sh の push 前チェック 4 項目・`.gitignore` に触れないか | 実装フェーズで push が止まらないこと |
+| Q6 | ソース追加が push.sh の push 前チェック 4 項目・`.gitignore`・commit.sh の自動除外に触れないか | 実装フェーズで push が止まらないこと |
+| Q7 | VS Code 拡張の最小構成（`package.json` の `engines.vscode` / `activationEvents` / `contributes.commands`）、Webview の生成と `postMessage`、FileSystemWatcher がファイルの移動をどう見せるかの API 事実は何か | 受け入れ条件 1・4・5。`allow.ops` の `web` を持つ type は `investigation` だけで、設計・実装フェーズからは公式ドキュメントを引けない |
 
 issue #13 の詳細欄は置き場を `tools/vscode-ticket-board/` と書いているが、`scope-limits.json` の `implementation` は `src/**` と `tests/**` を許可し `design` は `docs/**` を許可する。この食い違いを Q5 で確定する。
 
@@ -41,14 +42,26 @@ issue #13 の詳細欄は置き場を `tools/vscode-ticket-board/` と書いて�
 
 | 問い | 読む場所・確かめ方 | 書き込み |
 |---|---|---|
-| Q1 | `.claude/skills/20-common-step-ticket/assets/ticket.template.md`、`scripts/ticket.sh` の frontmatter 書き込み箇所、`.claude/skills/20-common-step-shell-script/scripts/frontmatter.sh` の読み取り実装、`.claude/hooks/config/task-types.tsv`、実在するチケット 6 枚 | なし |
-| Q2 | `ticket.sh` の `yaml_escape` と `set_field`、`frontmatter.sh` が受け付ける形、テンプレートのプレースホルダ検査。手で壊した例を `wip/tmp/` に置いて読み取りの挙動を見る | `wip/tmp/` のみ |
-| Q3 | `node --version` / `npm --version`、`npm view typescript version` などレジストリへの到達確認、`wip/tmp/` に捨てるプロジェクトを作って `npm install --no-save` を実際に走らせる | `wip/tmp/` のみ |
-| Q4 | Node 標準の `node:test` と `node --experimental-strip-types` の可否を実際に動かして確認。VS Code API を使う部分を分離してテストできるかを構造の観点で検討 | `wip/tmp/` のみ |
-| Q5 | `.claude/hooks/config/scope-limits.json` の `types`、`.claude/rules/design-docs.md`、`.claude/docs/00_requirement/` と `10_spec/` のディレクトリ規約、`20-common-step-requirement` / `20-common-step-spec` の仕様 | なし |
-| Q6 | `.claude/skills/20-common-step-commit-push/scripts/push.sh` の検査 4 項目、`assets/exclude-patterns.txt`、`.gitignore` | なし |
+| Q1 | `.claude/skills/20-common-step-ticket/assets/ticket.template.md`、`scripts/ticket.sh` の frontmatter 書き込み箇所、`.claude/skills/20-common-step-shell-script/scripts/frontmatter.sh` の読み取り実装、`.claude/hooks/config/task-types.tsv`、実在するチケット 6 枚 | `wip/30_reports/**`（レポート）+ `wip/tmp/**`（作業用） |
+| Q2 | `ticket.sh` の `yaml_escape` と `set_field`、`frontmatter.sh` が受け付ける形、テンプレートのプレースホルダ検査。手で壊した例を `wip/tmp/` に置いて読み取りの挙動を見る | `wip/30_reports/**` + `wip/tmp/**` |
+| Q3 | `node --version` / `npm --version`、`npm view typescript version` などレジストリへの到達確認、`wip/tmp/` に捨てるプロジェクトを作って `npm install` を実際に走らせる。VS Code 本体・`code` CLI の有無と、無い場合の受け入れ確認の代替手段も見る | `wip/30_reports/**` + `wip/tmp/**` |
+| Q4 | Node 標準の `node:test` と `node --experimental-strip-types` の可否を実際に動かして確認。`vscode` を import したモジュールが VS Code ホスト外で解決できるかという事実だけを記録し、層の分け方の決定は設計へ回す | `wip/30_reports/**` + `wip/tmp/**` |
+| Q5 | `.claude/hooks/config/scope-limits.json` の `types`、`.claude/rules/design-docs.md`、`.claude/docs/00_requirement/` と `10_spec/` のディレクトリ規約、`20-common-step-requirement` / `20-common-step-spec` の仕様。上限設定を変えずに置ける選択肢を列挙し、変更が要る場合はどのフェーズの誰がどの承認で行うかまで答える | `wip/30_reports/**` + `wip/tmp/**` |
+| Q6 | `.claude/skills/20-common-step-commit-push/scripts/push.sh` の検査 4 項目、`assets/exclude-patterns.txt`、`.gitignore` | `wip/30_reports/**` + `wip/tmp/**` |
+| Q7 | VS Code の公式ドキュメント（Extension Anatomy / Webview API / workspace.createFileSystemWatcher）を参照する。外部技術調査 | `wip/30_reports/**` + `wip/tmp/**` |
 
-Q3 と Q4 は外部（npm レジストリ）への到達を伴い、コマンドも実行する。担当チケット 0004 の `allow.ops` に `build-test` と `web` を含めた。他の 2 枚は `read` のみ。
+Q3 と Q4 はコマンドの実行と npm レジストリへの到達を伴い、担当チケット 0004 の `allow.ops` に `build-test` を含めた。Q7 は**外部技術調査**で、担当チケット 0007 の `allow.ops` に `web`（公式ドキュメントの閲覧）を含めた。0003 と 0005 は `read` のみ。
+
+`allow.ops` の分類について 1 点補足する。フック共通仕様の `build-test` は「上限設定 `commands.build-test` に列挙されたコマンド、または `tests/` / `test/` 直下の `*.sh`」で、本リポジトリの `scope-limits.json` は `"commands": {"build-test": []}` と空である。`npm` は読み取り専用コマンド一覧にも無いため、フックが有効なら `npm` の実行は `build-test` に分類されず止まる。現状 `.claude/settings.json` に `hooks` キーが無くフックは登録されていないので実際には止まらないが、この前提は明示しておく。保留した点に記載した。
+
+### 許可範囲（やってよいこと）
+
+| チケット | write | ops |
+|---|---|---|
+| 0003 | `wip/**` | read |
+| 0004 | `wip/**` | read, build-test |
+| 0005 | `wip/**` | read |
+| 0007 | `wip/**` | read, web |
 
 ## 調査チケット
 
@@ -57,7 +70,8 @@ Q3 と Q4 は外部（npm レジストリ）への到達を伴い、コマンド
 | 0003 | investigation | Q1・Q2 | 0002 |
 | 0004 | investigation | Q3・Q4 | 0002 |
 | 0005 | investigation | Q5・Q6 | 0002 |
-| 0006 | design-plan | 次の計画 | 0003, 0004, 0005 |
+| 0007 | investigation | Q7（外部技術調査。敵対的レビューの指摘で追加） | 0002 |
+| 0006 | design-plan | 次の計画 | 0003, 0004, 0005, 0007 |
 
 ## 成果物の形
 
@@ -66,6 +80,8 @@ Q3 と Q4 は外部（npm レジストリ）への到達を伴い、コマンド
 - 問いごとの答えと、その根拠（ファイルと行、またはコマンドと出力）
 - 答えが設計のどの判断に効くか（例: 「Q3 が否なので依存ゼロ構成を採る」）
 - 答えが出なかった問いと、出なかった理由・残課題としての扱い
+
+HTML ビューは `20-common-step-report-view` の手順で作り、`check-html.sh` の検査 7 項目を通す。
 
 ## リスクと復旧
 
@@ -88,3 +104,5 @@ Q3 と Q4 は外部（npm レジストリ）への到達を伴い、コマンド
 | 拡張のソースと設計文書の最終的な置き場 | Q5 の答えを受けて設計計画で決める |
 | テストランナーの採用 | Q3・Q4 の答えを受けて設計計画で決める |
 | 依存グラフ表示（issue のスコープ外）を将来入れる余地を設計に持たせるか | 設計フェーズ。今回の受け入れ条件には無い |
+| `scope-limits.json` の `commands.build-test` が空で、フックが有効なら `npm` の実行が許可されない。列挙先は `.claude/hooks/config/**` で調査フェーズからは変更できない | フィードバック計画。人間の承認または AI アセット実装フェーズで扱う |
+| `scope-limits.json` の `types.implementation.allow` は `src/**` と `tests/**` で、issue #13 が書く `tools/**` を含まない | Q5 の答えを受けて設計計画で決める |

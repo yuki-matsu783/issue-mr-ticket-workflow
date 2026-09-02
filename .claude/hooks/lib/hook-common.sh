@@ -90,20 +90,25 @@ __hc_redact_to_reply() {
   # 5. 40 文字以上の 16 進 / base64 様の語（`/` を含む語はパスと区別できないので対象外）。
   #    ハイフン区切りで大文字を含まない語（ブランチ名・チケット名）と、英小文字と _ だけの語（識別子）は秘密と見なさず残す。
   #    切り出しに ${s%%"$m"*} を使わない — $m が長いと bash のパターン照合が極端に遅くなる（4000 文字で約 58 秒）。
-  #    区切り文字を改行に置換した同じ長さの複製を作り、語の長さから元の文字列を位置で切り出す（O(n)）。
-  local tmp="${s//[!A-Za-z0-9+=_-]/$'
+  #    まず 40 文字以上の語が 1 つも無ければ丸ごと飛ばす（現実の入力はほぼこちら。走査 1 回で済む）。
+  #    当たったときだけ、区切り文字を改行に置換した同じ長さの複製から語を読み、位置で元の区切りを拾って組み直す。
+  #    連結は配列に溜めて最後に 1 回で join する（`out+=` の繰り返しは毎回 realloc して O(n^2) になる）。
+  if [[ "$s" =~ [A-Za-z0-9+=_-]{40,} ]]; then
+    local tmp="${s//[!A-Za-z0-9+=_-]/$'
 '}"
-  local out5="" pos=0 w keep
-  while IFS= read -r w || [[ -n "$w" ]]; do
-    keep=1
-    if (( ${#w} >= 40 )); then
-      if [[ ( "$w" == *-*-* && "$w" != *[A-Z]* ) || "$w" != *[A-Z0-9+=-]* ]]; then keep=1; else keep=0; fi
-    fi
-    if (( keep )); then out5+="${s:pos:${#w}}"; else out5+="***"; fi
-    pos=$(( pos + ${#w} ))
-    if (( pos < ${#s} )); then out5+="${s:pos:1}"; pos=$(( pos + 1 )); fi
-  done <<< "$tmp"
-  s="$out5"
+    local -a parts=()
+    local pos=0 w keep slen="${#s}"
+    while IFS= read -r w || [[ -n "$w" ]]; do
+      keep=1
+      if (( ${#w} >= 40 )); then
+        if [[ ( "$w" == *-*-* && "$w" != *[A-Z]* ) || "$w" != *[A-Z0-9+=-]* ]]; then keep=1; else keep=0; fi
+      fi
+      if (( keep )); then parts+=("$w"); else parts+=("***"); fi
+      pos=$(( pos + ${#w} ))
+      if (( pos < slen )); then parts+=("${s:pos:1}"); pos=$(( pos + 1 )); fi
+    done <<< "$tmp"
+    printf -v s '%s' "${parts[@]}"
+  fi
   (( nc )) && shopt -s nocasematch
   REPLY="$s"
 }
@@ -231,35 +236,54 @@ def sec($x):
 # cwd が HOOK_ROOT と異なるとき、cwd から上向きに .claude を持つディレクトリを探して HOOK_WORKTREE に置く。
 # ただし候補が HOOK_ROOT の worktree であることを必ず確かめる（cd だけでも cwd は動くため。参考実装の .claude を拾うと
 # 作業中チケットが 0 枚に見えてガードが全面バイパスされる）。fork ゼロ（[ -d ] / [ -f ] / $(<file) だけ）。
-__hc_is_worktree_of() { # $1=候補 → HOOK_ROOT の worktree なら 0
-  local c="$1" g s d n
-  [[ "${c,,}" == "${HOOK_ROOT,,}" ]] && return 0
+__hc_winpath() { # $1=パス → REPLY に正規化（区切りは / 、/c/… は C:/… に、末尾の / を落とす）
+  local p="${1//\\//}"
+  if [[ "$p" =~ ^/([A-Za-z])/(.*)$ ]]; then p="${BASH_REMATCH[1]^^}:/${BASH_REMATCH[2]}"; fi
+  [[ "$p" == */ && ${#p} -gt 1 ]] && p="${p%/}"
+  REPLY="$p"
+}
+# $1=候補（正規化済み） $2=HOOK_ROOT（正規化済み） → 候補が $2 の worktree なら 0
+# 「.git ファイルの gitdir: が worktrees/ を指す」だけでは、そのファイルを 1 本置くだけで偽装できる
+# （置き場は wip/tmp/** で承認なしに書ける）。指す先の実在と、そこからの相互参照まで要求する。
+__hc_is_worktree_of() {
+  local c="$1" root="$2" g s d n
+  [[ "${c,,}" == "${root,,}" ]] && return 0
+  # 本流の配下は worktree ではない（参考実装の .claude や wip/tmp の細工を拾わない）
+  [[ "${c,,}" == "${root,,}/"* ]] && return 1
+  # (a) 候補の .git ファイルから管理ディレクトリを引き、そこから候補へ戻れることを確かめる（O(1)）
   g="$c/.git"
-  # (a) .git がファイルで gitdir: が HOOK_ROOT/.git/worktrees/ を指す
   if [[ -f "$g" ]]; then
     s="$(<"$g")" || s=""
-    s="${s//$'\r'/}"; s="${s//$'\n'/}"; s="${s#gitdir:}"; s="${s# }"; s="${s//\\//}"
-    [[ -n "$s" && "${s,,}" == "${HOOK_ROOT,,}/.git/worktrees/"* ]] && return 0
+    s="${s//$'\r'/}"; s="${s//$'\n'/}"; s="${s#gitdir:}"; s="${s# }"
+    __hc_winpath "$s"; s="$REPLY"
+    if [[ -n "$s" && "${s,,}" == "${root,,}/.git/worktrees/"* && -d "$s" && -f "$s/gitdir" ]]; then
+      n="$(<"$s/gitdir")" || n=""
+      n="${n//$'\r'/}"; n="${n//$'\n'/}"
+      __hc_winpath "$n"; n="$REPLY"
+      [[ "${n,,}" == "${c,,}/.git" ]] && return 0
+    fi
   fi
-  # (b) HOOK_ROOT/.git/worktrees/<name>/gitdir が候補の .git を指す
-  for d in "$HOOK_ROOT"/.git/worktrees/*/; do
+  # (b) 本流の worktrees/*/gitdir 側から候補の .git を指しているものを探す（.git ファイルが読めないとき用）
+  for d in "$root"/.git/worktrees/*/; do
     [[ -d "$d" ]] || continue
     n="${d}gitdir"
     [[ -f "$n" ]] || continue
     s="$(<"$n")" || continue
-    s="${s//$'\r'/}"; s="${s//$'\n'/}"; s="${s//\\//}"; s="${s%/}"
+    s="${s//$'\r'/}"; s="${s//$'\n'/}"
+    __hc_winpath "$s"; s="$REPLY"
     [[ "${s,,}" == "${c,,}/.git" ]] && return 0
   done
   return 1
 }
 __hc_resolve_worktree() {
-  local d="${HOOK_CWD//\\//}"
+  local d root
+  __hc_winpath "$HOOK_ROOT"; root="$REPLY"
   HOOK_WORKTREE="$HOOK_ROOT"
-  [[ -n "$d" ]] || return 0
-  if [[ "$d" =~ ^/([A-Za-z])/(.*)$ ]]; then d="${BASH_REMATCH[1]^^}:/${BASH_REMATCH[2]}"; fi
-  [[ "${d,,}" == "${HOOK_ROOT,,}" ]] && return 0
+  [[ -n "${HOOK_CWD:-}" ]] || return 0
+  __hc_winpath "$HOOK_CWD"; d="$REPLY"
+  [[ "${d,,}" == "${root,,}" ]] && return 0
   while [[ -n "$d" ]]; do
-    if [[ -d "$d/.claude" ]] && __hc_is_worktree_of "$d"; then HOOK_WORKTREE="$d"; return 0; fi
+    if [[ -d "$d/.claude" ]] && __hc_is_worktree_of "$d" "$root"; then HOOK_WORKTREE="$d"; return 0; fi
     case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac
   done
   return 0
@@ -410,7 +434,7 @@ hook_doing_ticket() {
 
 # ---- 記録の書き込みヘルパ（§5。各フックが自作しない。DDR i0009-38）----
 # 上限はこの節が持ち、呼び手は指定も切り詰めもしない（DDR i0009-60）
-__HC_MAX_LINE=4096        # JSONL 1 行の上限（バイトではなく文字。POSIX の追記が原子的である範囲に収める）
+__HC_MAX_LINE=4096        # JSONL 1 行の上限（バイト。POSIX の追記が原子的である範囲に収める）
 __HC_MAX_FIELD=512        # target / note の 1 つあたりの上限（合わせて 1 KB）
 __HC_LOCK_WAIT=2          # 秒。取得を諦めるまで
 __HC_LOCK_STALE_MIN=1     # 分。これより古いロックは陳腐化とみなす（= 60 秒。DDR i0009-60）
@@ -449,6 +473,28 @@ __hc_cap_json_field() { # $1=行 $2=キー $3=上限
 
 # hc_append_jsonl <file> <line>
 #   redact を通し、この関数が上限まで切り詰めて（… を付けて）追記する。呼び手は切り詰めない。戻り 1 = 書けない
+# バイト長（ロケールに依らない。fork しない）。LC_ALL の代入は bash がその場でロケールに反映する
+__hc_bytelen() { local LC_ALL=C; REPLY="${#1}"; }
+# 行全体の最後の切り詰め。個別フィールドを詰めても収まらない行が来たときの最後の砦。
+# 元の行をそのまま切って `…"}` を足す形は使えない — 切断点が JSON の構造の途中（`{"k":"a","` の後ろなど）に
+# 落ちると閉じられず、末尾が `\` なら壊れたエスケープになる。内容を 1 つの文字列フィールドに入れ直し、
+# エスケープは「切ってから」掛けることで、どこで切っても妥当な 1 行になるようにする。
+__hc_cap_line_to_reply() {
+  local line="$1" raw esc="" pre cut n
+  __hc_bytelen "$line"; n="$REPLY"
+  pre="{\"truncated\":true,\"bytes\":$n,\"head\":\""
+  # エスケープで最大 2 倍に伸びるので、まず半分の長さから試して収まるまで詰める
+  cut=$(( (__HC_MAX_LINE - ${#pre} - 6) / 2 ))
+  while (( cut > 0 )); do
+    raw="${line:0:cut}"
+    __hc_json_str "$raw"; esc="$REPLY"
+    __hc_bytelen "$pre$esc"
+    (( REPLY <= __HC_MAX_LINE - 6 )) && break
+    cut=$(( cut / 2 ))
+  done
+  (( cut > 0 )) || esc=""
+  REPLY="${pre}${esc}…\"}"
+}
 hc_append_jsonl() {
   local f="$1" line="$2" dir
   __hc_redact_to_reply "$line"; line="$REPLY"
@@ -456,7 +502,7 @@ hc_append_jsonl() {
     __hc_cap_json_field "$line" target "$__HC_MAX_FIELD"; line="$REPLY"
     __hc_cap_json_field "$line" note   "$__HC_MAX_FIELD"; line="$REPLY"
   fi
-  if (( ${#line} >= __HC_MAX_LINE )); then line="${line:0:$((__HC_MAX_LINE - 4))}…\"}"; fi
+  if (( ${#line} >= __HC_MAX_LINE )); then __hc_cap_line_to_reply "$line"; line="$REPLY"; fi
   dir="${f%/*}"
   if [[ "$dir" != "$f" ]]; then mkdir -p "$dir" 2>/dev/null || return 1; fi
   printf '%s\n' "$line" >> "$f" 2>/dev/null || return 1
@@ -529,7 +575,9 @@ hook_record() {
   __hc_json_str "$ticket"; ticket="$REPLY"
   __hc_json_str "$decision"; decision="$REPLY"
   __hc_json_str "$id"; id="$REPLY"
-  line="{\"ts\":\"$ts\",\"session_id\":\"$HOOK_SESSION_ID\",\"hook\":\"$HOOK_NAME\",\"event\":\"$HOOK_EVENT\",\"decision\":\"$decision\",\"id\":\"$id\",\"tool\":\"$tool\",\"target\":\"$target\",\"ticket\":\"$ticket\",\"note\":\"$note\"}"
+  # HOOK_EVENT も外部（stdin）由来なので、他のフィールドと同じくエスケープを通す（rules/logger.md のセキュリティ節）
+  __hc_json_str "$HOOK_EVENT"; local ev="$REPLY"
+  line="{\"ts\":\"$ts\",\"session_id\":\"$HOOK_SESSION_ID\",\"hook\":\"$HOOK_NAME\",\"event\":\"$ev\",\"decision\":\"$decision\",\"id\":\"$id\",\"tool\":\"$tool\",\"target\":\"$target\",\"ticket\":\"$ticket\",\"note\":\"$note\"}"
   hc_append_jsonl "$HOOK_WORKTREE/logs/hooks/decisions.jsonl" "$line" || log_warn "decisions.jsonl に追記できない"
   log_info "decision=$decision id=$id tool=$tool target=$target"
   return 0

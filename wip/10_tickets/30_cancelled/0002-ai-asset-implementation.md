@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-02T11:39:28+00:00"
 completed_at: ""
 base_sha: "de809c1"
+cancelled_at: "2026-09-02T11:39:47+00:00"
+cancel_reason: "allow.write と allow.ops の宣言漏れ（--allow-write を複数回渡したため最後の 1 件だけが残り、テスト実行に必要な build-test も未宣言）。0004 として起こし直す"
 ---
 
 # 0002 commit.sh をステージ済みの削除に対応させ、テストを追加する

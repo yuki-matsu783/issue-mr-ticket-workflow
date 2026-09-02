@@ -1,7 +1,7 @@
 ---
 type: spec
 title: 10-task-design-exec スキル 仕様
-description: 設計実施タスクの内部仕様。実施タスクの共通手順を前提に、docs/ 配下の要件定義書・仕様書（テスト ID 付きシナリオ）の作成、判断点の結論と DDR、設計結果レポートの節を定める
+description: 設計実施タスクの内部仕様。実施タスクの共通手順を前提に、アプリルートの docs/ 配下の要件定義書・仕様書（テスト ID 付きシナリオ）の作成、判断点の結論と DDR、設計結果レポートの節を定める
 tags: [spec, skill, task]
 keywords: [設計実施, 要件定義書, 仕様書, テスト ID, EARS, DDR, 正史, 設計結果レポート, docs]
 ---
@@ -32,14 +32,14 @@ keywords: [設計実施, 要件定義書, 仕様書, テスト ID, EARS, DDR, �
 
 ## IN / OUT サンプル
 
-- 成果物: `docs/requirements/auth.md`（EARS の受け入れ基準）、`docs/spec/auth.md`（インターフェース・処理フロー・エラー・テストシナリオ AUTH-T01〜T05）、`docs/ddr/....md`（採らなかった案）
+- 成果物: `apl/auth-gateway/docs/00_requirement/auth-gateway.md`（EARS の受け入れ基準）、`apl/auth-gateway/docs/10_spec/auth-gateway.md`（インターフェース・処理フロー・エラー・テストシナリオ AUTH-T01〜T05）、`apl/auth-gateway/docs/20_ddr/i0031-01-....md`（採らなかった案）
 - 結果報告の見てほしい点: 「受け入れ条件が受け入れ基準・テストシナリオに漏れなく落ちているか / 判断点の結論が調査結果と矛盾しないか / 仕様が実装可能な粒度か・コードに踏み込みすぎていないか / 既存設計書との整合」
 
 ## 処理フロー
 
 共通手順に加えて（3 の実施）:
 
-- 書き方の正は `20-common-step-requirement`・`20-common-step-spec`（章立て・EARS・正史のみ・線引き）。置き場はアプリ本体の設計文書の置き場（`docs/` 配下。既存の構成に従う）
+- 書き方の正は `20-common-step-requirement`・`20-common-step-spec`（章立て・EARS・正史のみ・線引き）。置き場はアプリ本体の設計文書の置き場（アプリルート `apl/<アプリ名>/` の `docs/` 配下。既存の構成に従う）
 - 要件定義書: 受け入れ条件を EARS（When / Shall、If / Then、Shall not）の受け入れ基準に落とし、前提・制約・依存を書く
 - 仕様書: 入出力・処理フロー・インターフェース・エラーハンドリング・テストシナリオを実装可能な粒度で書き、テストシナリオにテスト ID を振る（実装の DoD と対応させる）
 - 「設計チケットで結論を書く」とされた判断点は根拠付きで正史に書き、採らなかった案と理由を DDR に残す

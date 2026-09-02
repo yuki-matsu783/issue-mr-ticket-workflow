@@ -31,7 +31,7 @@ keywords: [設計計画, 結論方針, 設計書の一覧, 骨子, 機能のま�
 
 ## IN / OUT サンプル
 
-- 設計チケット: `0006-design.md`「認証まわり（要件定義書 `docs/requirements/auth.md` と仕様書 `docs/spec/auth.md`）」— 関連する機能のまとまりで 1 枚
+- 設計チケット: `0006-design.md`「認証まわり（要件定義書 `apl/auth-gateway/docs/00_requirement/auth-gateway.md` と仕様書 `apl/auth-gateway/docs/10_spec/auth-gateway.md`）」— 関連する機能のまとまりで 1 枚
 - 結果報告の見てほしい点: 「結論方針が調査の根拠と整合しているか・決めきれない点の明示 / 設計書の一覧の過不足（新規か更新か）/ 骨子が受け入れ条件を漏れなく受けるか / チケットの粒度と次の計画チケット」
 
 ## 処理フロー

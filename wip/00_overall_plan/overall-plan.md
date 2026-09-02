@@ -27,9 +27,9 @@ keywords: [全体計画, apl, 設計文書, 置き場, scope-limits, design-docs
 | 1 | 調査 | 置き場（`src/**` / `docs/**`）に依存している記述の洗い出し（ルール・スキル本体・設計文書・スクリプト・テスト・`scope-limits.json`）、および #20 の 5 論点それぞれの現状 |
 | 2 | AI アセット設計 | `.claude/docs/` の要件・仕様の更新。アプリ向け仕様書の節構成、要件定義書の置き場の一般化、アプリのエラー識別子台帳の方針、「issue の受け入れ条件との対応」表、`docs/` 配下の機械的検査の要否、`apl/<アプリ名>/{src,docs}` の置き場定義。置き場変更の DDR もここ |
 | 3 | AI アセット実装・テスト | ルール本体（`design-docs`）・共通ステップスキル本体（`20-common-step-requirement` / `20-common-step-spec`）・テンプレート・`scope-limits.json` の更新とテスト |
-| 4 | 実装・テスト | `src/vscode-ticket-board/` → `apl/vscode-ticket-board/src/`、`docs/` → `apl/vscode-ticket-board/docs/` の移動と参照更新、拡張のテスト実行 |
+| 4 | 実装・テスト | `src/vscode-ticket-board/` → `apl/vscode-ticket-board/`（ソース・テスト・ビルド設定・入れ子 `.gitignore`）の移動と参照更新、拡張のテスト実行 |
 | 5 | フィードバック計画 | 3・4 の結果を見て、設計反映と全体まとめの要否を決める |
-| 6 | 設計反映 | アプリ側 DDR（`i0013-01`）の frontmatter 更新と、移動後の文書内の置き場記述の追随 |
+| 6 | 設計反映 | `docs/` → `apl/vscode-ticket-board/docs/` の移動（許可範囲が `apl/*/docs/**` の設計反映タスクが担う）、アプリ側 DDR（`i0013-01`）の frontmatter 更新、移動後の文書内の置き場記述の追随 |
 | 7 | 全体まとめ | 片付け・PR 本文の最終整形・draft 解除 |
 
 テンプレート（AI アセットの標準: 調査 → AI アセット設計 → AI アセット実装 → 振り返り）との差分:
@@ -37,6 +37,7 @@ keywords: [全体計画, apl, 設計文書, 置き場, scope-limits, design-docs
 - **実装・テスト（4）を追加**: 既存ファイルの移動はアプリ側（`apl/**`）への書き込みで、AI アセット実装の許可範囲に入らない。フェーズを分けないと許可範囲を広げることになる
 - **設計反映（6）を追加**: アプリ側の設計文書（DDR・要件・仕様）が移動と置き場変更の影響を受ける
 - **順序の制約**: 3（`scope-limits.json` に `apl/**` を足す）が 4（`apl/**` への書き込み）より前でなければ、実装タスクが許可範囲外になる
+- **移動の分担**: 許可範囲を設計と実装で分けた結果、1 つの type ではアプリツリー全体を動かせない。ソース側をフェーズ 4（implementation）、設計文書側をフェーズ 6（design-feedback）が担う（DDR `i0020-01`「影響」）
 
 ## 受け入れ条件との対応
 
@@ -94,8 +95,8 @@ keywords: [全体計画, apl, 設計文書, 置き場, scope-limits, design-docs
 | investigation | `wip/**` のみ |
 | ai-asset-design | `.claude/docs/**` |
 | ai-asset-implementation | `.claude/skills/**`, `.claude/rules/**`, `.claude/hooks/config/scope-limits.json`, `CLAUDE.md` |
-| implementation | `apl/**`（移動元の `src/**` / `docs/**` の削除を含む） |
-| design-feedback | `apl/vscode-ticket-board/docs/**` |
+| implementation | `apl/*/src/**` `apl/*/test/**` `apl/*/*`（アプリルート直下のビルド設定）。移動元 `src/**` の削除は判定順 (7) の ask で承認 |
+| design-feedback | `apl/*/docs/**`。移動元 `docs/**` の削除は判定順 (7) の ask で承認 |
 
 ## 保留した点
 

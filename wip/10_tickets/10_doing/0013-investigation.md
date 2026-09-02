@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "レビュー指摘への対応の�
 allow:
   write: ["wip/**", "docs/**"]
   ops: ["read", "build-test", "web"]
-started_at: ""
+started_at: "2026-09-02T06:01:11+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b341058"
 ---
 
 # 0013 敵対的レビューの指摘への対応（受け入れ条件 4 の API 検証と調査結果の訂正）

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:47:01+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1518356"
 ---
 
 # 0004 AI アセット設計計画: apl/ の置き場定義とアプリ向け設計文書の型

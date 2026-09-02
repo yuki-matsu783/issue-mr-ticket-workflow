@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の定義�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:49:57+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "83eb26b"
 ---
 
 # 0024 レビュー指摘: サブエージェントは既定で background という前提の反映（B1・B15・B2・B3・B4・B5）

@@ -29,6 +29,7 @@ base_sha: ""
 - [ ] 4 本とも作業ツリーの基準に 0027 で hook-common.sh に入れた HOOK_WORKTREE を使い、各フックが自前で解決していない（根拠: ）
 - [ ] ホットパス 5 本が git / date / sed / find を呼ばず、make_counting_path で数えた jq の回数が block-chmod・block-direct-git・workflow-state-guard = 1、workflow-guard・workflow-entry = 2 に固定されている。hook_field を追加で呼んでいない（0027 で hook_read_input が prompt などを取っているのが前提）（根拠: ）
 - [ ] 4 本とも実装の型に従い、bash -n と shellcheck を通り、bash <script> < 入力 JSON の単体実行で想定どおりの JSON を出す（ラッパー無しの状態で）（根拠: ）
+- [ ] 新規に作った .sh（本体 4 本 + テスト）の `__ss_load` 行が assets/script.template.sh とバイト一致し、SS-T05 が通る（SS-T05 は .claude/hooks/** 全体を走査するため）（根拠: ）
 - [ ] 4 本のテストが `run-tests.sh --filter '<glob>' --ids` で通る（WE-T* / SG-T* / BG-T* / WG-T*。boundary.sh 依存の WE-T10 を除く）（根拠: ）
 
 ## 作業内容

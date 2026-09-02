@@ -49,5 +49,7 @@ keywords: [web, curl, wget, WF204, WF205, allow.ops, scope_classify, WebFetch, W
 - `10_spec/hooks/20-PreToolUse/workflow-guard.md` 制御方式 6（`web` の分岐）・テスト観点（`WG-T15` を新設）
 - `00_requirement/自己改善ワークフロー機構.md` 制約条件（自制に依存する統制の列挙から「チケットが宣言した外部への問い合わせの範囲」を外し、コマンド側は強制すると書く）
 - `20_ddr/i0009-12`（タイトル・決定・理由・却下した案の訂正、ファイル名の変更）・`20_ddr/i0009-19`（D5 の理由の訂正）
-- **実装フェーズへ**: `scope.sh` に `_SC_WEB_CMDS`（`curl` `wget`）と出力先オプションの照合を足す
+- **実装フェーズへ**: `scope.sh` に `_SC_WEB_CMDS`（`curl` `wget`）と、送信側・出力先オプションの照合を足す（判定順は `i0009-56`、取り出し方は `i0009-57`）
+- **追記（0025）**: この DDR は**送信側**（`curl -T` / `-d @` / `-X POST` 等）を検討していなかった。改定前は `curl` が既定拒否だったため閉じていた経路で、`i0009-56` が塞ぐ
+- **追記（0025）**: 影響に `00_requirement/skills/10-task-investigation-exec.md`・`10_spec/skills/10-task-investigation-exec.md`・`10_spec/skills/20-common-step-shell-script.md` の分類表を加える（`i0009-58`）
 - 受け入れ条件 5 の「`web` の強制」はこの決定で閉じる

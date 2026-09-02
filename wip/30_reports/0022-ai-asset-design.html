@@ -422,7 +422,7 @@ DDR: i0009-45（R17・R26）</code></pre>
   <h2>設計への反映</h2>
   <ol>
     <li><strong>全体まとめへ（最重要）</strong>: 承認⑥の issue コメントに「#10（3/3）への申し送り」の表 5 件を含める。<code>wip/</code> は <code>reset-wip</code> で消えるので、<strong>この経路しか #10 に届かない</strong></li>
-    <li><strong>0016 へ</strong>: <code>scope.sh</code> に <code>_SC_WEB_CMDS</code>（<code>curl</code> <code>wget</code>）と出力先オプションの照合を足す作業項目。<code>cmdpos_operands</code>（<code>i0009-39</code>）が使える</li>
+    <li><strong>0016 へ</strong>: <code>scope.sh</code> に <code>_SC_WEB_CMDS</code>（<code>curl</code> <code>wget</code>）と、送信側・出力先オプションの照合を足す作業項目（判定順は <code>i0009-56</code>）。<strong>訂正（0025）</strong>: ここで「<code>cmdpos_operands</code>（<code>i0009-39</code>）が使える」と書いたのは誤り。<code>cmdpos_operands</code> はオプション本体を落とすので URL と出力先を区別できない。正は <code>cmdpos_args</code> の走査（<code>i0009-57</code>）</li>
     <li><strong>0016 へ</strong>: <code>tests/test_block-direct-git.sh</code> は 11 件（<code>BG-T01</code>〜<code>T11</code>）。<code>BG-T10</code> は語彙表の全要素 + 対象外 2 つ</li>
     <li><strong>フェーズ 4c へ</strong>: T7 の実測（<code>post-push-*</code> が受け取る <code>tool_response</code> を <code>logs/</code> に落とす）。T1 は実測不要</li>
     <li><strong>実装フェーズへ</strong>: <code>web</code> の判定は「出力先の書き込み判定 → <code>web</code> の宣言判定」の順。順序を逆にすると <code>curl -o</code> が宣言だけで通る</li>

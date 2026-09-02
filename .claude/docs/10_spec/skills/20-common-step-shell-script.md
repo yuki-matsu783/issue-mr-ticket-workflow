@@ -123,7 +123,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 |---|---|---|
 | `hook-common.sh` の `tool_class` | ツール名から種類（書き込み / 実行 / 読み取り / プランモード / 起動 / 宣言）を返す。`Skill` は `tool_input.skill` の値を見ずに**常に「宣言」**に分類する | 「その名前が振り分けスキルか」の照合。正は `.claude/hooks/config/entry-skills.txt` で、照合するのは `workflow-entry`（`00-workflow-` の接頭辞判定をライブラリに持たせない） |
 | `cmdpos.sh` | コマンド列を実行位置のセグメントに分け、実行体・第 1 サブコマンド・**オプションを除いた位置引数**（`cmdpos_operands <i>`）を返す | 「そのコマンドを許してよいか」の判断（`workflow-guard` / `block-*` が行う）。「その位置引数が削除対象か宛先か」の解釈も呼び手（`workflow-state-guard` の WF302 / WF303）が行う |
-| `scope.sh` の `scope_classify` | 操作の分類（`read` / `build-test` / `hook-test` / `remote-read` / `remote-write:*` / `merge-base` / `provided`）を返す | 「その分類がチケットに宣言されているか」の判断（呼び手が `allow.ops` と突き合わせる） |
+| `scope.sh` の `scope_classify` | 操作の分類（`read` / `build-test` / `hook-test` / `remote-read` / `remote-write:*` / `merge-base` / `web` / `provided`。**分類の正は `フック共通仕様` §8** で、この表は責務の境界を示すための要約）を返す | 「その分類がチケットに宣言されているか」の判断（呼び手が `allow.ops` と突き合わせる） |
 | `frontmatter.sh` | frontmatter の値を返す（戻り値で「読めた / 無い / ライブラリ不在」を区別） | 値が仕様どおりかの検証（`ticket_type` が `types` にあるか等） |
 
 ### 終了コード

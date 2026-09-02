@@ -52,7 +52,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
    - `remote-read`（`gh` / `glab` の参照系）→ 許可
    - `remote-write:<種別>` → チケットの `allow.ops` にその種別があり、かつ `types[t].ops` にもある → 許可、無ければ **deny WF206**
    - `build-test` / `hook-test` / `merge-base` → 同様に `allow.ops` と `types[t].ops` の両方にあれば許可、無ければ **deny WF204**
-   - `web`（`curl` / `wget`）→ 同様に `allow.ops` と `types[t].ops` の両方に `web` があれば許可、無ければ **deny WF204**。ただし出力先を持つ形（`curl` の `-o` / `-O` / `--output` / `--remote-name`、`wget` の既定と `-O <file>`）は**先に**書き込みとして扱い、出力先パスに 5 と同じ判定を当てる（`wip/tmp/**` / `logs/**` なら許可、それ以外は **deny WF205**）。`wget` は既定でカレントにファイルを作るため、`-O -`（標準出力）以外は常に出力先の判定を通す。宣言があっても書き込みの判定は免除しない（共通仕様 §8。DDR i0009-41）
+   - `web`（`curl` / `wget`）→ 共通仕様 §8 の**判定順**（送信側 → 出力先 → `web`）で扱う。(1) 送信側の形（`-T` / `--upload-file` / `-d` / `--data*` / `-F` / `--form` / `-X` の GET・HEAD 以外、`wget` の `--post-*` / `--body-*` / `--method` の GET・HEAD 以外）は**宣言の有無によらず deny WF206**。(2) 出力先を持つ形（`curl` の `-o` / `--output` / `-O` / `--remote-name` / `--output-dir`、`wget` の既定と `-O <file>`）は書き込みとして扱い、出力先パスに 5 と同じ判定を当てる（`wip/tmp/**` / `logs/**` なら許可、それ以外は **deny WF205**）。(3) 残りは `allow.ops` と `types[t].ops` の両方に `web` があれば許可、無ければ **deny WF204**。宣言があっても (1)(2) は免除しない（DDR i0009-41・i0009-56・i0009-57）
    - 上記のいずれにも該当しない → **deny WF204**（既定拒否。読み取り系の一覧に足すか、分類を宣言するかを案内）
 7. **プランモード**（`EnterPlanMode`）: `types[t].plan_mode` が true でなければ **deny WF212**
 8. **起動**（`Agent` / `Workflow`）: 許可（実行者の不一致は `subagent-start-check` が伝える）
@@ -112,6 +112,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WG-T14 | 正常系 | `commit.sh -m .. <禁止範囲のファイル>` が WF201 |
 | WG-T16 | 異常系 | `scope-limits.json` を壊した状態でも `tool_name` と対象パスがメッセージに載った **WF210** が返る（stdout が空にならない）。同じ状態で `commit.sh` の実行・`wip/10_tickets/**` への Write・`scope-limits.json` 自身への Write（WF203）が**通る**（復旧経路が生きている）。`approvals.json` を壊した状態では WF202 の承認済み判定だけが効かなくなり、他の判定は動く |
 | WG-T15 | 正常系 | `curl https://example.com/x` は `web` を宣言した investigation で通り、宣言の無い design では WF204。`curl -o wip/tmp/x.md <url>` は通り、`curl -o .claude/settings.json <url>` と `curl -O <url>`（カレントに作る）は宣言があっても WF205。`wget <url>` は `-O -` でなければ WF205。`WebFetch` は matcher 外なのでこのフックに届かない（届かないことを登録表 HK-T01 で固定する） |
+| WG-T17 | 異常系 | **送信側は `web` を宣言しても通らない**: `curl -T a.md <url>`、`curl -d @a.md <url>`、`curl -F file=@a.md <url>`、`curl -X POST <url>`、`wget --post-file=a.md <url>`、`wget --method=PUT <url>` がすべて **WF206**。`curl -X GET <url>` と `wget --method=GET <url>` は（`web` の宣言があれば）通る。**出力先と URL の取り違えをしない**: `curl <url> -o wip/tmp/a`（URL が先）と `curl -o wip/tmp/a <url>`（出力先が先）がどちらも通り、`curl <url>`（出力先なし）が WF205 にならない |
 
 ## 要件との対応
 

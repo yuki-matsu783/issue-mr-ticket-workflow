@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 4 の敵対的レビ
 allow:
   write: ["apl/**"]
   ops: ["read", "build-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:20:46+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "bba859b"
 ---
 
 # 0024 実装: README の設計文書への参照がどこからの相対かを明示する

@@ -1,21 +1,21 @@
 ---
 type: requirement
 title: design-docs ルール
-description: アプリ本体の設計文書（docs/ 配下）の正典規約（配置・正史のみの記述・requirement と spec の書き分け・DDR の運用・用語辞書）を定める成果物ルールの要件
+description: アプリ本体の設計文書（apl/<アプリ名>/docs/ 配下）の正典規約（配置・正史のみの記述・requirement と spec の書き分け・要件書の形・DDR の運用・用語辞書）を定める成果物ルールの要件
 tags: [requirement, rules, docs]
-keywords: [設計文書, アプリ本体, 正史, requirement, spec, DDR, 用語辞書, 配置, 書き分け, 経緯, 却下案, frontmatter 生成, 一覧]
+keywords: [設計文書, アプリ本体, apl, アプリルート, 正史, requirement, spec, DDR, 用語辞書, 配置, 書き分け, 要件書の形, 経緯, 却下案, frontmatter 生成, 一覧]
 ---
 
 # design-docs ルール
 
 ## 概要
 
-アプリ本体の設計文書（要件定義書・仕様書・DDR・用語辞書）の正典規約を定める成果物ルールの要件を定義する。適用範囲は `docs/**` のみで、AI アセットの設計文書（`.claude/docs/**`）には効かない。AI アセット側は `ai-asset-design-docs` ルールが同種の規定を独立に持つ（重なる規定は両方のルールに書き、内容を食い違わせない）。
+アプリ本体の設計文書（要件定義書・仕様書・DDR・用語辞書）の正典規約を定める成果物ルールの要件を定義する。適用範囲は `apl/**` のみで、AI アセットの設計文書（`.claude/docs/**`）には効かない。AI アセット側は `ai-asset-design-docs` ルールが同種の規定を独立に持つ（重なる規定は両方のルールに書き、内容を食い違わせない）。
 
 - **背景**: 設計文書は「その時点で有効な正史」と「決定の経緯」が混ざると、読み手がどれを信じてよいか分からなくなる。置き場・書き分け・DDR の運用を 1 つのルールにまとめ、書くときも観点別レビューでも同じ文書を参照できるようにする。
 - **目的**: アプリ本体の設計文書を書く AI が、配置・記述の範囲・DDR の扱いで迷わず、レビューエージェントが同じ基準で横並びに検査できる状態を作る。
 - **スコープ**:
-  - 含む: このルールが定めるべき内容（配置、正史のみの記述、requirement / spec の書き分け、DDR の運用、用語辞書の位置づけ）
+  - 含む: このルールが定めるべき内容（配置、正史のみの記述、requirement / spec の書き分け、要件書の形、要件と仕様の順序と対応、DDR の運用、用語辞書の位置づけ）
   - 含まない: frontmatter のキー定義と `type` の値一覧（`markdown-docs` ルール）、AI アセット設計文書の規定（`ai-asset-design-docs` ルールが独立に持つ）、文書の寿命と置き場所の一般則（`document-lifecycle` ルール）
 
 ---
@@ -34,7 +34,7 @@ keywords: [設計文書, アプリ本体, 正史, requirement, spec, DDR, 用語
 
 ### メインフロー
 
-- When AI が `docs/` 配下の文書を作成・変更するとき、Shall このルールが収集され、以降の各規定が適用されなければならない。
+- When AI が `apl/` 配下の文書を作成・変更するとき、Shall このルールが収集され、以降の各規定が適用されなければならない。
 - When このルールを書くとき、Shall 成果物ルールとして章スキーマ（`ルール体系.md`）に従わなければならない。
 
 ### 例外フロー
@@ -43,7 +43,9 @@ keywords: [設計文書, アプリ本体, 正史, requirement, spec, DDR, 用語
 
 ### 配置
 
-- When 設計文書を置くとき、Shall `docs/` 配下に、要件定義書を `00_requirement/`、仕様書を `10_spec/`、DDR を `20_ddr/`、用語辞書を `90_glossary/` の構成で置かなければならない。
+- When アプリの成果物を置くとき、Shall アプリごとに `apl/<アプリ名>/` を[アプリルート](../../90_glossary/ドキュメント体系用語.md#アプリルート)とし、ソースを `src/`、テストを `test/`、設計文書を `docs/`、ビルド設定（`package.json` 等）をアプリルート直下に置かなければならない。
+- When 設計文書を置くとき、Shall アプリルートの `docs/` 配下に、要件定義書を `00_requirement/`、仕様書を `10_spec/`、DDR を `20_ddr/`、用語辞書を `90_glossary/` の構成で置かなければならない。
+- When 要件定義書と仕様書を置くとき、Shall 1 アプリにつき対象 1 つとし、`00_requirement/<アプリ名>.md` と `10_spec/<アプリ名>.md` を同じファイル名で対応させなければならない（AI アセット側のような種類ディレクトリを持たない）。
 
 ### 正史のみの記述
 
@@ -52,6 +54,22 @@ keywords: [設計文書, アプリ本体, 正史, requirement, spec, DDR, 用語
 ### requirement と spec の書き分け
 
 - When requirement を書くとき、Shall 利用者から見た振る舞い（何ができ、何が拒否され、何が出力されるか）で記述し、内部構造（コマンドの構成・状態の持ち方・判定の手順）は spec に書かなければならない。
+- When spec を変更するとき、Shall 対応する requirement より先に変えてはならず、要件側の誤り・不足を仕様側の辻褄合わせで吸収してはならない。
+- When spec を書き終えるとき、Shall 「要件との対応」表が requirement の受け入れ基準を全件カバーし（行数が一致し）、実現箇所の無い要件（実装漏れ）と要件の無い節（過剰仕様）が無いことを確かめなければならない。
+
+### 要件書の形
+
+- When requirement を書くとき、Shall 章順は 概要（背景・目的・スコープ。「含まない」には担い先）→ ユーザーストーリー → 受け入れ基準 → 前提条件 → 制約条件 → 依存関係 → 非機能要件でなければならない。
+- When 受け入れ基準を書くとき、Shall EARS（When 〜 Shall / If 〜 Then / Shall not）で書き、節を メインフロー → 代替フロー → 例外フロー → 規約節（0〜3）→ 他のアプリ・機構との整合（0〜1）の順に置かなければならない。
+- When メインフロー節を書くとき、Shall EARS 箇条書きの前に mermaid の `flowchart TD` を 1 つ置き、1 図のノードを 15 までとし、代替・例外への離脱点を識別子（`**[A1]**` / `**[E1]**`）で節と対応づけなければならない。
+- When 自由記述（散文）を書くとき、Shall 概要の導入・背景・目的の 3 か所だけとし、合計 600 字以内に収めなければならない。
+- When requirement を書くとき、Shall 「関連するドキュメント」節・「レビュー記録」節・「変更履歴」節を置いてはならない。
+- When requirement を新規作成または更新するとき、Shall 概要章に「issue の受け入れ条件との対応」の小節を置き、起点の issue の受け入れ条件と、それを満たす受け入れ基準を対応づけなければならない（既存文書への遡及適用は求めない）。
+
+### 横断文書と正の指し先
+
+- When 特定のアプリに紐づかない規定を書くとき、Shall アプリルートの `docs/00_requirement/` / `docs/10_spec/` の直下に置かなければならない（サブディレクトリにはアプリに紐づく文書だけを置く）。
+- When 仕様書の節構成・要件書のテンプレートを参照するとき、Shall 正は `.claude/docs/10_spec/skills/20-common-step-spec.md`（節構成）と `20-common-step-requirement` スキルの `assets/requirements.template.md`（テンプレート）であり、このルールで再掲してはならない。
 
 ### DDR の運用
 
@@ -80,7 +98,7 @@ keywords: [設計文書, アプリ本体, 正史, requirement, spec, DDR, 用語
 
 ## 制約条件
 
-- **技術的制約**: 適用範囲は `docs/**` の paths で宣言し、`.claude/docs/**` には適用しない
+- **技術的制約**: 適用範囲は `apl/**` の paths で宣言し、`.claude/docs/**` には適用しない
 - **ビジネス的制約**: 文書の内容の妥当性は MR 上の人間レビューが判断する
 
 ---
@@ -90,6 +108,8 @@ keywords: [設計文書, アプリ本体, 正史, requirement, spec, DDR, 用語
 - `rules/ルール体系.md`（分類・章スキーマ・収集の要件）
 - `rules/ai-asset-design-docs.md`（AI アセット側の対応ルール。重なる規定は内容を揃える）
 - `markdown-docs` ルール（frontmatter 規約）
+- `.claude/docs/10_spec/skills/20-common-step-spec.md`（仕様書の種別ごとの節構成の正）
+- `20-common-step-requirement` スキルの `assets/requirements.template.md`（要件書のテンプレートの正）
 
 ---
 

@@ -3,7 +3,7 @@
     "allow": ["wip/10_tickets/**", "wip/20_plans/**", "wip/30_reports/**", "wip/tmp/**", "wip/00_overall_plan/**", "wip/push-check-skip.md"],
     "protected": [".claude/**", ".gitignore", "apl/*/.gitignore", ".gitattributes"],
     "confirm": [".claude/hooks/config/**", ".claude/settings.json"],
-    "file_granular": ["CLAUDE.md", "apl/*/package.json", "apl/*/tsconfig.json", "apl/*/.gitignore", "apl/*/README.md"],
+    "file_granular": ["CLAUDE.md", "apl/*/CLAUDE.md", "apl/*/package.json", "apl/*/tsconfig.json", "apl/*/.gitignore", "apl/*/README.md"],
     "state_files": ["logs/mr.json", "logs/review-state.json", "logs/review-history.jsonl", "logs/merge-state.json"]
   },
   "types": {
@@ -13,7 +13,7 @@
     "design-plan": {"deny": ["apl/**", ".claude/**", "src/**", "docs/**"], "ops": ["read", "remote-read"]},
     "design": {"allow": ["apl/*/docs/**"], "deny": ["apl/*/src/**", "apl/*/test/**", ".claude/**"], "ops": ["read", "remote-read"]},
     "implementation-plan": {"deny": ["apl/**", ".claude/**", "src/**", "docs/**"], "ops": ["read", "remote-read"]},
-    "implementation": {"allow": ["apl/*/src/**", "apl/*/test/**", "apl/*/*"], "deny": [".claude/**", "apl/*/docs/**"], "confirm": ["apl/*/package.json", "apl/*/tsconfig.json"], "ops": ["read", "build-test", "remote-read"]},
+    "implementation": {"allow": ["apl/*/src/**", "apl/*/test/**", "apl/*/package.json", "apl/*/package-lock.json", "apl/*/tsconfig.json", "apl/*/README.md", "apl/*/.gitignore"], "deny": [".claude/**", "apl/*/docs/**"], "confirm": ["apl/*/package.json", "apl/*/tsconfig.json"], "ops": ["read", "build-test", "remote-read"]},
     "feedback-plan": {"ops": ["read", "remote-read", "remote-write:issue-create"]},
     "design-feedback-plan": {"deny": ["apl/**", ".claude/**", "src/**", "docs/**"], "ops": ["read", "remote-read"]},
     "design-feedback": {"allow": ["apl/*/docs/**"], "deny": ["apl/*/src/**", "apl/*/test/**", ".claude/**"], "ops": ["read", "remote-read"]},

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "remote-write:issue-create"]
-started_at: ""
+started_at: "2026-09-02T11:21:44+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a81d0d0"
 ---
 
 # 0025 フィードバック計画: 後続フェーズの要否と別 issue の候補を決める

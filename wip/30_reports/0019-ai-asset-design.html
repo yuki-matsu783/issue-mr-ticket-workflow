@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0019 AI アセット設計結果 — 並列実行の前提と登録の書き方</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ -->
+  <p class="kind">AI アセット設計結果レポート / issue #9 フェーズ 3（境界レビューの反映）</p>
+  <h1 id="title" data-required>0019 AI アセット設計結果 — 並列実行の前提と登録の書き方</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 4</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 1</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 順序に頼る記述をすべて外した</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. ホットパスの目安を「<code>jq</code> 1 回」の上限に置き換えた</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 登録を <code>${CLAUDE_PROJECT_DIR}</code> 基準の絶対パスにした</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. push 検知の起点を呼び手が持つ形にした</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. <code>logs/</code> の並行書き込みを 3 段階で規定した</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 登録表に <code>command</code> 文字列の材料を注記した</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. §2 の作業ツリーの解決を読み込み行に一本化した</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-9-hook-bodies-settings</code></dd></div>
+    <div><dt>チケット</dt><dd>0019-ai-asset-design</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">設計ワークの境界レビュー 1 巡目の指摘のうち、<strong>並列実行と登録の書き方に関わる 7 件（R1・R2・R10・R11・R12・R19・R22）</strong>を仕様に反映した。更新した文書は仕様 6 本・要件 1 本、新規の DDR は 6 件（<code>i0009-20</code>〜<code>25</code>）。根っこは 1 つで、公式の「<strong>All matching hooks run in parallel.</strong>」をこれまでの設計が読み落としていた。ここから 4 つの帰結が出た: (1) <strong>順序に頼れない</strong> — <code>順</code> 列を <code>位置</code> に改め「先に拒否したフックが理由を返す」「安価→高価」を捨て、各フックの拒否理由は単独で読んで成立する文面にする、(2) <strong>fork が 5 倍になる</strong> — 「1 秒以内」を <strong>ホットパスで起動してよい外部プロセスは <code>jq</code> 1 回だけ</strong>という検査できる上限に置き換え、§2 の <code>git rev-parse</code> 依存も外した、(3) <strong>同じ記録に同時に書く</strong> — 並行書き込みを 3 段階で規定し <code>HK-T17</code> を足した、(4) <strong>共有ライブラリが状態を持つとレースになる</strong> — <code>push_detect</code> から状態を外し起点を引数化した。あわせて登録を <strong><code>${CLAUDE_PROJECT_DIR}</code> 基準の絶対パス</strong>に変えた（相対パスのままだと cwd 次第で拒否側 5 本が 127 で落ち、ラッパーが全操作を deny してロックアウトする）。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>f2（✕問題）</strong>: ホットパスの fork 上限を「<code>jq</code> 1 回」にしたこと。検査できる形にはなったが、<strong>この上限で本当に足りるか</strong>を実装前に見てほしい。特に <code>workflow-guard</code> は <code>scope-limits.json</code>（JSON）とチケットの frontmatter を読む必要があり、<code>jq</code> を 2 回目に呼びたくなる</li>
+        <li><strong>f4（△注意）</strong>: <code>push_count</code> を <code>push-state.json</code> の <code>count</code> と独立に数えることにした。レポート名の番号が 2 系統になるので、人間が読むときに「compact-prompt の回数」と一致しなくなる</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><strong>f1</strong>: <code>位置</code> 列への改名と、拒否理由を単独で成立する文面にする方針</li>
+        <li><strong>f3</strong>: 登録を <code>${CLAUDE_PROJECT_DIR}</code> 基準の絶対パスにすること（フェーズ 4b の人間の操作がこの形になる）</li>
+        <li><strong>f5</strong>: 並行書き込みの 3 段階（<code>mkdir</code> ロックは 2 秒で諦めて加算せず終了 0）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><strong>f6</strong>: 登録表の注記（<code>--accumulate</code> の 2 行・ディレクトリ不一致の 4 行）と HK-T01 が変換で照合しないこと</li>
+        <li><strong>f7</strong>: §2 の <code>git rev-parse</code> を読み込み行の解決結果に置き換えたこと</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong><code>jq</code> 1 回で全フックが書けるか</strong>を実装で確かめていない（f2 の懸念）。<code>workflow-guard</code> の <code>scope-limits.json</code> の読み方は 0021 と実装フェーズの担当</li>
+      <li><strong><code>mkdir</code> ロックが Git Bash で期待どおり原子的に振る舞うか</strong>を実測していない（POSIX の保証に依拠）</li>
+      <li><strong>4 KB（<code>PIPE_BUF</code>）が Windows の Git Bash でも成立するか</strong>を実測していない</li>
+      <li><code>${CLAUDE_PROJECT_DIR}</code> が worktree のとき何を指すかを実測していない</li>
+      <li><strong>並列実行そのものを観測していない</strong>。公式の記述に依拠している（実測はフェーズ 4c）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>更新対象: <code>10_spec/フック共通仕様.md</code>（§1・§2・§5・§11）、<code>20-PreToolUse/block-chmod.md</code>・<code>block-direct-git.md</code>・<code>workflow-state-guard.md</code>・<code>workflow-guard.md</code>、<code>22-PostToolUse/post-push-compact-prompt.md</code>・<code>post-push-usage-report.md</code>、<code>00_requirement/自己改善ワークフロー機構.md</code></li>
+    <li>入力: <code>wip/30_reports/0015-ai-asset-design-appendix-A.md</code>（境界レビューの指摘 R1・R2・R10・R11・R12・R19・R22）</li>
+    <li>公式の原文: <code>wip/tmp/hooks.md</code> の <code>:414</code>（並列実行）・<code>:416</code>（cwd とフォールバック）・<code>:3713</code>（絶対パスと <code>${CLAUDE_PROJECT_DIR}</code>）・<code>:2088</code>（PostToolUse の並行発火）</li>
+    <li>参考実装: <code>.claude/hooks/lib/hook-common.sh</code>（ルート解決が git を呼んでいないこと）</li>
+    <li>実行はしていない（テストは実装フェーズ）</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">順序に頼る記述をすべて外した <span class="chip good">◎良</span> <span class="basis">根拠: 公式 <code>hooks.md:414</code>、境界レビュー R1・R19</span></h3>
+      <p>公式は「<strong>All matching hooks run in parallel.</strong> If you define the same handler in more than one settings file, it runs once.」と明記している。これまでの設計は 3 か所でこれに反していた。<strong>§1 の <code>順</code> 列</strong>を <strong><code>位置</code></strong>（<code>settings.json</code> の配列上の位置であって実行順ではない）に改め、<strong>「先に拒否したフックが理由を返す」</strong>を「複数が同時に deny を返し得る。<strong>どの理由が AI に見えるかは不定</strong>として扱い、<strong>各フックの拒否理由は単独で読んで成立する文面</strong>にする」に変えた。<strong>「安価で範囲の広い判定 → 高価で狭い判定」</strong>という順序による絞り込みを削り、「各フックが単独で軽いことだけが性能を決める」にした。<strong>各フック仕様の「〜の後、〜の前」を 5 本</strong>で「共通仕様 §1 の N 行目。位置であって実行順ではない」に書き換えた（R19 の <code>workflow-guard</code> の「最後に実行」も含む）。<strong>HK-T01</strong> の照合対象を「イベント・matcher・フック・配列上の位置」に書き直した。</p>
+      <p class="basis">実測への依存: 無し（公式の記述で確定）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>hooks.md:414 All matching hooks run in parallel.
+直した 9 か所:
+  §1 順→位置 / §1 先に拒否したフックが理由を返す / §1 安価→高価の順序
+  §11 HK-T01 の照合対象
+  block-chmod:25 / block-direct-git:26 / workflow-state-guard:26
+  workflow-guard:27（「最後に実行」= R19）/ post-push-usage-report:26
+DDR: i0009-21</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>事実と食い違う前提が消えた。実装者が「先に走るフックが弾くから省ける」という最適化を入れる余地が無くなった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">ホットパスの目安を「<code>jq</code> 1 回」という検査できる上限に置き換えた <span class="chip stop">✕問題</span> <span class="basis">根拠: 境界レビュー R11、<code>20-common-step-shell-script.md:107</code>（95 ms/回）</span></h3>
+      <p><code>i0009-11</code> が置いた「ホットパスで 1 秒以内」は<strong>結果であって守り方ではない</strong>（実装者が守れているか判断できず、テストにも落ちない）。しかも §2 が「作業ツリーの位置は <code>git rev-parse --show-toplevel</code> を基準にする」と書いており、素直に読むと各フックが毎回 git を起動する — <code>20-common-step-shell-script</code> 仕様が「Git Bash で<strong>約 95 ms/回</strong>」を理由に否定した方式を、共通仕様が要求していた。<strong>決定</strong>: ホットパスのフックが起動してよい外部プロセスは、<strong>stdin を解析する <code>jq</code> の 1 回だけ</strong>（<code>git</code> / <code>date</code> / <code>sed</code> / <code>find</code> を呼ばない）。<code>make_counting_path</code> で<strong>呼び出し回数として検査</strong>する。§2 の記述も「読み込み行が解決したリポジトリルート（<code>LOGGER_ROOT</code> / <code>HOOK_ROOT</code>）を基準にする」に変えた。並列実行なのでホットパス 5 本は<strong>同時に</strong>起動し、1 本あたりの fork がそのまま 5 倍のプロセスになることも §1 に書いた。</p>
+      <p class="basis">実測への依存: <strong>あり</strong>（上限で全フックが書けるかは実装フェーズ。実行時間の実測は 4c）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>既存の同方式: HK-T05（cmdpos の fork なし）・HK-T13（push-detect の fork ゼロ）
+              いずれも make_counting_path で回数を数えている
+案内側フック（post-push-* / session-start / diff-check / subagent-*）は
+  ツールの成否が確定した後に走るのでホットパスではなく、上限の対象外
+未解決: workflow-guard が scope-limits.json（JSON）を読む方法
+  → 純 bash で読むか、hook_read_input の 1 回に相乗りさせるか（0021 と実装フェーズ）
+DDR: i0009-22</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>「速さで守る」という <code>i0009-11</code> の決定が検査できる形になった。ただし<strong>実装可能性は未確認</strong>で、守れない場合は上限か設計のどちらかを直すことになる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">登録を <code>${CLAUDE_PROJECT_DIR}</code> 基準の絶対パスにした <span class="chip good">◎良</span> <span class="basis">根拠: 公式 <code>hooks.md:3713</code>・<code>:416</code>、境界レビュー R10</span></h3>
+      <p>登録の雛形は <code>bash .claude/hooks/&lt;NN-Event&gt;/&lt;name&gt;.sh</code> という<strong>リポジトリルート相対パス</strong>だった。公式は「<strong>Handlers run in the current directory</strong> with Claude Code's environment.」（cwd が<strong>消えていた</strong>場合だけフォールバックする）と「<strong>Use absolute paths</strong> … In shell form, wrap it in double quotes」の 2 つを言っている。cwd はリポジトリルートとは限らない（Claude が <code>cd</code> した後・worktree・サブディレクトリ）。<strong>決定</strong>: <code>command</code> を <code>bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/&lt;NN-Event&gt;/&lt;name&gt;.sh"</code> にする。ラッパー付きの拒否側 5 登録も同じ形。<strong>なぜ重大か</strong>: 相対パスが解決できないと <code>bash</code> は終了 <strong>127</strong>。ラッパーの <code>||</code> はまさにこれを拾うので、<strong>拒否側 5 本すべてが同時に deny を返し、書き込み・実行・プランモード・起動のすべてが止まる</strong>。この状態から AI 側でできることは無い。案内側 6 本は同じ状況で<strong>静かに動作停止</strong>する。</p>
+      <p class="basis">実測への依存: 一部あり（<code>${CLAUDE_PROJECT_DIR}</code> が worktree で何を指すかは 4c）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>hooks.md:3713 Use absolute paths: specify full paths for scripts.
+              In shell form, wrap it in double quotes
+hooks.md:416  Handlers run in the current directory with Claude Code's environment.
+              （cwd が消えていた場合のみ 起動ディレクトリ→プロジェクトルート→ホーム→temp）
+帰結: 相対パス解決失敗 → exit 127 → ラッパーの || が発火 → 拒否側 5 本が同時に deny
+更新: §1 の登録の雛形・fail-closed ラッパー・HK-T01
+DDR: i0009-20</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>実装計画が一番避けたい形のロックアウトの経路が 1 つ塞がった。フェーズ 4b の登録は必ずこの形で行う。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4"><code>push_detect</code> から状態を外し、進捗の起点を呼び手が持つ形にした <span class="chip warn">△注意</span> <span class="basis">根拠: 境界レビュー R2、<code>post-push-compact-prompt.md:60</code></span></h3>
+      <p><code>push-detect.sh</code> の検知条件 3 は「<code>push-state.json[b].sha</code> が HEAD と異なる」で、この関数を <code>post-push-compact-prompt</code>（正）と <code>post-push-usage-report</code>（共有）の 2 本が使う。ところが compact-prompt は本体の最後で <code>push-state.json[b]</code> を <code>{sha: head, count+1}</code> に更新する。compact-prompt が先に走ると usage-report の検知は偽になり<strong>集計しない</strong>。並列実行なのでどちらが先かは不定 = <strong>レース</strong>。レポート名の <code>&lt;count&gt;</code> も番号がずれる。<strong>決定</strong>: <code>push_detect &lt;起点 sha&gt;</code> は<strong>状態ファイルを読まず書かない</strong>。起点は呼び手が渡す（compact-prompt = <code>push-state.json[b].sha</code> / usage-report = <code>usage/&lt;branch&gt;.json</code> の <strong><code>last_push_sha</code></strong>（新設））。<code>push_count</code> も新設し、usage-report は <code>push-state.json</code> を<strong>一切参照しない</strong>。</p>
+      <p class="basis">実測への依存: 無し（設計の分離）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>問題の構造:
+  push_detect の条件3 = push-state.json[b].sha != HEAD
+  compact-prompt 本体5 = push-state.json[b] を {sha: head, count+1} に更新
+  → 並列なのでどちらが先か不定（レース）
+分離後:
+  compact-prompt : 起点 = push-state.json[b].sha       （このフック専用）
+  usage-report   : 起点 = usage/<branch>.json.last_push_sha（新設）
+更新: push 検知 1〜3・本体 5 / 呼出条件・入出力スキーマ・既定 1・既定 4・UR-T07
+      §5 の 2 行 / §11 HK-T13
+DDR: i0009-24</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>共有ライブラリが特定の状態ファイルを持つ設計（<code>i0009-17</code> と同じ形の誤り）が解消した。代償はレポートの通し番号が 2 系統になること。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5"><code>logs/</code> の並行書き込みを 3 段階で規定した <span class="chip warn">△注意</span> <span class="basis">根拠: 公式 <code>hooks.md:414</code>・<code>:2088</code>、境界レビュー R22</span></h3>
+      <p>§5 は同時書き込みについて何も書いていなかった。公式は「All matching hooks run in parallel」に加えて「<code>PostToolUse</code> … <strong>fires concurrently when Claude makes parallel tool calls</strong>」と明記している。競合し得るのは 3 種類で、必要な強度が違う。<strong>追記だけのファイル</strong>（<code>decisions.jsonl</code>）は 1 行を <strong>4 KB（<code>PIPE_BUF</code>）未満</strong>に保つ（<code>note</code> と <code>target</code> は合わせて 1 KB まで）。<strong>読んで書き換えるファイル</strong>（<code>approvals.json</code> / <code>push-state.json</code> / <code>usage/&lt;branch&gt;.json</code>）は一時ファイル + <code>mv</code> で置き換える。<strong>read-modify-write が競合し得るもの</strong>（<code>usage/&lt;branch&gt;.json</code>）は <strong><code>mkdir</code> ロック</strong>で直列化し、取れなければ<strong>最大 2 秒で諦め、加算せず <code>parse_errors</code> を +1 して終了 0</strong>（案内側なので通す）。新規テスト <strong><code>HK-T17</code></strong> で固定した。要件の非機能（可用性）にも外部から見える性質として 1 文足した。</p>
+      <p class="basis">実測への依存: <strong>あり</strong>（<code>mkdir</code> の原子性と 4 KB の追記保証は POSIX の記述に依拠。Git Bash での実測は <code>HK-T17</code> まで）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>競合する 3 種類:
+  decisions.jsonl      全フック（PreToolUse で 7 本）    追記の割れ
+  approvals.json       diff-check が書き guard が読む    書きかけを読む
+  usage/<branch>.json  並行サブエージェントの SubagentStop  加算が消える
+mkdir を選んだ理由: flock は Git Bash に無いことがある。mkdir は存在すれば失敗＝原子的
+2 秒で諦める理由: 案内側フックが本体を止めない。抜けたことは parse_errors に残る
+更新: §5（並行書き込みの規則）・§11（HK-T17）
+      要件 非機能・可用性（外部から見える性質として 1 文）
+DDR: i0009-23</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>並列実行から出る 3 つ目の帰結を塞いだ。保証の根拠が POSIX の記述なので、<code>HK-T17</code> を通すまでは仮定。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">登録表に <code>command</code> 文字列の材料を注記した <span class="chip good">◎良</span> <span class="basis">根拠: 境界レビュー R12、DDR i0001-24</span></h3>
+      <p>表の 5 列だけでは <code>command</code> を組み立てられない。<strong>引数を取る登録が 2 行</strong>（SubagentStop / Stop の <code>--accumulate</code>）と、<strong>実体のディレクトリと登録先イベントが一致しない行が 4 行</strong>ある。§1 の「実体」の説明に「<strong><code>&lt;NN-Event&gt;</code> は主たるイベント</strong>で、登録先のイベントと一致しないことがある（DDR <code>i0001-24</code>）」を明記し、登録表の直後に「表に現れない登録の細部」として 2 行と 4 行を列挙した。<strong>HK-T01 は「イベント名 → ディレクトリ」の機械的な変換で照合しない</strong>。17 行分の <code>command</code> 文字列の一覧を期待値として持つ。変換で照合しようとすると 4 行の例外を変換規則に埋め込むことになり、「表が正」という建て付けが崩れる。</p>
+      <p class="basis">実測への依存: 無し</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>ディレクトリ ≠ 登録先イベント（4 行）:
+  12-SubagentStart/subagent-start-check.sh   → PreToolUse（Agent）
+  13-SubagentStop/subagent-stop-check.sh     → PostToolUse（Agent）
+  22-PostToolUse/post-push-usage-report.sh   → SubagentStop
+  22-PostToolUse/post-push-usage-report.sh   → Stop
+引数を取る（2 行）: SubagentStop / Stop の post-push-usage-report --accumulate
+更新: §1（実体の説明・登録表の直後の注記）・§11（HK-T01）
+DDR: i0009-25</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>HK-T01 が書ける状態になった。期待値は 17 行分の <code>command</code> 文字列の一覧（0016 が用意する）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">§2 の作業ツリーの解決を読み込み行に一本化した <span class="chip good">◎良</span> <span class="basis">根拠: <code>20-common-step-shell-script.md:83-85,107</code>、参考実装 <code>hook-common.sh:18</code></span></h3>
+      <p>f2 に含まれるが、独立した是正なので分けて記す。§2 の「<code>cwd</code> ではなく <code>git rev-parse --show-toplevel</code> を基準にする（サブディレクトリからの実行に備える）」という<strong>意図</strong>（サブディレクトリ対応）は、読み込み行の解決順（<code>BASH_SOURCE</code> からの上向き探索 → <code>CLAUDE_PROJECT_DIR</code> → <code>git rev-parse</code>）が<strong>既に満たしている</strong>。手段が二重になっていただけで、参考実装 <code>hook-common.sh:18</code>（<code>HOOK_ROOT="${HOOK_ROOT:-${LOGGER_ROOT:-$__hc_root}}"</code>）も git を呼んでいない。</p>
+      <p class="basis">実測への依存: 無し</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>読み込み行の解決順（20-common-step-shell-script 仕様）:
+  1. ${BASH_SOURCE[0]%/*} から .claude を持つ親を上向きに探す（fork なし）
+  2. CLAUDE_PROJECT_DIR
+  3. git rev-parse --show-toplevel（最終手段）
+参考実装 hook-common.sh:18 は git を呼んでいない
+更新: §2（作業ツリーの位置）</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>「サブディレクトリからの実行に備える」を満たしたまま、fork を 1 つ減らせる。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>更新した仕様書</td><td>7 本（<code>フック共通仕様</code>・<code>block-chmod</code>・<code>block-direct-git</code>・<code>workflow-state-guard</code>・<code>workflow-guard</code>・<code>post-push-compact-prompt</code>・<code>post-push-usage-report</code>）</td></tr>
+      <tr><td>更新した要件定義書</td><td>1 本（<code>自己改善ワークフロー機構</code>。非機能の可用性 1 か所）</td></tr>
+      <tr><td>新規の DDR</td><td>6 件（<code>i0009-20</code>〜<code>i0009-25</code>。<strong>チケットの割り当て帯 20〜25 に完全一致</strong>）</td></tr>
+      <tr><td>追加したテスト観点</td><td>1 件（<code>HK-T17</code> = 並行書き込み）。機械テスト。<code>HK-T01</code>・<code>HK-T13</code>・<code>UR-T07</code> の期待値を更新</td></tr>
+      <tr><td>登録表の行数</td><td><strong>17 行のまま</strong>（このチケットは行を増減していない。17 行の可否は 0020 の S1 で決着する）</td></tr>
+      <tr><td>対応した指摘</td><td>7 件（R1・R2・R10・R11・R12・R19・R22）。すべて反映済み</td></tr>
+      <tr><td>要件に内部構造が漏れていないか</td><td>漏れなし（要件には「複数の判定が同時に走って同じ記録に書いても壊れない」だけ。<code>mkdir</code> ロック・4 KB・<code>jq</code> の回数・<code>${CLAUDE_PROJECT_DIR}</code> は仕様のみ）</td></tr>
+      <tr><td>ヘッドレス実行の帰結</td><td>変更なし（並列実行・登録パス・並行書き込みはヘッドレスかどうかに関係しない）</td></tr>
+      <tr><td>残った実装可能性の疑い</td><td>1 件（f2 の <code>jq</code> 1 回で <code>workflow-guard</code> が書けるか）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>受け入れ条件との対応</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件（issue #9）</th><th>このチケットが満たす分</th><th>テスト ID（種別）</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>フック本体 11 本が仕様どおり動きテストが通る</td><td>並列実行の前提で全 11 本の呼出条件・拒否理由の書き方が整合した。ホットパス 5 本に fork 上限を課した</td><td>HK-T17（機械）・各フックの既存観点</td></tr>
+      <tr><td>2</td><td>登録後に <code>run-tests.sh --ids</code> の全件と HK-T01 が通る</td><td>HK-T01 の照合対象を「イベント・matcher・フック・配列上の位置 + <code>command</code> 文字列」に確定し、期待値の材料（<code>--accumulate</code> 2 行・ディレクトリ不一致 4 行・絶対パス形式）を §1 に置いた</td><td>HK-T01（機械）</td></tr>
+      <tr><td>6</td><td>決定の経緯が DDR に残っている</td><td><code>i0009-20</code>〜<code>25</code>（6 件）</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>0021 へ（最重要）</strong>: <code>workflow-guard</code> が <code>scope-limits.json</code> を読む方法を、<strong>ホットパスの <code>jq</code> 1 回</strong>の上限の中で成立させる（純 bash で読むか、<code>hook_read_input</code> の 1 回に相乗りさせるか）。成立しないなら上限の方を直す（f2）</li>
+    <li><strong>0021 へ</strong>: <code>hook-common.sh</code> に「JSON を原子的に置き換える」「ロックを取る / 返す」のヘルパを置く方針（各フックが自作しない）。§5 の規則の実装面（<code>i0009-23</code>）</li>
+    <li><strong>0020 へ</strong>: 17 行の可否（S1）を決めるとき、<code>command</code> 文字列の期待値が 17 行分か 16 行分かも連動する（<code>i0009-25</code>）</li>
+    <li><strong>0016 へ</strong>: HK-T01 の期待値として <strong>17 行分（または 0020 の結論に従う行数）の <code>command</code> 文字列の一覧</strong>を用意する。<code>${CLAUDE_PROJECT_DIR}</code> 基準の絶対パス形式</li>
+    <li><strong>フェーズ 4b へ</strong>: <code>settings.json</code> への登録（人間の操作）は必ず <code>bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/&lt;NN-Event&gt;/&lt;name&gt;.sh"</code> の形で行う</li>
+    <li><strong>フェーズ 4c へ</strong>: 並列実行そのものの観測と、ホットパスの実行時間の実測</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>R1（並列実行）は §1 の 2 文を直せば済む</td><td>順序の前提は §1 の 3 か所・各フック仕様 5 本・HK-T01 の計 <strong>9 か所</strong>に散っていた</td><td>f1 として 9 か所すべてを直し、<code>順</code> → <code>位置</code> の改名で読み手が前提を取り違えないようにした</td></tr>
+      <tr><td>R11（<code>git rev-parse</code>）は §2 の 1 行の書き換え</td><td>「1 秒以内」という目安自体が守り方を決めていないことが本体の問題だった</td><td>f2 として <strong>fork の回数</strong>という検査できる上限に置き換えた。ただし実装可能性が未確認なので ✕ 扱いにした</td></tr>
+      <tr><td>R2（push-state のレース）は登録順を変えれば済む</td><td>並列実行なので順序を指定できない。<strong>共有ライブラリが状態を持っている</strong>ことが原因だった</td><td>f4 として起点を引数化し、<code>usage/&lt;branch&gt;.json</code> に <code>last_push_sha</code> / <code>push_count</code> を新設した</td></tr>
+      <tr><td>R22（並行書き込み）は 1 つの規則で足りる</td><td>追記・読み書き・加算で必要な強度が違い、全部にロックを掛けるとホットパスが直列化する</td><td>f5 として 3 段階に分けた</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>f2 の実装可能性</strong>: <code>jq</code> 1 回で <code>workflow-guard</code> が書けるかは 0021 と実装フェーズで確かめる。書けなければ上限か設計を直す</li>
+    <li><code>mkdir</code> ロックと 4 KB 追記の保証は <strong>POSIX の記述に依拠</strong>しており、Git Bash（MSYS）での実測は <code>HK-T17</code> を通すまで無い</li>
+    <li><code>${CLAUDE_PROJECT_DIR}</code> が worktree で何を指すかを確かめていない（フェーズ 4c）</li>
+    <li>レポートの通し番号が 2 系統（<code>push-state.json</code> の <code>count</code> と <code>usage</code> の <code>push_count</code>）になった。運用してみて混乱するようなら片方に寄せる</li>
+    <li>並列実行の帰結として<strong>まだ点検していない箇所</strong>がある可能性: 今回は §1・§2・§5・§11 と 5 本のフック仕様を見たが、他イベントに同名フックが増えたときに再点検が要る</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

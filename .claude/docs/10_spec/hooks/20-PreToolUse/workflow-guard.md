@@ -24,7 +24,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 
 ## 呼出条件（イベント・matcher・登録）
 
-- PreToolUse、matcher: 書き込み / 実行 / プランモード / 起動（共通仕様 §1 の表。entry → state-guard → block-* の後、最後に実行）
+- PreToolUse、matcher: 書き込み / 実行 / プランモード / 起動（共通仕様 §1 の表の PreToolUse 6 行目。**位置であって実行順ではない** — フックは並列に走る（§1）。他の拒否側フックと同時に deny を返し得るので、拒否理由は単独で読んで成立する文面にする）
 - 前提: `wip/10_tickets/10_doing/` に `.md` が 1 枚。0 枚なら即座に許可。2 枚以上は異常（WF207）
 
 ## 入出力

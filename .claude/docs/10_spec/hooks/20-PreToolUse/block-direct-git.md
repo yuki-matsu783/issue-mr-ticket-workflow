@@ -23,7 +23,7 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 
 ## 呼出条件（イベント・matcher・登録）
 
-- PreToolUse、matcher: `Bash|PowerShell`（state-guard・block-chmod の後、guard の前）
+- PreToolUse、matcher: `Bash|PowerShell`（共通仕様 §1 の PreToolUse 5 行目。**位置であって実行順ではない**（フックは並列に走る — §1））
 - 作業中チケット・レビュー状態を問わず常時
 
 ## 入出力

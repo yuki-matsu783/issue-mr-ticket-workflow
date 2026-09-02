@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 6 の敵対的レビ
 allow:
   write: ["apl/**"]
   ops: ["read", "build-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:48:07+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f5fb890"
 ---
 
 # 0035 実装: render.ts のヘッダコメントが指す節名を改名後に合わせる

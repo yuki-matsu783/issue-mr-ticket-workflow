@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり: 振る舞いが�
 allow:
   write: [".claude/hooks/**", "wip/10_tickets/**", "wip/30_reports/**", "wip/tmp/**"]
   ops: ["read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T19:06:32+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9f74447"
 ---
 
 # 0037 ヒアドキュメント本文を実行位置として数えない（0028 で踏んだ過剰拒否の是正）

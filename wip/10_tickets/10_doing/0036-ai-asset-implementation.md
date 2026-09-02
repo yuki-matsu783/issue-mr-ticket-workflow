@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（拒否側の判�
 allow:
   write: [".claude/hooks/**", ".claude/skills/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T16:55:54+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c0d8642"
 ---
 
 # 0036 レビュー 3 巡目の是正: block-chmod の判定軸を「復元」から「難読化の検出」へ変え、worktree の相互参照を双方向にする

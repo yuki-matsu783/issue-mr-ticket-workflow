@@ -1,0 +1,435 @@
+<!--
+  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
+       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。
+
+  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
+  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
+  設計への反映 → 想定と異なった点 → 残課題
+
+  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
+  レビューの重みは色相を使わず ◆特に見てほしい / ◇承認が欲しい / ・細かいレビュー不要。
+  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
+
+  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0028 AI アセット実装結果</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装結果 / AI アセット実装</p>
+  <h1 id="title" data-required>0028 AI アセット実装結果 — ⓪ の単独登録と T6</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 1</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. T6 は効いた</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 記録は 10 項目すべて埋まり、<code>session_id</code> が実値になった</a></li>
+          <li><a href="#f3"><span class="mk stop">✕</span> 3. 過剰拒否を登録から 3 回目で踏んだ</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. 宣言した許可範囲から外れた操作を 1 件行った</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. 「新しいセッションが要る」は不要だった</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#acceptance">受け入れ条件との対応</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0028-ai-asset-implementation</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead"><code>block-chmod</code> 1 本だけを <code>settings.json</code> に登録し（fail-closed ラッパー無し）、<b>T6（<code>permissionDecision: deny</code> + 終了 0 が実際に効くか）を測った。結論は「効いた」</b>。<code>exit 2</code> + stderr への切り替えは要らない。同時に <b>0036 で「代償」として受け入れた過剰拒否を、登録から 3 回目の Bash 呼び出しで踏んだ</b>。原因は 0036 の想定（実行体の難読化）ではなく<b>ヒアドキュメント</b>で、<code>cmdpos</code> が「クォート・コメント・ヒアドキュメント本文」を同じ <code>_</code> に潰すため、実行位置ですらない本文が「実行体を特定できない段」として数えられていた。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+      <li><b>r1（✕問題）過剰拒否の頻度が実測で「登録から 3 回目」だった</b>。0036 では「実運用でこの形をどれだけ踏むかは測れていない」と書いたが、実測の答えがこれ。しかもこのプロジェクトは<b>ヒアドキュメントで一時スクリプトを書く運用</b>で、かつ <code>chmod</code> について書く文書を大量に作るので<b>踏み続ける</b>。0029 / 0030 の前に直すべきだと考えており、追加チケットを提案する（<a href="#f3">3 章</a>）</li>
+      <li><b>r2（△注意）拒否理由の文面が、実際に踏む状況と噛み合っていない</b>。「実行権限の変更は不要で、スクリプトは 'bash &lt;パス&gt;' で実行する」は、文書に <code>chmod</code> と書いただけで踏んだ読み手には何の案内にもならない（<a href="#f3">3 章</a>）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+      <li><b>r3</b>: <code>chmod +x &lt;ファイル&gt;</code> ではなく <code>chmod --version</code> で測ったこと（拒否が効かなかった場合でも権限が変わらないため。<a href="#f1">1 章</a>）</li>
+      <li><b>r4</b>: <code>.gitignore</code> に <code>.claude/settings.json.bak-*</code> を足したこと。<b>このチケットの <code>allow.write</code> の範囲外</b>で、逸脱として記録した（<a href="#f4">4 章</a>）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+      <li>登録した JSON 1 件の中身（matcher <code>Bash|PowerShell</code> / <code>bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh"</code>）</li>
+      <li><code>decisions.jsonl</code> の 10 項目の名前（<a href="#f2">2 章</a>）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><b>測ったのは deny の 1 経路だけ</b>。<code>allow</code> / <code>ask</code> の効き方、<code>systemMessage</code> の到達、<code>additionalContext</code> は測っていない（0031 の 4c）</li>
+      <li><b>フックの実行コストは測っていない</b>。登録状態での 1 回あたりの上乗せは 0031 で測る</li>
+      <li><b>ラッパー（fail-closed）の振る舞いは測っていない</b>（0031 の ②）</li>
+      <li><b>拒否が「終了 0 + deny JSON」だったことは、フックの実装がその経路しか持たないことから言っている</b>。Claude Code 側がどちらの形を受け取ったかを外から直接観測してはいない</li>
+      <li><b>過剰拒否の全体像は測っていない</b>。ヒアドキュメント由来の 1 経路を切り分けただけで、ほかにどんな形が <code>_</code> の段を作るかは網羅していない</li>
+      <li><b>1 セッション・1 ホストでの実測</b>。ほかの OS・ほかのセッションでの再現は見ていない</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+      <li>チケット: <code>wip/10_tickets/20_done/0028-ai-asset-implementation.md</code>（DoD 6 件）</li>
+      <li>計画: <code>wip/20_plans/0016-ai-asset-implementation-plan.md</code> ステップ 2</li>
+      <li>登録: <code>.claude/settings.json</code> に <code>hooks.PreToolUse</code> 1 件（人間の操作。AI は Edit / Write しない）</li>
+      <li>実体: <code>.claude/hooks/20-PreToolUse/block-chmod.sh</code>、<code>.claude/hooks/lib/{hook-common,cmdpos}.sh</code></li>
+      <li>記録: <code>logs/hooks/decisions.jsonl</code>、<code>logs/sh/hook-block-chmod.log</code></li>
+      <li>環境: Windows 10 Pro / Git Bash・<code>jq</code> あり・セッション <code>ee9cc8e9-…</code></li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">T6 は効いた <span class="chip good">◎良</span> <span class="basis">根拠: 登録状態での実測 1 件</span></h3>
+      <p><code>chmod --version</code>（権限を変えないので、拒否が効かなかった場合でも副作用が無い）を実行したところ、ツール呼び出しがブロックされ <code>permissionDecisionReason</code> の全文が届いた。<code>block-chmod</code> の拒否経路は <code>hook_deny</code> → <code>__hc_emit_decision deny</code> → <code>exit 0</code> の 1 本しかない。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>（ツール呼び出しがブロックされ、次が表示された）
+WF501: 禁止コマンド 'chmod' の実行。実行権限の変更は不要で、スクリプトは 'bash &lt;パス&gt;' で実行する。
+権限変更が本当に必要なら、迂回せずユーザーに提案すること</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><b><code>exit 2</code> + stderr への切り替えは不要</b>。<code>hook-common.sh</code> の出力ヘルパも <code>block-chmod</code> も変更していない。仕様 §3 との食い違いも無い。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">記録は 10 項目すべて埋まり、<code>session_id</code> が実値になった <span class="chip good">◎良</span> <span class="basis">根拠: decisions.jsonl の 1 行</span></h3>
+      <p>単体実行（<code>bash &lt;script&gt; &lt; 入力 JSON</code>）では <code>session_id</code> が <code>unknown</code> だったところが、登録して走ると実値が入る。<code>ticket</code> にも作業中チケットが入り、<code>__hc_resolve_worktree</code> → doing の走査が登録状態でも動いていることが分かる。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>{"ts":"2026-09-02T18:42:49+09:00","session_id":"ee9cc8e9-880f-493f-9396-316e4fe45fa9",
+ "hook":"block-chmod","event":"PreToolUse","decision":"deny","id":"WF501","tool":"Bash",
+ "target":"chmod: chmod --version 2&gt;&amp;1 | head -1; echo \"rc=$?\"",
+ "ticket":"0028-ai-asset-implementation.md","note":"禁止コマンド 'chmod' の実行。…"}
+
+許可側は静か: 登録後の Bash 呼び出し 10 数回に対し、増えたのは拒否の 2 行だけ</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>0031 の T2（記録の突き合わせ）はこの形で設計できる。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">3</span>
+      <h3 id="f3">過剰拒否を登録から 3 回目で踏んだ <span class="chip stop">✕問題</span> <span class="basis">根拠: 再現 4 形 + 対照 5 形</span></h3>
+      <p>登録から 3 回目の Bash 呼び出し（ヒアドキュメントで <code>.py</code> を書く操作）が WF501 で拒否された。理由は「実行体を特定できないため拒否側に倒した」。切り分けると<b>原因はクォート一般ではなくヒアドキュメント</b>だった。<code>cmdpos.sh:52</code> は「クォート・コメント・<b>ヒアドキュメント本文</b>をプレースホルダ <code>_</code> へ潰す」と書いてあり、実装もそのとおり。3 つの別物が同じ <code>_</code> になる。0036 が入れた <code>_bc_exe_unknown</code> は「実行体がすべて <code>_</code> = 潰れたクォート由来 = 難読化」と読むので、<b>ヒアドキュメント本文の <code>_</code> を難読化と誤読する</b>。本文は実行位置ですらない（bash は決して実行しない）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>                                判定    正規化後の段
+1 ヒアドキュメント（再現）      DENY    [0]cat [1]_
+2 同じ内容・禁止語だけ除く      ALLOW   [0]cat [1]_
+3 ヒアドキュメント無し          ALLOW   [0]echo
+4 禁止語 + 変数展開             ALLOW   [0]echo
+5 禁止語のみ                    ALLOW   [0]echo
+6 変数展開のみ                  ALLOW   [0]echo
+7 禁止語 + クォート内の改行     ALLOW   [0]printf
+
+ヒアドキュメントの 4 形すべてで同じ段ができる:
+&lt;&lt;'PY'（クォート付き）  [0]cat [1]_
+&lt;&lt;PY（クォート無し）    [0]cat [1]_
+&lt;&lt;-PY                   [0]cat [1]_
+&lt;&lt; PY（空白あり）       [0]cat [1]_
+ヒアドキュメント無し    [0]cat [1]x      ← 対照</code></pre>
+      </details>
+      <div class="box ng">
+        <p class="label">結論</p>
+        <p>対照（3〜7）がすべて ALLOW であることから、<b>0036 が代償として想定していた形とは別の経路</b>だと分かる。<b>迂回せず</b>、同じ内容を Write ツールで書いてから <code>python &lt;ファイル&gt;</code> で実行した（環境変数での無効化・語の分割・別構文での言い換えは、いずれも拒否の回避なので採らない）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">宣言した許可範囲から外れた操作を 1 件行った <span class="chip warn">△注意</span> <span class="basis">根拠: TK003 で止まったため</span></h3>
+      <p><code>.gitignore</code> に <code>.claude/settings.json.bak-*</code> を 1 行足した。このチケットの <code>allow.write</code> は <code>.claude/hooks/**</code> と <code>.claude/settings.json</code> だけなので<b>範囲外</b>。人間が取ったバックアップが未追跡のまま残り、<code>ticket.sh complete</code> の「チケット以外に未コミットの変更がある」検査（TK003）で止まったため。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>取れる手は 3 つ:
+ (a) バックアップをコミットする   → ローカルの安全網をリポジトリに持ち込むので採らない
+ (b) 消す                         → 0031 の ② が終わるまで人間の復旧手段を奪うので採らない
+ (c) 追跡外にする                 → これにした
+
+$ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0028
+- チケット以外に未コミットの変更がある（1 件: .claude/settings.json.bak-0028 ）
+TK003: 完了できない。未充足 1 件</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p><code>workflow-guard</code> は未登録なので機械的には止められなかった。登録後は同じ操作が止まるはずで、そのときは宣言を直してから行う。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5">「新しいセッションが要る」は不要だった <span class="chip warn">△注意</span> <span class="basis">根拠: 登録 18:40 → 発火 18:42</span></h3>
+      <p>事前の想定では <code>settings.json</code> の変更はセッション開始時にしか読まれないので再起動が要ると考えていたが、<b>同じセッションの途中で登録が反映された</b>。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>18:40  人間が .claude/settings.json に hooks.PreToolUse を 1 件登録
+18:42:42  ticket.sh start 0028（通常の Bash 呼び出し・通る）
+18:42:49  chmod --version → WF501 deny（= このセッションで発火している）</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>段階登録の手順から「新しいセッションを開く」を外してよい。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>T6（deny の効き方）</td><td><b>効いた</b>。<code>permissionDecision: deny</code> + 終了 0 でツール呼び出しが止まり、理由の全文が届いた</td></tr>
+      <tr><td><code>exit 2</code> + stderr への切り替え</td><td><b>不要</b>。<code>hook-common.sh</code> も <code>block-chmod</code> も変更なし</td></tr>
+      <tr><td><code>decisions.jsonl</code> の記録</td><td>10 項目すべて埋まり JSON として妥当。<code>session_id</code> は実値、<code>ticket</code> は作業中チケット</td></tr>
+      <tr><td><code>logs/sh/hook-block-chmod.log</code></td><td><code>2026-09-02T18:42:49+09:00 [INFO] … decision=deny id=WF501</code> が残った</td></tr>
+      <tr><td>許可側</td><td>登録後の Bash 呼び出し 10 数回に対し、記録が増えたのは拒否の 2 行だけ</td></tr>
+      <tr><td>過剰拒否</td><td><b>1 件</b>（登録から 3 回目）。ヒアドキュメント 4 形すべてで再現、対照 5 形はすべて ALLOW</td></tr>
+      <tr><td>ロックアウト</td><td>起きていない。<code>WORKFLOW_BLOCK_CHMOD_ENFORCE=0</code> もバックアップの復元も未使用</td></tr>
+      <tr><td><code>settings.json</code> のコミット</td><td><code>cacd7f6</code>。WF203 の確認は出なかった（workflow-guard 未登録のため。見込みどおり）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="acceptance">
+  <h2>受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>issue #9 の受け入れ条件</th><th>このチケットでの状態</th></tr></thead>
+    <tbody>
+      <tr><td>フック本体 11 本を実装する</td><td>変わらず 1 本（<code>block-chmod.sh</code>）。残り 10 本は 0029 / 0030</td></tr>
+      <tr><td><code>settings.json</code> に登録する</td><td><b>⓪ が完了</b>（<code>block-chmod</code> 単独・ラッパー無し）。① ② は 0031</td></tr>
+      <tr><td>TBD T1〜T4 を検証する</td><td><b>T6 が完了</b>（T1〜T4 は 0031 の 4c）</td></tr>
+      <tr><td>機械テストが通る</td><td>このチケットは実体を変えていないので 0036 の結果（2 ロケールで 15 本 / 71 件・FAIL 0）がそのまま有効</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+      <li><b>追加チケット（最優先。0029 の前）</b>: <b>ヒアドキュメント本文の <code>_</code> を実行位置として数えない</b>。<code>cmdpos</code> が本文（およびコメント）由来の段に印を付け、<code>block-chmod</code> がその段を実行体の判定から外す。併せて拒否理由に「何が判定を妨げたか」を添える</li>
+      <li><b>追加チケット（0029 の前）</b>: <code>hook_record</code> のログ用の値と JSON 用の値を分ける／<code>HOOK_SESSION_ID</code> と <code>HOOK_NAME</code> も <code>__hc_json_str</code> に通す。0029 / 0030 の 10 本がすべて <code>hook_record</code> を使うので先に直す</li>
+      <li><b>0031 へ</b>: T6 が効いたので ① ② は計画どおり。手順から「新しいセッションを開く」を外す。<b>ただし過剰拒否を先に片付けないと、拒否側 4 本を足した段階で作業が止まる危険がある</b></li>
+      <li><b>0032 へ</b>: チケットの <code>allow.write</code> に「自分の作業ログの置き場（<code>wip/10_tickets/**</code>）」を必ず含める規約が要る</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td><code>settings.json</code> の登録は新しいセッションでないと効かない</td><td>同じセッションの途中で反映された</td><td>段階登録の手順から「新しいセッションを開く」を外すことを提案</td></tr>
+      <tr><td>0036 の過剰拒否は「実行体に難読化があり、かつ禁止語に言及する」形</td><td>実際に踏んだのは<b>ヒアドキュメント</b>。対照（禁止語 + クォート + 展開）はすべて ALLOW</td><td>原因を <code>cmdpos</code> の <code>_</code> の多義性まで切り分け、追加チケットを提案</td></tr>
+      <tr><td>過剰拒否の頻度は測れない</td><td><b>登録から 3 回目</b>で踏んだ</td><td>0036 の r1 に対する実測の答えとして記録</td></tr>
+      <tr><td>チケットの <code>allow.write</code> は作業に足りている</td><td>作業ログの置き場（<code>wip/**</code>）が入っていなかった</td><td>逸脱として記録し、規約の候補を 0032 へ送った</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+      <li><b>ヒアドキュメント由来の過剰拒否</b>（追加チケットで解消）。<b>未解消のまま 0030 の拒否側 4 本を足すと作業が止まる</b></li>
+      <li><b>拒否理由の文面が過剰拒否の状況と噛み合っていない</b>（同上）</li>
+      <li><b><code>hook_record</code> のログの値が JSON エスケープ済み</b>／<b><code>HOOK_SESSION_ID</code> と <code>HOOK_NAME</code> が <code>__hc_json_str</code> を通っていない</b></li>
+      <li><b><code>allow.write</code> に <code>wip/**</code> が無い</b>チケットが残っている（0029 以降も要確認）</li>
+      <li><b><code>shellcheck</code> の未導入</b>（環境の制約）</li>
+      <li><b>バックアップ <code>.claude/settings.json.bak-0028</code></b> は追跡外で残る。0031 の ② が安定したら人間が消す</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（フック本体 
 allow:
   write: [".claude/hooks/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T20:12:06+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "200df48"
 ---
 
 # 0029 案内側フック 6 本とテスト

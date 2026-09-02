@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "build-test", "web"]
-started_at: ""
+started_at: "2026-09-02T05:32:36+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "79ff197"
 ---
 
 # 0004 VS Code 拡張のビルド・テスト環境の成立性調査

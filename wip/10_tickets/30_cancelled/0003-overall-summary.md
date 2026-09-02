@@ -11,6 +11,8 @@ allow:
 started_at: ""
 completed_at: ""
 base_sha: ""
+cancelled_at: "2026-09-02T11:47:02+00:00"
+cancel_reason: "先行チケットに指定した 0002 を取り消したため TK006 で着手できない。先行を 0004 にした 0005 として起こし直す"
 ---
 
 # 0003 issue #27 の全体まとめと振り返り

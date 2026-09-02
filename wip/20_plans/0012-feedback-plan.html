@@ -125,10 +125,10 @@
     <!-- 削除した任意節の行は消す -->
     <ol>
       <li><a href="#goal">この計画で何をするか</a></li>
-      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#target">確認した記録の範囲</a></li>
       <li><a href="#approach">方法とステップ</a></li>
       <li><a href="#verify">検証</a></li>
-      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#tickets">チケット / 合意 / 起票した issue</a></li>
       <li><a href="#risks">リスクと復旧</a></li>
       <li><a href="#out-of-scope">スコープ外</a></li>
       <li><a href="#pending">保留した点 / 対象なし</a></li>
@@ -140,7 +140,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/13">#13</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/14">#14</a></dd></div>
     <div><dt>ブランチ</dt><dd><code>claude/vscode-ticket-visualization-ci8etr</code></dd></div>
-    <div><dt>チケット</dt><dd>0012-feedback-plan</dd></div>
+    <div><dt>チケット</dt><dd>0012-feedback-plan（改訂は 0017）</dd></div>
     <div><dt>作成日</dt><dd>2026-09-02</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -151,43 +151,32 @@
 <!-- 必須: この計画で何をするか（結論方針。1〜3 文 + 決めたこと） -->
 <section id="goal" data-required>
   <h2>この計画で何をするか</h2>
-  <p class="lead">完了した 14 枚のチケットの作業ログに溜まった反映候補 22 件を、「本 issue の設計反映フェーズで直す」「別 issue に切り出す」「対応しない」の 3 つに振り分ける。振り分けの結果、設計反映フェーズを立て、AI アセット設計 / AI アセット実装のフェーズは本 issue では立てない。</p>
+  <p class="lead">完了チケット 14 枚の作業ログ（固定見出し 10 項目）と結果レポート 4 本、計画書 3 本、敵対的レビュー 4 回分から改善候補 47 件を洗い出し、観点・類型・反映先 2 軸で分類して 3 つの対応先に振り分ける。既定は「この MR で対応」（DDR i0001-11）で、そこから外すものだけ理由を書く。</p>
   <div class="box ok">
     <p class="label">決めたこと</p>
     <ul>
-      <li>◎ 設計反映フェーズを立てる。対象は実装が仕様より広い / 狭い分の 11 件（A1〜A11）で、いずれも <code>docs/</code> だけで閉じる</li>
-      <li>◎ AI アセット（<code>.claude/</code>）の反映候補 9 件は本 issue では扱わず、4 本の別 issue の案（B1〜B4）にまとめる</li>
-      <li>△ 別 issue の作成そのものは外部への副作用のため、本計画では案の提示に留め、起票は完了処理でユーザーの承認を得てから行う</li>
-      <li>△ 2 件（C1・C2）は対応しない。判断の材料が足りない、または issue #13 の受け入れ条件を超えるため</li>
-      <li>◎ 次の計画チケット <code>0016-design-feedback-plan</code> を未着手で起こす</li>
+      <li>◎ この MR で対応 17 件（F01〜F17）。すべて実装と仕様の差分で <code>docs/</code> の書き換えで閉じる。設計反映フェーズを立てる</li>
+      <li>◎ 別 issue に切り出す 25 件（B1〜B5 の 5 本）。根拠は<strong>規模と issue #13 の受け入れ条件との無関係さ</strong>であって、書き込み許可の不足ではない</li>
+      <li>◎ 対応しない 5 件（C1〜C5）。材料不足 / 受け入れ条件を超える挙動の追加 / 既に解消済み</li>
+      <li>△ 未作成だった設計結果レポート・実装結果レポートを本計画の改訂と同時に補った（F17）</li>
+      <li>△ 候補ごとの対応先の合意と別 issue の起票は未了。起票の担い手は全体まとめチケットとし、その DoD に落とす</li>
+      <li>△ F16（<code>.vscode/</code> の置き場）と B2-1（<code>commands.build-test</code> が空）は受け入れ条件 10 に直接効くため、この MR の AI アセットフェーズで扱う案を合意の対象として残す</li>
     </ul>
   </div>
 </section>
 
 <!-- 必須: 対象と範囲（変更対象・調査観点・根拠とする文書） -->
 <section id="target" data-required>
-  <h2>対象と範囲</h2>
+  <h2>確認した記録の範囲</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <thead><tr><th>入力</th><th>範囲</th><th>備考</th></tr></thead>
     <tbody>
-      <tr><td>A1 <code>FrontmatterDocument.body</code></td><td>終端の区切りより後ろの本文を返す項目が仕様に無い</td><td>0015 逸脱 1 / 仕様「データの形」</td></tr>
-      <tr><td>A2 見出しの探索範囲</td><td>本文に限り、コードフェンスの中を除くことが仕様に無い</td><td>0015 逸脱 3 / 仕様「処理フロー（チケットの解析）」手順 5</td></tr>
-      <tr><td>A3 TB002 の文言</td><td>「（scalar でない）」の型が台帳に無い</td><td>0015 逸脱 2 / 仕様「不備の識別子とメッセージ」</td></tr>
-      <tr><td>A4 必須キーの検査</td><td>キーがあっても scalar でなければ TB002 とすることが仕様に無い</td><td>レビュー R2 / 仕様「処理フロー（チケットの解析）」手順 3</td></tr>
-      <tr><td>A5 入れ子マッピングの深さ</td><td>1 段の字下げだけを子として認めることが仕様に無い</td><td>レビュー R3 / 仕様「処理フロー（frontmatter の解析）」手順 5</td></tr>
-      <tr><td>A6 BOM と区切り行の空白</td><td>許容することが仕様に無い</td><td>レビュー R4 / 同手順 1・2</td></tr>
-      <tr><td>A7 <code>RenderOptions.cspSource</code></td><td>宣言されているが使われていない</td><td>レビュー M1 / 仕様「データの形」</td></tr>
-      <tr><td>A8 YAML コメント</td><td>解釈しないことが仕様に無い</td><td>レビュー M5 / 仕様と DDR i0013-03</td></tr>
-      <tr><td>A9 <code>&lt;meta name=&quot;viewport&quot;&gt;</code></td><td>HTML の骨格に無い</td><td>0010 逸脱 / レビュー M7</td></tr>
-      <tr><td>A10 「種類不明」「実行者不明」</td><td>未設定時の表示が仕様に無い</td><td>レビュー M8 / 仕様「HTML の構造と CSP」</td></tr>
-      <tr><td>A11 実装側の 3 つの逸脱</td><td><code>unreadableTicket</code> の独立・監視用パス定数の分離・Disposable の持たせ方</td><td>0010・0011 の逸脱 / 仕様「データの形」「配置」「起動と入口」</td></tr>
-      <tr><td>B1 用語と実体の不整合</td><td>タスク名・最終フェーズ名の食い違い、未実装機構への依存、実体の無いルール</td><td>0001・0005 の作業ログ（別 issue 案）</td></tr>
-      <tr><td>B2 許可範囲の穴</td><td><code>commands.build-test</code> が空、<code>implementation.allow</code> に <code>docs/**</code> が無い、未追跡ファイルで検査が止まる</td><td>0005・0013・0015 の作業ログ（別 issue 案）</td></tr>
-      <tr><td>B3 設計文書スキルのアプリ対応</td><td>アプリ向けの節構成・置き場・識別子台帳・受け入れ条件の対応表</td><td>0006・0008・0014 の作業ログ（別 issue 案）</td></tr>
-      <tr><td>B4 手引きの補強</td><td>調査での API 事実の確定、手動確認の成果物化、レビュー依頼の観点、節順の不一致、1 タスク 1 レポートの検査</td><td>0007・0009・0011・0013・0015 の作業ログ（別 issue 案）</td></tr>
-      <tr><td>C1 <code>frontmatter.sh</code> の引用符</td><td>閉じ忘れを検出しない。本拡張は自前パーサで対処済み</td><td>0003 の作業ログ（対応しない）</td></tr>
-      <tr><td>C2 複数ルート / シンボリックリンク</td><td>仕様にも要件にも無い挙動の追加</td><td>レビュー M3・M6（対応しない）</td></tr>
+      <tr><td>完了チケットの作業ログ</td><td>0001〜0011 / 0013 / 0014 / 0015（14 枚）の固定見出し 10 項目すべて</td><td><code>30_cancelled/</code> は 0 枚</td></tr>
+      <tr><td>結果レポート</td><td><code>wip/30_reports/</code> の 4 本（0003 / 0004 / 0005 / 0007）の「設計への反映」「想定と異なった点」「残課題」</td><td>設計・実装フェーズの結果レポートは<strong>未作成だった</strong>（候補 F17）。本改訂と同時に補った</td></tr>
+      <tr><td>計画書</td><td><code>wip/20_plans/</code> の 3 本（0002 / 0006 / 0009）の「保留した点」</td><td>—</td></tr>
+      <tr><td>敵対的レビューの指摘</td><td>調査 / 設計 / 実装の 3 回分（16 + 19 + 20 件）と本計画への 1 回分</td><td>サブエージェントの出力。PR には投稿していない</td></tr>
+      <tr><td>PR のレビュー指摘</td><td><strong>取得できていない</strong></td><td><code>gh</code> / <code>glab</code> がこの環境に無い。人間のレビューは未依頼のため指摘は 0 件</td></tr>
     </tbody>
   </table>
   </div>
@@ -199,37 +188,43 @@
   <ol class="steps">
     <li class="step">
       <span class="step-no">1</span>
-      <h3>反映候補を集める</h3>
-      <p>完了した 14 枚のチケットの作業ログ「AI アセットに反映すべき内容」「スコープ外で見つけたこと」「仕様からの逸脱」と、実装ワークの敵対的レビューの指摘を突き合わせ、22 件に整理した。</p>
+      <h3>記録から洗い出す</h3>
+      <p>完了チケット 14 枚の作業ログを固定見出し 10 項目でなぞり、結果レポート 4 本の「設計への反映」「想定と異なった点」「残課題」、計画書 3 本の「保留した点」、敵対的レビュー 4 回分の指摘を加えて 47 件を列挙した。</p>
     </li>
     <li class="step">
       <span class="step-no">2</span>
-      <h3>行き先で振り分ける</h3>
-      <p><code>docs/</code> だけで閉じ、issue #13 の受け入れ条件の解釈を変えないものを本 issue の設計反映へ（A1〜A11）。<code>.claude/</code> の変更を要するものを別 issue へ（B1〜B4）。材料が足りないもの・受け入れ条件を超えるものを対応しないへ（C1・C2）。</p>
+      <h3>この MR で対応する 17 件（F01〜F17）</h3>
+      <p>いずれも実装と仕様の差分で <code>docs/</code> の書き換えで閉じる。<div class="tablewrap"><table><thead><tr><th>#</th><th>候補</th><th>出どころ</th><th>観点</th><th>類型</th><th>いつ効くか</th><th>守らせ方</th></tr></thead><tbody><tr><td>F01</td><td><code>FrontmatterDocument</code> に <code>body</code> がある</td><td>チケット 0015 逸脱</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F02</td><td>見出しの探索は本文に限り、コードフェンスの中を除く</td><td>0015 逸脱</td><td>足りなかった</td><td>(c)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F03</td><td>TB002 の文言に「（scalar でない）」の型がある</td><td>0015 逸脱</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F04</td><td>必須キーが存在しても scalar でなければ TB002 とする</td><td>実装レビュー R2</td><td>足りなかった</td><td>(b)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F05</td><td>入れ子マッピングの子は 1 段の字下げだけを認める</td><td>同 R3</td><td>足りなかった</td><td>(b)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F06</td><td>BOM と区切り行の行末空白を許容する</td><td>同 R4</td><td>足りなかった</td><td>(c)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F07</td><td><code>RenderOptions.cspSource</code> が使われていない</td><td>同 M1</td><td>邪魔だった</td><td>(b)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F08</td><td>YAML コメントを解釈しない</td><td>同 M5</td><td>足りなかった</td><td>(c)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F09</td><td>HTML に <code>&lt;meta name=&quot;viewport&quot;&gt;</code> がある</td><td>0010 逸脱 / M7</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F10</td><td>未設定の種類・実行者を「不明」と出す</td><td>同 M8</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F11</td><td><code>unreadableTicket</code> が独立した関数である</td><td>0010 逸脱</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F12</td><td>監視用の <code>/</code> 区切りパス定数を分けている</td><td>0011 逸脱</td><td>足りなかった</td><td>(c)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F13</td><td>パネル由来の Disposable の持たせ方</td><td>0011 逸脱 / M4</td><td>足りなかった</td><td>(b)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F14</td><td>単一ルートだけを見る制約が仕様に無い</td><td>レポート 0007 / M3</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F15</td><td>シンボリックリンクを区別しない旨が仕様に無い</td><td>同 M6</td><td>足りなかった</td><td>(c)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F16</td><td>DoD の進捗をカードに出すかの決定が無い</td><td>レポート 0003</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>読ませる</td></tr><tr><td>F17</td><td>設計・実装の結果レポートが作られていない</td><td>本計画のレビュー</td><td>無かった</td><td>(a)</td><td>スキル呼び出し時</td><td>手順化する</td></tr></tbody></table></div></p>
     </li>
     <li class="step">
       <span class="step-no">3</span>
-      <h3>後続フェーズを決める</h3>
-      <p>設計反映フェーズを立てる。AI アセット設計 / AI アセット実装は本 issue では立てない（<code>.claude/**</code> への書き込み許可をどのフェーズも持たず、CLAUDE.md も専用のフェーズ列を求めているため）。</p>
+      <h3>別 issue に切り出す 25 件（B1〜B5）</h3>
+      <p>根拠は規模と issue #13 の受け入れ条件との無関係さ。<code>types[&quot;ai-asset-implementation&quot;].allow</code> が <code>.claude/**</code> を明示的に通すため、この MR で AI アセットフェーズを立てること自体は制度上できる。<div class="tablewrap"><table><thead><tr><th>案</th><th>#</th><th>候補</th><th>出どころ</th><th>観点</th><th>類型</th><th>いつ効くか</th><th>守らせ方</th></tr></thead><tbody><tr><td>B1</td><td>B1-1</td><td>タスク名が食い違う（<code>10-work-*</code> / <code>10-task-*</code>）</td><td>0001</td><td>邪魔だった</td><td>(b)</td><td>スキル呼び出し時</td><td>読ませる</td></tr><tr><td>B1</td><td>B1-2</td><td>最終フェーズ名が食い違う</td><td>0001</td><td>邪魔だった</td><td>(b)</td><td>スキル呼び出し時</td><td>読ませる</td></tr><tr><td>B1</td><td>B1-3</td><td>未実装の <code>work-boundary.sh</code> / <code>merge-prep.sh</code> に依存した記述</td><td>0001</td><td>邪魔だった</td><td>(b)</td><td>スキル呼び出し時</td><td>手順化する</td></tr><tr><td>B1</td><td>B1-4</td><td><code>markdown-docs</code> ルールの実体が無い</td><td>0005</td><td>無かった</td><td>(a)</td><td>常時読込</td><td>読ませる</td></tr><tr><td>B1</td><td>B1-5</td><td><code>.claude/agents/</code> が空</td><td>0001</td><td>無かった</td><td>(a)</td><td>レビュー時</td><td>手順化する</td></tr><tr><td>B1</td><td>B1-6</td><td>フックが <code>settings.json</code> に未登録</td><td>レポート 0005</td><td>無かった</td><td>(a)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B2</td><td>B2-1</td><td><code>commands.build-test</code> が空</td><td>0013</td><td>足りなかった</td><td>(a)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B2</td><td>B2-2</td><td><code>implementation.allow</code> に <code>docs/**</code> が無い</td><td>0015</td><td>足りなかった</td><td>(c)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B2</td><td>B2-3</td><td><code>.vscode/**</code> がどの許可範囲にも無い</td><td>レポート 0007 / 0011</td><td>足りなかった</td><td>(a)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B2</td><td>B2-4</td><td>未コミット検査が未追跡のビルド成果物で止まる</td><td>0005</td><td>足りなかった</td><td>(c)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B3</td><td>B3-1</td><td><code>20-common-step-spec</code> にアプリ向けの節構成が無い</td><td>0006 / 0008</td><td>無かった</td><td>(a)</td><td>スキル呼び出し時</td><td>手順化する</td></tr><tr><td>B3</td><td>B3-2</td><td><code>20-common-step-requirement</code> の置き場が決め打ち</td><td>0006 / 0008</td><td>足りなかった</td><td>(b)</td><td>スキル呼び出し時</td><td>手順化する</td></tr><tr><td>B3</td><td>B3-3</td><td>アプリのエラー識別子の台帳の置き場が無い</td><td>0008</td><td>無かった</td><td>(a)</td><td>スキル呼び出し時</td><td>読ませる</td></tr><tr><td>B3</td><td>B3-4</td><td>要件定義書に issue の受け入れ条件との対応表が無い</td><td>0014</td><td>無かった</td><td>(a)</td><td>レビュー時</td><td>手順化する</td></tr><tr><td>B3</td><td>B3-5</td><td><code>docs/</code> の設計文書に機械的検査が無い</td><td>レポート 0005</td><td>無かった</td><td>(a)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B4</td><td>B4-1</td><td>外部技術は調査で API 事実を確定させる旨が無い</td><td>0007</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時</td><td>読ませる</td></tr><tr><td>B4</td><td>B4-2</td><td>機械テストにできない層の扱いが計画の型に無い</td><td>0009 / 0011</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時</td><td>手順化する</td></tr><tr><td>B4</td><td>B4-3</td><td>敵対的レビュー依頼の観点の型</td><td>0015</td><td>足りなかった</td><td>(a)</td><td>レビュー時</td><td>手順化する</td></tr><tr><td>B4</td><td>B4-4</td><td>レポートテンプレートと OUT ひな形の節順の不一致</td><td>0013</td><td>邪魔だった</td><td>(b)</td><td>スキル呼び出し時</td><td>読ませる</td></tr><tr><td>B4</td><td>B4-5</td><td>「1 タスク 1 レポート」の機械的検査が無い</td><td>0013</td><td>無かった</td><td>(a)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B4</td><td>B4-6</td><td>結果レポートの未作成を検出する経路が無い</td><td>本計画のレビュー</td><td>無かった</td><td>(a)</td><td>操作のたび</td><td>機械的に拒否する</td></tr><tr><td>B4</td><td>B4-7</td><td>対応先の既定は「この MR」で、<code>allow</code> 不足を別 issue の根拠にしない旨</td><td>0012 / 本計画のレビュー</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時</td><td>読ませる</td></tr><tr><td>B4</td><td>B4-8</td><td>候補の束ね方の目安が手順に無い</td><td>0012</td><td>足りなかった</td><td>(a)</td><td>スキル呼び出し時</td><td>読ませる</td></tr><tr><td>B5</td><td>B5-1</td><td><code>ticket.sh</code> の <code>set_field</code> が再設定できない</td><td>0003</td><td>足りなかった</td><td>(a)</td><td>操作のたび</td><td>手順化する</td></tr><tr><td>B5</td><td>B5-2</td><td><code>commit.sh</code> の帰属フッタ拒否が実行環境の指示と衝突する</td><td>0011</td><td>邪魔だった</td><td>(c)</td><td>操作のたび</td><td>機械的に拒否する</td></tr></tbody></table></div><div class="tablewrap"><table><thead><tr><th>案</th><th>種別</th><th>表題（案）</th><th>含む候補</th></tr></thead><tbody><tr><td>B1</td><td>バグ</td><td>ワークフロー機構の用語と実体の不整合を解消する</td><td>B1-1〜B1-6</td></tr><tr><td>B2</td><td>改善・最適化</td><td>フェーズの許可範囲（<code>scope-limits.json</code>）の穴をふさぐ</td><td>B2-1〜B2-4</td></tr><tr><td>B3</td><td>機能追加</td><td>設計文書スキルをアプリ（<code>docs/</code> 配下）に対応させる</td><td>B3-1〜B3-5</td></tr><tr><td>B4</td><td>改善・最適化</td><td>ワークとレビューの手引きを補強する</td><td>B4-1〜B4-8</td></tr><tr><td>B5</td><td>バグ</td><td>提供コマンド（<code>ticket.sh</code> / <code>commit.sh</code>）の運用上の不具合を直す</td><td>B5-1〜B5-2</td></tr></tbody></table></div><p>B1 は既存 issue #9 / #10 / #11 と重なる可能性がある。起票の直前に確認し、重なる分は既存 issue への追記にする。</p></p>
     </li>
     <li class="step">
       <span class="step-no">4</span>
-      <h3>次の計画チケットを起こす</h3>
-      <p><code>0016-design-feedback-plan</code> を未着手で作る。対象は A1〜A11。全体まとめのチケットは設計反映フェーズの完了後に起こす。</p>
+      <h3>対応しない 5 件（C1〜C5）</h3>
+      <p><div class="tablewrap"><table><thead><tr><th>#</th><th>候補</th><th>出どころ</th><th>理由</th></tr></thead><tbody><tr><td>C1</td><td><code>frontmatter.sh</code> が引用符の閉じ忘れを検出しない</td><td>0003</td><td>本拡張は自前パーサで対処済み。機構側は洗い出しが先で材料が足りない。B1 の起票時に調査対象として添える</td></tr><tr><td>C2</td><td>複数ルートへの追随・<code>capabilities</code> の宣言・<code>WebviewPanelSerializer</code>・<code>enableCommandUris</code></td><td>M3 / M6 / レポート 0007</td><td>挙動の追加で受け入れ条件を超える。制約としての<strong>明記</strong>は F14 / F15 でこの MR に載せた</td></tr><tr><td>C3</td><td><code>30_cancelled/</code> の実測ができていない</td><td>0003</td><td>実装のテスト TB-T17 で解消済み</td></tr><tr><td>C4</td><td><code>@vscode/test-electron</code> の可否が未確認</td><td>レポート 0004</td><td>CI を組む時点の課題。本 issue に CI の受け入れ条件は無い</td></tr><tr><td>C5</td><td>置き場が issue #13 の詳細欄と食い違う</td><td>0008 / レポート 0005</td><td>DDR i0013-01 と PR 本文に残した。完了処理の issue コメントで説明する。issue 本文は書き換えない</td></tr></tbody></table></div></p>
     </li>
     <li class="step">
       <span class="step-no">5</span>
-      <h3>別 issue の起票を完了処理へ送る</h3>
-      <p>B1〜B4 は案の提示に留め、起票はユーザーの承認を得てから行う。<code>reset-wip</code> で <code>wip/</code> が消えるため、要約を PR 本文と issue コメントに残す。</p>
+      <h3>後続フェーズを決め、次の計画チケットを作った</h3>
+      <p>設計反映（design-feedback）を立て、AI アセットのフェーズは合意待ちとした。フェーズ列の残りは<strong>設計反映 → 全体まとめ</strong>。設計反映の計画チケット <code>0016-design-feedback-plan</code> を未着手で 1 枚作り、全体まとめチケットは 0016 が作る。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">6</span>
+      <h3>未作成だった結果レポートを補い、合意と起票を完了処理へ送った</h3>
+      <p><code>wip/30_reports/0008-design</code> と <code>0010-implementation</code> を作業ログとコミット差分から復元した（F17）。候補ごとの対応先の合意と B1〜B5 の起票は完了処理で行い、起票の担い手は全体まとめチケットとする。</p>
     </li>
     <!-- ステップの数だけ li.step を繰り返す（番号は連番） -->
   </ol>
   <h3>許可範囲（やってよいこと）</h3>
+  <p><code>types[&quot;feedback-plan&quot;].ops</code> には <code>remote-read</code> と <code>remote-write:issue-create</code> も含まれるが、合意前の起票を行わないため本チケットでは <code>read</code> に絞った。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
     <tbody>
-      <tr><td>1〜5（本チケット 0012）</td><td><code>wip/**</code></td><td><code>read</code></td></tr>
+      <tr><td>1〜6（チケット 0012 / 0017）</td><td><code>wip/**</code></td><td><code>read</code></td></tr>
       <tr><td>設計反映の実施チケット（0016 が起こす）</td><td><code>docs/**</code></td><td><code>read</code></td></tr>
     </tbody>
   </table>
@@ -243,9 +238,11 @@
   <table>
     <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
     <tbody>
-      <tr><td>A1〜A11 の取りこぼしが無い</td><td>設計反映の実施チケットの DoD と本計画書の表を 1 対 1 で照合する</td><td>本計画書「反映候補の棚卸し」A の表</td></tr>
+      <tr><td>F01〜F17 の取りこぼしが無い</td><td>設計反映の実施チケットの DoD と本計画の表を 1 対 1 で照合する</td><td>本計画「この MR で対応」の表</td></tr>
       <tr><td>要件との対応が崩れない</td><td>設計反映の後、仕様書「要件との対応」の行数が受け入れ基準 26 件と一致することを数える</td><td><code>docs/10_spec/vscode-ticket-board.md</code></td></tr>
-      <tr><td>本計画書の HTML ビュー</td><td><code>check-html.sh</code> の 7 項目を通す</td><td><code>wip/20_plans/0012-feedback-plan.html</code></td></tr>
+      <tr><td>候補の件数が一致する</td><td>17 + 25 + 5 = 47。表の行数を数える</td><td>本計画の 3 つの表</td></tr>
+      <tr><td>HTML ビュー</td><td><code>check-html.sh</code> の 7 項目を通す</td><td><code>wip/20_plans/0012-feedback-plan.html</code></td></tr>
+      <tr><td>結果レポート</td><td><code>check-html.sh</code> の 7 項目を通す</td><td><code>wip/30_reports/0008-design.html</code> / <code>0010-implementation.html</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -253,16 +250,21 @@
 
 <!-- 必須: チケット（実施チケット群と次の計画チケット・依存） -->
 <section id="tickets" data-required>
-  <h2>チケット</h2>
+  <h2>チケット / 合意 / 起票した issue</h2>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <thead><tr><th>番号</th><th>種類</th><th>内容と状態</th><th>先行</th></tr></thead>
     <tbody>
-      <tr><td>0012</td><td>feedback-plan</td><td>本計画（振り分けの確定）</td><td>0011</td></tr>
-      <tr><td>0016</td><td>design-feedback-plan</td><td>設計反映の計画。対象は A1〜A11</td><td>0012</td></tr>
+      <tr><td>0012</td><td>feedback-plan</td><td>本計画（初版）。状態: 完了</td><td>0011</td></tr>
+      <tr><td>0016</td><td>design-feedback-plan</td><td>設計反映の計画。対象は F01〜F17。全体まとめチケットも 0016 が作る。状態: 未着手</td><td>0012</td></tr>
+      <tr><td>0017</td><td>feedback-plan</td><td>本計画の改訂（敵対的レビュー指摘への対応）。状態: 作業中</td><td>0012</td></tr>
     </tbody>
   </table>
   </div>
+  <h3>合意</h3>
+<div class="tablewrap"><table><thead><tr><th>項目</th><th>状態</th></tr></thead><tbody><tr><td>この MR で対応する 17 件（F01〜F17）</td><td><strong>未合意</strong>。設計反映フェーズを立てることを含めて判断を仰ぐ</td></tr><tr><td>別 issue に切り出す 25 件（B1〜B5）</td><td><strong>未合意</strong>。既定「この MR で対応」からの逸脱として理由を添えて判断を仰ぐ</td></tr><tr><td>F16 と B2-1 をこの MR の AI アセットフェーズで扱う案</td><td><strong>未合意</strong>。受け入れ条件 10 に直接効くため選択肢として提示する</td></tr><tr><td>対応しない 5 件（C1〜C5）</td><td><strong>未合意</strong></td></tr></tbody></table></div><p>合意の取得は完了処理の直前に一括で行う（承認③と同じ場面）。本計画の作成時点ではヘッドレスで対話の応答を得られないため、仕様「処理フロー 4」のヘッドレスの扱いに従い、後続チケットの作成だけを先行させた。先行させたのは設計反映の計画チケット 0016 のみで、<strong>別 issue の起票は行っていない</strong>。</p>
+  <h3>起票した issue</h3>
+  <ul><li>無し。B1〜B5 は合意が未取得のため未起票</li><li>起票の担い手は<strong>全体まとめチケット</strong>とする（<code>types[&quot;overall-summary&quot;].ops</code> に <code>remote-write:issue-create</code> があり、承認を取る場面と重なるため）。全体まとめチケットの DoD に「B1〜B5 の起票、または起票しない合意の記録」を入れる</li><li><code>gh</code> / <code>glab</code> が無いため、起票は GitHub MCP で行う</li></ul>
 </section>
 
 <!-- 任意: リスクと復旧（ロックアウト対策・巻き戻し）。無ければ節ごと削除 -->
@@ -273,8 +275,9 @@
     <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
     <tbody>
       <tr><td>仕様を実装に合わせた結果、要件の受け入れ基準と食い違う</td><td>「要件との対応」表の行が実現箇所を失う</td><td>要件側を変えず、実装と仕様のどちらが正かを DDR に残して決め直す</td></tr>
-      <tr><td>A11 が 3 つの逸脱をまとめており、実施チケットで取りこぼされる</td><td>DoD の根拠欄が「A11」とだけ書かれる</td><td>設計反映計画で A11 を 3 つに割る</td></tr>
-      <tr><td>別 issue の起票が承認されず、AI アセットの不備が記録ごと消える</td><td>完了処理の <code>reset-wip</code> で <code>wip/</code> が消える</td><td>起票前に PR 本文と issue コメントへ B1〜B4 の要約を残す</td></tr>
+      <tr><td>B1〜B5 の起票が承認されず、記録ごと消える</td><td>完了処理の <code>reset-wip</code> で <code>wip/</code> が消える</td><td>起票前に PR 本文へ B1〜B5 の表を写す（実施済み）。issue コメントにも要約を載せる</td></tr>
+      <tr><td>全体まとめチケットが作られないまま設計反映が終わる</td><td>片付けの前提検査に到達できない</td><td>0016 の DoD に「全体まとめチケットを 1 枚作る」を入れた</td></tr>
+      <tr><td>F07 の結論が「型から削る」になり <code>docs/</code> だけで閉じなくなる</td><td>設計反映の実施チケットが <code>src/**</code> を触ろうとする</td><td>実装の追加チケットを 1 枚立てる（<code>implementation.allow</code> は <code>src/**</code> を持つ）</td></tr>
     </tbody>
   </table>
   </div>
@@ -284,9 +287,9 @@
 <section id="out-of-scope">
   <h2>スコープ外</h2>
   <ul>
-    <li><code>.claude/</code> 配下のいかなる変更（B1〜B4 の実作業）</li>
-    <li>別 issue の作成そのもの</li>
-    <li>C2 の挙動追加（複数ルート・シンボリックリンク・<code>capabilities</code> の宣言）</li>
+    <li>B1〜B5 の実作業（<code>.claude/</code> 配下の変更）</li>
+    <li>C2 の挙動追加（複数ルートへの追随・<code>capabilities</code> の宣言・<code>WebviewPanelSerializer</code>）</li>
+    <li>issue #13 の本文の書き換え</li>
   </ul>
 </section>
 
@@ -297,8 +300,10 @@
   <table>
     <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
     <tbody>
-      <tr><td>B1 と既存 issue #9 / #10 / #11 の重複範囲</td><td>起票の直前に確認する。本チケットの許可範囲は <code>wip/**</code> の書き込みと読み取りのみで、GitHub 操作はチケット作業の外で行うため</td></tr>
-      <tr><td>A7 を「型から <code>cspSource</code> を削る」か「仕様に受け取るだけと書く」か</td><td>設計反映で決める。型を削ると <code>src/**</code> の変更も要るため、仕様側に寄せる案を既定とする</td></tr>
+      <tr><td>B1 と既存 issue #9 / #10 / #11 の重複範囲</td><td>起票の直前（全体まとめ）に GitHub MCP で確認する。本チケットの ops を <code>read</code> に絞ったため、ここでは確認しない</td></tr>
+      <tr><td>F07 を「型から削る」か「仕様に受け取るだけと書く」か</td><td>設計反映（0016 の実施チケット）で決める</td></tr>
+      <tr><td>F16 と B2-1 をこの MR で扱うか</td><td>合意の場で決める</td></tr>
+      <tr><td>PR のレビュー指摘</td><td>人間のレビューは未依頼のため 0 件。依頼後に指摘が付いた場合は同じ type の追加チケットで扱う</td></tr>
     </tbody>
   </table>
   </div>

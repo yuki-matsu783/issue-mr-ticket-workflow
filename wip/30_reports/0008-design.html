@@ -1,0 +1,358 @@
+<!--
+  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
+       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。
+
+  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
+  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
+  設計への反映 → 想定と異なった点 → 残課題
+
+  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
+  レビューの重みは色相を使わず ◆特に見てほしい / ◇承認が欲しい / ・細かいレビュー不要。
+  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
+
+  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チケットボード拡張の設計結果レポート</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
+  <p class="kind">設計結果レポート / 設計</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>チケットボード拡張の設計結果レポート</h1>
+
+  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 受け入れ基準の構成</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 層の分離</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 不備の識別子</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. 敵対的レビューと 0014 での修正</a></li>
+        </ol>
+      </li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/13">#13</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/14">#14</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/vscode-ticket-visualization-ci8etr</code></dd></div>
+    <div><dt>チケット</dt><dd>0008-design / 0014-design（復元は 0017）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
+<section id="overview" data-required>
+  <p class="lead">要件定義書に EARS 形式の受け入れ基準 26 件を、仕様書に中核層と拡張ホスト層を分ける構成・不備の識別子 TB001〜TB007・テスト観点 TB-T01〜TB-T17・要件との対応表 26 行を置き、決定の経緯を DDR 5 本に残した。初版（0008）は受け入れ基準を 19 件しか書かず issue の受け入れ条件 2 件を落としていたが、敵対的レビューで判明し 0014 で直した。<strong>このレポートは設計フェーズ当時に作られず、フィードバック計画の敵対的レビューで欠落が判明したため、チケット 0017 で作業ログとコミット差分から復元したものである。</strong></p>
+  <ul class="kpis">
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><code>RenderOptions.cspSource</code> を型から削るか、受け取るだけと仕様に書くか（設計反映で決める）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>受け入れ基準を 26 件（メイン 7 / 代替 5 / 例外 9 / 整合 5）に分けた粒度</li>
+      <li>仕様書がアプリの識別子台帳（TB001〜TB007）を兼ねる形にした判断</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>DDR 5 本の記述（決定の経緯の記録であり、判断は本文で説明済み）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>レポートが当時作られていないため、設計時点の検討の細部（採らなかった案の比較）は作業ログに残った範囲でしか復元できていない</li>
+      <li>要件定義書と仕様書に対する機械的検査が無いため、自己矛盾の不在はレビューでしか確かめていない</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+      <li>対象文書: <code>docs/00_requirement/vscode-ticket-board.md</code>、<code>docs/10_spec/vscode-ticket-board.md</code>、<code>docs/20_ddr/i0013-01</code>〜<code>i0013-05</code></li>
+      <li>根拠とする計画: <code>wip/20_plans/0006-design-plan.md</code></li>
+      <li>入力とした調査結果: <code>wip/30_reports/0003</code>（チケットの実形）/ <code>0004</code>（ビルド環境）/ <code>0005</code>（置き場）/ <code>0007</code>（VS Code API）</li>
+  </ul>
+</section>
+
+<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">受け入れ基準の構成 <span class="chip good">◎良</span> <span class="basis">根拠: docs/00_requirement/vscode-ticket-board.md</span></h3>
+      <p>issue #13 の受け入れ条件 10 件を EARS（When 〜 Shall / If 〜 Then / Shall not）に展開した。メインフロー 7 件が表示・カード・件数・ファイルを開く・自動更新・更新コマンド・単一パネル、代替フロー 5 件が 0 件表示・空の列・見出し欠落・未表示での更新・再表示、例外フロー 9 件が解析失敗・未知の種類・番号の食い違い・対象なし・対象の消失・開けないファイル・1 枚の失敗・不一致パス・書き込み禁止、整合 5 件が状態の判定・対象ファイルの選別・frontmatter の解釈範囲・単体テスト・README にあたる。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>メイン 7 + 代替 5 + 例外 9 + 整合 5 = 26 件
+仕様書「要件との対応」の行数 = 26 行</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>受け入れ基準 26 件と仕様書の対応表 26 行が 1 対 1 で対応する。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">層の分離 <span class="chip good">◎良</span> <span class="basis">根拠: 調査 0004 章 3 / 仕様書「モジュール構成」</span></h3>
+      <p>調査 0004 が「<code>vscode</code> は拡張ホストの外で解決できない」と確定させたため、<code>core/</code> は <code>vscode</code> を import しないという禁止事項を仕様に置き、単体テストの対象を <code>core/</code> に限った。テスト観点 TB-T01〜TB-T17 はすべて <code>core/</code> に対するもので、拡張ホスト層は README の手動確認に委ねた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>仕様書 禁止事項: 「core/ 配下から vscode を import すること（単体テストが不可能になる）」</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>自動テストできる範囲と人間の確認に委ねる範囲を、層の境界と一致させた。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">不備の識別子 <span class="chip good">◎良</span> <span class="basis">根拠: 仕様書「不備の識別子とメッセージ」</span></h3>
+      <p>機構の識別子台帳（フック共通仕様 §6）は AI アセット用でアプリの識別子を載せられないため、仕様書が台帳を兼ねる形にした。TB001（frontmatter を読めない）から TB007（ファイルを読めない）までの 7 種と、カードに出す文言の型を定めた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>TB001 frontmatter / TB002 必須項目の欠落 / TB003 真偽値でない / TB004 未知の種類 /
+TB005 見出しが無い / TB006 番号の食い違い / TB007 読み取り失敗</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>アプリの識別子の置き場が機構に無いという穴を、仕様書で埋めた（候補 B3-3）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">敵対的レビューと 0014 での修正 <span class="chip warn">△注意</span> <span class="basis">根拠: チケット 0014 の作業ログ</span></h3>
+      <p>設計の敵対的レビューが 20 件を挙げ、うち次の 4 件を 0014 で直した。とくに 1 件目は issue の受け入れ条件の取りこぼしで、設計計画が整合フローで扱うと約束していたものだった。</p><div class="tablewrap"><table><thead><tr><th>指摘</th><th>修正</th></tr></thead><tbody><tr><td>要件が issue の受け入れ条件 9 と 10 を落としている</td><td>受け入れ基準を 19 → 26 件に増やした</td></tr><tr><td>完了条件が「10 件すべて覆った」と偽っていた</td><td>チケットの根拠欄を実態に直した</td></tr><tr><td>仕様書が <code>renderMissingWorkspace</code> を宣言しつつ「提供しない」と書いている</td><td>両方を削除した</td></tr><tr><td>frontmatter の処理フロー 4 が、フロー配列とインラインマップの外側の記号を剥がす手順を落としている</td><td>「先頭と末尾を先に取り除いてから」を明記した</td></tr></tbody></table></div>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>剥がし忘れを直さないまま実装していれば、実在のチケットすべてに TB002 が付いた</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>設計の敵対的レビューが、実装前に致命的な取りこぼし 2 件を止めた。</p>
+      </div>
+    </li>
+    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+  </ol>
+</section>
+
+<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><code>core/</code> から <code>vscode</code> を import しないことを、実装後に <code>grep</code> で機械的に確かめる</li>
+    <li><code>out/</code> と <code>node_modules/</code> は入れ子の <code>.gitignore</code> で除外する（調査 0005）</li>
+    <li>テスト ID は TB-T01〜TB-T17 の 17 件。拡張ホスト層は README の手動確認に落とす</li>
+    <li>frontmatter パーサの処理フローは 6 手順の順序が意味を持つ。手順 4 の記号の剥がしと手順 6 の引用符の扱いを取り違えると、実在のチケットが全滅する</li>
+  </ol>
+</section>
+
+<!-- 必須: 想定と異なった点。無ければ「無し」 -->
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>issue の受け入れ条件 10 件は素直に EARS へ写せる</td><td>「1 枚の失敗で他を止めない」「表示中のいずれとも一致しないファイルを開かない」は複数のフローに分かれる</td><td>例外フローを 9 件に増やし、要件との対応表で 1 対 1 に保った</td></tr>
+      <tr><td>仕様書の節構成は機構の型に従えばよい</td><td><code>20-common-step-spec</code> はスキル / エージェント / フックの 3 種しか型を持たない</td><td>節構成をこの issue で決め、DDR i0013-02 に残した（候補 B3-1）</td></tr>
+      <tr><td>識別子は機構の台帳に登録する</td><td>台帳は AI アセット専用</td><td>仕様書が台帳を兼ねる形にした（候補 B3-3）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 残課題。無ければ「無し」 -->
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li>要件定義書に「issue の受け入れ条件との対応」を書く場所が無く、issue → 要件の段の欠落を機械的に検出できない（候補 B3-4）</li>
+    <li><code>docs/</code> 配下の設計文書に対する機械的検査が未整備で、仕様書の自己矛盾はレビューでしか見つからない（候補 B3-5）</li>
+    <li>単一ルート（<code>workspaceFolders[0]</code>）だけを見る制約を「仕様に明記する」と決めたが、仕様書に書き漏らした（候補 F14）</li>
+    <li>DoD のチェック進捗をカードに出すかの決定を記録し忘れた（候補 F16）</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/13">#13</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/14">#14</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

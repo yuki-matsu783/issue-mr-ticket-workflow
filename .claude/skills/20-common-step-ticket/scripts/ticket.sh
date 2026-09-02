@@ -68,7 +68,8 @@ do_commit() { # $1=件名 $2..=パス
   local msg="$1" out; shift
   local paths=() p
   for p in "$@"; do
-    # 旧パスが未追跡（削除済みで index にも無い）なら渡さない
+    # 旧パスが未追跡（作業ツリーにも index にも無く、git が一度も知らない）なら渡さない。
+    # ステージ済みの削除は commit.sh が扱うが、git が知らないパスは CP001 になるため、ここで落とす
     if [ ! -e "$p" ] && ! git ls-files --error-unmatch -- "$p" >/dev/null 2>&1; then continue; fi
     paths+=("$p")
   done

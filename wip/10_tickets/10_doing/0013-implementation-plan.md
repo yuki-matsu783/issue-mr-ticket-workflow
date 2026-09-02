@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:56:21+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3a4e7f0"
 ---
 
 # 0013 実装・テスト計画: 拡張のソースとビルド設定を apl/ へ移す

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 4 の敵対的レビ
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:17:48+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "4d6fcc1"
 ---
 
 # 0022 設計: 敵対的レビュー（フェーズ4）の指摘のうち正史に当たる 3 件を直す

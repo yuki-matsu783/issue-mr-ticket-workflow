@@ -206,6 +206,12 @@ case_commands() {
   assert_eq "WG-T06" "WF205" "$(tc 'rm -rf src/api')"
   assert_eq "WG-T06" "allow" "$(tc 'echo x > wip/tmp/a.txt')"              # 書いてよい置き場
   assert_eq "WG-T06" "allow" "$(tc 'echo x >> logs/sh/a.log')"
+  # シェルのキーワードだけの段（for / done / fi / esac）を分類外にしない。リダイレクト付きは書き込みとして拾う
+  assert_eq "WG-T06" "allow" "$(tc 'for f in a b; do echo $f; done')"
+  assert_eq "WG-T06" "allow" "$(tc 'if true; then ls; fi')"
+  assert_eq "WG-T06" "allow" "$(tc 'case $x in a) ls;; esac')"
+  assert_eq "WG-T06" "WF205" "$(tc 'for f in a; do echo x; done > src/api/a.ts')"
+  assert_eq "WG-T06" "allow" "$(tc 'for f in a; do echo x; done > wip/tmp/a.txt')"
   assert_eq "WG-T06" "WF204" "$(tc 'npm test')"                            # build-test の宣言が無い
   set_ticket 0004-implementation
   assert_eq "WG-T06" "allow" "$(tc 'npm test')"

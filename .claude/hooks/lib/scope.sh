@@ -29,6 +29,10 @@ declare -A _SC_RE_CACHE=()
 
 # 読み取り系コマンド（状態を変えない）。git / gh / glab / sed / find / bash は個別規則
 _SC_READ_ONLY_CMDS=' ls cat head tail grep rg egrep fgrep jq wc sort uniq diff cmp test [ [[ echo printf true false pwd which type shellcheck stat file date basename dirname realpath readlink cut tr awk fold column od xxd sha256sum md5sum sha1sum less more tree du df printenv hostname whoami id uname seq expr bc comm join paste rev nl tac strings fmt yq column '
+# シェルのキーワードだけの段（`for f in a b` / `done` / `fi` / `esac` / `case $x in`）。外部コマンドを起動しないので
+# 読み取り扱いにする。入れていないと `for` や `done` が「分類外のコマンド」になり、ふつうのループが既定拒否に落ちる
+# （実測で確認。仕様 §8 へ書き戻す）。リダイレクトは段に残るので、`done > out.txt` は書き込みとして先に拾われる
+_SC_SHELL_KEYWORDS=' for done fi esac case select coproc function '
 _SC_GIT_READ_SUBCMDS=' status log diff show branch rev-parse fetch ls-files ls-remote ls-tree rev-list describe blame shortlog cat-file merge-base reflog grep for-each-ref symbolic-ref check-ignore var count-objects whatchanged name-rev show-ref diff-tree diff-index diff-files '
 
 # ---- 上限設定の読み込み（§8）----
@@ -402,7 +406,7 @@ scope_classify() {
     SC_CLASS="read"; for t in "${REPLY_ARGS[@]}"; do [[ "$t" == -delete ]] && { SC_CLASS="write"; SC_TARGETS="_"; }; done
   elif [[ "$exe" == sed ]]; then
     SC_CLASS="read"
-  elif [[ "$_SC_READ_ONLY_CMDS" == *" $exe "* ]]; then
+  elif [[ "$_SC_READ_ONLY_CMDS" == *" $exe "* || "$_SC_SHELL_KEYWORDS" == *" $exe "* ]]; then
     SC_CLASS="read"
   fi
   # build-test: 上限設定の commands.build-test に列挙されたコマンドで始まる

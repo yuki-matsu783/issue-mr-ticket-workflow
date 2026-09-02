@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画の方針の差分 4 �
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T05:48:06+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "8ea9910"
 ---
 
 # 0006 チケットボード拡張の設計計画

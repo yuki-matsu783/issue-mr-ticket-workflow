@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-02T11:04:01+00:00"
 completed_at: ""
 base_sha: "76c298f"
+cancelled_at: "2026-09-02T11:05:24+00:00"
+cancel_reason: "allow.ops の宣言漏れ（run-tests.sh は hook-test も要する）。計画に共通の決まりを書いて 0021 として起票し直す"
 ---
 
 # 0020 実装: 拡張のソースとビルド設定を apl/vscode-ticket-board/ へ移す

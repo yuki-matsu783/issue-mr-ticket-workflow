@@ -105,7 +105,35 @@ base_sha: "c3440fc"
   この段からメモリ（`~/.claude/projects/…/memory/`）の書き込みは `WF209` で止まる（合意済みの案 (a)）
 - **段階 ②-5 を登録した = 登録は完了**（`block-chmod` に fail-closed ラッパー `WF509` を付けた最終形 16 行）。
   **HK-T01 / HK-T09 が全通過（27 件・失敗 0）**。16 行の登録が期待値の逐語と行単位で一致した
-- **次にやること**: 全件テスト（`run-tests.sh --ids`）の結果を結果報告に記録 → 残る DoD の埋め合わせ
+- **全件テストが全通過**（`run-tests.sh --ids`。記録は `wip/tmp/p31-full.out`）:
+  **25 本 / 163 ID すべて PASS、失敗 0**（assertion の合計 1999 件）。TIMEOUT なし。重複 ID が 1 件
+  （`CP-T08` が `test_commit.sh` と `test_push.sh` の両方にある）
+  - 仕様に載っていて実行されていない ID は **27 件**（仕様から機械的に抽出した ID との差分。
+    `AUTH-T01` / `AUTH-T03` / `WD-T06` はスキル仕様の中の**記入例**で実在しないので除外した）。内訳:
+    **BD-T01〜T13**（13 件。`boundary.sh` 自体が未実装）/ **SE-T01〜T04・T07〜T09**（7 件。session-start のうち
+    `boundary.sh` に依存するもの）/ **FN-T01〜T05**（5 件。`10-task-overall-summary` の release が未実装）/
+    **WE-T10**（1 件。継続条件が `boundary.sh status --offline` に依存）/ **TR-T06**（1 件。`run-tests` の ID 抽出の境界）
+  - DoD の「boundary.sh 依存で実施できない 10 件」という数え方は**実測と合わない**（依存は 8 件 = SE 7 + WE-T10、
+    `boundary.sh` 自体のテストが 13 件、未実装の提供コマンドが 5 件、未実装のテストが 1 件）。0032 で数え方を直す
+- **worktree の確認（②-4 の後に実施）**: `EnterWorktree` で `../issue-mr-ticket-workflow-probe4c` に移り、
+  4 つ試した。**拒否側フックは worktree の中でも生きている**:
+
+| 試したこと | 結果 | 分かること |
+|---|---|---|
+| worktree 内の `.claude/hooks/p31-worktree-probe.txt` に Write | **通った** | 許可範囲（`allow.write`）の判定は**書き込み先パスを cwd 基準で解決**して行われる |
+| worktree 内の `.claude/docs/p31-outside-allow.txt` に Write | **WF201** | 許可範囲外の判定も worktree の中で効く |
+| worktree 側チケットの `allow.write` を Edit で広げる | **WF208** | 着手済みチケットの機械可読項目の保護も効く（＝ worktree に逃げても許可範囲は広げられない） |
+| `rm .claude/hooks/p31-worktree-probe.txt` | **WF205** | コマンドでの書き換えの禁止も効く。**後始末は AI にはできない**（`git worktree` も WF204） |
+
+  - **`workflow-diff-check`（WF601）は本体の作業ツリーだけを見る**（決定的な証拠 2 つ）:
+    (1) worktree では無変更のはずの `.claude/settings.json` が「変更」として挙がり続けた
+    （worktree の settings.json は分岐時点の 13 フック、本体は 16 フック）、
+    (2) worktree に作った未追跡ファイル `.claude/hooks/p31-worktree-probe.txt` は WF601 の一覧に**現れなかった**
+  - つまり **worktree の中の書き込みは事前の許可判定（workflow-guard）では止まるが、事後の差分検査（WF601）からは漏れる**。
+    穴として **0032 へ**（案: `workflow-diff-check` が cwd の作業ツリーも見る / worktree では警告を出す）
+  - **後始末が残る**: worktree に `.claude/hooks/p31-worktree-probe.txt` が未追跡で残っている。
+    `git worktree remove ../issue-mr-ticket-workflow-probe4c --force` は**人間の操作**（AI は WF204 で止まる）
+- **次にやること**: 結果報告の作成（md + HTML の対）と残る DoD の根拠の埋め合わせ
 - 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（段階 ② が終われば通る）
 
 ### うまくいったこと

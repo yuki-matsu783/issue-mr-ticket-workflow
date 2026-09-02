@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "テスト 1 件の追加とコメ
 allow:
   write: ["src/**", "wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-02T07:27:03+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "6d14f6d"
 ---
 
 # 0022 種類不明・実行者不明のテスト追加とコード内の仕様参照の訂正

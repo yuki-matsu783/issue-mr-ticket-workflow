@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T06:38:49+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "bfb4b68"
 ---
 
 # 0012 後続フェーズの要否の判断

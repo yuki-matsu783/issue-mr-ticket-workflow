@@ -5,7 +5,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 SKILL="$LOGGER_ROOT/.claude/skills/20-common-step-shell-script"
@@ -85,6 +85,20 @@ assert_exit "SS-T04" 0
 assert_eq "SS-T04" "OK: z 実行" "${R_OUT##*$'\n'}"
 assert_eq "SS-T04" "" "$R_ERR"
 if [ -d "$TMP_DIR/standalone/logs" ] || [ -d "$TMP_DIR/logs" ]; then fail "SS-T04" "リポジトリ外に logs/ が作られた"; else pass "SS-T04"; fi
+# git は「ある」がリポジトリ外（`git rev-parse` が 128 で落ちる）経路。上の nogit は PATH から git を外すので
+# 読み込み行の 3 段目に入らず、この条件を通らない。3 段目から `|| true` が落ちると set -e でここが exit 128 になる
+withgit() { # $1=スクリプトのパス — git はあるがリポジトリ外・CLAUDE_PROJECT_DIR 未設定で実行
+  run_cmd bash -c 'unset CLAUDE_PROJECT_DIR LOGGER_ROOT; exec bash "$1"' _ "$1"
+}
+if ! command -v git >/dev/null 2>&1; then
+  fail "SS-T04" "git が無いので「git あり・リポジトリ外」の経路を検査できない（この経路は nogit では通らない）"
+elif git rev-parse --show-toplevel >/dev/null 2>&1; then
+  fail "SS-T04" "一時ディレクトリ $PWD が git リポジトリの中にあり、リポジトリ外の経路を検査できない"
+else
+  withgit "z.sh"
+  assert_exit "SS-T04" 0
+  assert_eq "SS-T04" "OK: z 実行" "${R_OUT##*$'\n'}"
+fi
 # 読み込み行の 3 ポリシー（雛形の読み込み行そのものを使い、ルート未解決の場所で logger を要求する）
 LOAD_LINE="$(grep -m1 '^__ss_load() {' "$SKILL/assets/script.template.sh")"
 mk_loader() { # $1=出力先 $2=policy — 読み込み行の直後に LOGGER_ROOT を出す
@@ -112,22 +126,36 @@ assert_not_contains "SS-T04" "WF009"
 cd "$TMP_REPO" || exit 2
 
 # SS-T05 読み込み行のコピーが雛形とバイト一致する（DDR i0009-36）
-# 走査範囲は仕様どおり .claude/hooks/** と .claude/skills/*/scripts/** の .sh（雛形自身は範囲外）
+# 走査範囲は仕様どおり .claude/hooks/** と .claude/skills/*/scripts/** の .sh。
+# `__ss_load` を含むのに行頭一致しないファイル（インデントされた・関数名を変えた）を「対象外」で
+# 静かに落とすと検査の穴になるので、それも不一致として数える。
 case_load_line_drift() {
-  local tpl_line drift=() n=0 f line
-  tpl_line="$(grep -m1 '^__ss_load() {' "$SKILL/assets/script.template.sh")"
-  [[ -n "$tpl_line" ]] || { fail "SS-T05" "雛形に読み込み行が無い"; return; }
+  local tpl tpl_test line drift=() nolead=() f cur total=0 withload=0
+  tpl="$SKILL/assets/script.template.sh"
+  tpl_test="$SKILL/assets/test.template.sh"
+  line="$(grep -m1 '^__ss_load() {' "$tpl")"
+  [[ -n "$line" ]] || { fail "SS-T05" "雛形 script.template.sh に読み込み行が無い"; return; }
+  # 雛形 2 本どうしのバイト一致もここで固定する（雛形だけがずれても走査対象からは見えないため）
+  assert_eq "SS-T05" "$line" "$(grep -m1 '^__ss_load() {' "$tpl_test")"
   while IFS= read -r f; do
-    line="$(grep -m1 '^__ss_load() {' "$f")" || continue
-    [[ -n "$line" ]] || continue
-    n=$(( n + 1 ))
-    [[ "$line" == "$tpl_line" ]] || drift+=("${f#"$LOGGER_ROOT/"}")
+    total=$(( total + 1 ))
+    grep -q '__ss_load' "$f" || continue
+    withload=$(( withload + 1 ))
+    cur="$(grep -m1 '^__ss_load() {' "$f")" || cur=""
+    if [[ -z "$cur" ]]; then nolead+=("${f#"$LOGGER_ROOT/"}"); continue; fi
+    [[ "$cur" == "$line" ]] || drift+=("${f#"$LOGGER_ROOT/"}")
   done < <(find "$LOGGER_ROOT/.claude/hooks" "$LOGGER_ROOT"/.claude/skills/*/scripts -name '*.sh' -type f 2>/dev/null | sort)
-  (( n > 0 )) || { fail "SS-T05" "走査範囲に読み込み行を持つ .sh が 1 本も無い（走査条件の誤り）"; return; }
+  (( total > 0 )) || { fail "SS-T05" "走査範囲に .sh が 1 本も無い（走査条件の誤り）"; return; }
+  (( withload > 0 )) || { fail "SS-T05" "走査した $total 本のどれも __ss_load を持たない（走査条件の誤り）"; return; }
+  if (( ${#nolead[@]} == 0 )); then
+    pass "SS-T05"
+  else
+    fail "SS-T05" "__ss_load を含むのに行頭が '__ss_load() {' でない ${#nolead[@]} 件: ${nolead[*]}"
+  fi
   if (( ${#drift[@]} == 0 )); then
     pass "SS-T05"
   else
-    fail "SS-T05" "雛形と一致しない読み込み行 ${#drift[@]} 件 / 走査 $n 件: ${drift[*]}"
+    fail "SS-T05" "雛形と一致しない読み込み行 ${#drift[@]} 件 / 読み込み行を持つ $withload 件 / 走査 $total 件: ${drift[*]}"
   fi
 }
 case_load_line_drift

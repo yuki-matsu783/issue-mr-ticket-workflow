@@ -154,6 +154,18 @@ if [[ "$HOOK_EVENT" == "SubagentStart" ]]; then
 fi
 
 # ---- PreToolUse `Agent`: 実行者の不一致（WF801）と background 起動（WF803）----
+# ここまで来た = PreToolUse `Agent` の経路が生きている。その事実をセッション内に印として残す。
+# subagent-stop-check は縮退（この登録行が外れている）かどうかをこの印で判定する。
+# decisions.jsonl の走査で代えると、記録が育つほど誤って縮退と判定しやすくなる（DDR i0009-52 の実装）
+__sa_mark() {
+  local at
+  printf -v at '%(%Y-%m-%dT%H:%M:%S%z)T' -1
+  hook_session_write subagent-start-check.json \
+    "{\"at\":\"$at\",\"event\":\"PreToolUse\",\"tool\":\"Agent\"}" || log_warn "経路の印を書けない"
+  return 0
+}
+__sa_mark
+
 __sa_ids=(); __sa_lines=()
 
 if [[ "${HOOK_SUBAGENT_TYPE:-}" != "$__SA_TASK_EXECUTOR" ]]; then

@@ -290,11 +290,12 @@ printf '%s\n' "$__ur_body" > "$HOOK_WORKTREE/$__ur_report" 2>/dev/null \
 if hc_lock "usage-$__UR_SAFE"; then
   __ur_state_read
   [[ -n "$__UR_STATE" ]] || __UR_STATE="$(__ur_new_state)"
-  __ur_next="$(printf '%s' "$__UR_STATE" | jq -c --arg h "$PD_HEAD" --argjson c "$__ur_count" \
-    --arg since "${__ur_since_sha:-$PD_HEAD}" --arg at "${__ur_since_at:-$__ur_now}" '
-    .last_push_sha = $h | .push_count = $c | .since_sha = $since | .since_at = $at
+  # 起点（since_sha / since_at）は書かない。投稿に成功したときだけ boundary.sh が進める（既定 5）。
+  # ここで初回 push の HEAD を入れると、集計値には push 前の分が入っているのに集計期間の起点だけが
+  # 後ろへずれ、表示と数値が食い違う
+  __ur_next="$(printf '%s' "$__UR_STATE" | jq -c --arg h "$PD_HEAD" --argjson c "$__ur_count" '
+    .last_push_sha = $h | .push_count = $c
   ' 2>/dev/null || true)"
-  # リセット（posted / since_sha の書き換え）は boundary.sh の責務。ここでは起点を進めない
   [[ -n "$__ur_next" ]] && { hc_json_write "$__UR_FILE" "$__ur_next" || log_warn "usage の状態を書けない"; }
   hc_unlock "usage-$__UR_SAFE"
 else

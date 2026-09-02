@@ -31,7 +31,6 @@ probe_4c
 
 __SP_MAX_PATHS=20                    # WF812 / WF813 に並べるパスの上限
 __SP_TASK_EXECUTOR="task-executor"
-__SP_SCAN_LINES=400                  # decisions.jsonl の末尾から縮退判定のために見る行数
 
 # 制御方式 1: 停止中
 hook_enforce_enabled || hook_disabled
@@ -104,8 +103,14 @@ __sp_inspect() {
 
   __sp_add WF812 "未コミットの変更・未追跡が残っている:$(__sp_list "${paths[@]}")"$'\n'"対処: サブエージェントの結果報告と突き合わせ、必要なものは commit.sh でコミットし、不要なものは戻す。勝手に完了にしない。"
 
-  # WF813: 作業中チケットの許可範囲外
-  (( ${#__sp_doing_files[@]} > 0 )) || return 0
+  # WF813: 作業中チケットの許可範囲外。
+  # 2 枚以上あるとどのチケットの許可範囲で判定すべきか決まらないので範囲判定はしない
+  # （workflow-diff-check が「2 枚以上は判定不能として黙って抜ける」のと揃える）。
+  # WF811 / WF812 は枚数に依らず出す — 残っているチケットと差分の一覧は枚数と無関係に事実だから
+  if (( ${#__sp_doing_files[@]} != 1 )); then
+    log_debug "作業中チケットが ${#__sp_doing_files[@]} 枚なので範囲判定をしない"
+    return 0
+  fi
   local rc=0
   scope_load_ticket "${__sp_doing_files[0]}" || rc=$?
   (( rc == 0 )) || { log_debug "チケットを読めないので範囲判定をしない"; return 0; }
@@ -201,13 +206,18 @@ __sp_load_saved() {
 # agentId を記録に載せられない。よって「同じ agentId の記録」ではなく
 # 「このセッションの subagent-start-check の記録（agentId が載っていればそれも見る）」で引く（0032 へ書き戻す）
 __sp_start_check_seen() {
+  # 一次: subagent-start-check が判定のたびに置くセッション内の印。行数に依存しない
+  hook_session_dir
+  [[ -f "$REPLY/subagent-start-check.json" ]] && return 0
+  # 二次: 印を置く前に始まったセッションのための後方互換。decisions.jsonl を頭から見る
+  # （末尾 N 行だけを見ると、記録が育ったときに誤って縮退と判定して WF801 を二重に出す）
   local f="$HOOK_WORKTREE/logs/hooks/decisions.jsonl" line
   [[ -f "$f" ]] || return 1
   while IFS= read -r line; do
     [[ "$line" == *'"hook":"subagent-start-check"'* ]] || continue
     [[ "$line" == *"\"session_id\":\"$HOOK_SESSION_ID\""* ]] || continue
     return 0
-  done < <(tail -n "$__SP_SCAN_LINES" "$f" 2>/dev/null || true)
+  done < "$f"
   return 1
 }
 

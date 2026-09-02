@@ -126,7 +126,18 @@ case_out_of_scope() {
   assert_contains "DC-T02" "git checkout $BASE --"
   assert_exit "DC-T02" 0
 
+  # 一覧は 20 件で打ち切る（超過分は件数だけ）。subagent-stop-check の WF812 / WF813 と同じ上限
+  start_case investigation ""
+  local i
+  for (( i = 1; i <= 25; i++ )); do printf '# g\n' > "$TMP_REPO/docs/g$i.md"; done
+  hook_run_read
+  assert_contains "DC-T02" "（他 5 件）"
+  assert_eq "DC-T02" "20" "$(printf '%s' "$R_OUT" | grep -o 'docs/g[0-9]*\.md（未追跡' | wc -l | tr -d ' ')"
+  rm -f "$TMP_REPO"/docs/g*.md
+
   # 停止中は何も出さない
+  start_case investigation ""
+  printf 'print("changed")\n' > "$TMP_REPO/src/a.py"
   HOOK_ENV=(WORKFLOW_ENFORCE=0)
   hook_run_read
   assert_eq "DC-T02" "" "$R_OUT"
@@ -159,6 +170,10 @@ case_approvals() {
 
   # Bash のリダイレクト先も承認単位になる（ツールの種類を問わない）
   hook_run PostToolUse Bash 'command=printf x > out/z.txt'
+  assert_eq "DC-T03" "notes,CLAUDE.md,out" "$(tl_jq -r '[.[].scope] | join(",")' "$f" 2>/dev/null)"
+
+  # リポジトリの外のパスは承認単位にしない（hook_rel_path は外のパスを絶対パスのまま返す）
+  hook_run PostToolUse Write "file_path=/tmp/outside/evil.md"
   assert_eq "DC-T03" "notes,CLAUDE.md,out" "$(tl_jq -r '[.[].scope] | join(",")' "$f" 2>/dev/null)"
 
   # 毎回確認（WF203）の範囲は記憶しない。ai-asset-implementation では .claude/hooks/** が type の許可範囲で、
@@ -232,6 +247,15 @@ case_boundary() {
   # 種類が上限設定に無いときも黙る
   start_case investigation ""
   write_ticket no-such-type "$BASE" ""
+  printf 'print("changed")\n' > "$TMP_REPO/src/a.py"
+  hook_run_read
+  assert_eq "DC-T06" "" "$R_OUT"
+  assert_exit "DC-T06" 0
+
+  # 基準点が解決できない値なら差分の取得に失敗したのと同じで黙る
+  # （続けると WF601 に解決できない値を「基準点は X」と書き、復旧指示も動かない）
+  start_case investigation ""
+  write_ticket investigation "deadbee" ""
   printf 'print("changed")\n' > "$TMP_REPO/src/a.py"
   hook_run_read
   assert_eq "DC-T06" "" "$R_OUT"

@@ -148,6 +148,18 @@ case_out_of_scope() {
   write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-investigation.md" investigation sonnet 1
   post completed
   assert_not_contains "SP-T04" "WF813"
+
+  # 作業中が 2 枚以上ならどのチケットの許可範囲か決まらないので範囲判定をしない
+  # （workflow-diff-check の「2 枚以上は判定不能」と揃える）。WF811 / WF812 は枚数に依らず出す
+  reset_all
+  write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-investigation.md" investigation sonnet 1
+  write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0101-investigation.md" investigation sonnet 1
+  printf 'print("changed")\n' > "$TMP_REPO/src/a.py"
+  post completed
+  assert_contains "SP-T04" "WF811"
+  assert_contains "SP-T04" "WF812"
+  assert_not_contains "SP-T04" "許可範囲外のパスに差分が残っている"
+  assert_exit "SP-T04" 0
 }
 
 # ---- SP-T05: SubagentStop で記録し PostToolUse で同じ内容を伝える ----
@@ -223,6 +235,26 @@ case_degraded() {
   reset_all
   write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md" implementation opus 1
   seed_start_check notify
+  post completed 'claude-sonnet-4-5-20250929' task-executor A1
+  assert_not_contains "SP-T08" "WF801"
+
+  # subagent-start-check が置くセッション内の印でも判定する（decisions.jsonl の行数に依存しない）
+  reset_all
+  write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md" implementation opus 1
+  mkdir -p "$TMP_REPO/logs/sessions/testsession"
+  printf '{"at":"2026-09-01T00:00:00+0900","event":"PreToolUse","tool":"Agent"}\n' \
+    > "$TMP_REPO/logs/sessions/testsession/subagent-start-check.json"
+  post completed 'claude-sonnet-4-5-20250929' task-executor A1
+  assert_not_contains "SP-T08" "WF801"
+
+  # 印が無くても、記録が末尾から離れた位置にあれば見つける（決め打ちの行数で切らない）
+  reset_all
+  write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md" implementation opus 1
+  seed_start_check skip
+  local i
+  for (( i = 0; i < 600; i++ )); do
+    printf '{"ts":"2026-09-01T00:00:00+0900","session_id":"testsession","hook":"workflow-guard","event":"PreToolUse","decision":"allow","id":"","tool":"Bash","target":"","ticket":"","note":""}\n' >> "$DEC"
+  done
   post completed 'claude-sonnet-4-5-20250929' task-executor A1
   assert_not_contains "SP-T08" "WF801"
 

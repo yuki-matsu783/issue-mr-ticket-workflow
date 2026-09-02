@@ -33,7 +33,9 @@ hook_read_input limits || hook_fail "入力を読めない"
 probe_4c
 
 __DC_US=$'\x1e'          # SC_TARGETS の区切り（フック共通仕様 §2 の副入力と同じバイト）
-__DC_MAX_LIST=30         # WF601 に並べるパスの上限（超えた分は件数だけ）
+# 一覧の上限は subagent-stop-check（仕様に「20 を超えれば先頭 20 件 + 件数」と明記）に合わせる。
+# 同じ性質の一覧で値を変える理由が無く、明記されている側が正
+__DC_MAX_LIST=20
 
 # ---- 制御方式 1: 抜ける条件 ----
 hook_enforce_enabled || hook_disabled
@@ -142,12 +144,25 @@ __dc_scope_known() { # $1=承認単位。既知（記憶済み or 今回の追�
   return 1
 }
 
+# hook_rel_path はリポジトリの外のパスをそのまま返す（絶対パスのまま）。
+# 許可範囲の判定はルート相対のパスにしか当たらないので、外のパスを承認単位にすると
+# 意味のない記録が残るだけになる（実測で `C:/Users/.../Temp/outside` が入った）
+__dc_in_repo() { # $1=hook_rel_path の結果。ルート相対なら 0
+  local p="$1"
+  [[ -n "$p" && "$p" != "." ]] || return 1
+  case "$p" in
+    /*|[A-Za-z]:/*) return 1 ;;      # 絶対パス = リポジトリの外
+    ..|../*|*/../*) return 1 ;;      # 親をたどる形も外へ出得る
+  esac
+  return 0
+}
+
 for __dc_t in ${__dc_op_targets[@]+"${__dc_op_targets[@]}"}; do
   # 宛先が潰れている（cmdpos の `_`）ものは承認単位にできない
   [[ -n "$__dc_t" && "$__dc_t" != "_" ]] || continue
   hook_rel_path "$__dc_t" >/dev/null
   __dc_p="$REPLY"
-  [[ -n "$__dc_p" && "$__dc_p" != "." ]] || continue
+  __dc_in_repo "$__dc_p" || continue
   scope_resolve "$__dc_p"
   # WF203（毎回確認）は記憶しない。WF202（未記載）だけを承認単位で覚える
   [[ "$SC_DECISION" == "ask" && "$SC_ID" == "WF202" ]] || continue
@@ -231,19 +246,23 @@ while IFS= read -r -d '' __dc_rec; do
   esac
 done < <(git -C "$HOOK_WORKTREE" status --porcelain=v2 -z -uall 2>/dev/null || true)
 
-# 基準点以降のコミット済みの差分。基準点が解決できなければ差分は status だけで判定する
-if git -C "$HOOK_WORKTREE" rev-parse --verify --quiet "$__dc_base^{commit}" >/dev/null 2>&1; then
-  while IFS= read -r -d '' __dc_st; do
-    IFS= read -r -d '' __dc_p1 || break
-    case "$__dc_st" in
-      R*|C*) IFS= read -r -d '' __dc_p2 || break
-             __dc_add_path "$__dc_p2" 移動先 ;;
-      *)     __dc_add_path "$__dc_p1" 変更 ;;
-    esac
-  done < <(git -C "$HOOK_WORKTREE" diff --name-status -z "$__dc_base" 2>/dev/null || true)
-else
-  log_warn "基準点 $__dc_base を解決できないので作業ツリーの差分だけで判定する"
+# 基準点が解決できないなら差分の取得に失敗したのと同じ（制御方式 7）。黙って抜ける。
+# 続けると WF601 に「基準点は <解決できない値>」と書き、復旧指示の
+# `git checkout <base> -- <path>` も動かない案内を出すことになる（実測で PLACEHOLDER がそのまま出た）
+if ! git -C "$HOOK_WORKTREE" rev-parse --verify --quiet "$__dc_base^{commit}" >/dev/null 2>&1; then
+  log_warn "基準点 $__dc_base を解決できないので差分を判定しない"
+  exit 0
 fi
+
+# 基準点以降のコミット済みの差分
+while IFS= read -r -d '' __dc_st; do
+  IFS= read -r -d '' __dc_p1 || break
+  case "$__dc_st" in
+    R*|C*) IFS= read -r -d '' __dc_p2 || break
+           __dc_add_path "$__dc_p2" 移動先 ;;
+    *)     __dc_add_path "$__dc_p1" 変更 ;;
+  esac
+done < <(git -C "$HOOK_WORKTREE" diff --name-status -z "$__dc_base" 2>/dev/null || true)
 
 __dc_bad=(); __dc_over=0
 for __dc_p in ${__dc_paths[@]+"${__dc_paths[@]}"}; do

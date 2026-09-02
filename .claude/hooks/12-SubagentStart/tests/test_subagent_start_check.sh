@@ -199,6 +199,18 @@ case_record() {
   clear_logs; clear_tickets
   pre 'claude-sonnet-4-5' task-executor false
   case "$(last_note)" in *対象チケット*) pass "SA-T08" ;; *) fail "SA-T08" "対象なしの理由が残っていない: $(last_note)" ;; esac
+
+  # PreToolUse `Agent` の経路が生きている印をセッション内に残す
+  # （subagent-stop-check の縮退判定が decisions.jsonl の行数に依存しないようにするため）
+  local mark="$TMP_REPO/logs/sessions/testsession/subagent-start-check.json"
+  clear_logs; clear_tickets
+  write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md" implementation sonnet 1
+  pre 'claude-sonnet-4-5' task-executor false
+  if [[ -f "$mark" ]]; then pass "SA-T08"; else fail "SA-T08" "経路の印が残っていない"; fi
+  # SubagentStart は PreToolUse の経路とは別なので印を置かない
+  clear_logs
+  start
+  if [[ ! -f "$mark" ]]; then pass "SA-T08"; else fail "SA-T08" "SubagentStart で印が置かれた"; fi
 }
 
 # ---- SA-T09: background 起動の警告 ----

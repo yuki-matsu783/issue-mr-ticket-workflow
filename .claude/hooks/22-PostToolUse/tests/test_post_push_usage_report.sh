@@ -148,6 +148,10 @@ case_carry_over() {
   do_push
   hook_push 'git push' sess1 "$TR_A"
   assert_not_contains "UR-T04" "繰り越し"
+  # 起点は投稿に成功したときだけ boundary.sh が進める。usage-report は書かない
+  # （初回 push の HEAD を入れると、集計値には push 前の分が入っているのに起点だけ後ろへずれる）
+  assert_eq "UR-T04" "" "$(sum_of '.since_sha')"
+  assert_eq "UR-T04" "1" "$(sum_of '.push_count')"
 
   do_push
   hook_push 'git push' sess1 "$TR_A"

@@ -48,6 +48,14 @@ resolve() { # $1=type $2=ticket(- で無し) $3=approvals(- で無し) $4=path
   printf '%s %s %s %s\n' "$SC_DECISION" "${SC_ID:--}" "$SC_STAGE" "${SC_ASK_SCOPE:--}"
 }
 match() { if scope_match "$1" "$2"; then echo yes; else echo no; fi; }
+REAL_CFG="$LOGGER_ROOT/.claude/hooks/config/scope-limits.json"
+# 出荷される scope-limits.json をそのまま読んで判定する（雛形ではなく実物の許可範囲を見る）
+resolve_real() { # $1=type $2=path
+  scope_load "$REAL_CFG" "$1" || { echo "load-error rc=$? $SC_ERROR"; return; }
+  SC_DECL_WRITE=(); SC_DECL_OPS=(); SC_APPROVED=()
+  scope_resolve "$2"
+  printf '%s %s %s %s\n' "$SC_DECISION" "${SC_ID:--}" "$SC_STAGE" "${SC_ASK_SCOPE:--}"
+}
 classify_all() { # $1=command → 分類を空白区切りで
   local i out=""
   cmdpos_parse "$1"
@@ -251,10 +259,43 @@ case_load_errors() {
   assert_eq "HK-T15" "4" "${#SC_TYPES[@]}"
 }
 
+
+# ---- 出荷される scope-limits.json のアプリルート（apl/）の許可範囲 ----
+case_real_apl() {
+  # 実施タスクはアプリルート直下のビルド設定・README・入れ子 .gitignore を書ける（apl/*/*）
+  assert_eq "HK-T15" "allow - 5 -" "$(resolve_real implementation apl/vscode-ticket-board/src/core/a.ts)"
+  assert_eq "HK-T15" "allow - 5 -" "$(resolve_real implementation apl/vscode-ticket-board/test/a.test.ts)"
+  assert_eq "HK-T15" "allow - 5 -" "$(resolve_real implementation apl/vscode-ticket-board/README.md)"
+  # 入れ子の .gitignore は common.protected だが type の allow に明示があるので判定順 (2) を通る
+  assert_eq "HK-T15" "allow - 5 -" "$(resolve_real implementation apl/vscode-ticket-board/.gitignore)"
+  assert_eq "HK-T15" "deny WF201 2 -" "$(resolve_real design apl/vscode-ticket-board/.gitignore)"
+  # ビルド設定は毎回確認（type の confirm）
+  assert_eq "HK-T15" "ask WF203 4 -" "$(resolve_real implementation apl/vscode-ticket-board/package.json)"
+  assert_eq "HK-T15" "ask WF203 4 -" "$(resolve_real implementation apl/vscode-ticket-board/tsconfig.json)"
+  # 設計文書は実施タスクでは書けず、設計タスクだけが書ける
+  assert_eq "HK-T15" "deny WF201 3 -" "$(resolve_real implementation apl/vscode-ticket-board/docs/10_spec/x.md)"
+  assert_eq "HK-T15" "allow - 5 -" "$(resolve_real design apl/vscode-ticket-board/docs/10_spec/x.md)"
+  assert_eq "HK-T15" "allow - 5 -" "$(resolve_real design-feedback apl/vscode-ticket-board/docs/00_requirement/x.md)"
+  assert_eq "HK-T15" "deny WF201 3 -" "$(resolve_real design apl/vscode-ticket-board/src/core/a.ts)"
+  assert_eq "HK-T15" "deny WF201 3 -" "$(resolve_real design-feedback apl/vscode-ticket-board/test/a.test.ts)"
+  # アプリと AI アセットは互いに書けない
+  assert_eq "HK-T15" "deny WF201 3 -" "$(resolve_real ai-asset-implementation apl/vscode-ticket-board/src/core/a.ts)"
+  assert_eq "HK-T15" "deny WF201 3 -" "$(resolve_real ai-asset-design apl/vscode-ticket-board/docs/10_spec/x.md)"
+  assert_eq "HK-T15" "deny WF201 2 -" "$(resolve_real implementation .claude/skills/x/SKILL.md)"
+  # アプリルートの外側（apl/ 直下のファイル）は許可範囲に入らない
+  assert_eq "HK-T15" "ask WF202 7 apl" "$(resolve_real implementation apl/README.md)"
+  # 旧置き場: 計画・調査は deny、実施タスクは ask WF202（移行の一度きりの承認を通す）
+  assert_eq "HK-T15" "deny WF201 3 -" "$(resolve_real investigation docs/10_spec/x.md)"
+  assert_eq "HK-T15" "deny WF201 3 -" "$(resolve_real implementation-plan src/vscode-ticket-board/src/a.ts)"
+  assert_eq "HK-T15" "ask WF202 7 src/vscode-ticket-board/src" "$(resolve_real implementation src/vscode-ticket-board/src/a.ts)"
+  assert_eq "HK-T15" "ask WF202 7 docs/10_spec" "$(resolve_real design-feedback docs/10_spec/x.md)"
+}
+
 case_glob
 case_order
 case_declaration
 case_ops
 case_classify
 case_load_errors
+case_real_apl
 finish

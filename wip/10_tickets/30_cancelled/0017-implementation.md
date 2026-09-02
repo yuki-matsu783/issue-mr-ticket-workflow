@@ -11,6 +11,8 @@ allow:
 started_at: ""
 completed_at: ""
 base_sha: ""
+cancelled_at: "2026-09-02T11:03:48+00:00"
+cancel_reason: "先行チケットが取り消し済みの 0016 を指している（TK006）。0019 を指す 0020 として起票し直す"
 ---
 
 # 0017 実装: 拡張のソースとビルド設定を apl/vscode-ticket-board/ へ移す

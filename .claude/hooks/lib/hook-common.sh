@@ -65,6 +65,26 @@ __hc_json_str() {
 }
 
 # 機密情報のマスク（§3。REPLY に返す）。パターンが当たらない値はマスクできない — 一次防御は「値を出さない」こと
+__HC_REDACT_LONG_WORD=256   # これより長い語が出たら位置ベースの走査に切り替える
+# 規則 5 の位置ベースの走査。`${s%%"$m"*}` が使えない（語が長すぎる）ときだけ使う。
+# 区切りを改行に置換した同じ長さの複製から語を読み、位置で元の区切りを拾って組み直す
+__hc_redact_rule5_scan() {
+  local str="$1"
+  local tmp="${str//[!A-Za-z0-9+=_-]/$'
+'}"
+  local -a parts=()
+  local pos=0 w keep slen="${#str}"
+  while IFS= read -r w || [[ -n "$w" ]]; do
+    keep=1
+    if (( ${#w} >= 40 )); then
+      if [[ ( "$w" == *-*-* && "$w" != *[A-Z]* ) || "$w" != *[A-Z0-9+=-]* ]]; then keep=1; else keep=0; fi
+    fi
+    if (( keep )); then parts+=("$w"); else parts+=("***"); fi
+    pos=$(( pos + ${#w} ))
+    if (( pos < slen )); then parts+=("${str:pos:1}"); pos=$(( pos + 1 )); fi
+  done <<< "$tmp"
+  printf -v REPLY '%s' "${parts[@]}"
+}
 __hc_redact_to_reply() {
   local s="$1" m pre post nc=0
   shopt -q nocasematch && nc=1
@@ -89,25 +109,21 @@ __hc_redact_to_reply() {
   done
   # 5. 40 文字以上の 16 進 / base64 様の語（`/` を含む語はパスと区別できないので対象外）。
   #    ハイフン区切りで大文字を含まない語（ブランチ名・チケット名）と、英小文字と _ だけの語（識別子）は秘密と見なさず残す。
-  #    切り出しに ${s%%"$m"*} を使わない — $m が長いと bash のパターン照合が極端に遅くなる（4000 文字で約 58 秒）。
   #    まず 40 文字以上の語が 1 つも無ければ丸ごと飛ばす（現実の入力はほぼこちら。走査 1 回で済む）。
-  #    当たったときだけ、区切り文字を改行に置換した同じ長さの複製から語を読み、位置で元の区切りを拾って組み直す。
-  #    連結は配列に溜めて最後に 1 回で join する（`out+=` の繰り返しは毎回 realloc して O(n^2) になる）。
+  #    当たったときは、当たりの個数に比例する形で置き換える（正規表現で 1 個ずつ取り、前後で切る）。
+  #    ただし `${s%%"$m"*}` は $m が長いと壊滅的に遅くなる（4000 文字で約 58 秒）ので、
+  #    語が長いときだけ位置ベースの走査に切り替える。区切りの多い入力で語ごとにループすると
+  #    区切りの個数に比例してしまい、SHA を 1 個含む 250 文字の行でも 10 ms 級になる。
   if [[ "$s" =~ [A-Za-z0-9+=_-]{40,} ]]; then
-    local tmp="${s//[!A-Za-z0-9+=_-]/$'
-'}"
-    local -a parts=()
-    local pos=0 w keep slen="${#s}"
-    while IFS= read -r w || [[ -n "$w" ]]; do
-      keep=1
-      if (( ${#w} >= 40 )); then
-        if [[ ( "$w" == *-*-* && "$w" != *[A-Z]* ) || "$w" != *[A-Z0-9+=-]* ]]; then keep=1; else keep=0; fi
-      fi
-      if (( keep )); then parts+=("$w"); else parts+=("***"); fi
-      pos=$(( pos + ${#w} ))
-      if (( pos < slen )); then parts+=("${s:pos:1}"); pos=$(( pos + 1 )); fi
-    done <<< "$tmp"
-    printf -v s '%s' "${parts[@]}"
+    local rest="$s" head="" m pre post keep
+    while [[ "$rest" =~ [A-Za-z0-9+=_-]{40,} ]]; do
+      m="${BASH_REMATCH[0]}"
+      if (( ${#m} > __HC_REDACT_LONG_WORD )); then __hc_redact_rule5_scan "$head$rest"; head="$REPLY"; rest=""; break; fi
+      pre="${rest%%"$m"*}"; post="${rest:${#pre}+${#m}}"
+      if [[ ( "$m" == *-*-* && "$m" != *[A-Z]* ) || "$m" != *[A-Z0-9+=-]* ]]; then keep="$m"; else keep="***"; fi
+      head+="${pre}${keep}"; rest="$post"
+    done
+    s="${head}${rest}"
   fi
   (( nc )) && shopt -s nocasematch
   REPLY="$s"
@@ -236,9 +252,33 @@ def sec($x):
 # cwd が HOOK_ROOT と異なるとき、cwd から上向きに .claude を持つディレクトリを探して HOOK_WORKTREE に置く。
 # ただし候補が HOOK_ROOT の worktree であることを必ず確かめる（cd だけでも cwd は動くため。参考実装の .claude を拾うと
 # 作業中チケットが 0 枚に見えてガードが全面バイパスされる）。fork ゼロ（[ -d ] / [ -f ] / $(<file) だけ）。
-__hc_winpath() { # $1=パス → REPLY に正規化（区切りは / 、/c/… は C:/… に、末尾の / を落とす）
-  local p="${1//\\//}"
+# $1=パス → REPLY に正規化（区切りは / 、/c/… は C:/… に、`.` と `..` を畳み、末尾の / を落とす）
+# `..` を畳まないと、前方一致で場所を検査している側（__hc_is_worktree_of）が
+# `<root>/.git/worktrees/../../wip/tmp/x` のような指し先を見逃す。fork しないセグメント走査で畳む
+__hc_winpath() {
+  local p="${1//\\//}" head="" seg rest
   if [[ "$p" =~ ^/([A-Za-z])/(.*)$ ]]; then p="${BASH_REMATCH[1]^^}:/${BASH_REMATCH[2]}"; fi
+  case "$p" in
+    [A-Za-z]:/*) head="${p:0:3}"; rest="${p:3}" ;;
+    /*)          head="/";        rest="${p:1}" ;;
+    *)           head="";         rest="$p" ;;
+  esac
+  local -a out=()
+  while [[ -n "$rest" ]]; do
+    if [[ "$rest" == */* ]]; then seg="${rest%%/*}"; rest="${rest#*/}"; else seg="$rest"; rest=""; fi
+    case "$seg" in
+      ""|".") ;;
+      "..")   if (( ${#out[@]} > 0 )) && [[ "${out[-1]}" != ".." ]]; then unset 'out[-1]'
+              elif [[ -z "$head" ]]; then out+=("..")
+              fi ;;                       # 絶対パスの根を越える `..` は落とす
+      *)      out+=("$seg") ;;
+    esac
+  done
+  p="$head"
+  local i first=1
+  for i in ${out[@]+"${out[@]}"}; do
+    if (( first )) || [[ "$p" == */ ]]; then p+="$i"; first=0; else p+="/$i"; fi
+  done
   [[ "$p" == */ && ${#p} -gt 1 ]] && p="${p%/}"
   REPLY="$p"
 }
@@ -248,8 +288,9 @@ __hc_winpath() { # $1=パス → REPLY に正規化（区切りは / 、/c/… �
 __hc_is_worktree_of() {
   local c="$1" root="$2" g s d n
   [[ "${c,,}" == "${root,,}" ]] && return 0
-  # 本流の配下は worktree ではない（参考実装の .claude や wip/tmp の細工を拾わない）
-  [[ "${c,,}" == "${root,,}/"* ]] && return 1
+  # 本流の配下でも、相互参照が完全に成立するなら正当な worktree（`git worktree add ./sub-wt`）。
+  # 配下を一律で弾くと、その中で機構が本流の wip/ logs/ を見てしまう（DDR i0009-55 が防ぐ状態そのもの）。
+  # 参考実装の .claude や wip/tmp の細工は、下の相互参照の要求だけで落ちる（`..` は __hc_winpath が畳む）
   # (a) 候補の .git ファイルから管理ディレクトリを引き、そこから候補へ戻れることを確かめる（O(1)）
   g="$c/.git"
   if [[ -f "$g" ]]; then
@@ -463,8 +504,18 @@ __hc_cap_json_field() { # $1=行 $2=キー $3=上限
   done
   val="$acc"
   tail="${post:${#val}}"                       # 閉じ引用符から後ろ
-  if (( ${#val} > max )); then
-    val="${val:0:max}"
+  __hc_bytelen "$val"
+  if (( REPLY > max )); then
+    # 上限はバイト。多バイト文字が入ると文字数と食い違うので、収まる最大の長さを二分探索で決める
+    # （比例で引くだけだと 1 回で負に振り切れて全部落ちる）
+    local lo=0 hi="$max" mid
+    (( hi > ${#val} )) && hi=${#val}
+    while (( lo < hi )); do
+      mid=$(( (lo + hi + 1) / 2 ))
+      __hc_bytelen "${val:0:mid}"
+      if (( REPLY <= max )); then lo=$mid; else hi=$(( mid - 1 )); fi
+    done
+    val="${val:0:lo}"
     while [[ "$val" == *"$bsc" ]]; do val="${val%"$bsc"}"; done   # 末尾の \ を落として不正なエスケープを作らない
     val+="…"
   fi
@@ -483,26 +534,33 @@ __hc_cap_line_to_reply() {
   local line="$1" raw esc="" pre cut n
   __hc_bytelen "$line"; n="$REPLY"
   pre="{\"truncated\":true,\"bytes\":$n,\"head\":\""
-  # エスケープで最大 2 倍に伸びるので、まず半分の長さから試して収まるまで詰める
-  cut=$(( (__HC_MAX_LINE - ${#pre} - 6) / 2 ))
-  while (( cut > 0 )); do
-    raw="${line:0:cut}"
-    __hc_json_str "$raw"; esc="$REPLY"
-    __hc_bytelen "$pre$esc"
-    (( REPLY <= __HC_MAX_LINE - 6 )) && break
-    cut=$(( cut / 2 ))
+  # エスケープで伸びる量は内容次第（1〜6 倍）なので、収まる最大の長さを二分探索で決める。
+  # 半分で止めると、エスケープの要らない普通の内容で上限の 50% しか使えない
+  local lo=0 hi mid budget=$(( __HC_MAX_LINE - ${#pre} - 6 ))
+  hi=${#line}
+  (( hi > budget )) && hi=$budget
+  esc=""
+  while (( lo < hi )); do
+    mid=$(( (lo + hi + 1) / 2 ))
+    __hc_json_str "${line:0:mid}"; raw="$REPLY"
+    __hc_bytelen "$pre$raw"
+    if (( REPLY <= __HC_MAX_LINE - 6 )); then lo=$mid; esc="$raw"; else hi=$(( mid - 1 )); fi
   done
-  (( cut > 0 )) || esc=""
+  (( lo > 0 )) || esc=""
   REPLY="${pre}${esc}…\"}"
 }
 hc_append_jsonl() {
   local f="$1" line="$2" dir
   __hc_redact_to_reply "$line"; line="$REPLY"
-  if (( ${#line} >= __HC_MAX_LINE )); then
+  # 上限はバイトなので、判定もバイトで行う（${#line} はロケール次第で文字数になり、
+  # UTF-8 環境では多バイトの行が門を素通りしてそのまま追記される）
+  __hc_bytelen "$line"
+  if (( REPLY >= __HC_MAX_LINE )); then
     __hc_cap_json_field "$line" target "$__HC_MAX_FIELD"; line="$REPLY"
     __hc_cap_json_field "$line" note   "$__HC_MAX_FIELD"; line="$REPLY"
+    __hc_bytelen "$line"
   fi
-  if (( ${#line} >= __HC_MAX_LINE )); then __hc_cap_line_to_reply "$line"; line="$REPLY"; fi
+  if (( REPLY >= __HC_MAX_LINE )); then __hc_cap_line_to_reply "$line"; line="$REPLY"; fi
   dir="${f%/*}"
   if [[ "$dir" != "$f" ]]; then mkdir -p "$dir" 2>/dev/null || return 1; fi
   printf '%s\n' "$line" >> "$f" 2>/dev/null || return 1

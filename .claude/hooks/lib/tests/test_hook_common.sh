@@ -404,21 +404,41 @@ case_worktree() {
   # 相互参照が揃えば拾う（上の 3 つが「相互参照が無いから拾わない」ことの対照）
   printf '%s\n' "$forged/.git" > "$root/.git/worktrees/zzz/gitdir"
   assert_eq "HK-T18" "$forged" "$(resolve_wt "$forged")"
-  # 本流の配下は .claude を持っていても worktree ではない（参考ディレクトリ/*/.claude の経路）。
-  # 相互参照まで揃えても拒む（.git/ 配下への書き込みは規約で禁じているが、機構の保証を規約に頼らない）
+  # 本流の配下に .claude があるだけでは拾わない（参考ディレクトリ/*/.claude の経路）
   assert_eq "HK-T18" "$root" "$(resolve_wt "$inside")"
+  # ただし相互参照が完全に成立する内側の worktree（`git worktree add ./sub-wt`）は拾う。
+  # 配下を一律で弾くと、その中で機構が本流の wip/ logs/ を見てしまう（DDR i0009-55 が防ぐ状態）
   mkdir -p "$root/.git/worktrees/inside"
   printf 'gitdir: %s/.git/worktrees/inside\n' "$root" > "$inside/.git"
   printf '%s\n' "$inside/.git" > "$root/.git/worktrees/inside/gitdir"
+  assert_eq "HK-T18" "$inside" "$(resolve_wt "$inside")"
+  # 相互参照を片方向に崩すと配下でも拾わない（上の行が「配下だから拾った」のでないことの対照）
+  printf '%s\n' "$wt/.git" > "$root/.git/worktrees/inside/gitdir"
   assert_eq "HK-T18" "$root" "$(resolve_wt "$inside")"
+  printf '%s\n' "$inside/.git" > "$root/.git/worktrees/inside/gitdir"
+  # gitdir: が `..` で worktrees/ の外を指す偽装は拾わない。
+  # 前方一致だけの判定は `<root>/.git/worktrees/../../<書ける場所>` で破れる
+  local trav="$TMP_REPO/traversal"
+  mkdir -p "$trav/.claude" "$root/outside"
+  printf 'gitdir: %s/.git/worktrees/../../outside\n' "$root" > "$trav/.git"
+  printf '%s\n' "$trav/.git" > "$root/outside/gitdir"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$trav")"
+  # `.` や余分な / を含むだけの正当な指し先は畳んで受け入れる
+  printf 'gitdir: %s/.git/./worktrees//inside\n' "$root" > "$inside/.git"
+  assert_eq "HK-T18" "$inside" "$(resolve_wt "$inside")"
+  printf 'gitdir: %s/.git/worktrees/inside\n' "$root" > "$inside/.git"
   # 負の対照: 本物の worktree でも worktrees/*/gitdir を消し、.git ファイルも消すと拾わない
   rm -f "$root/.git/worktrees/side/gitdir" "$wt/.git"
   assert_eq "HK-T18" "$root" "$(resolve_wt "$wt")"
-  # パスの表記が違っても（/c/… と C:/…）同じに解決する
-  local msys="${root/#C:\//\/c\/}"
-  if [[ "$msys" != "$root" ]]; then
-    assert_eq "HK-T18" "$root" "$(HOOK_ROOT="$msys" HOOK_CWD="$root" __hc_resolve_worktree; printf '%s\n' "$HOOK_WORKTREE")"
-  fi
+  # パスの正規化は実在ディレクトリに依らず __hc_winpath 単体で固定する
+  # （mktemp が返すのは /tmp/... なので、root を使う形だと条件が常に偽になり 1 件も検査されない）
+  __hc_winpath '/c/a/b';                                  assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath 'C:\a\b';                                 assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath 'C:/a/b/';                                 assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath '/c/a/./b';                                assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath '/c/a/b/../c';                             assert_eq "HK-T18" "C:/a/c" "$REPLY"
+  __hc_winpath '/c/a/.git/worktrees/../../wip/tmp/x';     assert_eq "HK-T18" "C:/a/wip/tmp/x" "$REPLY"
+  __hc_winpath 'a/b/../c';                                assert_eq "HK-T18" "a/c" "$REPLY"
   # 存在しない cwd → ルート
   assert_eq "HK-T18" "$root" "$(resolve_wt "$TMP_REPO/nope/x")"
   HOOK_ROOT="$save_root"

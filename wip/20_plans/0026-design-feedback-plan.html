@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設計反映計画 — docs/ のアプリルートへの移動と旧置き場の片付け</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査計画 / 調査） -->
+  <p class="kind">設計反映計画 / 設計反映</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>設計反映計画 — docs/ のアプリルートへの移動と旧置き場の片付け</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す -->
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象（issue / PR）は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd>#20</dd></div>
+    <div><dt>PR</dt><dd>#25</dd></div>
+    <div><dt>ブランチ</dt><dd>claude/design-docs-app-support-6a9cyj</dd></div>
+    <div><dt>チケット</dt><dd>0026 / H1〜H4</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: この計画で何をするか（結論方針。1〜3 文 + 決めたこと） -->
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">拡張の設計文書 7 ファイルをアプリルート配下へ移し、配置図・DDR の状態・仕様書の節名を揃え、移行のために残していた旧置き場の仕掛けを 1 回で外す。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li>docs/ の 7 ファイルを階層を変えずに apl/vscode-ticket-board/docs/ へ</li>
+      <li>文書どうしの相互参照は docs/ 配下の相対なので解決先が変わらない</li>
+      <li>旧置き場の片付けは 正史 → 設定 → テスト の順で 1 回にまとめる</li>
+      <li>F4 は F1 の後。先にやると未移動の docs/ を計画タスクが書けてしまう</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 必須: 対象と範囲（変更対象・調査観点・根拠とする文書） -->
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td>F1 docs/ の移動</td><td>7 ファイルをディレクトリごと apl/vscode-ticket-board/docs/ へ</td><td>design-feedback</td></tr>
+      <tr><td>F2 配置図</td><td>仕様書 28 行目の頂点を apl/vscode-ticket-board/ に</td><td>design-feedback</td></tr>
+      <tr><td>F3 DDR i0013-01</td><td>frontmatter に状態（置き換え済み）と置き換え先を足す。本文は変えない</td><td>design-feedback</td></tr>
+      <tr><td>F5a 仕様書の 7 番目の節名</td><td>HTML の構造と CSP → 画面・出力の構造。経緯を新 DDR i0020-04 に</td><td>design-feedback</td></tr>
+      <tr><td>F6 README の暫定の 1 行</td><td>移動が済んだので削る</td><td>implementation</td></tr>
+      <tr><td>F4 旧置き場の片付け</td><td>§8 の段落・7 type の deny・テストのアサーション 4 件を 1 回で落とす</td><td>ai-asset-design → ai-asset-implementation</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 方法とステップ（対象と方法・許可範囲・依存・順序） -->
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>F1 移す</h3>
+      <p>git mv docs apl/vscode-ticket-board/docs</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>F2・F5a 直す</h3>
+      <p>仕様書の配置図と 7 番目の節名</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>F5a の経緯</h3>
+      <p>新 DDR i0020-04 をアプリの 20_ddr に起こす</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>F3・F6</h3>
+      <p>DDR i0013-01 の frontmatter と README の暫定の 1 行</p>
+    </li>
+    <li class="step">
+      <span class="step-no">5</span>
+      <h3>F4 片付け</h3>
+      <p>正史（§8）→ 設定 → テストの順で旧置き場を落とす</p>
+    </li>
+    <li class="step">
+      <span class="step-no">6</span>
+      <h3>検証</h3>
+      <p>V1〜V6 を順に実行し、結果を作業ログに残す</p>
+    </li>
+  </ol>
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>H1（移動と設計文書の更新）</td><td>apl/*/docs/、docs/（移動元）</td><td>read, remote-read</td></tr>
+      <tr><td>H2（README）</td><td>apl/</td><td>read, build-test, remote-read</td></tr>
+      <tr><td>H3（フック共通仕様 §8）</td><td>.claude/docs/</td><td>read, remote-read</td></tr>
+      <tr><td>H4（設定とテスト）</td><td>.claude/hooks/config/scope-limits.json、.claude/hooks/tests/</td><td>read, build-test, hook-test, remote-read</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 検証（テスト方針・テスト ID の割付・成果物の形） -->
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>V1 移動先</td><td>find apl/vscode-ticket-board/docs -type f | wc -l</td><td>7</td></tr>
+      <tr><td>V2 移動元</td><td>ls docs</td><td>無し</td></tr>
+      <tr><td>V3 旧パスの残り</td><td>grep -rn 'src/vscode-ticket-board' apl/*/docs/</td><td>0 件（DDR i0013-01 の本文を除く）</td></tr>
+      <tr><td>V4 節名</td><td>仕様書の ## の 7 番目</td><td>## 画面・出力の構造</td></tr>
+      <tr><td>V5 旧置き場の deny</td><td>grep -n 'src/\*\*|docs/\*\*' scope-limits.json</td><td>0 件</td></tr>
+      <tr><td>V6 機構側の回帰</td><td>run-tests.sh --ids</td><td>14 本すべて PASS</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: チケット（実施チケット群と次の計画チケット・依存） -->
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>H1</td><td>design-feedback</td><td>F1・F2・F3・F5a と DDR i0020-04（V1〜V4）</td><td>0026</td></tr>
+      <tr><td>H2</td><td>implementation</td><td>F6（README の暫定の 1 行）</td><td>H1</td></tr>
+      <tr><td>H3</td><td>ai-asset-design</td><td>F4 のうちフック共通仕様 §8</td><td>H2</td></tr>
+      <tr><td>H4</td><td>ai-asset-implementation</td><td>F4 のうち設定とテスト（V5・V6）</td><td>H3</td></tr>
+      <tr><td>H5</td><td>overall-summary</td><td>フェーズ 7（起票済み 0027）</td><td>H4</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 任意: リスクと復旧（ロックアウト対策・巻き戻し）。無ければ節ごと削除 -->
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td>F4 を F1 より先にやる</td><td>まだ移動していない docs/ を計画・調査タスクが書けてしまう</td><td>手順の順序を固定する（F1 → … → F4）</td></tr>
+      <tr><td>移動元の削除が判定順 (7) の ask WF202 に落ちる</td><td>移動が止まる</td><td>一度きりの移行としてこの ask を承認する（フック共通仕様 §8）</td></tr>
+      <tr><td>commit.sh が削除だけのコミットを作れない</td><td>フェーズ 4 と同じ壁に当たる</td><td>既知（B3）。手で検査を満たして git commit を使い、作業ログに記録する</td></tr>
+      <tr><td>F4 で deny を外しすぎる</td><td>計画・調査タスクが apl/ を書けてしまう</td><td>外すのは src/ と docs/ だけ。apl/ の deny は残し、テストで固定する</td></tr>
+      <tr><td>節名の変更が DDR i0013-02 と食い違う</td><td>正史が 2 つになる</td><td>新 DDR i0020-04 で置き換え、i0013-02 の frontmatter に置き換え先を書く</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 任意: スコープ外。無ければ節ごと削除 -->
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+      <li>既存の要件定義書を新しい形（mermaid・規約節）に揃える — issue #8</li>
+      <li>設計文書の機械的検査 — issue #24</li>
+      <li>別 issue（B1〜B5・B11）の起票 — フェーズ 7</li>
+      <li>要件書への issue の受け入れ条件との対応の小節 — 既存文書への遡及適用は求めない</li>
+      <li>DDR i0013-01 の本文 — マージ済み DDR の本文は変えない</li>
+    </ul>
+</section>
+
+<!-- 必須: 保留した点 / 対象なし。無ければ「無し」 -->
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>なし</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>#20 / #25 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

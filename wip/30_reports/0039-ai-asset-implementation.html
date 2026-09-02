@@ -132,7 +132,7 @@
   <p class="counts" id="counts" data-required>
     <span class="chip good">◎良 3</span>
     <span class="chip warn">△注意 1</span>
-    <span class="chip stop">✕問題 1</span>
+    <span class="chip stop">✕問題 2</span>
   </p>
 
   <nav class="toc" id="toc" data-required>
@@ -149,6 +149,7 @@
           <li><a href="#f3"><span class="mk good">◎</span> 3. 4c プローブの撤去</a></li>
           <li><a href="#f4"><span class="mk good">◎</span> 4. 段階登録（6 段）</a></li>
           <li><a href="#f5"><span class="mk stop">✕</span> 5. worktree での挙動</a></li>
+          <li><a href="#f6"><span class="mk stop">✕</span> 6. 敵対的レビュー</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -175,7 +176,7 @@
   <ul class="kpis">
     <li class="kpi good"><b>3</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
-    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+    <li class="kpi stop"><b>2</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
@@ -184,6 +185,7 @@
       <ul>
         <li><a href="#f2">r1</a>: T9 の縮退で <code>PreToolUse</code> / matcher <code>Agent</code> の登録を外したこと。起動<strong>前</strong>に止める機会を機構として持たない判断でよいか</li>
         <li><a href="#f5">r2</a>: <code>workflow-diff-check</code>（WF601）が worktree の中を見ない穴。拒否側が縮退しているときに開く</li>
+        <li><a href="#f6">r6</a>: 敵対的レビューで出た <strong>adv1</strong> — <code>workflow-guard</code> の matcher に <code>mcp__.*</code> が無く、MCP 経由の書き込みが許可範囲の判定を受けない</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -318,6 +320,30 @@ WF601 の一覧に現れなかった</code></pre>
         <p><strong><code>workflow-diff-check</code>（WF601）は本体の作業ツリーだけを見る。</strong>worktree の中で許可範囲外の書き込みが起きても事後の差分検査は気づかない。事前の許可判定で止まるので実害は小さいと判断して 0032 へ送ったが、<strong>拒否側が縮退している（<code>WORKFLOW_GUARD_ENFORCE=0</code>）ときに穴が開く</strong>。</p>
       </div>
     </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">6</span>
+      <h3 id="f6">敵対的レビュー（登録した 16 行そのものを叩く） <span class="chip stop">✕問題</span> <span class="basis">根拠: matcher の突き合わせとラッパーの実行</span></h3>
+      <p>観点は「登録の網から漏れるツールはないか」「fail-closed ラッパーは本当に閉じるか」。読むだけでなく実際に流して観測した。</p>
+      <ul>
+        <li><strong>adv1（✕問題）<code>workflow-guard</code> の matcher に <code>mcp__.*</code> が無い</strong>。隣の 2 行（<code>workflow-entry</code> の拒否側・<code>workflow-state-guard</code>）には入っているのに、<strong>許可範囲の本体だけ入っていない</strong>。MCP のツールは「宣言していないと deny」と「状態の守り」は通るが、<strong>許可範囲・作業ツリー外・コマンド分類の判定を受けない</strong>。書き込み系のツールを持つ MCP サーバを繋ぐと <code>allow.write</code> を無視して書ける。登録は仕様 §1 の 50 行目どおりなので<strong>登録ミスではなく仕様の穴</strong></li>
+        <li><strong>adv2（△注意）<code>EnterWorktree</code> / <code>ExitWorktree</code> がどの matcher にも無い</strong>。worktree へ移ること自体が無検査で、<a href="#f5">f5</a> の「WF601 が worktree を見ない」と重なると「worktree に移って書けば事後の差分検査を素通りできる」</li>
+        <li><strong>adv3（◎良・空振り）fail-closed ラッパーの二重出力・部分出力は起きない</strong>。実フックの出力は printf 1 回で完結し、<code>hook_deny</code> は <code>trap - ERR</code> → 記録 → printf → <code>exit 0</code> の順なので、記録で落ちれば deny は出ずラッパーの WFx09 に倒れる（正しく閉じる）</li>
+        <li><strong>副産物</strong>: <code>python -c</code> は <code>WF209</code>（文字列をコードとして受け取る実行系）で拒否されるのに <code>jq -r</code> の式は通る。<strong>判定の一貫性が無い</strong>（jq からファイルは書けないので実害は小さい）</li>
+      </ul>
+      <details>
+        <summary>根拠を見る（壊れた JSON になる形と、実フックがそうならない理由）</summary>
+        <pre><code>$ { printf '{"systemMessage":"途中まで出た"'; grep -q zzzz /dev/null; } \
+    || printf '%s' '{"hookSpecificOutput":{"permissionDecision":"deny"}}'
+{"systemMessage":"途中まで出た"{"hookSpecificOutput":{"permissionDecision":"deny"}}   ← 不正な JSON
+
+hook-common.sh:670  hook_deny() { trap - ERR; hook_record …; __hc_emit_decision deny …; exit 0; }
+                    ↑ printf は 1 回。その後は exit 0 だけなので二重出力・部分出力が起きない</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>ラッパーは設計どおり閉じている。穴は<strong>登録の網の側</strong>にあり、いちばん重いのは adv1（MCP が許可範囲の判定を受けない）。どちらも仕様の変更が要るので 0032 へ送る。</p>
+      </div>
+    </li>
   </ol>
 </section>
 
@@ -372,7 +398,8 @@ WF601 の一覧に現れなかった</code></pre>
 <section id="todo" data-required>
   <h2>残課題</h2>
   <ul>
-    <li><strong>0032（feedback-plan）へ送るもの 6 件</strong>: (1) WF601 が登録作業のチケットで <code>settings.json</code> を毎回挙げるノイズ、(2) 作業ツリー外の書き込みを WF209 で拒否する判断とメモリ機構の衝突、(3) <code>cd</code> を読み取り系に足すか、(4) <code>allow.ops</code> に <code>tmp-script</code> を設けるか、(5) WF601 が worktree を見ない穴、(6) <code>20-common-step-report-view</code> の手順が <code>cp</code> を指示していて WF205 と衝突すること</li>
+    <li><strong>0032（feedback-plan）へ送るもの 9 件</strong>: (1) WF601 が登録作業のチケットで <code>settings.json</code> を毎回挙げるノイズ、(2) 作業ツリー外の書き込みを WF209 で拒否する判断とメモリ機構の衝突、(3) <code>cd</code> を読み取り系に足すか、(4) <code>allow.ops</code> に <code>tmp-script</code> を設けるか、(5) WF601 が worktree を見ない穴、(6) <code>20-common-step-report-view</code> の手順が <code>cp</code> を指示していて WF205 と衝突すること、(7) <strong><code>workflow-guard</code> の matcher に <code>mcp__.*</code> を足すか（adv1。重い）</strong>、(8) <code>EnterWorktree</code> / <code>ExitWorktree</code> を matcher に入れるか（adv2）、(9) eval 系の判定に <code>jq</code> の式が入っていない一貫性の穴</li>
+    <li><strong>複数行のコミットメッセージが使えない</strong>。<code>commit.sh</code> に改行入りの <code>-m</code> を渡すとコマンド位置の判定が崩れて <code>WF204</code> になる。あわせて <code>commit.sh</code> は規約（CP002）でフッターとモデル名を禁じているので <code>Co-Authored-By</code> の類は付けられない</li>
     <li><strong>PR #12 の本文の更新</strong>がこのチケットの <code>allow.ops</code> に無い（<code>remote-write:mr-edit</code> を宣言していない）ため、ワークの切れ目で行う</li>
     <li><strong><code>shellcheck</code> の導入</strong>が 8 巡続けて未了</li>
   </ul>

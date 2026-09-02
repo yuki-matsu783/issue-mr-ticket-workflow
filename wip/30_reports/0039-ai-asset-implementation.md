@@ -37,6 +37,8 @@ keywords: [HK-T01, HK-T09, WF109, WF209, WF309, WF409, WF509, WF204, WF205, WF20
 | T7 | 終了コードのフィールド名 | **存在しない**。さらに **exit≠0 では PostToolUse が 1 本も起動しない** | 一致（「届いた = 成功」を裏付け） |
 | T9 | `systemMessage` の表示 | **外れた。人間に通知が来ない**（SDK メッセージには載る） | **不一致 → 16 行へ縮退** |
 
+登録した 16 行そのものに対する**敵対的レビューで 2 件の穴**が出た。重いのは **`workflow-guard` の matcher に `mcp__.*` が無い**こと（MCP 経由の書き込みが許可範囲の判定を受けない）。
+
 機械検証は **HK-T01 / HK-T09 が 27 件全通過**（16 行の登録が期待値と逐語で一致）、**全件テストが 25 本 / 163 ID すべて PASS・失敗 0**（assertion 1999 件）。
 
 ## レビューしてほしい観点
@@ -129,6 +131,15 @@ keywords: [HK-T01, HK-T09, WF109, WF209, WF309, WF409, WF509, WF204, WF205, WF20
 1. worktree では無変更のはずの `.claude/settings.json` が「変更」として挙がり続けた（worktree の settings.json は分岐時点の 13 フック、本体は 16 フック）
 2. worktree に作った未追跡ファイル `.claude/hooks/p31-worktree-probe.txt` が WF601 の一覧に**現れなかった**
 
+### 6. 敵対的レビュー（登録した 16 行そのものを叩く） ✕問題
+
+観点は「登録の網から漏れるツールはないか」「fail-closed ラッパーは本当に閉じるか」。
+
+- **adv1（✕問題）`workflow-guard` の matcher に `mcp__.*` が無い**。隣の 2 行（`workflow-entry` の拒否側・`workflow-state-guard`）には入っているのに、**許可範囲の本体だけ入っていない**。MCP のツールは「宣言していないと deny」と「状態の守り」は通るが、**許可範囲・作業ツリー外・コマンド分類の判定を受けない**。書き込み系のツールを持つ MCP サーバを繋ぐと `allow.write` を無視して書ける。登録は仕様 §1 の 50 行目どおりなので**登録ミスではなく仕様の穴**
+- **adv2（△注意）`EnterWorktree` / `ExitWorktree` がどの matcher にも無い**。worktree へ移ること自体が無検査で、f5 の「WF601 が worktree を見ない」と重なると「worktree に移って書けば事後の差分検査を素通りできる」
+- **adv3（◎良・空振り）fail-closed ラッパーの二重出力・部分出力は起きない**。`cmd || printf '{deny}'` は、フックが出力を始めた後に異常終了すると壊れた JSON になり fail-open へ転びうる。実際に流すと確かに壊れた JSON が出るが、**実フックには当てはまらない**。出力は `__hc_emit_decision` の printf 1 回で完結し、`hook_deny` は `trap - ERR` → 記録 → printf → `exit 0` の順なので、記録で落ちれば deny は出ずラッパーの WFx09 に倒れる（正しく閉じる）
+- **副産物**: `python -c '…'` は `WF209`（文字列をコードとして受け取る実行系）で拒否されるのに `jq -r '<式>'` は通る。jq の式もコードなので**判定の一貫性が無い**（jq からファイルは書けないので実害は小さい）
+
 ## 検証の結果
 
 | 検査 | 結果 |
@@ -175,6 +186,7 @@ keywords: [HK-T01, HK-T09, WF109, WF209, WF309, WF409, WF509, WF204, WF205, WF20
 
 ## 残課題
 
-- **0032（feedback-plan）へ送るもの 6 件**: (1) WF601 が登録作業のチケットで `settings.json` を毎回挙げるノイズ（`common.confirm` が許可範囲より先に効く）、(2) 作業ツリー外の書き込みを WF209 で拒否する判断とメモリ機構の衝突、(3) `cd` を読み取り系に足すか、(4) `allow.ops` に `tmp-script` を設けるか、(5) WF601 が worktree を見ない穴、(6) `20-common-step-report-view` の手順が `cp` を指示していて WF205 と衝突すること
+- **0032（feedback-plan）へ送るもの 9 件**: (1) WF601 が登録作業のチケットで `settings.json` を毎回挙げるノイズ（`common.confirm` が許可範囲より先に効く）、(2) 作業ツリー外の書き込みを WF209 で拒否する判断とメモリ機構の衝突、(3) `cd` を読み取り系に足すか、(4) `allow.ops` に `tmp-script` を設けるか、(5) WF601 が worktree を見ない穴、(6) `20-common-step-report-view` の手順が `cp` を指示していて WF205 と衝突すること、(7) **`workflow-guard` の matcher に `mcp__.*` を足すか（adv1。重い）**、(8) `EnterWorktree` / `ExitWorktree` を matcher に入れるか（adv2）、(9) eval 系の判定に `jq` の式が入っていない一貫性の穴
+- **複数行のコミットメッセージが使えない**。`commit.sh` に改行入りの `-m` を渡すとコマンド位置の判定が崩れて `WF204` になる。あわせて `commit.sh` は規約（CP002）でフッターとモデル名を禁じているので、`Co-Authored-By` の類は付けられない
 - **PR #12 の本文の更新**がこのチケットの `allow.ops` に無い（`remote-write:mr-edit` を宣言していない）ため、ワークの切れ目で行う
 - **`shellcheck` の導入**が 8 巡続けて未了

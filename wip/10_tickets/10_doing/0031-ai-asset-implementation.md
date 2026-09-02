@@ -204,6 +204,30 @@ base_sha: "c3440fc"
 
 ### 使った AI アセットと効き目
 
+### 敵対的レビュー（登録した 16 行そのものを叩く）
+
+観点は「登録の網から漏れるツールはないか」「fail-closed ラッパーは本当に閉じるか」。読むだけでなく実際に流して観測した。
+
+- **adv1（✕問題）`workflow-guard` の matcher に `mcp__.*` が無い**。登録の 6 行目は
+  `Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow` で、隣の 2 行
+  （`workflow-entry` の拒否側・`workflow-state-guard`）には `mcp__.*` が入っているのに**許可範囲の本体だけ入っていない**。
+  つまり MCP のツールは「宣言していないと deny」と「状態の守り」は通るが、**許可範囲・作業ツリー外・コマンド分類の
+  判定を受けない**。書き込み系のツールを持つ MCP サーバを繋ぐと `allow.write` を無視して書ける。
+  登録は仕様 §1 の 50 行目どおりなので**登録ミスではなく仕様の穴**。**0032 へ**
+- **adv2（△注意）`EnterWorktree` / `ExitWorktree` がどの matcher にも無い**。worktree へ移ること自体が無検査で、
+  移った先では `workflow-guard` は効く（実測済み）が `workflow-diff-check` は本体しか見ない。
+  この 2 つが重なると「worktree に移って書けば事後の差分検査を素通りできる」。f5 の穴の補強として **0032 へ**
+- **adv3（◎良・空振り）fail-closed ラッパーの二重出力・部分出力は起きない**。
+  疑ったのは `cmd || printf '{deny}'` の形で、フックが**出力を始めた後に異常終了**すると
+  「部分 JSON + deny JSON」が連結されて壊れた JSON になり、パースできずに **fail-open へ転ぶ**経路。
+  実際に `{ printf '{"systemMessage":"…"'; grep -q zzzz /dev/null; } || printf '%s' '{…deny…}'` を流すと
+  確かに壊れた JSON が出る。だが**実フックには当てはまらない**: 出力は `__hc_emit_decision` の printf 1 回で完結し、
+  `hook_deny` は `trap - ERR` してから記録 → printf → `exit 0` の順なので、記録で落ちれば deny は出ず
+  ラッパーの WFx09 に倒れ（正しく閉じる）、printf の後には落ちる処理が無い
+- **副産物**: `python -c '…'` が **WF209**（文字列をコードとして受け取る実行系）で拒否された一方、
+  `jq -r '<式>'` は通る。jq の式もコードなので**判定の一貫性が無い**。jq からファイルは書けないので実害は小さいが、
+  eval 系の一覧の見直しとして **0032 へ**
+
 ### スコープ外で見つけたこと
 
 - **作業ツリーの外を WF209 で拒否する判断（0030 の r2）は、メモリ機構と衝突する**。Claude Code のメモリは

@@ -6,7 +6,7 @@ executor: main
 human_review: {required: true, reason: "基準どおり（振る舞いが変わる。承認④により opus の敵対的自己レビューで代替）"}
 adversarial_review: {required: true, reason: "基準どおり（フック本体 6 本の追加）"}
 allow:
-  write: [".claude/hooks/**"]
+  write: [".claude/hooks/**", "wip/10_tickets/**", "wip/30_reports/**", "wip/tmp/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
 started_at: "2026-09-02T20:12:06+09:00"
 completed_at: ""

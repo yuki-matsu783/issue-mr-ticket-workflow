@@ -27,8 +27,8 @@ git push -q -u origin main 2>/dev/null
 cat > "$TMP_REPO/drv.sh" <<'DRV'
 #!/usr/bin/env bash
 . "$LIB"
-push_detect "$1" "${2:-}" "${3:-bash}" "$HOOK_ROOT"; rc=$?
-printf 'rc=%s reason=%s branch=%s head=%s prev=%s count=%s\n' "$rc" "$PD_REASON" "$PD_BRANCH" "$PD_HEAD" "$PD_PREV_SHA" "$PD_COUNT"
+push_detect "$1" "${4:-}" "${2:-}" "${3:-bash}" "$HOOK_ROOT"; rc=$?
+printf 'rc=%s reason=%s branch=%s head=%s prev=%s\n' "$rc" "$PD_REASON" "$PD_BRANCH" "$PD_HEAD" "$PD_PREV_SHA"
 DRV
 
 head_sha() { git rev-parse HEAD | tr -d '\r'; }
@@ -36,7 +36,7 @@ head_sha() { git rev-parse HEAD | tr -d '\r'; }
 case_hk_t13_success() {
   local h; h="$(head_sha)"
   run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0,"stdout":"OK: push した"}'
-  assert_contains "HK-T13" "rc=0 reason=pushed branch=main head=$h prev= count=0"
+  assert_contains "HK-T13" "rc=0 reason=pushed branch=main head=$h prev="
   run_cmd bash "$TMP_REPO/drv.sh" 'git push origin main' '{"stdout":"","stderr":"","interrupted":false}'
   assert_contains "HK-T13" "rc=0 reason=pushed"
   run_cmd bash "$TMP_REPO/drv.sh" 'cd sub && git push' ''
@@ -82,21 +82,24 @@ case_hk_t13_negative() {
 }
 
 case_hk_t13_state() {
+  # 起点 sha は呼び手が渡す（状態ファイルは読まない。DDR i0009-24）
   local h; h="$(head_sha)"
-  mkdir -p logs
-  printf '{"main":{"sha":"%s","at":"2026-09-01T00:00:00+09:00","count":1}}\n' "$h" > logs/push-state.json
-  run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0}'
+  run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0}' bash "$h"
   assert_contains "HK-T13" "rc=1 reason=not-advanced"
   # 進めたが push していない → HEAD != upstream
   printf 'b\n' > b.txt; git add b.txt; git commit -q -m "second"
-  run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0}'
+  run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0}' bash "$h"
   assert_contains "HK-T13" "rc=1 reason=head-not-on-upstream"
   git push -q origin main 2>/dev/null
   local h2; h2="$(head_sha)"
+  run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0}' bash "$h"
+  assert_contains "HK-T13" "rc=0 reason=pushed branch=main head=$h2 prev=$h"
+  # 起点が空（記録が無い / 壊れていて呼び手が空を渡す）→ 初回扱いで通る
   run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0}'
-  assert_contains "HK-T13" "rc=0 reason=pushed branch=main head=$h2 prev=$h count=1"
-  # 記録が壊れていても止まらない（初回扱い）
-  printf 'broken' > logs/push-state.json
+  assert_contains "HK-T13" "rc=0 reason=pushed"
+  # 状態ファイルがあっても読まない（置いても not-advanced にならない）
+  mkdir -p logs
+  printf '{"main":{"sha":"%s","at":"2026-09-01T00:00:00+09:00","count":1}}\n' "$h2" > logs/push-state.json
   run_cmd bash "$TMP_REPO/drv.sh" "$PUSH_SH" '{"exit_code":0}'
   assert_contains "HK-T13" "rc=0 reason=pushed"
   rm -f logs/push-state.json

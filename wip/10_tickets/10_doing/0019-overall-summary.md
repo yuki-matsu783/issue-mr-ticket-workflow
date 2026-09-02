@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "remote-write:issue-create", "remote-write:mr-edit", "remote-write:mr-comment", "remote-write:push", "remote-write:draft-ready"]
-started_at: ""
+started_at: "2026-09-02T07:43:24+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "48236d4"
 ---
 
 # 0019 全体まとめ（片付け・別 issue の起票・draft 解除）

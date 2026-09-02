@@ -1,7 +1,7 @@
 ---
 type: report
 title: 統括レポート — 設計文書スキルをアプリ（apl/ 配下）に対応させる
-description: issue #20 の 7 フェーズ・30 チケットの結果。受け入れ条件 11 件との対応、フェーズごとの敵対的レビューの結果と対応、フィードバックの振り分け、残課題
+description: issue #20 の 7 フェーズ・31 チケットの結果。受け入れ条件 11 件との対応、フェーズごとの敵対的レビューの結果と対応、フィードバックの振り分け、残課題
 tags: [report, overall-summary, apl]
 keywords: [統括レポート, issue20, 受け入れ条件, 敵対的レビュー, apl, アプリルート, 別issue, 残課題]
 ---
@@ -14,7 +14,7 @@ keywords: [統括レポート, issue20, 受け入れ条件, 敵対的レビュ�
 - PR: [#25](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/25)
 - ブランチ: `claude/design-docs-app-support-6a9cyj`
 - 期間: 2026-09-02
-- チケット: 完了 30 枚 / 取り消し 4 枚
+- チケット: 完了 30 枚 + 全体まとめ 1 枚（このレポートの作成時点で作業中）/ 取り消し 4 枚
 
 ## やったこと
 
@@ -40,7 +40,7 @@ keywords: [統括レポート, issue20, 受け入れ条件, 敵対的レビュ�
 | 7 | 置き場が `apl/<アプリ名>/{src,docs}` と定義され、ルール・スキル・許可範囲の記述が一致する | `design-docs` の「規約: 設計文書の配置」（全 5 項目）、両スキルの設計文書ルート、フック共通仕様 §8 の初期値の表、`scope-limits.json` | `test_config_integrity.sh` の 76 件 |
 | 8 | `design-docs` の適用範囲が `apl/**` になる | `.claude/rules/design-docs.md` の `paths: ["apl/**"]` | チケット 0011 |
 | 9 | 許可範囲が新しい置き場に追随し、旧 `src/**` `docs/**` 前提の記述が残らない | `scope-limits.json` の 15 type すべてが `apl/` ベース。旧置き場の記述は フック共通仕様 §8・設定・テストの 3 か所から同時に削除 | `grep -c '"src/\*\*"\|"docs/\*\*"'` が 0 |
-| 10 | `src/vscode-ticket-board/` と `docs/` が `apl/vscode-ticket-board/` 配下へ移動し、機構内の参照が更新される | ソース 18 ファイル（フェーズ 4）と設計文書 7 ファイル（フェーズ 6）を `git mv` で移動。参照の更新は README 1 行・仕様書の配置図・`render.ts` のヘッダ 1 行 | `git ls-files` で旧置き場 0 件・`apl/vscode-ticket-board/` 26 件 |
+| 10 | `src/vscode-ticket-board/` と `docs/` が `apl/vscode-ticket-board/` 配下へ移動し、機構内の参照が更新される | ソース 18 ファイル（フェーズ 4）と設計文書 7 ファイル（フェーズ 6）を `git mv` で移動し、DDR `i0020-04` を 1 件新規作成。参照の更新は README 1 行・仕様書の配置図・`render.ts` のヘッダ 1 行 | `git ls-files` で旧置き場 0 件・`apl/vscode-ticket-board/` 26 件 |
 | 11 | 置き場の変更理由が DDR に残り、`i0013-01` は置き換え済みとして frontmatter だけ更新される | DDR `i0020-01`（背景・決定・理由・却下案 4 件・影響）。`i0013-01` は `status` と `superseded_by` だけを追記し、本文は未変更 | チケット 0006・0028 |
 
 ## フェーズごとの結果
@@ -53,9 +53,9 @@ keywords: [統括レポート, issue20, 受け入れ条件, 敵対的レビュ�
 | 4 実装・テスト | 0013・0019・0021・0022〜0024 | High 1 / Medium 3 / Low 3 | 全件対応。`apl/*/*` の許可が広すぎた件を列挙に変えた |
 | 5 フィードバック計画 | 0025 | （計画タスクのため不要） | — |
 | 6 設計反映 | 0026・0028〜0031・0032〜0035 | High 1 / Medium 5 / Low 1 | 全件対応。節名の改名の波及 7 か所を直した |
-| 7 全体まとめ | 0027 | 実施予定 | — |
+| 7 全体まとめ | 0027 | High 2 / Medium 6 / Low 5 | 全件対応。統括レポート・MR 本文・チケットの間の数値の食い違い（移動ファイル数・集約枚数・振り分けの単位・手順数）を揃えた |
 
-人間レビューの代わりに、フェーズごとに敵対的レビューを 1 回ずつ実施した（利用者の指示）。指摘は 1 件も取り下げず、すべて自分で再現してから対応した。
+人間レビューの代わりに、フェーズごとに敵対的レビューを 1 回ずつ実施した（利用者の指示）。実施は 6 回（フェーズ 5 は計画タスクのため対象外）。チケット 0027 の `adversarial_review` は基準どおり「不要」だが、この指示に従ってフェーズ 7 でも実施した。指摘は 1 件も取り下げず、すべて自分で再現してから対応した。
 
 ## 見つけた欠陥のうち重いもの
 
@@ -65,13 +65,13 @@ keywords: [統括レポート, issue20, 受け入れ条件, 敵対的レビュ�
 
 ## フィードバックの振り分け
 
-集約 29 件（完了チケット 21 枚の作業ログ）。
+集約 29 件（完了チケット 20 枚の作業ログ）。件数は項目数で数える（起票した issue の本数とは別）。
 
 | 行き先 | 件数 | 内訳 |
 |---|---|---|
 | フェーズ 6 で対応 | 6 | 設計文書の移動・配置図・DDR の状態・旧置き場の片付け・設計文書の形の確認・README |
-| 新規 issue | 5 | [#29](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/29) テストの構成 / [#30](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/30) 計画が `commands.build-test` を書けない / [#31](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/31) `commit.sh` が削除だけのコミットを作れない / [#32](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/32) 計画スキルのチェック項目 / [#33](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/33) 文書間の参照の作法 |
-| 既存 issue | 13 | #8（既存要件書の追随）・#9（フック未登録）・#10（`10-task-*` スキル本体）・#11（未作成のルール）・#24（設計文書検査） |
+| 新規 issue | 12 | 12 項目を 5 本にまとめて起票した。[#29](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/29) テストの構成 / [#30](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/30) 計画が `commands.build-test` を書けない / [#31](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/31) `commit.sh` が削除だけのコミットを作れない / [#32](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/32) 計画スキルのチェック項目（先行チケットの取り消しに後続が気付けない件を含む） / [#33](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/33) 文書間の参照の作法 |
+| 既存 issue | 6 | #8（既存要件書の追随）・#9（フック未登録）・#10（`10-task-*` スキル本体）・#11（未作成のルール）・#24（設計文書検査） |
 | 見送り | 5 | `CP-T08` の重複 ID・用語辞書の並び・issue 本文の節名・他の eval の確認・敵対的レビューが実ビルドを検証できないこと |
 
 ## 機構の未整備による逸脱
@@ -99,9 +99,11 @@ keywords: [統括レポート, issue20, 受け入れ条件, 敵対的レビュ�
 
 ## 残課題
 
-- 別 issue 5 件（#29〜#33）と既存 issue への申し送り
+- 別 issue 5 件（#29〜#33）と既存 issue 5 件（#8・#9・#10・#11・#24）への申し送り
 - フックが `settings.json` に未登録（#9）のため、許可範囲の判定は実際には走っていない。今回の設定変更が実運用で効くかは #9 の完了後に確かめる必要がある
-- 既存の要件定義書 46 件が新しい形（mermaid・規約節・issue の対応表）に追随していない（#8）
+- 要件定義書 46 件のうち 40 件が新しい形（mermaid・規約節・issue の受け入れ条件との対応）を持たない（#8）。両方を備えるのは 5 件
+- 設計文書の形の機械的検査は #24 に寄せた。#24 のスコープ外である仕様書の形の検査をどこで担うかは未決
+- 2 つ目のアプリを `apl/` に足すときは、`scope-limits.json` のアプリルート直下の列挙と `commands.build-test` への追記が要る
 
 ## マージ
 

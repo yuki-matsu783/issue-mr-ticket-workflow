@@ -167,7 +167,10 @@ hook_require_jq() {
 # （error() で落とすと stdin の解析ごと巻き添えになる。DDR i0009-47・HK-T18）。
 __HC_JQ_INPUT='
 def v: tostring | gsub("[-]"; " ");
-def fmkeys: "(^|\\n)[ \\t-]*(ticket_type|allow|executor|human_review|adversarial_review|predecessors)[ \\t]*:";
+# frontmatter の機械可読項目に触れる編集かどうか（workflow-guard の WF208）。
+# 入れ子の `write:` / `ops:` は `allow:` 行に触れずに差し替えられるので、字下げのある行に限って一緒に見る
+# （`- ops: ...` のような箇条書きは字下げの条件から外れるため、作業ログの追記は巻き込まない）
+def fmkeys: "(^|\\n)([ \\t-]*(ticket_type|allow|executor|human_review|adversarial_review|predecessors)|[ \\t]+(write|ops))[ \\t]*:";
 def touched($s): if ($s|type) == "string" then ($s | test(fmkeys)) else false end;
 def verr($l):
   (if ($l.common|type) != "object" then ["common missing"]

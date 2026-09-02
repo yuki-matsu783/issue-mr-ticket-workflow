@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の定義�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:34:02+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3294373"
 ---
 
 # 0021 レビュー指摘: ライブラリのインターフェースと呼び出し規約（R3・R6・R7・R8・R9・R14・R15）

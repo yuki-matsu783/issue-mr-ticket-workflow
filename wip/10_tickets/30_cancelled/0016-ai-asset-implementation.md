@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-02T11:00:19+00:00"
 completed_at: ""
 base_sha: "4aff2ad"
+cancelled_at: "2026-09-02T11:01:34+00:00"
+cancel_reason: "allow.ops の宣言漏れ（run-tests.sh は build-test を要する）。計画を直して 0019 として起票し直す"
 ---
 
 # 0016 実装: commands.build-test に拡張のテストコマンドを列挙する

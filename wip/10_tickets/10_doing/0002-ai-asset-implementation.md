@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "敵対的レビューエージェ
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T11:39:28+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "de809c1"
 ---
 
 # 0002 commit.sh をステージ済みの削除に対応させ、テストを追加する

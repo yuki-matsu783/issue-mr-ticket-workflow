@@ -18,7 +18,7 @@ make_tmp_repo
 mkdir -p "$TMP_REPO/.claude/hooks/22-PostToolUse" "$TMP_REPO/.claude/hooks/lib" \
          "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts"
 cp "$SRC/22-PostToolUse/post-push-compact-prompt.sh" "$TMP_REPO/.claude/hooks/22-PostToolUse/"
-cp "$SRC/lib/hook-common.sh" "$SRC/lib/cmdpos.sh" "$SRC/lib/push-detect.sh" "$SRC/lib/probe-4c.sh" \
+cp "$SRC/lib/hook-common.sh" "$SRC/lib/cmdpos.sh" "$SRC/lib/push-detect.sh" \
    "$TMP_REPO/.claude/hooks/lib/"
 cp "$SKILL_SCRIPTS/logger.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
 TMP_HOOK="$TMP_REPO/.claude/hooks/22-PostToolUse/post-push-compact-prompt.sh"
@@ -215,8 +215,8 @@ case_no_upstream() {
   git branch -q -D feature-y
 }
 
-# ---- 停止中とプローブの既定 ----
-case_enforce_and_probe() {
+# ---- 停止中 ----
+case_enforce() {
   reset_state
   set_origin "https://github.com/example/repo.git"
   do_push
@@ -225,9 +225,6 @@ case_enforce_and_probe() {
   R_EXIT=$?
   assert_eq "PP-T01" "" "$R_OUT"
   assert_exit "PP-T01" 0
-  reset_state
-  hook_run 'git push'
-  if [[ ! -f "$TMP_REPO/logs/hooks/probe-4c.jsonl" ]]; then pass "PP-T01"; else fail "PP-T01" "既定でプローブが書かれている"; fi
 }
 
 case_success
@@ -238,6 +235,6 @@ case_boundary
 case_per_branch
 case_no_origin
 case_no_upstream
-case_enforce_and_probe
+case_enforce
 cd "$LOGGER_ROOT" || true
 finish

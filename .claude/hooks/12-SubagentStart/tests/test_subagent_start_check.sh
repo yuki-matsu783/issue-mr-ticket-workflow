@@ -17,7 +17,7 @@ mkdir -p "$TMP_REPO/.claude/hooks/12-SubagentStart" "$TMP_REPO/.claude/hooks/lib
          "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts" \
          "$TMP_REPO/wip/10_tickets/00_todo" "$TMP_REPO/wip/10_tickets/10_doing"
 cp "$SRC/12-SubagentStart/subagent-start-check.sh" "$TMP_REPO/.claude/hooks/12-SubagentStart/"
-cp "$SRC/lib/hook-common.sh" "$SRC/lib/probe-4c.sh" "$TMP_REPO/.claude/hooks/lib/"
+cp "$SRC/lib/hook-common.sh" "$TMP_REPO/.claude/hooks/lib/"
 cp "$SKILL_SCRIPTS/logger.sh" "$SKILL_SCRIPTS/frontmatter.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
 cp "$SRC/config/model-aliases.txt" "$TMP_REPO/.claude/hooks/config/"
 TMP_HOOK="$TMP_REPO/.claude/hooks/12-SubagentStart/subagent-start-check.sh"
@@ -236,8 +236,8 @@ case_background() {
   assert_not_contains "SA-T09" "WF803"
 }
 
-# ---- 停止中とプローブの既定 ----
-case_enforce_and_probe() {
+# ---- 停止中 ----
+case_enforce() {
   clear_tickets; clear_logs
   write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md" implementation opus 1
   R_ERR=""
@@ -245,10 +245,6 @@ case_enforce_and_probe() {
   R_EXIT=$?
   assert_eq "SA-T02" "" "$R_OUT"
   assert_exit "SA-T02" 0
-  # プローブは既定では副作用ゼロ（probe-4c.jsonl を作らない）
-  clear_logs
-  pre 'claude-sonnet-4-5' task-executor false
-  if [[ ! -f "$TMP_REPO/logs/hooks/probe-4c.jsonl" ]]; then pass "SA-T02"; else fail "SA-T02" "既定でプローブが書かれている"; fi
 }
 
 case_match
@@ -260,5 +256,5 @@ case_dod_cap
 case_subagent_type
 case_record
 case_background
-case_enforce_and_probe
+case_enforce
 finish

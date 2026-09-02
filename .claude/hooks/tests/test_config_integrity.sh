@@ -50,13 +50,15 @@ hk01_actual() {
 hk01_expected() { grep -v '^#' "$EXPECTED" | tr -d '\r' | grep -v '^$'; }
 
 if [[ -f "$EXPECTED" ]]; then pass "HK-T01"; else fail "HK-T01" "期待値が無い: $EXPECTED"; fi
-assert_eq "HK-T01" "17" "$(hk01_expected | grep -c .)"
+# 16 行（当初 17 行。T9 が外れて PreToolUse `Agent` の subagent-start-check を外した縮退。0031 の作業ログ）
+assert_eq "HK-T01" "16" "$(hk01_expected | grep -c .)"
 # 引数を取る 2 行（--accumulate）
 assert_eq "HK-T01" "2" "$(hk01_expected | grep -c -- '--accumulate$')"
 # 実体のディレクトリと登録先イベントが一致しない行。仕様 §1 は 4 行（12-SubagentStart → PreToolUse /
-# 13-SubagentStop → PostToolUse / 22-PostToolUse → SubagentStop・Stop）と書くが、機械的に数えると 6 行になる。
-# workflow-entry（実体は 10-UserPromptSubmit）の PreToolUse 2 行（Skill と未宣言の拒否）が数え漏れている（0032 へ）
-assert_eq "HK-T01" "6" "$(hk01_expected | awk -F'\t' '
+# 13-SubagentStop → PostToolUse / 22-PostToolUse → SubagentStop・Stop）と書くが、機械的に数えると 5 行になる。
+# 内訳の差は 2 つ: workflow-entry（実体は 10-UserPromptSubmit）の PreToolUse 2 行（Skill と未宣言の拒否）が
+# 数え漏れている（+2）／T9 の縮退で 12-SubagentStart → PreToolUse の 1 行が消えた（-1）。どちらも 0032 へ
+assert_eq "HK-T01" "5" "$(hk01_expected | awk -F'\t' '
   BEGIN { map["SessionStart"] = "00-SessionStart"; map["UserPromptSubmit"] = "10-UserPromptSubmit";
           map["PreToolUse"] = "20-PreToolUse"; map["PostToolUse"] = "22-PostToolUse";
           map["SubagentStart"] = "12-SubagentStart"; map["SubagentStop"] = "13-SubagentStop"; map["Stop"] = "-" }

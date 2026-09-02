@@ -9,7 +9,6 @@ PreToolUse	Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|mcp__.*	3	bash "${C
 PreToolUse	Bash|PowerShell	4	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF509: フック block-chmod を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
 PreToolUse	Bash|PowerShell	5	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-direct-git.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF409: フック block-direct-git を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
 PreToolUse	Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow	6	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/workflow-guard.sh" || printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"WF209: フック workflow-guard を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること"}}'
-PreToolUse	Agent	7	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/12-SubagentStart/subagent-start-check.sh"
 PostToolUse	Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell	1	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/workflow-diff-check.sh"
 PostToolUse	Bash|PowerShell	2	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-compact-prompt.sh"
 PostToolUse	Bash|PowerShell	3	bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh"

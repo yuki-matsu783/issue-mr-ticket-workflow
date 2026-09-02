@@ -18,7 +18,7 @@ mkdir -p "$TMP_REPO/.claude/hooks/13-SubagentStop" "$TMP_REPO/.claude/hooks/lib"
          "$TMP_REPO/wip/10_tickets/00_todo" "$TMP_REPO/wip/10_tickets/10_doing" "$TMP_REPO/wip/10_tickets/20_done" \
          "$TMP_REPO/src" "$TMP_REPO/docs"
 cp "$SRC/13-SubagentStop/subagent-stop-check.sh" "$TMP_REPO/.claude/hooks/13-SubagentStop/"
-cp "$SRC/lib/hook-common.sh" "$SRC/lib/scope.sh" "$SRC/lib/probe-4c.sh" "$TMP_REPO/.claude/hooks/lib/"
+cp "$SRC/lib/hook-common.sh" "$SRC/lib/scope.sh" "$TMP_REPO/.claude/hooks/lib/"
 cp "$SKILL_SCRIPTS/logger.sh" "$SKILL_SCRIPTS/frontmatter.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
 cp "$SRC/config/scope-limits.json" "$SRC/config/model-aliases.txt" "$TMP_REPO/.claude/hooks/config/"
 TMP_HOOK="$TMP_REPO/.claude/hooks/13-SubagentStop/subagent-stop-check.sh"
@@ -276,8 +276,8 @@ case_degraded() {
   assert_contains "SP-T08" "WF814"
 }
 
-# ---- 停止中とプローブの既定 ----
-case_enforce_and_probe() {
+# ---- 停止中 ----
+case_enforce() {
   reset_all
   write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md" implementation sonnet 1
   R_ERR=""
@@ -285,7 +285,6 @@ case_enforce_and_probe() {
   R_EXIT=$?
   assert_eq "SP-T01" "" "$R_OUT"
   assert_exit "SP-T01" 0
-  if [[ ! -f "$TMP_REPO/logs/hooks/probe-4c.jsonl" ]]; then pass "SP-T01"; else fail "SP-T01" "既定でプローブが書かれている"; fi
 }
 
 case_quiet
@@ -296,6 +295,6 @@ case_record_replay
 case_no_git
 case_async
 case_degraded
-case_enforce_and_probe
+case_enforce
 cd "$LOGGER_ROOT" || true
 finish

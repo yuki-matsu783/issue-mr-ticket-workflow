@@ -19,7 +19,7 @@ mkdir -p "$TMP_REPO/.claude/hooks/22-PostToolUse" "$TMP_REPO/.claude/hooks/lib" 
          "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts" "$TMP_REPO/tr"
 cp "$SRC/22-PostToolUse/post-push-usage-report.sh" "$TMP_REPO/.claude/hooks/22-PostToolUse/"
 cp "$SRC/lib/hook-common.sh" "$SRC/lib/cmdpos.sh" "$SRC/lib/push-detect.sh" "$SRC/lib/transcript.sh" \
-   "$SRC/lib/probe-4c.sh" "$TMP_REPO/.claude/hooks/lib/"
+   "$TMP_REPO/.claude/hooks/lib/"
 cp "$SKILL_SCRIPTS/logger.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
 TMP_HOOK="$TMP_REPO/.claude/hooks/22-PostToolUse/post-push-usage-report.sh"
 STATE="$TMP_REPO/logs/usage/main.json"

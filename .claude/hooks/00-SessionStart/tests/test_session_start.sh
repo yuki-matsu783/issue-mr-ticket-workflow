@@ -19,7 +19,7 @@ make_tmp_repo
 mkdir -p "$TMP_REPO/.claude/hooks/00-SessionStart" "$TMP_REPO/.claude/hooks/lib" \
          "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts"
 cp "$SRC/00-SessionStart/session-start.sh" "$TMP_REPO/.claude/hooks/00-SessionStart/"
-cp "$SRC/lib/hook-common.sh" "$SRC/lib/probe-4c.sh" "$TMP_REPO/.claude/hooks/lib/"
+cp "$SRC/lib/hook-common.sh" "$TMP_REPO/.claude/hooks/lib/"
 cp "$SKILL_SCRIPTS/logger.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
 TMP_HOOK="$TMP_REPO/.claude/hooks/00-SessionStart/session-start.sh"
 
@@ -64,8 +64,8 @@ case_subagent() {
   if [[ -f "$TMP_REPO/logs/hooks/decisions.jsonl" ]]; then pass "SE-T06"; else fail "SE-T06" "記録が残っていない"; fi
 }
 
-# ---- 停止中とプローブの既定（この issue で実装した範囲）----
-case_enforce_and_probe() {
+# ---- 停止中（この issue で実装した範囲）----
+case_enforce() {
   rm -rf "$TMP_REPO/logs"
   hook_run startup "" WORKFLOW_ENFORCE=0
   assert_contains "SE-T05" "WF701"
@@ -76,12 +76,19 @@ case_enforce_and_probe() {
   assert_contains "SE-T05" "WF701"
 
   # プローブは既定では副作用ゼロ
+}
+
+# ---- SE-T06 前半: source=compact でも startup と同じ内容 ----
+case_compact() {
   rm -rf "$TMP_REPO/logs"
   hook_run compact ""
-  if [[ ! -f "$TMP_REPO/logs/hooks/probe-4c.jsonl" ]]; then pass "SE-T06"; else fail "SE-T06" "既定でプローブが書かれている"; fi
+  assert_eq "SE-T06" "" "$R_OUT"
+  assert_exit "SE-T06" 0
+  if [[ -f "$TMP_REPO/logs/hooks/decisions.jsonl" ]]; then pass "SE-T06"; else fail "SE-T06" "compact で記録が残っていない"; fi
 }
 
 case_no_jq
 case_subagent
-case_enforce_and_probe
+case_enforce
+case_compact
 finish

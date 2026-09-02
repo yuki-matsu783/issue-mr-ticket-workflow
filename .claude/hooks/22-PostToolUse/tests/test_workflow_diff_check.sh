@@ -18,7 +18,7 @@ mkdir -p "$TMP_REPO/.claude/hooks/22-PostToolUse" "$TMP_REPO/.claude/hooks/lib" 
          "$TMP_REPO/wip/10_tickets/00_todo" "$TMP_REPO/wip/10_tickets/10_doing" "$TMP_REPO/wip/10_tickets/20_done" \
          "$TMP_REPO/src" "$TMP_REPO/docs"
 cp "$SRC/22-PostToolUse/workflow-diff-check.sh" "$TMP_REPO/.claude/hooks/22-PostToolUse/"
-cp "$SRC/lib/hook-common.sh" "$SRC/lib/cmdpos.sh" "$SRC/lib/scope.sh" "$SRC/lib/probe-4c.sh" "$TMP_REPO/.claude/hooks/lib/"
+cp "$SRC/lib/hook-common.sh" "$SRC/lib/cmdpos.sh" "$SRC/lib/scope.sh" "$TMP_REPO/.claude/hooks/lib/"
 cp "$SKILL_SCRIPTS/logger.sh" "$SKILL_SCRIPTS/frontmatter.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
 cp "$SRC/config/scope-limits.json" "$TMP_REPO/.claude/hooks/config/"
 TMP_HOOK="$TMP_REPO/.claude/hooks/22-PostToolUse/workflow-diff-check.sh"

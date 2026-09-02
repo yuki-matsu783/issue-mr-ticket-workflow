@@ -286,7 +286,7 @@ exit=0
 # 検出力: 雛形から || true を外す
 FAIL SS-T04: exit 128 (expected 0)
 FAIL SS-T04: expected &#39;OK: z 実行&#39; actual &#39;&#39;
-passed=38 failures=3</code></pre>
+passed=40 failures=3</code></pre>
       </details>
       <div class="box stop">
         <p class="label">結論</p>
@@ -442,7 +442,7 @@ SS-T05   読み込み行を 1 文字インデント         → 1 件 FAIL</code
       <tr><td><code>redact</code> の新旧比較</td><td>decisions 1 行 0.81ms / 旧 0.96、16890 字 28.9 / 旧 34.5、1 語 4000 字 54.9 / 旧 66424</td></tr>
       <tr><td><code>redact</code> の同値性</td><td>代表 15 ケース + ランダム 400 回で差分 0</td></tr>
       <tr><td>切り詰めの妥当性</td><td>切断位置 8 通り + 多バイトで全件 <code>jq -e .</code> を通り 4096 バイト以下（実測 2072 バイト）</td></tr>
-      <tr><td><code>block-chmod</code> の判定</td><td>拒否すべき 14 件すべて DENY、通すべき 7 件すべて ALLOW</td></tr>
+      <tr><td><code>block-chmod</code> の判定（手動確認セット）</td><td>拒否すべき 14 件すべて DENY、通すべき 7 件すべて ALLOW（テストの assert 件数ではなく、手で流した確認セットの件数）</td></tr>
       <tr><td><code>shellcheck</code></td><td><strong>未実施</strong>（環境に未導入）</td></tr>
     </tbody>
   </div>

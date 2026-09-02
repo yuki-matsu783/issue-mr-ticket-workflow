@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核である 
 allow:
   write: [".claude/hooks/**", ".claude/skills/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T15:33:03+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "e443624"
 ---
 
 # 0035 レビュー 2 巡目の是正: 切り詰めの門・gitdir の .. ・$ でのコマンド分断・制御方式 5 の過剰拒否

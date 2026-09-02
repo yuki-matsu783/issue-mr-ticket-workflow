@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画の方針: 基準（�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:33:36+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "15542f3"
 ---
 
 # 0016 フック本体 11 本と段階登録の実装計画

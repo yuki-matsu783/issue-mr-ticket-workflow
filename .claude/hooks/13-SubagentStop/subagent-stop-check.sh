@@ -21,13 +21,10 @@ case "$__sp_dir" in /*|[A-Za-z]:/*) ;; *) __sp_dir="$PWD/$__sp_dir" ;; esac
 . "$__sp_dir/../lib/hook-common.sh"
 # shellcheck source=/dev/null
 . "$__sp_dir/../lib/scope.sh"
-# shellcheck source=/dev/null
-. "$__sp_dir/../lib/probe-4c.sh"
 
 hook_init subagent-stop-check notify WF819
 
 hook_read_input limits || hook_fail "入力を読めない"
-probe_4c
 
 __SP_MAX_PATHS=20                    # WF812 / WF813 に並べるパスの上限
 __SP_TASK_EXECUTOR="task-executor"

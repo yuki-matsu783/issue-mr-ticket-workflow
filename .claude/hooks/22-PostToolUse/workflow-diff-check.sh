@@ -23,14 +23,11 @@ case "$__dc_dir" in /*|[A-Za-z]:/*) ;; *) __dc_dir="$PWD/$__dc_dir" ;; esac
 . "$__dc_dir/../lib/cmdpos.sh"
 # shellcheck source=/dev/null
 . "$__dc_dir/../lib/scope.sh"
-# shellcheck source=/dev/null
-. "$__dc_dir/../lib/probe-4c.sh"
 
 hook_init workflow-diff-check notify WF609
 
 # 上限設定（scope-limits.json）も 1 回目の jq で読む
 hook_read_input limits || hook_fail "入力を読めない"
-probe_4c
 
 __DC_US=$'\x1e'          # SC_TARGETS の区切り（フック共通仕様 §2 の副入力と同じバイト）
 # 一覧の上限は subagent-stop-check（仕様に「20 を超えれば先頭 20 件 + 件数」と明記）に合わせる。

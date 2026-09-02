@@ -90,15 +90,6 @@
           }
         ], 
         "matcher": "Bash|PowerShell"
-      }, 
-      {
-        "hooks": [
-          {
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/12-SubagentStart/subagent-start-check.sh\"", 
-            "type": "command"
-          }
-        ], 
-        "matcher": "Agent"
       }
     ], 
     "SubagentStop": [

@@ -22,17 +22,12 @@ __se_dir="${BASH_SOURCE[0]%/*}"
 case "$__se_dir" in /*|[A-Za-z]:/*) ;; *) __se_dir="$PWD/$__se_dir" ;; esac
 # shellcheck source=/dev/null
 . "$__se_dir/../lib/hook-common.sh"
-# shellcheck source=/dev/null
-. "$__se_dir/../lib/probe-4c.sh"
 
 hook_init session-start notify WF709
 
 # 入力（jq 1 回）。読めなくても案内側なので通す
 hook_read_input || hook_fail "入力を読めない"
 
-# 4c プローブ（既定では何もしない）。**早期 return より前**に置く。
-# 後ろに置くと boundary.sh 不在で黙って抜ける経路の source が 1 行も残らない
-probe_4c
 
 # 制御方式 1: 停止中は 1 行だけ出して記録する（現在地は出さない）
 if ! hook_enforce_enabled; then

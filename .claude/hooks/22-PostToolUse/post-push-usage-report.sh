@@ -27,8 +27,6 @@ case "$__ur_dir" in /*|[A-Za-z]:/*) ;; *) __ur_dir="$PWD/$__ur_dir" ;; esac
 . "$__ur_dir/../lib/push-detect.sh"
 # shellcheck source=/dev/null
 . "$__ur_dir/../lib/transcript.sh"
-# shellcheck source=/dev/null
-. "$__ur_dir/../lib/probe-4c.sh"
 
 hook_init post-push-usage-report notify WF919
 
@@ -38,7 +36,6 @@ __UR_MODE="default"
 __UR_IDLE_GAP=600        # 秒。これを超える間隔は実作業時間に数えない（席を外した時間）
 
 hook_read_input || hook_fail "入力を読めない"
-probe_4c
 
 # 制御方式 1（両モード共通）: 停止中。蓄積側は記録も残さない（Stop のたびに 1 行増えるため）
 if ! hook_enforce_enabled; then

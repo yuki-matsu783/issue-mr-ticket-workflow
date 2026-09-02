@@ -20,13 +20,10 @@ __sa_dir="${BASH_SOURCE[0]%/*}"
 case "$__sa_dir" in /*|[A-Za-z]:/*) ;; *) __sa_dir="$PWD/$__sa_dir" ;; esac
 # shellcheck source=/dev/null
 . "$__sa_dir/../lib/hook-common.sh"
-# shellcheck source=/dev/null
-. "$__sa_dir/../lib/probe-4c.sh"
 
 hook_init subagent-start-check notify WF809
 
 hook_read_input || hook_fail "入力を読めない"
-probe_4c
 
 __SA_TASK_EXECUTOR="task-executor"   # チケットの executor が当てはまる subagent_type（それ以外では判定しない）
 __SA_DOD_MAX=4096                    # 注入する DoD の上限（バイト）
@@ -171,9 +168,6 @@ __sa_ids=(); __sa_lines=()
 if [[ "${HOOK_SUBAGENT_TYPE:-}" != "$__SA_TASK_EXECUTOR" ]]; then
   # チケットの executor はタスクの実施者に対する指定。レビュアーや探索エージェントには当てはまらない
   hook_record skip "" "$__sa_name" "subagent_type が対象外（${HOOK_SUBAGENT_TYPE:-未指定}）"
-  probe_4c_enabled && __sa_emit2 PreToolUse \
-    "[プローブ] WORKFLOW_PROBE_4C=1 のため systemMessage の到達を確認している（機構の判定ではない）" \
-    "[プローブ] WORKFLOW_PROBE_4C=1 のため additionalContext の到達を確認している（機構の判定ではない）"
   exit 0
 fi
 
@@ -220,7 +214,4 @@ if (( ${#__sa_ids[@]} > 0 )); then
   exit 0
 fi
 
-probe_4c_enabled && __sa_emit2 PreToolUse \
-  "[プローブ] WORKFLOW_PROBE_4C=1 のため systemMessage の到達を確認している（機構の判定ではない）" \
-  "[プローブ] WORKFLOW_PROBE_4C=1 のため additionalContext の到達を確認している（機構の判定ではない）"
 exit 0

@@ -20,13 +20,10 @@ case "$__cp_dir" in /*|[A-Za-z]:/*) ;; *) __cp_dir="$PWD/$__cp_dir" ;; esac
 . "$__cp_dir/../lib/cmdpos.sh"
 # shellcheck source=/dev/null
 . "$__cp_dir/../lib/push-detect.sh"
-# shellcheck source=/dev/null
-. "$__cp_dir/../lib/probe-4c.sh"
 
 hook_init post-push-compact-prompt notify WF909
 
 hook_read_input || hook_fail "入力を読めない"
-probe_4c
 
 # 制御方式 1: 停止中
 hook_enforce_enabled || hook_disabled

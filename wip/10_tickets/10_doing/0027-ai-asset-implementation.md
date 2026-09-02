@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核である 
 allow:
   write: [".claude/hooks/**", ".claude/skills/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T12:38:14+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f0bed62"
 ---
 
 # 0027 共通ライブラリ 3 本の改修・config 3 ファイル・読み込み行の一斉置換・block-chmod

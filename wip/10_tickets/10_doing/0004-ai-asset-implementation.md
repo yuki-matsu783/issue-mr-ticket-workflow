@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核（フック・settings.jso
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T08:05:52+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "d7a60e6"
 ---
 
 # 0004 テンプレート・SKILL.md・ai-asset-design-docs ルールへの反映と eval 定義

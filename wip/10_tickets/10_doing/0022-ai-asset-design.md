@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（正史の変更�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:49:55+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b47cdc6"
 ---
 
 # 0022 レビュー指摘: 根拠の是正と掃き残し（S2〜S12・R16〜R18・R24〜R26）

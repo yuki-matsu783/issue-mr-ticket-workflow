@@ -91,7 +91,7 @@ V3 の前提: `npm test` は `commands.build-test` に列挙されていない�
 
 | # | 種類 | 内容 | 依存 |
 |---|---|---|---|
-| T1 | ai-asset-implementation | `commands.build-test` に `npm test`（および `npm --prefix apl/vscode-ticket-board test`）を列挙する。`run-tests.sh --ids` 全通過を確認 | 0013 |
+| T1 | ai-asset-implementation | `commands.build-test` に `npm test`（および `npm --prefix apl/vscode-ticket-board test`）を列挙する。`run-tests.sh --ids` 全通過を確認。`allow.ops` は `read, build-test, hook-test, remote-read`（`run-tests.sh` は `build-test` の宣言を要する — TR006） | 0013 |
 | T2 | implementation | 移動・README の 1 行・`npm test`・V1〜V5 の検査 | T1 |
 | T3 | feedback-plan | 次のフェーズ（5）の計画チケット | T2 |
 

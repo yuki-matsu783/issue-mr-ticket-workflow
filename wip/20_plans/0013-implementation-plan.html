@@ -196,7 +196,7 @@
   <table>
     <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
     <tbody>
-      <tr><td>T1（commands.build-test の列挙）</td><td>.claude/hooks/config/scope-limits.json</td><td>read, hook-test, remote-read</td></tr>
+      <tr><td>T1（commands.build-test の列挙）</td><td>.claude/hooks/config/scope-limits.json</td><td>read, build-test, hook-test, remote-read</td></tr>
       <tr><td>T2（移動と参照の更新）</td><td>apl/（移動先）、src/vscode-ticket-board/（移動元の削除は ask WF202）</td><td>read, build-test, remote-read</td></tr>
     </tbody>
   </table>
@@ -227,9 +227,9 @@
   <table>
     <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
     <tbody>
-      <tr><td>T1</td><td>ai-asset-implementation</td><td>commands.build-test に npm test を列挙。run-tests.sh --ids 全通過</td><td>0013</td></tr>
-      <tr><td>T2</td><td>implementation</td><td>git mv・README の 1 行・npm test・V1〜V5</td><td>T1</td></tr>
-      <tr><td>T3</td><td>feedback-plan</td><td>フェーズ 5 の計画</td><td>T2</td></tr>
+      <tr><td>T1 (0019)</td><td>ai-asset-implementation</td><td>commands.build-test に npm test を列挙。run-tests.sh --ids 全通過（allow.ops に build-test が要る — TR006）</td><td>0013</td></tr>
+      <tr><td>T2 (0017)</td><td>implementation</td><td>git mv・README の 1 行・npm test・V1〜V5</td><td>T1</td></tr>
+      <tr><td>T3 (0018)</td><td>feedback-plan</td><td>フェーズ 5 の計画</td><td>T2</td></tr>
     </tbody>
   </table>
   </div>

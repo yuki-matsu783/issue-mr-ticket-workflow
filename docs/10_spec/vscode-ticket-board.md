@@ -131,7 +131,12 @@ src/vscode-ticket-board/
 
 ```
 extension.ts ─→ board-panel.ts ─→ core/board.ts ─→ core/scan.ts ─→ core/ticket.ts ─→ core/frontmatter.ts
-                       └────────→ core/render.ts ─→ core/board.ts（型のみ）
+                       ├────────→ core/scan.ts
+                       └────────→ core/render.ts
+
+型だけの参照（実行時の依存を作らない）
+  core/render.ts ┈→ core/board.ts / core/ticket.ts
+  core/board.ts  ┈→ core/ticket.ts / core/scan.ts
 ```
 
 | 層 | モジュール | `vscode` への依存 | 単体テスト |
@@ -157,7 +162,7 @@ export interface FrontmatterDocument {
 export function parseFrontmatter(text: string): FrontmatterDocument | undefined;
 ```
 
-キーはドット区切りに平坦化する（`human_review.required` / `allow.write` など）。`body` を返すのは、区切りの探索を `parseTicket` 側で重ねて書かないためである（見出しの探索範囲は「処理フロー（チケットの解析）」手順 5）。
+キーはドット区切りに平坦化する（`human_review.required` / `allow.write` など）。`body` を返すのは、区切りの探索を `parseTicket` 側で重ねて書かないためである（見出しの探索範囲は「処理フロー（チケットの解析）」手順 6）。
 
 `core/ticket.ts`。
 
@@ -184,6 +189,11 @@ export interface Ticket {
   readonly adversarialReview?: boolean;
   readonly issues: readonly TicketIssue[];
 }
+
+/** 既知のチケットの種類。実体は as const の 15 要素（下の「既知のチケットの種類」） */
+export const KNOWN_TICKET_TYPES: readonly string[];
+
+export function isKnownTicketType(value: string): boolean;
 
 export function parseTicket(
   filePath: string, fileName: string, state: TicketState, text: string,
@@ -282,7 +292,9 @@ ai-asset-implementation-plan / ai-asset-implementation / overall-summary
    - `[` で始まり `]` で終わる → フロー配列。**先頭の `[` と末尾の `]` を先に取り除いてから** `,` で分割し（同上）、各要素の引用符を外して `kind: "list"` で登録する。空の `[]` は要素 0 個のリストとして登録する
    - それ以外 → スカラー。引用符を外して `kind: "scalar"` で登録する
 5. インデントのある行は、直前のインデント 0 の行が値を持たない親であるときだけ `^([A-Za-z0-9_-]+)\s*:\s*(.*)$` で分解し、`<親>.<子>` のキーで登録する。**子として認めるのは 1 段だけ**で、その親について最初に現れた子と同じインデント幅の行に限る。それより深い行（孫）はキーを登録せずに読み飛ばす（孫が同じ名前を持つと親の値を上書きしてしまうため）。**子の値には手順 4 の分岐をそのまま適用する**（`allow:` の下の `write: ["wip/**"]` はフロー配列として `kind: "list"` で登録される）。`-` で始まる行（ブロック配列）はキーを登録せずに読み飛ばす
-6. 引用符の外し方: `"` で始まり `"` で終わる場合だけ外し、`\"` は `"` に、`\\` は `\` に戻す。`"` で始まるのに閉じていない値は**登録しない**（欠落として扱う）。`'` で始まり `'` で終わる場合は引用符を外すだけでエスケープの復元はしない
+6. 引用符の外し方: `"` で始まり `"` で終わる場合は外し、`\"` は `"` に、`\\` は `\` に戻す。`'` で始まり `'` で終わる場合は引用符を外すだけでエスケープの復元はしない。**引用符（`"` / `'`）で始まるのに閉じていない値は登録しない**（欠落として扱う）
+
+インラインマップの子のキーは `^[A-Za-z0-9_-]+$` に一致するものだけを登録する。フロー配列は、要素が 1 つでも引用符を外せなければ（閉じていない）そのキーごと登録しない。いずれも「読めない値を通さない」という手順 6 と同じ方針による。
 
 YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implementation # メモ` の値は `implementation # メモ` になる。`ticket.sh` は値の後ろにコメントを書かないため、サブセットの範囲に含めない。
 
@@ -297,16 +309,16 @@ YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implement
 3. 必須の 4 項目（`ticket_type` / `executor` / `human_review.required` / `adversarial_review.required`）をスカラーとして取り出す。**スカラーとして取れなかったものはすべて TB002 とする**。キー自体が無い場合と、キーはあるが形が違う場合（フロー配列・入れ子マッピング）を区別して `detail` に書く（不備が 1 件も出ないまま項目だけが消えるのを防ぐため）。TB002 は次の手順の TB003 より先に `issues` へ積む
 4. `human_review.required` / `adversarial_review.required` の値が `true` / `false` のいずれかなら真偽値にする。それ以外の値なら TB003（`detail` にキー名と実際の値）
 5. `ticket_type` が既知の 15 種に無ければ TB004（`detail` に実際の値）
-6. **本文（`FrontmatterDocument.body`。frontmatter が読めなかった場合は入力全体）** から最初の `^#\s+(\S+)\s+(.+)$` を探す。コードフェンス（行頭の ``` または ~~~ が 3 つ以上）に囲まれた行は本文の見出しとして扱わない。frontmatter の YAML コメント行やシェル片の中の `#` をタイトルに採らないため
+6. **本文（`FrontmatterDocument.body`。frontmatter が読めなかった場合は入力全体）** から最初の `^#[ \t]+(\S+)[ \t]+(.+)$` を探す（区切りは半角空白とタブだけ。全角空白は見出しの区切りにしない。`ticket.sh` は半角しか書かない）。コードフェンス（前後の空白を落とした結果が ``` または ~~~ で始まる行）に囲まれた行は本文の見出しとして扱わない。frontmatter の YAML コメント行やシェル片の中の `#` をタイトルに採らないため
    - 見つからなければ TB005 を追加し、`title` をファイル名にする
-   - 見つかった場合、1 つ目の捕捉が `number` と異なれば TB006（`detail` に両方の値）。`title` は 2 つ目の捕捉を採る
+   - 見つかった場合、1 つ目の捕捉が `number` と異なれば TB006（`detail` に両方の値）。`title` は 2 つ目の捕捉の前後の空白を落として採る
 7. `Ticket` を返す
 
 ### 走査（`scanTickets`）
 
 1. `path.join(workspaceRoot, TICKETS_DIR)` が存在しディレクトリであることを確認する。そうでなければ `{ found: false, ticketsByState: 空 }` を返す
 2. `STATE_COLUMNS` の各要素について、`<tickets>/<dir>` を `fs.readdirSync` で読む。ディレクトリが無い場合は空として扱う（不備としない）
-3. `TICKET_FILE_PATTERN` に一致するファイルだけを対象にする。シンボリックリンクを実体と区別しない（`ticket.sh` はリンクを作らないため、区別する仕組みを持たない）
+3. `TICKET_FILE_PATTERN` に一致する名前だけを対象にする。ファイルかどうかは種別で判定せず、手順 4 の読み取りが成功するかで決める。シンボリックリンクを実体と区別しない（`ticket.sh` はリンクを作らないため、区別する仕組みを持たない）。リンクが読めれば通常のチケットとして扱い、読めなければ（壊れたリンク・ディレクトリ・権限）手順 4 の読み取り失敗に合流して TB007 になる。リンク先がワークスペースの外を指す場合もその内容を表示する
 4. 各ファイルを `fs.readFileSync(…, "utf8")` で読む。読み取りに例外が出た場合は、`number` をファイル名の先頭 4 桁、`title` をファイル名、`state` を走査中の状態とし、`issues` に TB007 だけを持つチケットとして扱い、走査を止めない。他のすべての項目は未設定にする
 5. `parseTicket` を呼び、番号の昇順に並べる。番号が同じものが同じ列にある場合はファイル名の辞書順（`String` の比較）で並べる
 6. `{ found: true, ticketsByState }` を返す
@@ -323,7 +335,7 @@ YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implement
 3. watcher は**パネルを新しく作ったときだけ**登録する。既にパネルがある経路（`reveal`）では登録しない。二重登録を防ぐため
 4. 更新は `panel.webview.html = renderBoard(board, { nonce })`。nonce は更新のたびに `crypto.randomBytes(16).toString("base64")`（`node:crypto`）で生成する。CSP は nonce だけで閉じるため `webview.cspSource` は渡さない
 5. 更新の前に `scanTickets` を呼び、`found` が `false` なら HTML を差し替えず、`showInformationMessage` で対象が失われた旨を伝えて `panel.dispose()` する
-6. `panel.webview.onDidReceiveMessage` で `{ type: "open", filePath: string }` を受ける。`isKnownTicketPath(board, filePath)` が `false` なら**何もしない**（不正なパスを開かない）。`true` なら `vscode.workspace.openTextDocument(filePath)` → `vscode.window.showTextDocument(doc)` を呼ぶ。`openTextDocument` は対象が存在しない・読み込めない場合に reject するので、捕まえて `showInformationMessage` で開けなかった旨を伝え、続けてボードを読み直す
+6. `panel.webview.onDidReceiveMessage` で `{ type: "open", filePath: string }` を受ける。受け取った値は `unknown` として扱い、`type` が `"open"` であることと `filePath` が文字列であることを確かめてから使う（Webview は改ざんされうる入力元のため、型注釈で通さない）。`isKnownTicketPath(board, filePath)` が `false` なら**何もしない**（不正なパスを開かない）。`true` なら `vscode.workspace.openTextDocument(filePath)` → `vscode.window.showTextDocument(doc)` を呼ぶ。`openTextDocument` は対象が存在しない・読み込めない場合に reject するので、捕まえて `showInformationMessage` で開けなかった旨を伝え、続けてボードを読み直す
 7. `panel.onDidDispose` で、デバウンスのタイマーを取り消し、watcher を破棄し、パネルの保持を解く
 8. `panel.onDidChangeViewState` で `panel.visible` が偽から真へ**変わったとき**に更新する。このイベントは `active` の変化でも発火するため、直前の `visible` を保持して遷移だけを見る（隣のエディタへフォーカスを移すたびに Webview を作り直さないため）。`ticketBoard.open` の `reveal` 経路では、`reveal` の前に「表」として記録してから明示的に更新し、二重に読み直さない
 9. watcher は `vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder, "wip/10_tickets/**/*.md"))`。glob は OS によらず `/` 区切りのため、`path.join` で作る `TICKETS_DIR` は使わず、`board-panel.ts` に `/` 区切りの定数を別に持つ。`onDidCreate` / `onDidChange` / `onDidDelete` のいずれでも同じ更新処理を予約する
@@ -340,10 +352,10 @@ YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implement
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy"
       content="default-src 'none'; base-uri 'none'; form-action 'none';
                style-src 'nonce-{nonce}'; script-src 'nonce-{nonce}';">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>チケットボード</title>
 <style nonce="{nonce}"> … </style>
 </head>
@@ -369,7 +381,7 @@ YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implement
           <ul class="issues"><li>TB002: executor が読み取れない</li></ul>
         </li>
       </ul>
-      <p class="empty">チケットはありません</p>
+      <p class="empty">チケットはありません</p>   <!-- 0 件のときだけ。ul.cards とは排他 -->
     </section>
     …（4 列）
   </div>
@@ -431,25 +443,25 @@ YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implement
 
 | ID | 対象 | 観点 |
 |---|---|---|
-| TB-T01 | `parseFrontmatter` | 5 種類の形（フラットスカラー / クォート付きスカラー / フロー配列 / インラインマップ / 入れ子マッピング）をすべて解釈できる。インラインマップの子が `scalar`、入れ子マッピングの下のフロー配列が `list` になる |
-| TB-T02 | `parseFrontmatter` | frontmatter が無い / 終端の `---` が無い / 空ファイルで `undefined` を返し、例外を投げない |
+| TB-T01 | `parseFrontmatter` | 5 種類の形（フラットスカラー / クォート付きスカラー / フロー配列 / インラインマップ / 入れ子マッピング）をすべて解釈できる。インラインマップの子が `scalar`、入れ子マッピングの下のフロー配列が `list` になる。`body` が終端の区切りより後ろだけを返す |
+| TB-T02 | `parseFrontmatter` | frontmatter が無い / 終端の `---` が無い / 空ファイルで `undefined` を返し、例外を投げない。BOM 付きのファイルと、区切り行の末尾に空白があるファイルは読み取れる |
 | TB-T03 | `parseFrontmatter` | 二重引用符が閉じていない値をキーごと登録しない |
-| TB-T04 | `parseFrontmatter` | ブロック配列（`- x`）のキーを登録せず、他のキーの解釈を壊さない。空のフロー配列 `[]` を要素 0 個で登録する |
+| TB-T04 | `parseFrontmatter` | ブロック配列（`- x`）のキーを登録せず、他のキーの解釈を壊さない。空のフロー配列 `[]` を要素 0 個で登録する。2 段字下げの孫が親の値を上書きしない |
 | TB-T05 | `parseFrontmatter` | CRLF 改行でも解釈できる。`\"` と `\\` のエスケープを戻す |
 | TB-T06 | `parseTicket` | 正常なチケットから 6 つの表示項目を取り出し、`issues` が空になる。`test/fixtures/` に置いた実物のチケットの写しでも `issues` が空になる |
 | TB-T07 | `parseTicket` | frontmatter が無いとき TB001 を付け、他の処理を続ける |
-| TB-T08 | `parseTicket` | 必須キーの欠落で TB002、真偽値でない値で TB003 を付ける |
+| TB-T08 | `parseTicket` | 必須キーの欠落で TB002、真偽値でない値で TB003 を付ける。キーはあるが scalar でない（フロー配列・入れ子マッピング）場合も TB002 を付ける。`issues` の並びは TB002 が TB003 より先になる |
 | TB-T09 | `parseTicket` | 未知の `ticket_type` で TB004 を付け、値はそのまま保持する |
-| TB-T10 | `parseTicket` | 見出しが無いとき TB005 を付けてファイル名をタイトルにする。番号の食い違いで TB006 を付け、ファイル名の番号を採る |
+| TB-T10 | `parseTicket` | 見出しが無いとき TB005 を付けてファイル名をタイトルにする。番号の食い違いで TB006 を付け、ファイル名の番号を採る。frontmatter の中の `#` 行とコードフェンスの中の `#` 行を見出しとして採らない |
 | TB-T11 | `scanTickets` | `wip/10_tickets` が無いとき `found: false` を返す。4 桁で始まらないファイルと `.gitkeep` を除外する |
 | TB-T12 | `scanTickets` | 状態ディレクトリが 1 つ欠けていても他の列を返す。番号の昇順に並び、同番号はファイル名の辞書順になる。読み取れないファイルに TB007 を付けて走査を続ける |
 | TB-T13 | `buildBoard` | 0 件でも 4 列を返す。`remainingCount` が todo + doing、`issueCount` が不備のあるチケット数に一致する |
-| TB-T14 | `renderBoard` | 4 列と件数を出す。0 件のとき空の表示を出す。不備のあるカードに識別子を出す。タイトルに `<script>` や `&` を含むチケットで 5 文字が仕様の表どおりに変換される。CSP の `script-src` と `style-src` に渡した nonce が入る |
+| TB-T14 | `renderBoard` | 4 列と件数を出す。0 件のとき空の表示を出す。不備のあるカードに識別子を出す。タイトルに `<script>` や `&` を含むチケットで 5 文字が仕様の表どおりに変換される。不備の `detail` と列のラベルもエスケープを通る。`ticket_type` / `executor` が未設定のカードに「種類不明」「実行者不明」が出る。CSP の `script-src` と `style-src` に渡した nonce が入り、外部資源を読む要素・URL・`@import`・`url(` を含まない |
 | TB-T15 | `isKnownTicketPath` | ボードに載っているパスだけ `true` を返す。載っていないパス・空文字・上位ディレクトリを含むパスで `false` を返す |
 | TB-T16 | `scanTickets` | 同じファイルを別の状態ディレクトリへ移した後に再走査すると、そのチケットが元の列から消えて移動先の列に現れる |
 | TB-T17 | `scanTickets` / `buildBoard` | 取り消し（`30_cancelled`）のチケットが取り消し列に現れ、`remainingCount` に数えられない |
 
-VS Code の API に触れる `extension.ts` と `board-panel.ts` は単体テストの対象にしない（`vscode` が拡張ホストの外で解決できないため。調査 0004 章 3）。要件の制約条件が列挙する 10 件の受け入れ基準は README に手動確認の手順を書き、利用者の環境で確認する。
+VS Code の API に触れる `extension.ts` と `board-panel.ts` は単体テストの対象にしない（`vscode` が拡張ホストの外で解決できないため。調査 0004 章 3）。要件の制約条件の 1 つ目（VS Code を起動しなければ観察できない）が列挙する 10 件の受け入れ基準は、README に手動確認の手順を書いて利用者の環境で確認する。
 
 ## 要件との対応
 
@@ -464,12 +476,12 @@ VS Code の API に触れる `extension.ts` と `board-panel.ts` は単体テス
 | メイン: 既に開かれていれば増やさず前面に出す | 起動と入口（判定順 3）、表示と更新 1・3 | 手動 |
 | 代替: 0 件のとき空であることを示す | HTML の構造（ボード全体の 0 件表示） | TB-T13・TB-T14 |
 | 代替: 空の列も件数 0 で表示する | `buildBoard` 1、HTML の構造（`p.empty`） | TB-T13・TB-T14 |
-| 代替: 見出しが無ければファイル名を表示する | `parseTicket` 5 | TB-T10 |
+| 代替: 見出しが無ければファイル名を表示する | `parseTicket` 6 | TB-T10 |
 | 代替: 未表示で更新コマンドを実行したら伝える | 起動と入口（`ticketBoard.refresh` 判定順 1） | 手動 |
 | 代替: 再び見える状態になったら読み直す | 表示と更新 8 | 手動 |
 | 例外: 解析できなくても続け、不備を示す | `parseTicket` 冒頭、不備の識別子、HTML の構造（`ul.issues`） | TB-T07・TB-T08 |
-| 例外: 未知の種類はそのまま出したうえで示す | `parseTicket` 4、TB004 | TB-T09 |
-| 例外: 番号の食い違いはファイル名を採り不備として示す | `parseTicket` 5、TB006 | TB-T10 |
+| 例外: 未知の種類はそのまま出したうえで示す | `parseTicket` 5、TB004 | TB-T09 |
+| 例外: 番号の食い違いはファイル名を採り不備として示す | `parseTicket` 6、TB006 | TB-T10 |
 | 例外: 対象が無いとき伝えて終了する | 起動と入口（判定順 1・2）、`scanTickets` 1 | TB-T11（走査側）。伝達は手動 |
 | 例外: 表示中に対象が失われたら伝えて閉じる | 表示と更新 5 | 手動 |
 | 例外: 選択したファイルが無ければ伝えて読み直す | 表示と更新 6（reject の捕捉） | 手動 |

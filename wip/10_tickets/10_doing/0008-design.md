@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "正史（要件・仕様）の変�
 allow:
   write: ["docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T05:51:38+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2a89c5b"
 ---
 
 # 0008 チケットボード拡張の要件定義書と仕様書の作成

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（正史の変更�
 allow:
   write: [".claude/docs/**", "wip/30_reports/**", "wip/00_overall_plan/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:16:30+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "076c7ae"
 ---
 
 # 0026 レビュー指摘: 記録・削除・要件・表の整合の掃き残し（A6〜A10・B6・B9・B10・B14・B16・B17）

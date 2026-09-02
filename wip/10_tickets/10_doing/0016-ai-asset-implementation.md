@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 4 の敵対的レビ
 allow:
   write: [".claude/hooks/config/scope-limits.json", ".claude/hooks/tests/**"]
   ops: ["read", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:00:19+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "4aff2ad"
 ---
 
 # 0016 実装: commands.build-test に拡張のテストコマンドを列挙する

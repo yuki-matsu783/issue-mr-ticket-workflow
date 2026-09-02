@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "振る舞いが変わるため基�
 allow:
   write: ["src/**", "wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-02T06:12:17+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "0166493"
 ---
 
 # 0010 中核層の実装とテスト（frontmatter / ticket / scan / board / render）

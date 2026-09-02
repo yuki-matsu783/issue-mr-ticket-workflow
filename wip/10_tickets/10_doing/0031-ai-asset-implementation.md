@@ -21,9 +21,9 @@ base_sha: "c3440fc"
 
 ## DoD
 
-- [ ] HK-T01 の期待値として 17 行分の command 文字列の逐語一覧が .claude/hooks/tests/fixtures/settings-hooks.expected.tsv（イベント・matcher・位置・command の 4 列）にあり、引数を取る 2 行（--accumulate）と実体のディレクトリと登録先が一致しない 4 行が正しく入っている。うち拒否側 5 行は fail-closed ラッパー（`|| printf … WFx09 …`）まで含めた逐語で、x が workflow-entry = WF109 / workflow-guard = WF209 / workflow-state-guard = WF309 / block-direct-git = WF409 / block-chmod = WF509 と一致する（根拠: ）
-- [ ] 各段で AI が渡したのは「その段までの PreToolUse 配列の全文」で、人間は配列ごと貼り替えた。位置は §1 の表の順（1=workflow-entry(Skill) / 2=workflow-entry / 3=workflow-state-guard / 4=block-chmod / 5=block-direct-git / 6=workflow-guard / 7=subagent-start-check）に一致する（HK-T01 は配列上の位置まで照合するため）（根拠: ）
-- [ ] 段階 ①（案内側 12 行: SessionStart 1 / UserPromptSubmit 1 / PreToolUse Skill 1 / PreToolUse Agent 1 / PostToolUse 4 / SubagentStart 1 / SubagentStop 2 / Stop 1）を人間が登録し、AI がコミットした。新しいセッションで軽い操作（Read → Skill 宣言 → Edit → commit.sh）を通し想定外の deny が無いことを確かめた（根拠: ）
+- [ ] HK-T01 の期待値として **16**（T9 が外れたので当初の 17 から 1 行減。下の T9 の項）行分の command 文字列の逐語一覧が .claude/hooks/tests/fixtures/settings-hooks.expected.tsv（イベント・matcher・位置・command の 4 列）にあり、引数を取る 2 行（--accumulate）と実体のディレクトリと登録先が一致しない 3 行（§1 の数え方。機械的に数えると 5 行で、差の内訳はテストのコメントにある）が正しく入っている。うち拒否側 5 行は fail-closed ラッパー（`|| printf … WFx09 …`）まで含めた逐語で、x が workflow-entry = WF109 / workflow-guard = WF209 / workflow-state-guard = WF309 / block-direct-git = WF409 / block-chmod = WF509 と一致する（根拠: ）
+- [ ] 各段で AI が渡したのは「その段までの PreToolUse 配列の全文」で、人間は配列ごと貼り替えた。位置は §1 の表の順（1=workflow-entry(Skill) / 2=workflow-entry / 3=workflow-state-guard / 4=block-chmod / 5=block-direct-git / 6=workflow-guard。**7=subagent-start-check は T9 の縮退で削除**）に一致する（HK-T01 は配列上の位置まで照合するため）（根拠: ）
+- [ ] 段階 ①（案内側 **11** 行: SessionStart 1 / UserPromptSubmit 1 / PreToolUse Skill 1 / PostToolUse 4 / SubagentStart 1 / SubagentStop 2 / Stop 1。**PreToolUse Agent 1 は T9 の縮退で削除**）を人間が登録し、AI がコミットした。新しいセッションで軽い操作（Read → Skill 宣言 → Edit → commit.sh）を通し想定外の deny が無いことを確かめた。12 行版（Agent 行あり・プローブの env あり）で 1 度通した後、実測を受けて 11 行版に貼り直した（根拠: ）
 - [ ] 段階 ②（拒否側 4 行を fail-closed ラッパー付きで追加し、⓪ の block-chmod にもラッパーを付ける）を人間が登録し、AI がコミットした。1 行ずつ足して各行の後に軽い操作を通した。HK-T09 が通る。HK-T09 は機械テスト（一時コピーに対してラッパー文字列を再現して実行する）であって実登録の破壊試験ではない — 実登録の workflow-guard を壊すと matcher が Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow なので書き込みも実行も全部 deny になり、壊したファイルを AI が書き戻せない（根拠: ）
 - [ ] T9（systemMessage が PreToolUse でユーザーに実際に表示されるか）を ① の後に実測し、結果を作業ログに書いた。外れた場合は HK-T01 のフィクスチャを 16 行に直し、§1 の書き戻しをフェーズ 6 へ送った（根拠: ）
 - [ ] ① の登録後、人間が WORKFLOW_PROBE_4C=1 を設定した新しいセッションを起動した（環境変数はセッション開始時に読まれ AI は設定できない。§4。Bash ツールで前置しても外側のフックプロセスには届かない）（根拠: ）
@@ -73,9 +73,26 @@ base_sha: "c3440fc"
   - 目安（1 秒以内）は 5 本とも満たす。5 本は**並列に走る**ので 1 ツール呼び出しの待ちは合計（2.2 秒）ではなく最大値（0.64 秒）＋起動のオーバーヘッドに近い
   - **0030 の結果報告に書いた「フック 1 回 = 約 1.9 秒」は誤り**。全件テストを 2 本同時に走らせている最中に測っていた（競合下の値）。同じ理由で「`test_workflow_guard` は 5 分 07 秒」も誤りで、静かな状態では **1 分 47 秒**（既定の 120 秒に収まる）。0030 の報告と PR 本文を訂正した
   - `hc_lock` の陳腐化 60 秒は、`--accumulate` が 0.43 秒で終わることに対して十分に長い（ロックを取ったまま落ちたプロセスの検知までの猶予として妥当）
-- **段階 ② の前にやること（決定済みの順序）**: フェーズ 4c の実測。人間が `WORKFLOW_PROBE_4C=1` を設定した
-  新しいセッションを起動する。worktree は用意済み（`../issue-mr-ticket-workflow-probe4c`）
-- そのあと: 人間が `cp wip/tmp/settings-stage2-1.json .claude/settings.json`（段階 ②-1）から 5 段
+- **フェーズ 4c を実測した**（セッション `843ef779…`。`WORKFLOW_PROBE_4C=1` を `settings.json` の `env` で入れた =
+  handoff の方法 A。記録は `logs/hooks/probe-4c.jsonl`、ヘッドレスの生ログは `wip/tmp/p4c-headless.jsonl`）:
+
+| ID | 見たもの | 実測の結果 | 仕様（§12）との対比 |
+|---|---|---|---|
+| T2 | 親子の `session_id` | **同じ**。親 `843ef779…` の下でサブエージェントの `Bash` も同じ `session_id` で届く。子の呼び出しには `agent_id` / `agent_type` が**追加で付く**ので親子は判別できる | 一致（`logs/sessions/` の対応表は不要） |
+| T3 | `claude -p` の判別 | **判別する入力フィールドは無い**。`SessionStart` の `source` は対話と同じ `startup`。副産物として `permission_mode` がヘッドレスでは `plan`、対話では `auto` だったが、対話でも plan モードなら `plan` になるので決め手にならない。`defer` は不採用のまま（実在確認の対象外） | 一致（`WORKFLOW_HEADLESS` / `CI` での明示を維持） |
+| T4 | `SubagentStart` の `agent_id` / `agent_type` / `model` | `agent_id` / `agent_type` は**実在**（`general-purpose`）。キーは 6 つだけで **`model` は来ない**。加えて **`PreToolUse:Agent` の `tool_input` にも `model` が無かった**（呼び出し側が指定しなかったため。来たのは `subagent_type` / `prompt` / `description`）。`PostToolUse:Agent` には `tool_response.resolvedModel` が来る | 一致。ただし §1 の 7 行目の実行者比較は「呼び出し側が `model` を明示したときだけ成立する」ことが実物で確認された（下の「仕様からの逸脱」1） |
+| T5 | `PowerShell` の共通フィールド | **Bash と同形**（`session_id` / `cwd` / `permission_mode` / `prompt_id` / `transcript_path`）。差は `tool_input.description` の有無だけで、これは呼び出し側が渡したかどうかの差 | 一致（`hook-common.sh` での吸収は不要） |
+| T7 | `tool_response` の終了コードのフィールド名 | **存在しない**（`tool_response` は `stdout` / `stderr` のみ。`duration_ms` は入力の直下に来る）。さらに **exit≠0 のツール呼び出しでは PostToolUse フックが 1 本も起動しない**ことを負のコントロール 2 回（`exit 3` / `exit 7`）で確認した — probe に行が増えず WF601 の追記も出ない | 一致。「PostToolUse に届いた = 成功」（`post-push-*` の判定）を実物で裏付けた |
+| T9 | `systemMessage` が実際に表示されるか | **外れた。人間に通知は来ない**（観測者: 人間の一次報告。面: VSCode 拡張。プローブが `PreToolUse:Agent` で無条件に 1 件出している状態で見て、通知が来なかった）。機械側では到達している — `claude -p … --output-format stream-json --verbose` の出力に `{"type":"system","subtype":"informational","content":"PreToolUse:Agent says: [プローブ] …","level":"notice"}` が 1 件あり、**破棄はされず SDK メッセージには載るが対話 UI が人間に見せない**。負のコントロール（probe-4c.jsonl に該当行が落ちている）も満たす | **不一致 → §12 の縮退を発動**（登録表 17 行 → **16 行**）。ユーザーの判断「systemMessage が人間に届くという要件は特に無い」 |
+| 追加 | `tool_response.status` の既定 | **対話セッションで `run_in_background` を省略 → `async_launched`**（WF814 が実際に発火した）。ヘッドレス側は呼び出しが `run_in_background: false` を明示していて **`completed`** だった。両方の分岐を実物で観測した | 一致（§2 の「明示的に `false` でなければ background」） |
+| 追加 | `permission_mode` の実値 | 対話 `auto` / ヘッドレス `plan` / `SessionStart` では**キー自体が来ない**ことがある | §2 の列挙（`default` / `plan` / `acceptEdits` / `auto` / `dontAsk` / `bypassPermissions`）に収まる |
+
+  - `PostToolUse:Agent` の `tool_response` は情報が厚い（`agentId` / `agentType` / `resolvedModel` / `status` /
+    `totalTokens` / `totalDurationMs` / `usage.*`）。`post-push-usage-report` の材料として使える
+  - プローブの `additionalContext`（`PreToolUse:Agent`）はメインエージェントに**届いた**。届かないのは `systemMessage` の方で、
+    この非対称は §3 の記述どおり
+- **次にやること**: T9 の人間の目視を記録 → プローブを取り除く（`grep -rn 'WORKFLOW_PROBE_4C\|probe-4c' .claude` が 0 件）→
+  `settings.json` を `wip/tmp/settings-stage1.json` に戻す（**probe 版はコミットしない**）→ 段階 ②-1 から 5 段
 - 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（段階 ② が終われば通る）
 
 ### うまくいったこと
@@ -84,8 +101,40 @@ base_sha: "c3440fc"
 
 ### 仕様からの逸脱
 
+1. **`PreToolUse:Agent` の `tool_input` に `model` は「呼び出し側が明示したときだけ」入る**。§2 は「実行者の比較は
+   `Agent` ツールの `tool_input.model` を読める PreToolUse で行う」と書くが、実測ではモデルを指定しない起動で
+   `tool_input` が `subagent_type` / `prompt` / `description` の 3 つだけになり、**比較する値が無い**（＝既定モデルで走る）。
+   一方 **`PostToolUse:Agent` には `tool_response.resolvedModel` が来る**ので、実際に使われたモデルの比較は
+   起動後なら機械的に行える。7 行目を外す縮退（下記 2）と合わせて、実行者の検査は `subagent-stop-check` 側に寄せられる
+2. **T9 が外れたため §12 の縮退を発動する**: `systemMessage` は対話 UI で人間に届かない。§1 の 7 行目
+   （`PreToolUse` `Agent` の `subagent-start-check`）を残す唯一の支えが `systemMessage` だった（DDR i0009-54）ので、
+   **この行を登録から外し、登録表は 16 行に戻る**。`additionalContext` はメインエージェントに届いたが、
+   §12 のとおりこれは 7 行目を残す根拠にならない（不一致を起こしている当事者に伝えても意味がない）
+3. **exit≠0 のツール呼び出しでは PostToolUse フックが 1 本も起動しない**。§2 の「PostToolUse に届いた = 成功」と
+   整合するが、含意として **`workflow-diff-check`（WF601）は失敗したツール呼び出しの後の差分を見ない**。
+   失敗しても書き込みが起きているケース（部分的に書けた `Write`、途中で落ちたスクリプト）は次の成功した呼び出しまで
+   検知が遅れる。仕様に明記が無いので追記が要る
+
 ### 判断と根拠
 
+- **T9 が外れたので登録表を 16 行に縮退させた**（DoD の「外れた場合」の分岐に従う。ユーザーの判断
+  「`systemMessage` が人間に届くという要件は特に無い」）。手を入れたのは 3 つ:
+  - `wip/tmp/fixture.py` の `ROWS` から `PreToolUse` / matcher `Agent` の行を削除 →
+    `.claude/hooks/tests/fixtures/settings-hooks.expected.tsv` を 16 行で再生成
+  - `wip/tmp/stages.py` の `PRE` と `G` から `agent` を削除 → 段階ファイル 6 本を再生成
+    （`stage1` = 12 フック（案内 11 + ⓪ の block-chmod）、`stage2-5` = 16 フック・ラッパー 5 本）
+  - DoD の 17 行 / 12 行 / 位置 7 の記述を 16 行 / 11 行に整合させた（DoD 自体が定めた分岐なので、
+    条件を緩めたのではなく分岐先を書き写したもの）
+  - **フック本体 `subagent-start-check.sh` は消さない**。`SubagentStart` の登録（WF802 の要点注入）は残るし、
+    `PreToolUse` の経路も設定を戻せば生き返る。登録から外すだけにする
+  - 失われるのは起動**前**の WF801（実行者の不一致）と WF803（background 起動）。WF803 は
+    `subagent-stop-check` の **WF814 が起動直後に同じことを伝える**（この実測で実際に発火した）。
+    WF801 は `subagent-stop-check` の縮退判定が担う（`logs/sessions/<id>/subagent-start-check.json` の
+    印が常に無くなるので、縮退の側が必ず動く。DDR i0009-52 の設計どおり）
+- **4c プローブを撤去した**: `lib/probe-4c.sh` を削除、6 フックの `source` と `probe_4c` 呼び出し、
+  `subagent-start-check.sh` の `probe_4c_enabled` ブロック 2 か所、テスト 6 本の `cp` とプローブ用の assertion。
+  撤去の際に **SE-T06 の前半（`source=compact` でも同じ内容）の検査がプローブの assertion に寄生していた**ことが
+  分かったので、本来の検査（無出力・終了 0・記録が残る）を `case_compact` として書き直した
 - **作業ツリーの外の書き込みは WF209 のまま拒否する**（ユーザーの決定。0030 の r2 を維持）。
   Claude Code のメモリ（`~/.claude/projects/<project>/memory/`）はリポジトリの外にあるので、段階 ②-4 の登録後は
   **メモリの書き込みが止まる**。このプロジェクトではメモリを使わず、どうしても要るときだけ
@@ -110,5 +159,22 @@ base_sha: "c3440fc"
   ワークの切れ目（手順 5-3）で行う。0030 の性能の記述を訂正する必要がある
 
 ### AI アセットに反映すべき内容
+
+実装フェーズは `.claude/docs/**` に書けないので、フェーズ 6（design-feedback）へ送る。
+
+1. **`フック共通仕様.md` §1 の登録表を 16 行にする**（`PreToolUse` `Agent` の `subagent-start-check` を削除）。
+   §12 の T9 の行を「実測で外れた（人間に通知は来ない。SDK メッセージには載る）」に書き換え、縮退の発動を確定させる。
+   関連: DDR i0009-54（7 行目の根拠が `systemMessage` に移った経緯）、i0009-26
+2. **`subagent-start-check` 仕様から `PreToolUse` `Agent` の経路（WF801 / WF803 の起動前通知）を落とす**。
+   実行者の不一致の検知は `subagent-stop-check`（`PostToolUse` `Agent`）に一本化する。あわせて
+   **`tool_response.resolvedModel` で実際に使われたモデルを比較できる**ことを §2 と当該仕様に書く（実測で実在を確認）
+3. **§2 に「`PreToolUse:Agent` の `tool_input.model` は呼び出し側が明示したときだけ来る」を追記**する
+   （未指定＝既定モデル。値が無いことを「一致」と読まない）
+4. **§2 に「exit≠0 のツール呼び出しでは PostToolUse フックが起動しない」を追記**し、
+   `workflow-diff-check` 仕様に「失敗した呼び出しの後の差分は次の成功した呼び出しまで検知が遅れる」を
+   意図的な緩和（§13）として書く
+5. **§12 の T2 / T3 / T4 / T5 / T7 を「実測で確認済み」に更新**する（結果はこのチケットの現在地の表）。
+   T2 の縮退（`logs/sessions/` の親子対応表）は不要と確定。副産物として
+   「サブエージェント内のツール呼び出しには `agent_id` / `agent_type` が付く」を §2 に明記できる
 
 ### 備考

@@ -97,7 +97,8 @@ base_sha: "c3440fc"
 - **段階 ②-1 を登録した**（人間が `cp wip/tmp/settings-stage2-1.json .claude/settings.json`）。
   足したのは `workflow-entry` の拒否側 1 行（matcher = 全ツール + `mcp__.*`、fail-closed ラッパー `|| printf … WF109 …`）。
   軽い操作（Bash → Read → Edit → `commit.sh`）を通し、**想定外の deny は 0 件**。作業中チケットがあるので継続の緩和（§13）が効いている
-- **次にやること**: 段階 ②-2（`workflow-state-guard`）から 4 段。各段で軽い操作 → コミット
+- **段階 ②-2 を登録した**（`workflow-state-guard` の拒否側 1 行、ラッパー `WF309`）。軽い操作を通し**想定外の deny は 0 件**
+- **次にやること**: 段階 ②-3（`block-direct-git`）から 3 段。各段で軽い操作 → コミット
 - 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（段階 ② が終われば通る）
 
 ### うまくいったこと

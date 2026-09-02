@@ -29,14 +29,14 @@ keywords: [hook-common, scope, cmdpos, rawfile, HOOK_WORKTREE, worktree, hc_lock
 
 **◆特に見てほしい（判断に困っている）**
 
-- **f1（△注意）仕様からの逸脱が 3 件出た**（§1 の表・§8 の `SC_TARGETS`・§2 の worktree 判定）。いずれも「実装してみて初めて分かった」もので、0032 の棚卸しへ送るつもりでいる。**実装フェーズは `.claude/docs/**` が deny なので、この巡では直せない**。逸脱を作業ログに書いて先送りする、というやり方でよいか
-- **f2（△注意）`_sc_classify_web` の curl オプションの列挙が網羅的か確かめられない**。curl は 200 以上のオプションを持ち、`.curlrc` 経由の指定も見ていない。「送信側を取りこぼすと `remote-write` の統制が迂回される」ので、**列挙で足りるのか、それとも別の判定軸（宣言の無い `curl` は一律拒否など）に変えるべきか**を見てほしい
+- **r1（△注意）仕様からの逸脱が 6 件出た**（§1 の表・§8 の `SC_TARGETS`・§2 の worktree 判定・区切りバイトの割り当て・`scope_load` 系の戻り値・`scope_match` の引数順）。いずれも「実装してみて初めて分かった」もので、0032 の棚卸しへ送るつもりでいる。**実装フェーズは `.claude/docs/**` が deny なので、この巡では直せない**。逸脱を作業ログに書いて先送りする、というやり方でよいか
+- **r2（△注意）`_sc_classify_web` の curl オプションの列挙が網羅的か確かめられない**。curl は 200 以上のオプションを持ち、`.curlrc` 経由の指定も見ていない。「送信側を取りこぼすと `remote-write` の統制が迂回される」ので、**列挙で足りるのか、それとも別の判定軸（宣言の無い `curl` は一律拒否など）に変えるべきか**を見てほしい
 
 **◇承認が欲しい（方針は決めた）**
 
-- **f3**: `hc_lock` の陳腐化判定に `stat -c %W`（birth）ではなく `find -mmin` を使ったこと（移植性を取った。実測は「想定と異なった点」に記載）
-- **f4**: `SC_TARGETS` を仕様の `SC_TARGETS[]`（配列）ではなく既存実装に合わせて US 区切りのスカラで統一したこと
-- **f5**: `SS-T05` の走査範囲を `.claude/hooks/**` と `.claude/skills/*/scripts/**` に限り、`assets/*.template.sh` を範囲外にしたこと
+- **r3**: `hc_lock` の陳腐化判定に `stat -c %W`（birth）ではなく `find -mmin` を使ったこと（移植性を取った。実測は「想定と異なった点」に記載）
+- **r4**: `SC_TARGETS` を仕様の `SC_TARGETS[]`（配列）ではなく既存実装に合わせて US 区切りのスカラで統一したこと
+- **r5**: `SS-T05` の走査範囲を `.claude/hooks/**` と `.claude/skills/*/scripts/**` に限り、`assets/*.template.sh` を範囲外にしたこと
 
 **・細かいレビューは不要（ほぼ確実）**
 
@@ -57,7 +57,7 @@ keywords: [hook-common, scope, cmdpos, rawfile, HOOK_WORKTREE, worktree, hc_lock
 | 対象 | 内容 |
 |---|---|
 | 計画 | `wip/20_plans/0016-ai-asset-implementation-plan.md` ステップ 1 |
-| 仕様 | `.claude/docs/10_spec/hooks/フック共通.md`（§1 の入力・§2 の作業ツリー・§3 の redact・§7-9 の cmdpos・§8 の分類）、`.claude/docs/10_spec/hooks/20-PreToolUse/block-chmod.md`、`.claude/docs/10_spec/skills/20-common-step-shell-script.md`（読み込み行・SS-T05） |
+| 仕様 | `.claude/docs/10_spec/フック共通仕様.md`（§1 の置き場と登録・§2 の入力と作業ツリー・§3 の制御方式・§7 の cmdpos・§8 の分類）、`.claude/docs/10_spec/hooks/20-PreToolUse/block-chmod.md`、`.claude/docs/10_spec/skills/20-common-step-shell-script.md`（読み込み行・SS-T05） |
 | DDR | i0009-03（Skill を declare に）・i0009-16（frontmatter.sh の破損）・i0009-35（`\|\| true` を使わない）・i0009-36（読み込み行のバイト一致）・i0009-39（位置引数）・i0009-47（副入力）・i0009-48（パス引数を消す）・i0009-55（作業ツリー）・i0009-60（陳腐化したロック） |
 | 実体 | `.claude/hooks/lib/{hook-common,cmdpos,scope}.sh` とそのテスト、`.claude/skills/20-common-step-shell-script/assets/*.template.sh`、読み込み行を持つ .sh 22 本 |
 
@@ -66,7 +66,7 @@ keywords: [hook-common, scope, cmdpos, rawfile, HOOK_WORKTREE, worktree, hc_lock
 ### 1. `hook-common.sh` — 副入力・イベント固有フィールド・作業ツリー・記録ヘルパ ◎良
 
 - **副入力**（`limits` / `review` / `merge` / `approvals` / `entry`）を、存在するものだけ `--rawfile <名前> <パス>`、無いものは `--argjson <名前> null` で渡す。jq 内は `fromjson? // "__broken"`。検証エラーは `error()` を投げず `verr` の `__error` レコードで返し、`HC_<名前>_STATE`（`ok` / `missing` / `broken`）と `HC_<名前>_ERROR` に落とす。`--slurpfile` は使っていない
-- **1 回目の jq が 23 フィールド**を出す。`prompt` は `split("\n")[0]` で 1 行目だけ、`old_string` / `new_string` / `content` / `edits` は frontmatter の 6 キーに触れたかの真偽 1 個（`HOOK_FM_KEYS_TOUCHED`）に畳む。全文を持ち回らないので、記録・拒否理由に漏れる経路も減る
+- **1 回目の jq が 22 フィールド + 末尾の番兵 1 個（`end`）**を出す（計 23 個。計画 0016:60 の「22 フィールド」と一致する。番兵は末尾の空フィールドが落ちないようにするためのもの）。`prompt` は `split("\n")[0]` で 1 行目だけ、`old_string` / `new_string` / `content` / `edits` は frontmatter の 6 キーに触れたかの真偽 1 個（`HOOK_FM_KEYS_TOUCHED`）に畳む。全文を持ち回らないので、記録・拒否理由に漏れる経路も減る
 - **`HOOK_ROOT` と `HOOK_WORKTREE` を分けた**。既定は同じで、cwd が違うときだけ `[[ -d "$d/.claude" ]]` の上向き探索で書き換える（`git` を呼ばない = fork ゼロ）。`hook_doing_ticket` / `hook_record` / `hook_session_dir` / `hook_rel_path` / `hc_lock` / `hc_unlock` がすべて `HOOK_WORKTREE` 基準になった
 - **記録ヘルパ 5 関数**を足した。切り詰め（4 KB・末尾に `…`）は `hc_append_jsonl` が持ち、呼び手は関与しない。ロックの 2 秒（待ち）と 60 秒（陳腐化）は `hc_lock` だけが読む定数
 - **`tool_class` の `00-workflow-*` 接頭辞判定を除いた**（DDR i0009-03）。`Skill` は `tool_input.skill` の値によらず常に `declare`
@@ -103,7 +103,7 @@ keywords: [hook-common, scope, cmdpos, rawfile, HOOK_WORKTREE, worktree, hc_lock
 ### 6. `block-chmod.sh` と config 3 ファイル ◎良
 
 - `.claude/hooks/config/blocked-commands.txt`（`chmod` 1 行）・`entry-skills.txt`・`model-aliases.txt` を新設。3 ファイルとも `settings.json` 無改変の状態で作った（⓪ の登録より前）
-- `block-chmod.sh` は制御方式 1〜6 をこの順で持つ。**高速前置判定**（外部プロセスなし）で一覧の語を含まないコマンドを即許可し、含むときだけ `cmdpos.sh` を使う。BC-T05 は「`cmdpos.sh` を壊しても `ls -la` は通る」ことで、読み込み前に判定していることを確かめている
+- `block-chmod.sh` は制御方式 1〜6 をこの順で持つ。**高速前置判定**（外部プロセスなし）で一覧の語を含まないコマンドを即許可し、含むときだけ `cmdpos.sh` を使う。BC-T05 は「読み込み前に判定している」ことを見る検査だが、**0027 時点のテストは `cmdpos.sh` を `cp` で退避して戻すだけで、実際には壊していなかった**（`1464ce8` の `case_fastpath`）。壊していないので何も検査しておらず、実際に構文エラーを仕込むと `chmod` の側は落ちる。0033（`c0a8309`）で実際に壊す形に直し、検出力を持たせた
 - 一覧をコードに埋めていない（BC-T04 が一覧の増減で判定が変わることを確かめる）
 
 ### 7. `__hc_redact_to_reply` の性能バグ △注意
@@ -119,8 +119,8 @@ keywords: [hook-common, scope, cmdpos, rawfile, HOOK_WORKTREE, worktree, hc_lock
 | 全件テスト（`run-tests.sh`） | **15 本 / 70 件・FAIL 0** |
 | `test_hook_common.sh` | passed=138 failures=0（HK-T02〜T08・T10〜T14・T17〜T20） |
 | `test_scope.sh` | passed=258 failures=0（HK-T15 ほか・web の分類 13 ケース） |
-| `test_cmdpos.sh` | passed=247 failures=0（CP-T01〜T08・`case_operands` 10 ケース） |
-| `test_templates.sh` | passed=39 failures=0（SS-T01〜T05） |
+| `test_cmdpos.sh` | passed=247 failures=0（**HK-T05 / HK-T12**・`case_operands` 10 ケース。`CP-T01〜T08` は `test_commit.sh` / `test_push.sh` が持つ別の ID で、このファイルには無い） |
+| `test_templates.sh` | passed=39 failures=0（SS-T01〜T05。`SS-T00` は雛形検査の中で使うダミー ID で `--ids` には現れない） |
 | `test_block_chmod.sh` | passed=29 failures=0（BC-T01〜T06） |
 | `bash -n`（新規 2 本） | 0 |
 | `shellcheck` | **未実施**（環境に未導入） |
@@ -140,9 +140,9 @@ keywords: [hook-common, scope, cmdpos, rawfile, HOOK_WORKTREE, worktree, hc_lock
 ## 設計への反映（後続へ）
 
 - **0028 へ**: `blocked-commands.txt` は作ってあるので、⓪ の登録（`block-chmod` 単独・ラッパー無し）だけで T6 を測れる
-- **0029 / 0030 へ**: lib の 5 関数・`cmdpos_operands`・23 フィールドは揃った。本体は `hook_field` を追加で呼ばずに書ける
+- **0029 / 0030 へ**: lib の 5 関数・`cmdpos_operands`・22 フィールド（+ 番兵 1 個）は揃った。本体は `hook_field` を追加で呼ばずに書ける
 - **0030 へ**: HK-T19（ホットパス 5 本の jq 回数）は本体が揃ってから
-- **0032 へ**: 仕様の書き戻し 3 件（§1 の表 / §2 の worktree 判定 / §8 の `SC_TARGETS` と `SC_CLASS`）と、DDR 候補 2 件（worktree の確認 / bash のパターン照合の遅さ）
+- **0032 へ**: 仕様の書き戻し **6 件**（§1 の表（review-state / merge-state を jq の 2 回目へ）/ §2 の worktree 判定 / §8 の `SC_TARGETS` と `SC_CLASS` / 区切りバイトの割り当て（セクション 0x1D・レコード 0x1E・key-value 0x1F）/ `scope_load` 系が副入力の不在・破損で 1 を返す（§8 は 2）/ `scope_match` の引数順と `SC_BUILD_TEST[]` の名前）と、DDR 候補 2 件（worktree の確認 / bash のパターン照合の遅さ）
 
 ## 想定と異なった点
 
@@ -154,7 +154,7 @@ keywords: [hook-common, scope, cmdpos, rawfile, HOOK_WORKTREE, worktree, hc_lock
 ## 残課題
 
 - **`shellcheck` の未導入**（環境の制約。導入はソースコード修正の枠外）。静的検査が当面かからない
-- **`_sc_classify_web` の curl オプション列挙の網羅性**が確かめられない（f2）
-- **仕様からの逸脱 3 件**が実体と文書のずれとして残る（0032 で解消）
+- **`_sc_classify_web` の curl オプション列挙の網羅性**が確かめられない（3 章）
+- **仕様からの逸脱 6 件**が実体と文書のずれとして残る（0032 で解消）
 - **`.claude/rules/markdown-docs.md` と `ai-asset-authoring.md` が存在しない**。要件書が `.claude/docs/**` に無く、実装フェーズは deny なので 1:1:1 を作れない（0032 の棚卸しへ）
-- **`check-html.sh` は md と HTML の内容一致を検査しない**（12 回連続の申し送り）。生成のたびに目視している
+- **`check-html.sh` は md と HTML の内容一致を検査しない**（12 回連続の申し送り。0034 の時点で 15 回連続）。生成のたびに目視している

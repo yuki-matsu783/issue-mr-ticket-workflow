@@ -27,7 +27,7 @@ base_sha: ""
 - [ ] post-push-usage-report.sh があり、--accumulate と既定の両方で hc_lock usage-<branch> を取ってから加算し、取れなければ 2 秒で諦めて実行ログに 1 行残して終了 0 する。時刻の変換は自前の暦計算（strptime を使わない）。テストが通る（根拠: ）
 - [ ] subagent-start-check.sh があり、PreToolUse Agent（WF801 を systemMessage + additionalContext の 2 経路・WF803 の background 警告）と SubagentStart（要点の注入）の両方の入口を持つ。テストが通る（根拠: ）
 - [ ] subagent-stop-check.sh があり、tool_response.status（completed / async_launched）で分岐し agentId（camelCase）を読む。SubagentStop と PostToolUse Agent の両方の入口を持つ。テストが通る（根拠: ）
-- [ ] 6 本とも実装の型（HOOK_DENY_ID の代入 → lib の source → hook_init）に従い、bash -n と shellcheck を通り、bash <script> < 入力 JSON の単体実行が終了 0 で通る（根拠: ）
+- [ ] 6 本とも実装の型（HOOK_DENY_ID の代入 → lib の source → hook_init）に従い、bash -n を通り（`shellcheck` はこの環境に未導入で未実施）、bash <script> < 入力 JSON の単体実行が終了 0 で通る（根拠: ）
 - [ ] 6 本に「4c プローブ」を仕込んだ。環境変数 WORKFLOW_PROBE_4C=1 のときだけ有効で、(a) tool_response.status / agentId / agent_type / model / permission_mode / source / run_in_background の値と、その他のキーの有無と型だけを logs/hooks/probe-4c.jsonl に落とす、(b) subagent-start-check が Agent の呼び出しで無条件に systemMessage を 1 つ出す。既定（環境変数なし）では一切の副作用が無いことをテストで固定した。出力は hc_append_jsonl 経由にした（redact と 4 KB 切り詰めを得るため。並列のフックが 4 KB を超える行を書くと JSONL が割れる）。session-start ではプローブを早期 return の前に置いた（boundary.sh 不在で「何も出さずに終了 0」する経路の後だと source の行が一切残らないため）（根拠: ）
 - [ ] 4c プローブの逸脱 2 件を作業ログ「仕様からの逸脱」に書いた: (1) rules/logger.md の「値ではなく有無・長さ」からの逸脱（値を落とすのは上記 7 フィールドに限る）、(2) §5 の logs/ の表に無いパス（logs/hooks/probe-4c.jsonl）を一時的に増やすこと（§5 の表は正なのでこちらが重い）（根拠: ）
 - [ ] 新規に作った .sh（本体 6 本 + テスト）の `__ss_load` 行が assets/script.template.sh とバイト一致し、SS-T05 が通る（SS-T05 は .claude/hooks/** 全体を走査するため）（根拠: ）

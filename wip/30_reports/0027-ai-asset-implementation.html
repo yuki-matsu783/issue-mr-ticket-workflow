@@ -180,6 +180,7 @@
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#acceptance">受け入れ条件との対応</a></li>
       <li><a href="#next">設計への反映</a></li>
       <li><a href="#surprises">想定と異なった点</a></li>
       <li><a href="#todo">残課題</a></li>
@@ -212,17 +213,17 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li><strong>f1（△注意）仕様からの逸脱が 3 件出た</strong>（§1 の表・§8 の <code>SC_TARGETS</code>・§2 の worktree 判定）。いずれも「実装してみて初めて分かった」もので、0032 の棚卸しへ送るつもりでいる。<strong>実装フェーズは <code>.claude/docs/**</code> が deny なので、この巡では直せない</strong>。逸脱を作業ログに書いて先送りする、というやり方でよいか</li>
-        <li><strong>f2（△注意）<code>_sc_classify_web</code> の curl オプションの列挙が網羅的か確かめられない</strong>。curl は 200 以上のオプションを持ち、<code>.curlrc</code> 経由の指定も見ていない。送信側を取りこぼすと <code>remote-write</code> の統制が迂回されるので、<strong>列挙で足りるのか、別の判定軸（宣言の無い <code>curl</code> は一律拒否など）に変えるべきか</strong>を見てほしい</li>
+        <li><strong>r1（△注意）仕様からの逸脱が 6 件出た</strong>（§1 の表・§8 の <code>SC_TARGETS</code>・§2 の worktree 判定・区切りバイトの割り当て・<code>scope_load</code> 系の戻り値・<code>scope_match</code> の引数順）。いずれも「実装してみて初めて分かった」もので、0032 の棚卸しへ送るつもりでいる。<strong>実装フェーズは <code>.claude/docs/**</code> が deny なので、この巡では直せない</strong>。逸脱を作業ログに書いて先送りする、というやり方でよいか</li>
+        <li><strong>r2（△注意）<code>_sc_classify_web</code> の curl オプションの列挙が網羅的か確かめられない</strong>。curl は 200 以上のオプションを持ち、<code>.curlrc</code> 経由の指定も見ていない。送信側を取りこぼすと <code>remote-write</code> の統制が迂回されるので、<strong>列挙で足りるのか、別の判定軸（宣言の無い <code>curl</code> は一律拒否など）に変えるべきか</strong>を見てほしい</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
       <p class="label">◇承認が欲しい</p>
       <p class="sub">方針は決めた</p>
       <ul>
-        <li><strong>f3</strong>: <code>hc_lock</code> の陳腐化判定に <code>stat -c %W</code>（birth）ではなく <code>find -mmin</code> を使ったこと（移植性を取った）</li>
-        <li><strong>f4</strong>: <code>SC_TARGETS</code> を仕様の <code>SC_TARGETS[]</code>（配列）ではなく既存実装に合わせて US 区切りのスカラで統一したこと</li>
-        <li><strong>f5</strong>: <code>SS-T05</code> の走査範囲を <code>.claude/hooks/**</code> と <code>.claude/skills/*/scripts/**</code> に限り、<code>assets/*.template.sh</code> を範囲外にしたこと</li>
+        <li><strong>r3</strong>: <code>hc_lock</code> の陳腐化判定に <code>stat -c %W</code>（birth）ではなく <code>find -mmin</code> を使ったこと（移植性を取った）</li>
+        <li><strong>r4</strong>: <code>SC_TARGETS</code> を仕様の <code>SC_TARGETS[]</code>（配列）ではなく既存実装に合わせて US 区切りのスカラで統一したこと</li>
+        <li><strong>r5</strong>: <code>SS-T05</code> の走査範囲を <code>.claude/hooks/**</code> と <code>.claude/skills/*/scripts/**</code> に限り、<code>assets/*.template.sh</code> を範囲外にしたこと</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -256,7 +257,7 @@
   <h2>実施条件（測った対象・環境）</h2>
   <ul>
     <li>計画: <code>wip/20_plans/0016-ai-asset-implementation-plan.md</code> ステップ 1</li>
-    <li>仕様: フック共通（§1 の入力・§2 の作業ツリー・§3 の redact・§7-9 の cmdpos・§8 の分類）、<code>block-chmod.md</code>、<code>20-common-step-shell-script.md</code>（読み込み行・SS-T05）</li>
+    <li>仕様: <code>.claude/docs/10_spec/フック共通仕様.md</code>（§1 の置き場と登録・§2 の入力と作業ツリー・§3 の制御方式・§7 の cmdpos・§8 の分類）、<code>block-chmod.md</code>、<code>20-common-step-shell-script.md</code></code>（読み込み行・SS-T05）</li>
     <li>DDR: i0009-03 / -16 / -35 / -36 / -39 / -47 / -48 / -55 / -60</li>
     <li>環境: Windows 10 Pro / Git Bash（<code>bash</code> 5.x）・<code>jq</code> あり・<code>shellcheck</code> <strong>無し</strong></li>
     <li>実体: <code>.claude/hooks/lib/{hook-common,cmdpos,scope}.sh</code> とそのテスト、雛形 2 本、読み込み行を持つ .sh 22 本</li>
@@ -270,13 +271,13 @@
     <li class="tl-item">
       <span class="tl-dot good">1</span>
       <h3 id="f1">1. <code>hook-common.sh</code> — 副入力・イベント固有フィールド・作業ツリー・記録ヘルパ <span class="chip good">◎良</span> <span class="basis">根拠: test_hook_common.sh passed=138 failures=0</span></h3>
-      <p>副入力（limits / review / merge / approvals / entry）を、存在するものだけ <code>--rawfile &lt;名前&gt; &lt;パス&gt;</code>、無いものは <code>--argjson &lt;名前&gt; null</code> で渡す。jq 内は <code>fromjson? // "__broken"</code>。検証エラーは <code>error()</code> を投げず <code>__error</code> レコードで返し、<code>HC_&lt;名前&gt;_STATE</code>（ok / missing / broken）と <code>HC_&lt;名前&gt;_ERROR</code> に落とす。1 回目の jq は 23 フィールドを出し、<code>prompt</code> は 1 行目だけ、<code>old_string</code> / <code>new_string</code> / <code>content</code> / <code>edits</code> は frontmatter の 6 キーに触れたかの真偽 1 個に畳む。<code>HOOK_ROOT</code>（スクリプトの置き場）と <code>HOOK_WORKTREE</code>（作業ツリー）を分け、記録ヘルパ 5 関数（<code>hook_read_state</code> / <code>hc_append_jsonl</code> / <code>hc_json_write</code> / <code>hc_lock</code> / <code>hc_unlock</code>）を足した。<code>tool_class</code> の <code>00-workflow-*</code> 接頭辞判定を除き、<code>Skill</code> は値によらず常に <code>declare</code>（DDR i0009-03）。</p>
+      <p>副入力（limits / review / merge / approvals / entry）を、存在するものだけ <code>--rawfile &lt;名前&gt; &lt;パス&gt;</code>、無いものは <code>--argjson &lt;名前&gt; null</code> で渡す。jq 内は <code>fromjson? // "__broken"</code>。検証エラーは <code>error()</code> を投げず <code>__error</code> レコードで返し、<code>HC_&lt;名前&gt;_STATE</code>（ok / missing / broken）と <code>HC_&lt;名前&gt;_ERROR</code> に落とす。1 回目の jq は 22 フィールド + 末尾の番兵 1 個（<code>end</code>）の計 23 個を出し、<code>prompt</code> は 1 行目だけ、<code>old_string</code> / <code>new_string</code> / <code>content</code> / <code>edits</code> は frontmatter の 6 キーに触れたかの真偽 1 個に畳む。<code>HOOK_ROOT</code>（スクリプトの置き場）と <code>HOOK_WORKTREE</code>（作業ツリー）を分け、記録ヘルパ 5 関数（<code>hook_read_state</code> / <code>hc_append_jsonl</code> / <code>hc_json_write</code> / <code>hc_lock</code> / <code>hc_unlock</code>）を足した。<code>tool_class</code> の <code>00-workflow-*</code> 接頭辞判定を除き、<code>Skill</code> は値によらず常に <code>declare</code>（DDR i0009-03）。</p>
       <details>
         <summary>根拠を見る（実行コマンドと出力）</summary>
         <pre><code>$ grep -c slurpfile .claude/hooks/lib/hook-common.sh
 1          # 1 件は「使わない」と書いたコメント行（:271）
 
-$ grep -n &#39;^(hook_read_state|hc_append_jsonl|hc_json_write|hc_lock|hc_unlock)()&#39; .claude/hooks/lib/hook-common.sh
+$ grep -nE &#39;^(hook_read_state|hc_append_jsonl|hc_json_write|hc_lock|hc_unlock)\(\)&#39; .claude/hooks/lib/hook-common.sh
 333:hook_read_state() {
 452:hc_append_jsonl() {
 468:hc_json_write() {
@@ -291,7 +292,7 @@ passed=138 failures=0</code></pre>
       </details>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>設計が前提にしていた 5 関数・23 フィールド・作業ツリーの分離が揃った。フック本体は <code>hook_field</code> を追加で呼ばずに書ける（ホットパスの「jq 最大 2 回」を守れる）。</p>
+        <p>設計が前提にしていた 5 関数・22 フィールド（+ 末尾の番兵 1 個）・作業ツリーの分離が揃った。フック本体は <code>hook_field</code> を追加で呼ばずに書ける（ホットパスの「jq 最大 2 回」を守れる）。</p>
       </div>
     </li>
     <li class="tl-item">
@@ -388,7 +389,8 @@ passed=39 failures=0</code></pre>
 $ printf &#39;not json&#39; | bash .claude/hooks/20-PreToolUse/block-chmod.sh
 {&quot;hookSpecificOutput&quot;:{...&quot;permissionDecision&quot;:&quot;deny&quot;,&quot;permissionDecisionReason&quot;:&quot;WF509: ...&quot;}}
 
-# BC-T05: cmdpos.sh を壊しても一覧の語を含まないコマンドは通る（読み込み前に判定している）
+# BC-T05: 0027 時点のテストは cmdpos.sh を cp で退避して戻すだけで、実際には壊していなかった
+#         （何も検査していない）。0033（c0a8309）で実際に構文エラーを仕込む形に直した
 $ bash .claude/hooks/20-PreToolUse/tests/test_block_chmod.sh
 passed=29 failures=0</code></pre>
       </details>
@@ -429,8 +431,8 @@ __hc_redact_to_reply 全体 : 101ms</code></pre>
       <tr><td>全件テスト（<code>run-tests.sh</code>）</td><td><strong>15 本 / 70 件・FAIL 0</strong></td></tr>
       <tr><td><code>test_hook_common.sh</code></td><td>passed=138 failures=0（HK-T02〜T08・T10〜T14・T17〜T20）</td></tr>
       <tr><td><code>test_scope.sh</code></td><td>passed=258 failures=0（HK-T15 ほか・web の分類 13 ケース）</td></tr>
-      <tr><td><code>test_cmdpos.sh</code></td><td>passed=247 failures=0（CP-T01〜T08・<code>case_operands</code> 10 ケース）</td></tr>
-      <tr><td><code>test_templates.sh</code></td><td>passed=39 failures=0（SS-T01〜T05）</td></tr>
+      <tr><td><code>test_cmdpos.sh</code></td><td>passed=247 failures=0（<strong>HK-T05 / HK-T12</strong>・<code>case_operands</code> 10 ケース。<code>CP-T01〜T08</code> は <code>test_commit.sh</code> / <code>test_push.sh</code> が持つ別の ID）</td></tr>
+      <tr><td><code>test_templates.sh</code></td><td>passed=39 failures=0（SS-T01〜T05。<code>SS-T00</code> は雛形検査の中で使うダミー ID で <code>--ids</code> には現れない）</td></tr>
       <tr><td><code>test_block_chmod.sh</code></td><td>passed=29 failures=0（BC-T01〜T06）</td></tr>
       <tr><td><code>bash -n</code>（新規 2 本）</td><td>0</td></tr>
       <tr><td><code>shellcheck</code></td><td><strong>未実施</strong>（環境に未導入）</td></tr>
@@ -442,14 +444,29 @@ __hc_redact_to_reply 全体 : 101ms</code></pre>
   </div>
 </section>
 
+<section id="acceptance">
+  <h2>受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>issue #9 の受け入れ条件</th><th>このチケットでの状態</th></tr></thead>
+    <tbody>
+      <tr><td>フック本体 11 本を実装する</td><td>1 本（<code>block-chmod.sh</code>）。残り 10 本は 0029（案内側 6）・0030（拒否側 4）</td></tr>
+      <tr><td><code>settings.json</code> に登録する</td><td><strong>未着手</strong>（0028 の ⓪ / 0031 の ①②。いずれも人間の操作）</td></tr>
+      <tr><td>TBD T1〜T4 を検証する</td><td>未着手（0031 の 4c で実測）</td></tr>
+      <tr><td>機械テストが通る</td><td>全件 15 本 / 70 件・FAIL 0（この時点の範囲で）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
 <!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
 <section id="next" data-required>
   <h2>設計への反映</h2>
   <ol>
     <li><strong>0028 へ</strong>: <code>blocked-commands.txt</code> は作ってあるので、⓪ の登録（<code>block-chmod</code> 単独・ラッパー無し）だけで T6 を測れる</li>
-    <li><strong>0029 / 0030 へ</strong>: lib の 5 関数・<code>cmdpos_operands</code>・23 フィールドは揃った。本体は <code>hook_field</code> を追加で呼ばずに書ける</li>
+    <li><strong>0029 / 0030 へ</strong>: lib の 5 関数・<code>cmdpos_operands</code>・22 フィールド（+ 番兵 1 個）は揃った。本体は <code>hook_field</code> を追加で呼ばずに書ける</li>
     <li><strong>0030 へ</strong>: HK-T19（ホットパス 5 本の jq 回数）は本体が揃ってから</li>
-    <li><strong>0032 へ</strong>: 仕様の書き戻し 3 件（§1 の表 / §2 の worktree 判定 / §8 の <code>SC_TARGETS</code> と <code>SC_CLASS</code>）と、DDR 候補 2 件（worktree の確認 / bash のパターン照合の遅さ）</li>
+    <li><strong>0032 へ</strong>: 仕様の書き戻し <strong>6 件</strong>（§1 の表（review-state / merge-state を jq の 2 回目へ）/ §2 の worktree 判定 / §8 の <code>SC_TARGETS</code> と <code>SC_CLASS</code> / 区切りバイトの割り当て（セクション 0x1D・レコード 0x1E・key-value 0x1F）/ <code>scope_load</code> 系が副入力の不在・破損で 1 を返す（§8 は 2）/ <code>scope_match</code> の引数順と <code>SC_BUILD_TEST[]</code> の名前）と、DDR 候補 2 件（worktree の確認 / bash のパターン照合の遅さ）</li>
   </ol>
 </section>
 
@@ -476,9 +493,9 @@ __hc_redact_to_reply 全体 : 101ms</code></pre>
   <ul>
     <li><strong><code>shellcheck</code> の未導入</strong>（環境の制約。導入はソースコード修正の枠外）。静的検査が当面かからない</li>
     <li><strong><code>_sc_classify_web</code> の curl オプション列挙の網羅性</strong>が確かめられない（<a href="#f3">f3</a>）</li>
-    <li><strong>仕様からの逸脱 3 件</strong>が実体と文書のずれとして残る（0032 で解消）</li>
+    <li><strong>仕様からの逸脱 6 件</strong>が実体と文書のずれとして残る（0032 で解消）</li>
     <li><strong><code>.claude/rules/markdown-docs.md</code> と <code>ai-asset-authoring.md</code> が存在しない</strong>。要件書が <code>.claude/docs/**</code> に無く、実装フェーズは deny なので 1:1:1 を作れない（0032 の棚卸しへ）</li>
-    <li><strong><code>check-html.sh</code> は md と HTML の内容一致を検査しない</strong>（12 回連続の申し送り）。生成のたびに目視している</li>
+    <li><strong><code>check-html.sh</code> は md と HTML の内容一致を検査しない</strong>（12 回連続の申し送り。0034 の時点で 15 回連続）。生成のたびに目視している</li>
   </ul>
 </section>
 

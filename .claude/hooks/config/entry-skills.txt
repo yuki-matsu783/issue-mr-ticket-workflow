@@ -1,4 +1,4 @@
 # 振り分けスキルの名前（workflow-entry が「宣言」と見なす Skill 名。仕様: 10_spec/hooks/10-UserPromptSubmit/workflow-entry.md）
 # 1 行 1 スキル名。`#` から行末はコメント。空行は無視。CLAUDE.md「作業の振り分け（必須）」の表と一致させる（WE-T07）。
-00-workflow-issue-mr-driven
 00-workflow-quick-request
+00-workflow-issue-mr-driven

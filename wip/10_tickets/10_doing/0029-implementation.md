@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 6 の敵対的レビ
 allow:
   write: ["apl/**"]
   ops: ["read", "build-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:31:21+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c7b725d"
 ---
 
 # 0029 実装: README の暫定の 1 行を落とす

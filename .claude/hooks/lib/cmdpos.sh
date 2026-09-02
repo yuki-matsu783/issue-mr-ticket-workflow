@@ -43,7 +43,9 @@ _CP_PREFIX_WORDS=' if then elif else do while until ! time sudo doas env command
 _CP_PREFIX_OPTS_WITH_VALUE=' -u -g -p -h -r -t -c -a -n -s -k -i -o -e '
 _CP_PREFIX_WORDS_WITH_LEADING_VALUE=' timeout '
 # 文字列をコードとして受け取る実行系（無条件）と、コード指定オプションと併用されたときだけのもの（§7-5）
-_CP_OPAQUE_WORDS=' eval xargs ssh watch flock parallel '
+# invoke-expression / iex は PowerShell の eval 相当（文字列をコードとして実行する）。
+# 入っていないと `Invoke-Expression "git commit"` が素通りする（実測で確認。仕様 §7 へ書き戻す）
+_CP_OPAQUE_WORDS=' eval xargs ssh watch flock parallel invoke-expression iex '
 _CP_OPAQUE_WITH_OPT=' bash sh zsh ksh dash busybox python python3 perl ruby node deno pwsh powershell '
 _CP_CODE_OPTS=' -c -e -E --command -command -encodedcommand -ec '
 _CP_FIND_EXEC_OPTS=' -exec -execdir -ok -okdir '

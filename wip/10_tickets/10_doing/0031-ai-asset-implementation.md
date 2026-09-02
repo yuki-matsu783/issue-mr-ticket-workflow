@@ -91,8 +91,13 @@ base_sha: "c3440fc"
     `totalTokens` / `totalDurationMs` / `usage.*`）。`post-push-usage-report` の材料として使える
   - プローブの `additionalContext`（`PreToolUse:Agent`）はメインエージェントに**届いた**。届かないのは `systemMessage` の方で、
     この非対称は §3 の記述どおり
-- **次にやること**: T9 の人間の目視を記録 → プローブを取り除く（`grep -rn 'WORKFLOW_PROBE_4C\|probe-4c' .claude` が 0 件）→
-  `settings.json` を `wip/tmp/settings-stage1.json` に戻す（**probe 版はコミットしない**）→ 段階 ②-1 から 5 段
+- **プローブを撤去し 16 行への縮退を済ませた**（`a41167e` / `656fca3` / `19eb5b9`）。`grep -rn 'WORKFLOW_PROBE_4C\|probe-4c' .claude` は 0 件。
+  撤去で触った 6 本のテストは 251 件すべて通過（16 / 57 / 56 / 36 / 38 / 48、失敗 0）。
+  HK-T01 は 26 件通過・1 件失敗で、失敗は「拒否側 5 行が未登録」の 1 件だけ（段階 ② が終われば通る）
+- **段階 ②-1 を登録した**（人間が `cp wip/tmp/settings-stage2-1.json .claude/settings.json`）。
+  足したのは `workflow-entry` の拒否側 1 行（matcher = 全ツール + `mcp__.*`、fail-closed ラッパー `|| printf … WF109 …`）。
+  軽い操作（Bash → Read → Edit → `commit.sh`）を通し、**想定外の deny は 0 件**。作業中チケットがあるので継続の緩和（§13）が効いている
+- **次にやること**: 段階 ②-2（`workflow-state-guard`）から 4 段。各段で軽い操作 → コミット
 - 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（段階 ② が終われば通る）
 
 ### うまくいったこと

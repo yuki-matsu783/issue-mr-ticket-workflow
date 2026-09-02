@@ -85,6 +85,15 @@
       {
         "hooks": [
           {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF109: フック workflow-entry を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow|mcp__.*"
+      }, 
+      {
+        "hooks": [
+          {
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\"", 
             "type": "command"
           }

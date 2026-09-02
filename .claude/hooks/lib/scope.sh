@@ -280,9 +280,9 @@ _sc_classify_web() {
           --data*|--form*|--upload-file*|--json|--json=*|--mail-from*|--mail-rcpt*) send=1 ;;
           --request|--request=*) [[ "$a" == *=* ]] || { val="$nxt"; took=1; }; _sc_web_is_get "$val" || send=1 ;;
           --output|--output-dir)
-            val="$nxt"; took=1; body_out=1; _sc_web_add_out "$val" ;;
+            val="$nxt"; took=1; body_out=1; _sc_web_add_out "$val" 1 ;;
           --output=*|--output-dir=*)
-            body_out=1; _sc_web_add_out "$val" ;;
+            body_out=1; _sc_web_add_out "$val" 1 ;;
           --dump-header|--cookie-jar|--etag-save|--stderr|--trace|--trace-ascii|--libcurl)
             val="$nxt"; took=1; _sc_web_add_out "$val" ;;
           --dump-header=*|--cookie-jar=*|--etag-save=*|--stderr=*|--trace=*|--trace-ascii=*|--libcurl=*)
@@ -293,8 +293,8 @@ _sc_classify_web() {
         case "$a" in
           --post-data*|--post-file*|--body-data*|--body-file*) send=1 ;;
           --method|--method=*) [[ "$a" == *=* ]] || { val="$nxt"; took=1; }; _sc_web_is_get "$val" || send=1 ;;
-          --output-document) val="$nxt"; took=1; body_out=1; _sc_web_add_out "$val" ;;
-          --output-document=*) body_out=1; _sc_web_add_out "$val" ;;
+          --output-document) val="$nxt"; took=1; body_out=1; _sc_web_add_out "$val" 1 ;;
+          --output-document=*) body_out=1; _sc_web_add_out "$val" 1 ;;
           --output-file|--append-output) val="$nxt"; took=1; _sc_web_add_out "$val" ;;   # ログ。本体は別に落ちる
           --output-file=*|--append-output=*) _sc_web_add_out "$val" ;;
         esac
@@ -315,11 +315,12 @@ _sc_classify_web() {
       case "$ch" in
         d|T|F) [[ "$exe" == curl ]] && send=1 ;;
         X)     [[ "$exe" == curl ]] && { _sc_web_is_get "$val" || send=1; } ;;
-        o)     [[ "$exe" == curl ]] && body_out=1     # wget の -o はログファイル。本体は別に落ちる
-               _sc_web_add_out "$val" ;;
+        o)     # curl の -o は本体の出力先、wget の -o はログファイル（本体は別に落ちる）
+               if [[ "$exe" == curl ]]; then body_out=1; _sc_web_add_out "$val" 1
+               else _sc_web_add_out "$val"; fi ;;
         D|c|C) [[ "$exe" == curl ]] && _sc_web_add_out "$val" ;;
         O)     body_out=1
-               if [[ "$exe" == curl ]]; then outs+=("_"); else _sc_web_add_out "$val"; fi ;;
+               if [[ "$exe" == curl ]]; then outs+=("_"); else _sc_web_add_out "$val" 1; fi ;;
       esac
       if [[ "$vopts" == *"$ch"* ]]; then
         (( took )) && i=$(( i + 1 ))
@@ -347,9 +348,15 @@ _sc_classify_web() {
   return 0
 }
 # 出力先を 1 つ足す。`-` は標準出力、`://` を含む語は URL なので出力先ではない
-_sc_web_add_out() {
-  local v="${1:-}"
-  if [[ "$v" == "-" ]]; then dash_o=1; return 0; fi
+_sc_web_add_out() { # $1=値 $2=本体の出力先なら 1（既定はログ等の副次的な出力先）
+  local v="${1:-}" is_body="${2:-0}"
+  # `-` は標準出力。本体の出力先が `-` のときだけ「ファイルに落ちない」と数える。
+  # ログの出力先（wget の -o / --output-file / --append-output）が `-` でも本体は別に落ちるので、
+  # ここで dash_o を立てると末尾の `_` が消えて、実際に落ちてくるファイルが呼び手から見えなくなる
+  if [[ "$v" == "-" ]]; then
+    if (( is_body )); then dash_o=1; fi
+    return 0
+  fi
   [[ -n "$v" && "$v" != *://* ]] && outs+=("$v")
   return 0
 }

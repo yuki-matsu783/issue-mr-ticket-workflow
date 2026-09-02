@@ -60,6 +60,29 @@ case_block() {
   assert_eq "BC-T01" "WF501" "$(judge 'chmod$* +x a')"
   assert_eq "BC-T01" "WF501" "$(judge 'ch$()mod +x a')"
   assert_eq "BC-T01" "WF501" "$(judge 'chmod`` +x a')"
+  # 中身のあるクォートで実行体を割る形。bash は結合して chmod を起動する
+  # （`bash -c '"chmod" --version'` が chmod (GNU coreutils) を出すことを実測で確認した）。
+  # クォートの中身を復元する方針では表記を列挙し切れないので、
+  # 実行位置に難読化の痕跡があれば「実行体を特定できない」として拒否側に倒す
+  assert_eq "BC-T01" "WF501" "$(judge '"chmod" +x a.sh')"
+  assert_eq "BC-T01" "WF501" "$(judge "'chmod' +x a.sh")"
+  assert_eq "BC-T01" "WF501" "$(judge 'c"h"mod +x a.sh')"
+  assert_eq "BC-T01" "WF501" "$(judge 'ch"m"od +x a.sh')"
+  assert_eq "BC-T01" "WF501" "$(judge '"/usr/bin/chmod" +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'sudo "chmod" 755 a')"
+  # 中身が空でない展開を挟んで実行体を割る形。展開結果は空なので chmod が起動する
+  assert_eq "BC-T01" "WF501" "$(judge 'ch$( )mod +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'ch$( : )mod +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'ch$(echo)mod +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'ch${x:-}mod +x a')"
+  assert_eq "BC-T01" "WF501" "$(judge 'c${x}hmod +x a')"
+  # 難読化除去は文字単位の走査なので長さの上限（4096 バイト）で縮退し、複製が空になる。
+  # そのとき前置判定を通すのは「記号と空白を落とした複製」だけなので、空白の除去を外すと
+  # 長いコマンドに隠した `ch$( )mod` が前置判定で落ちて素通りする
+  # （前置判定を通れば cmdpos も縮退しているので制御方式 4 が拒否する）
+  local pad
+  pad="$(printf 'a%.0s' $(seq 1 5000))"
+  assert_eq "BC-T01" "WF501" "$(judge "ch\$( )mod +x a # $pad")"
 }
 
 # ---- BC-T02: クォート・検索語・地の文の chmod は通る ----
@@ -79,6 +102,20 @@ case_pass() {
   assert_eq "BC-T02" "allow" "$(judge 'grep -n "a | chmod" doc.md')"
   assert_eq "BC-T02" "allow" "$(judge 'echo "使うな: (chmod)"')"
   assert_eq "BC-T02" "allow" "$(judge 'printf "%s" "a; chmod 600 f" >> notes.md')"
+  # 実行体が難読化されていないのに、コマンドが禁止語に言及するだけの形。
+  # 「難読化の痕跡があれば拒否」の代償（過剰拒否）がここに出るので、拒否側と同数の対照を置く。
+  # 実行体に元から `_` を含むもの（`my_tool.sh`）が潰れたクォート由来と誤判定されないことも見る
+  assert_eq "BC-T02" "allow" "$(judge 'bash script.sh -m "chmod の話"')"
+  assert_eq "BC-T02" "allow" "$(judge './my_tool.sh --note "chmod"')"
+  assert_eq "BC-T02" "allow" "$(judge 'python3 tools/check_mode.py --word chmod')"
+  assert_eq "BC-T02" "allow" "$(judge 'rg "chmod" -n .claude/')"
+  assert_eq "BC-T02" "allow" "$(judge 'git log --grep "chmod" --oneline')"
+  assert_eq "BC-T02" "allow" "$(judge './a_b_c.sh --mode "chmod"')"
+  assert_eq "BC-T02" "allow" "$(judge 'touch modules/x.txt')"
+  assert_eq "BC-T02" "allow" "$(judge 'wc -l notes.md')"
+  assert_eq "BC-T02" "allow" "$(judge 'sed -n "1,5p" chmod-notes.md')"
+  assert_eq "BC-T02" "allow" "$(judge 'ls chmod_backup/')"
+  assert_eq "BC-T02" "allow" "$(judge 'diff a.md b.md')"
 }
 
 # ---- BC-T03: bash -c / xargs 経由でも拒否する ----

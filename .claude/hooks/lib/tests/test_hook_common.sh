@@ -332,6 +332,24 @@ case_write_helpers() {
   b=$(( $(wc -c < "$f") - 1 ))
   (( b <= 4096 )) && pass "HK-T17" || fail "HK-T17" "多バイトで上限を超えた: $b"
   if jq -e . < "$f" >/dev/null 2>&1; then pass "HK-T17"; else fail "HK-T17" "多バイトの切り詰めが妥当な JSON でない"; fi
+  # __hc_cap_json_field 単体: 切り詰めた値は上限（バイト）を超えない。
+  # 末尾に足す `…` も上限の内側で、これを予約し忘れると 3 バイトだけ超える
+  # （行全体の上限 4096 のほうが緩いので、hc_append_jsonl 経由では現れない）
+  local cf cv m
+  for m in 16 64 512; do
+    for cv in "$(printf 'x%.0s' $(seq 1 900))" "$(printf '日%.0s' $(seq 1 400))"               "$(printf 'あ%.0s' $(seq 1 $(( m + 5 ))))"; do
+      __hc_cap_json_field "{\"target\":\"$cv\"}" target "$m"
+      cf="${REPLY#*\"target\":\"}"; cf="${cf%\"\}}"
+      __hc_bytelen "$cf"
+      (( REPLY <= m )) && pass "HK-T17" || fail "HK-T17" "上限 $m バイトを超えた: $REPLY バイト"
+    done
+  done
+  # 上限が `…` より小さいときは印を付けずに収める（超えないことを優先する）
+  __hc_cap_json_field '{"target":"abcdefgh"}' target 2
+  cf="${REPLY#*\"target\":\"}"; cf="${cf%\"\}}"
+  __hc_bytelen "$cf"
+  (( REPLY <= 2 )) && pass "HK-T17" || fail "HK-T17" "上限 2 バイトを超えた: $REPLY バイト"
+
   # hc_json_write は一時ファイルを残さない
   hc_json_write "$TMP_REPO/logs/x.json" '{"k":1}'
   assert_eq "HK-T17" '{"k":1}' "$(cat "$TMP_REPO/logs/x.json")"
@@ -430,6 +448,23 @@ case_worktree() {
   # 負の対照: 本物の worktree でも worktrees/*/gitdir を消し、.git ファイルも消すと拾わない
   rm -f "$root/.git/worktrees/side/gitdir" "$wt/.git"
   assert_eq "HK-T18" "$root" "$(resolve_wt "$wt")"
+  # 登録だけが残った stale な worktree（候補側の .git が無い）→ 拾わない。
+  # `git worktree add` の後に作業ツリーを消しても `<root>/.git/worktrees/*/gitdir` の登録は残る。
+  # 登録側からの片方向の照合だけで信用すると、そのパスに後から .claude を置くだけで
+  # 作業ツリーが移り、機構が本流の wip/ を見なくなる
+  local stale="$TMP_REPO/stale"
+  mkdir -p "$stale/.claude" "$root/.git/worktrees/stale"
+  printf '%s
+' "$stale/.git" > "$root/.git/worktrees/stale/gitdir"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$stale")"
+  # 候補側の .git が普通のディレクトリ（別クローンを後から置いた）でも拾わない
+  mkdir -p "$stale/.git"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$stale")"
+  # 候補側に正しい .git ファイルを置けば拾う（上の 2 つが「登録があるから拾った」のでないことの対照）
+  rmdir "$stale/.git"
+  printf 'gitdir: %s/.git/worktrees/stale
+' "$root" > "$stale/.git"
+  assert_eq "HK-T18" "$stale" "$(resolve_wt "$stale")"
   # パスの正規化は実在ディレクトリに依らず __hc_winpath 単体で固定する
   # （mktemp が返すのは /tmp/... なので、root を使う形だと条件が常に偽になり 1 件も検査されない）
   __hc_winpath '/c/a/b';                                  assert_eq "HK-T18" "C:/a/b" "$REPLY"

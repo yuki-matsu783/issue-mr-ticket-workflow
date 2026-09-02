@@ -47,16 +47,70 @@ _bc_load_blocked
 # 一覧が空なら拒否するものが無い
 (( ${#_bc_blocked[@]} > 0 )) || hook_allow
 
+# 難読化を取り除いた複製（語の照合にだけ使う。これで再解析はしない —
+# 再解析すると文字列の中の `;` `|` `(` `)` が本物の区切りに昇格して過剰拒否になる）。
+# 落とすのは空のクォート対と、中身の見えない展開。
+# 文字単位の走査なので長さに上限を掛ける（超えたら空を返し、他の複製で判定する）
+__BC_DEOB_MAX=4096
+_bc_deobfuscate() { # $1=コマンド文字列 → REPLY
+  local str="$1" out="" i=0 n c nx depth
+  n=${#str}
+  if (( n > __BC_DEOB_MAX )); then REPLY=""; return 0; fi
+  while (( i < n )); do
+    c="${str:i:1}"
+    case "$c" in
+      '$')
+        nx="${str:i+1:1}"
+        case "$nx" in
+          '(')  depth=0; i=$(( i + 1 ))
+                while (( i < n )); do
+                  case "${str:i:1}" in
+                    '(') depth=$(( depth + 1 )) ;;
+                    ')') depth=$(( depth - 1 )); (( depth == 0 )) && { i=$(( i + 1 )); break; } ;;
+                  esac
+                  i=$(( i + 1 ))
+                done ;;
+          '{')  i=$(( i + 2 ))
+                while (( i < n )) && [[ "${str:i:1}" != '}' ]]; do i=$(( i + 1 )); done
+                i=$(( i + 1 )) ;;
+          "'"|'"') i=$(( i + 1 )) ;;          # $'…' / $"…" のクォートは次の反復で見る
+          *)    i=$(( i + 1 ))
+                while (( i < n )) && [[ "${str:i:1}" == [A-Za-z0-9_@*#?] ]]; do i=$(( i + 1 )); done ;;
+        esac ;;
+      "'"|'"'|'`')
+        if [[ "${str:i+1:1}" == "$c" ]]; then i=$(( i + 2 ))   # 空の対だけ落とす
+        else out+="$c"; i=$(( i + 1 )); fi ;;
+      *) out+="$c"; i=$(( i + 1 )) ;;
+    esac
+  done
+  REPLY="$out"
+}
+
 # 制御方式 2: 高速前置判定（外部プロセスなし・cmdpos.sh も読まない）。
 # 生の文字列だけを見ると `c\hmod` `ch""mod` `ch$()mod` のように実行体を割って隠せるので、
-# 難読化に使える記号を落としただけの複製にも当てる（パラメータ展開だけ。走査もループもしない）。
+# 難読化に使える記号と空白を落とした複製にも当てる（パラメータ展開だけ。走査もループもしない）。
+# 空白まで落とすのは `ch$( )mod` のように展開の中身の空白が残る形を拾うため。
+# 下の難読化除去の複製と重なるが、あちらは長さの上限で縮退して空になるので、
+# 長いコマンドに隠した同じ形はこちらでしか拾えない
 # ここは絞り込みなので、多少通しすぎても後段（制御方式 3〜5）が正しく判定する
 _bc_lower="${HOOK_COMMAND,,}"
 _bc_bare="${_bc_lower//[\$\\\"\'()\{\}\`]/}"
+_bc_bare="${_bc_bare//[[:space:]]/}"
+_bc_deob=""
 _bc_hit=0
 for _bc_c in "${_bc_blocked[@]}"; do
   if [[ "$_bc_lower" == *"$_bc_c"* || "$_bc_bare" == *"$_bc_c"* ]]; then _bc_hit=1; break; fi
 done
+# 記号を落とすだけでは `ch$( : )mod` `ch${x:-}mod` のように展開の中身が残って語が繋がらない。
+# `$` かバッククォートがあるときだけ、展開を丸ごと落とした複製も作って当てる
+# （難読化に `$` もバッククォートも使わない形は上の 2 つの複製で足りる）
+if (( ! _bc_hit )) && [[ "$_bc_lower" == *\$* || "$_bc_lower" == *'`'* ]]; then
+  _bc_deobfuscate "$HOOK_COMMAND"
+  _bc_deob="${REPLY,,}"
+  for _bc_c in "${_bc_blocked[@]}"; do
+    if [[ "$_bc_deob" == *"$_bc_c"* ]]; then _bc_hit=1; break; fi
+  done
+fi
 (( _bc_hit )) || hook_allow
 
 # ここから先だけ cmdpos.sh を読む（前置判定で落ちる大多数は読み込まない）
@@ -66,7 +120,7 @@ done
 _bc_deny() { # $1=コマンド名 $2=判定不能か
   local name="$1" degraded="$2" msg
   msg="禁止コマンド '$name' の実行"
-  (( degraded )) && msg+="（コード文字列・クォートで判定できないため拒否側に倒した）"
+  (( degraded )) && msg+="（実行体を特定できないため拒否側に倒した）"
   msg+="。実行権限の変更は不要で、スクリプトは 'bash <パス>' で実行する。"
   msg+="権限変更が本当に必要なら、迂回せずユーザーに提案すること"
   hook_deny WF501 "$msg" "$name: ${HOOK_COMMAND:0:120}"
@@ -114,49 +168,44 @@ for (( _bc_i = 0; _bc_i < CP_COUNT; _bc_i++ )); do
   :
 done
 
-# 制御方式 5: 難読化を取り除いた形でも実行位置を見る。
-#   `ch""mod` `ch$()mod` `chmod${x}` は bash が chmod として実行するのに、正規化後の実行体は
-#   `ch_mod` / `chmod` にならない。落とすのは「空のクォート対」と「中身の見えない展開」だけで、
-#   中身のあるクォートは残す — 構文ごと落とすと文字列の中の `;` `|` `(` `)` が本物の区切りに昇格し、
-#   `git commit -m "…; chmod は使わない"` のような無関係なコマンドを拒否してしまう
-_bc_deobfuscate() { # $1=コマンド文字列 → REPLY
-  local str="$1" out="" i=0 n c nx depth
-  n=${#str}
-  while (( i < n )); do
-    c="${str:i:1}"
-    case "$c" in
-      '$')
-        nx="${str:i+1:1}"
-        case "$nx" in
-          '(')  depth=0; i=$(( i + 1 ))
-                while (( i < n )); do
-                  case "${str:i:1}" in
-                    '(') depth=$(( depth + 1 )) ;;
-                    ')') depth=$(( depth - 1 )); (( depth == 0 )) && { i=$(( i + 1 )); break; } ;;
-                  esac
-                  i=$(( i + 1 ))
-                done ;;
-          '{')  i=$(( i + 2 ))
-                while (( i < n )) && [[ "${str:i:1}" != '}' ]]; do i=$(( i + 1 )); done
-                i=$(( i + 1 )) ;;
-          "'"|'"') i=$(( i + 1 )) ;;          # $'…' / $"…" のクォートは次の反復で見る
-          *)    i=$(( i + 1 ))
-                while (( i < n )) && [[ "${str:i:1}" == [A-Za-z0-9_@*#?] ]]; do i=$(( i + 1 )); done ;;
-        esac ;;
-      "'"|'"'|'`')
-        if [[ "${str:i+1:1}" == "$c" ]]; then i=$(( i + 2 ))   # 空の対だけ落とす
-        else out+="$c"; i=$(( i + 1 )); fi ;;
-      *) out+="$c"; i=$(( i + 1 )) ;;
-    esac
-  done
-  REPLY="$out"
+# 制御方式 5: 実行位置に難読化の痕跡があれば「実行体を特定できない」として拒否側に倒す。
+#   `"chmod"` `c"h"mod` `ch$( )mod` `ch${x:-}mod` はいずれも bash が chmod として実行するが、
+#   文字列を操作して「何が実行されるか」を復元する方針では、シェルの表記を列挙し切れない
+#   （取りこぼし → 過剰拒否 → 取りこぼしの再発、と往復した）。復元をやめ、
+#   **実行体を特定できたかどうか**だけを見る。特定できない段が 1 つでもあれば、
+#   一覧の語がコマンドのどこかに現れる時点で拒否する。
+#
+#   代償は過剰拒否で、「実行体に難読化があり、かつコマンドが禁止語に言及する」形を
+#   誤って拒否すること。取りこぼし（実際に chmod が走る）より軽い交換として受け入れる。
+#   対照（実行体が清けていて本文だけが禁止語に言及する形）は BC-T02 に同数置く。
+#
+#   cmdpos の正規化はクォートの範囲を `_` に潰し、`$` はそのまま残す。したがって
+#   - 実行体に `$` かバッククォートがある → 特定できない
+#   - 実行体がすべて `_` → 特定できない（`"chmod"` `'chmod'` `"/usr/bin/chmod"`）
+#   - 実行体に `_` があり、生のコマンド文字列にその実行体がそのまま現れない
+#     → 潰れたクォート由来（`c"h"mod` → `c_mod`）。元から `_` を含む `my_tool.sh` は現れるので通る
+_bc_exe_unknown() { # $1=段 → 実行体を特定できないなら 0
+  local exe="${CP_EXE[$1]:-}"
+  [[ -z "$exe" ]] && return 0
+  [[ "$exe" == *\$* || "$exe" == *'`'* ]] && return 0
+  if [[ "$exe" == *_* ]]; then
+    [[ "$exe" == *[!_]* ]] || return 0
+    [[ "$_bc_lower" == *"$exe"* ]] || return 0
+  fi
+  return 1
 }
-_bc_deobfuscate "$HOOK_COMMAND"
-_bc_deob="$REPLY"
-if [[ "$_bc_deob" != "$HOOK_COMMAND" ]]; then
-  cmdpos_parse "$_bc_deob"
-  _bc_check_exes
-fi
+
+for (( _bc_i = 0; _bc_i < CP_COUNT; _bc_i++ )); do
+  [[ -n "${CP_PROVIDED[$_bc_i]:-}" ]] && continue
+  if _bc_exe_unknown "$_bc_i"; then
+    for _bc_c in "${_bc_blocked[@]}"; do
+      if [[ "$_bc_lower" == *"$_bc_c"* || "$_bc_bare" == *"$_bc_c"* || "$_bc_deob" == *"$_bc_c"* ]]; then
+        _bc_deny "$_bc_c" 1
+      fi
+    done
+  fi
+  :
+done
 
 # 制御方式 6: それ以外は許可（記録しない）
 hook_allow

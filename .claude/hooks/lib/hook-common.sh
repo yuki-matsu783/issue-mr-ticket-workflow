@@ -263,21 +263,24 @@ __hc_winpath() {
     /*)          head="/";        rest="${p:1}" ;;
     *)           head="";         rest="$p" ;;
   esac
+  # 負の添字（`${out[-1]}` / `unset 'out[-1]'`）は bash 4.3 以降。
+  # 本体は 4.0 以降を前提にしているので、長さを自分で持って添字を正にする
   local -a out=()
+  local nout=0
   while [[ -n "$rest" ]]; do
     if [[ "$rest" == */* ]]; then seg="${rest%%/*}"; rest="${rest#*/}"; else seg="$rest"; rest=""; fi
     case "$seg" in
       ""|".") ;;
-      "..")   if (( ${#out[@]} > 0 )) && [[ "${out[-1]}" != ".." ]]; then unset 'out[-1]'
-              elif [[ -z "$head" ]]; then out+=("..")
+      "..")   if (( nout > 0 )) && [[ "${out[nout-1]}" != ".." ]]; then nout=$(( nout - 1 ))
+              elif [[ -z "$head" ]]; then out[nout]=".."; nout=$(( nout + 1 ))
               fi ;;                       # 絶対パスの根を越える `..` は落とす
-      *)      out+=("$seg") ;;
+      *)      out[nout]="$seg"; nout=$(( nout + 1 )) ;;
     esac
   done
   p="$head"
   local i first=1
-  for i in ${out[@]+"${out[@]}"}; do
-    if (( first )) || [[ "$p" == */ ]]; then p+="$i"; first=0; else p+="/$i"; fi
+  for (( i = 0; i < nout; i++ )); do
+    if (( first )) || [[ "$p" == */ ]]; then p+="${out[i]}"; first=0; else p+="/${out[i]}"; fi
   done
   [[ "$p" == */ && ${#p} -gt 1 ]] && p="${p%/}"
   REPLY="$p"
@@ -286,7 +289,7 @@ __hc_winpath() {
 # 「.git ファイルの gitdir: が worktrees/ を指す」だけでは、そのファイルを 1 本置くだけで偽装できる
 # （置き場は wip/tmp/** で承認なしに書ける）。指す先の実在と、そこからの相互参照まで要求する。
 __hc_is_worktree_of() {
-  local c="$1" root="$2" g s d n
+  local c="$1" root="$2" g s n
   [[ "${c,,}" == "${root,,}" ]] && return 0
   # 本流の配下でも、相互参照が完全に成立するなら正当な worktree（`git worktree add ./sub-wt`）。
   # 配下を一律で弾くと、その中で機構が本流の wip/ logs/ を見てしまう（DDR i0009-55 が防ぐ状態そのもの）。
@@ -304,16 +307,10 @@ __hc_is_worktree_of() {
       [[ "${n,,}" == "${c,,}/.git" ]] && return 0
     fi
   fi
-  # (b) 本流の worktrees/*/gitdir 側から候補の .git を指しているものを探す（.git ファイルが読めないとき用）
-  for d in "$root"/.git/worktrees/*/; do
-    [[ -d "$d" ]] || continue
-    n="${d}gitdir"
-    [[ -f "$n" ]] || continue
-    s="$(<"$n")" || continue
-    s="${s//$'\r'/}"; s="${s//$'\n'/}"
-    __hc_winpath "$s"; s="$REPLY"
-    [[ "${s,,}" == "${c,,}/.git" ]] && return 0
-  done
+  # 登録側（`<root>/.git/worktrees/*/gitdir`）だけから探す経路は置かない。
+  # 片方向だと、worktree を作って消した後の stale な登録が残っているだけで、
+  # そのパスに後から置いたディレクトリ（`wip/tmp/wt/.claude` など）が worktree として信用される。
+  # 相互参照を要求するなら候補側の .git を必ず読むことになり、(a) と同じ検査になる
   return 1
 }
 __hc_resolve_worktree() {
@@ -508,16 +505,21 @@ __hc_cap_json_field() { # $1=行 $2=キー $3=上限
   if (( REPLY > max )); then
     # 上限はバイト。多バイト文字が入ると文字数と食い違うので、収まる最大の長さを二分探索で決める
     # （比例で引くだけだと 1 回で負に振り切れて全部落ちる）
-    local lo=0 hi="$max" mid
+    # 末尾に付ける `…` も上限の内側。先にその分を引いておかないと 3 バイト超える
+    local ell="…" ellb budget
+    __hc_bytelen "$ell"; ellb="$REPLY"
+    budget=$(( max - ellb ))
+    if (( budget < 0 )); then ell=""; budget="$max"; fi
+    local lo=0 hi="$budget" mid
     (( hi > ${#val} )) && hi=${#val}
     while (( lo < hi )); do
       mid=$(( (lo + hi + 1) / 2 ))
       __hc_bytelen "${val:0:mid}"
-      if (( REPLY <= max )); then lo=$mid; else hi=$(( mid - 1 )); fi
+      if (( REPLY <= budget )); then lo=$mid; else hi=$(( mid - 1 )); fi
     done
     val="${val:0:lo}"
     while [[ "$val" == *"$bsc" ]]; do val="${val%"$bsc"}"; done   # 末尾の \ を落として不正なエスケープを作らない
-    val+="…"
+    val+="$ell"
   fi
   REPLY="${pre}${marker}${val}${tail}"
 }

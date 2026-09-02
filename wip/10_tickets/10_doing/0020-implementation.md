@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "フェーズ 4 の敵対的レビ�
 allow:
   write: ["apl/**", "src/**"]
   ops: ["read", "build-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:04:01+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "76c298f"
 ---
 
 # 0020 実装: 拡張のソースとビルド設定を apl/vscode-ticket-board/ へ移す

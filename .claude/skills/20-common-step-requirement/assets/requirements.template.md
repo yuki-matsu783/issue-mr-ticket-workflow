@@ -20,6 +20,17 @@ keywords: [{{KEYWORDS}}]
   - 含む: {{IN_SCOPE}}
   - 含まない: {{OUT_OF_SCOPE}}（担い先: {{OUT_OF_SCOPE_OWNER}}）
 
+### issue の受け入れ条件との対応
+
+<!-- 起点の issue の受け入れ条件を全件、左列に原文（または要約と番号）、右列に満たす受け入れ基準の識別子または節名を書く。
+     行数は起点の issue の受け入れ条件の数と一致させる。起点の issue が無ければ表を消して「起点の issue なし」の 1 行にする -->
+
+起点: issue #{{ISSUE_NUMBER}}（{{ISSUE_TITLE}}）
+
+| issue の受け入れ条件 | 満たす受け入れ基準 |
+|--------------------|------------------|
+| {{ISSUE_CONDITION}} | {{SATISFYING_CRITERIA}} |
+
 ---
 
 ## ユーザーストーリー

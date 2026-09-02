@@ -1,6 +1,6 @@
 /**
  * ボードを外部資源に依存しない 1 枚の HTML に組み立てる。
- * 仕様: docs/10_spec/vscode-ticket-board.md「HTML の構造と CSP」
+ * 仕様: docs/10_spec/vscode-ticket-board.md「画面・出力の構造」
  */
 import type { Board, BoardColumn } from "./board.js";
 import type { Ticket } from "./ticket.js";

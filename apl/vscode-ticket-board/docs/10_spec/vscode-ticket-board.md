@@ -25,7 +25,7 @@ keywords: [モジュール構成, frontmatter パーサ, 走査, ボード組み
 ## 配置
 
 ```
-src/vscode-ticket-board/
+apl/vscode-ticket-board/
   package.json          拡張のマニフェスト
   package-lock.json     依存の固定
   tsconfig.json         コンパイル設定
@@ -48,6 +48,10 @@ src/vscode-ticket-board/
     render.test.ts
     fixtures/
       0011-implementation.md   ticket.sh が実際に書き出したチケットの写し
+  docs/
+    00_requirement/vscode-ticket-board.md   要件定義書
+    10_spec/vscode-ticket-board.md          この仕様書
+    20_ddr/                                 決定の記録
 ```
 
 `test/fixtures/` には実物のチケットを 1 枚置く。テンプレート（`ticket.sh` の `assets/ticket.template.md`）が変わって解析が誤検知を出すようになったとき、単体テストで気づけるようにするため。
@@ -343,7 +347,7 @@ YAML のコメント（`#` 以降）は解釈しない。`ticket_type: implement
 
 値の決定の経緯は DDR [i0013-05](../20_ddr/i0013-05-デバウンスの値.md)。
 
-## HTML の構造と CSP
+## 画面・出力の構造
 
 `renderBoard` が返す文字列の骨格。
 
@@ -467,19 +471,19 @@ VS Code の API に触れる `extension.ts` と `board-panel.ts` は単体テス
 
 | 要件（受け入れ基準） | 実現箇所 | テスト |
 |---|---|---|
-| メイン: コマンドで 4 状態の列を持つボードを表示する | 起動と入口（`ticketBoard.open`）、処理フロー（ボードの組み立て）、HTML の構造 | TB-T13・TB-T14（手動: 表示） |
-| メイン: 各チケットの 6 項目をカードとして置く | データの形（`Ticket`）、HTML の構造 | TB-T06・TB-T14 |
-| メイン: 列ごとの件数と残件数を表示する | `buildBoard`、HTML の構造（`header.summary`） | TB-T13・TB-T14 |
+| メイン: コマンドで 4 状態の列を持つボードを表示する | 起動と入口（`ticketBoard.open`）、処理フロー（ボードの組み立て）、画面・出力の構造 | TB-T13・TB-T14（手動: 表示） |
+| メイン: 各チケットの 6 項目をカードとして置く | データの形（`Ticket`）、画面・出力の構造 | TB-T06・TB-T14 |
+| メイン: 列ごとの件数と残件数を表示する | `buildBoard`、画面・出力の構造（`header.summary`） | TB-T13・TB-T14 |
 | メイン: カードの選択でファイルを開く | 表示と更新 6 | TB-T15（検証部分）。開く動作は手動 |
 | メイン: ファイルの変化でボードを更新する | 表示と更新 9・10 | TB-T16（再走査）。通知は手動 |
 | メイン: 更新コマンドで読み直す | 起動と入口（`ticketBoard.refresh`） | 手動 |
 | メイン: 既に開かれていれば増やさず前面に出す | 起動と入口（判定順 3）、表示と更新 1・3 | 手動 |
-| 代替: 0 件のとき空であることを示す | HTML の構造（ボード全体の 0 件表示） | TB-T13・TB-T14 |
-| 代替: 空の列も件数 0 で表示する | `buildBoard` 1、HTML の構造（`p.empty`） | TB-T13・TB-T14 |
+| 代替: 0 件のとき空であることを示す | 画面・出力の構造（ボード全体の 0 件表示） | TB-T13・TB-T14 |
+| 代替: 空の列も件数 0 で表示する | `buildBoard` 1、画面・出力の構造（`p.empty`） | TB-T13・TB-T14 |
 | 代替: 見出しが無ければファイル名を表示する | `parseTicket` 6 | TB-T10 |
 | 代替: 未表示で更新コマンドを実行したら伝える | 起動と入口（`ticketBoard.refresh` 判定順 1） | 手動 |
 | 代替: 再び見える状態になったら読み直す | 表示と更新 8 | 手動 |
-| 例外: 解析できなくても続け、不備を示す | `parseTicket` 冒頭、不備の識別子、HTML の構造（`ul.issues`） | TB-T07・TB-T08 |
+| 例外: 解析できなくても続け、不備を示す | `parseTicket` 冒頭、不備の識別子、画面・出力の構造（`ul.issues`） | TB-T07・TB-T08 |
 | 例外: 未知の種類はそのまま出したうえで示す | `parseTicket` 5、TB004 | TB-T09 |
 | 例外: 番号の食い違いはファイル名を採り不備として示す | `parseTicket` 6、TB006 | TB-T10 |
 | 例外: 対象が無いとき伝えて終了する | 起動と入口（判定順 1・2）、`scanTickets` 1 | TB-T11（走査側）。伝達は手動 |

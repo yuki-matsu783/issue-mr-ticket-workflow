@@ -5,6 +5,8 @@
 - 要件: `docs/00_requirement/vscode-ticket-board.md`
 - 仕様: `docs/10_spec/vscode-ticket-board.md`
 
+この README とソースのヘッダコメントに書かれた `docs/...` は、**このアプリルート（`apl/vscode-ticket-board/`）からの相対**を指す。
+
 ## できること
 
 | コマンド（コマンドパレット） | 動き |
@@ -27,7 +29,7 @@
 
 ## ビルドとテスト
 
-このディレクトリ（`src/vscode-ticket-board/`）で実行する。
+このディレクトリ（`apl/vscode-ticket-board/`）で実行する。
 
 ```sh
 npm ci          # package-lock.json のとおりに開発依存を入れる（npm install でもよい）

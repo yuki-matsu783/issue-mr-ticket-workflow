@@ -7,5 +7,18 @@
     "defaultMode": "plan"
   },
   "plansDirectory": "./wip/00_overall_plan",
-  "autoCompactWindow": 600000
+  "autoCompactWindow": 600000,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\""
+          }
+        ]
+      }
+    ]
+  }
 }

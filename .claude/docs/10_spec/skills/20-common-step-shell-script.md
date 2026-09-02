@@ -200,8 +200,8 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | SS-T01 | 正常系 | 雛形からコピーした sh が `bash -n` を通り、logger を source して結果出力の型で終了する |
 | SS-T02 | 異常系 | テスト雛形が失敗ケースを検出して非 0 で終了する |
 | SS-T03 | 正常系 | 読み込み行が、スキルの `scripts/`・フックのイベントディレクトリ・両者の `tests/` の 4 通りの深さから logger を解決する（fork なしの経路） |
-| SS-T05 | 正常系 | **読み込み行のコピーが雛形と一致する**: リポジトリ内のすべての `.sh`（`.claude/hooks/**` と `.claude/skills/*/scripts/**`）の `^__ss_load() {` から始まる行が、`assets/script.template.sh` のそれと**バイト一致**する。1 か所でも違えば失敗し、違うファイルを列挙する（読み込み行は 20 本以上に逐語コピーされており、雛形だけ直すと本番経路が旧仕様のまま残る。DDR i0009-36） |
 | SS-T04 | 異常系 | git 不在・リポジトリ外・`CLAUDE_PROJECT_DIR` 未設定でも読み込み行が失敗せず、logger が no-op になって本体が続行する。`nop` でも `LOGGER_ROOT` が設定される。`fatal` の最終行は `FATAL: <理由>` で終了 2、`deny` は `HOOK_DENY_ID`（未設定なら `WF009`。台帳の持ち主は共通ライブラリの読み込み行 — フック共通仕様 §6・DDR i0009-15）の deny JSON で終了 0。`frontmatter` の `nop` は `FM_AVAILABLE=0` とスタブ（出力なし・**戻り値 2**）を定義し、キー不在の戻り値 1 と区別できる |
+| SS-T05 | 正常系 | **読み込み行のコピーが雛形と一致する**: リポジトリ内のすべての `.sh`（`.claude/hooks/**` と `.claude/skills/*/scripts/**`）の `^__ss_load() {` から始まる行が、`assets/script.template.sh` のそれと**バイト一致**する。1 か所でも違えば失敗し、違うファイルを列挙する（読み込み行は 20 本以上に逐語コピーされており、雛形だけ直すと本番経路が旧仕様のまま残る。DDR i0009-36） |
 | FR-T01 | 正常系 | フラットなスカラーとフロー配列（`ticket_type` / `predecessors`）を読める |
 | FR-T02 | 正常系 | 入れ子マッピング（`allow.write` / `allow.ops`）をドット区切りで読める |
 | FR-T03 | 正常系 | インラインマップ（`human_review.required` / `.reason`）をドット区切りで読める。クォート内の `:` と `,` を区切りにしない |

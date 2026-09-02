@@ -23,7 +23,7 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 
 ## 呼出条件（イベント・matcher・登録）
 
-- PreToolUse、matcher: 書き込み / 実行 / **`mcp__.*`**（共通仕様 §1 の登録表 PreToolUse の 3 行目。**位置であって実行順ではない** — フックは並列に走る（§1）ので、他のフックが先に判定した前提を置かない）。`mcp__.*` は MCP 経由の draft 解除（`draft:false`）と置き場宛の書き込みを捕まえるために要る
+- PreToolUse、matcher: 書き込み / 実行 / **`mcp__.*`**（共通仕様 §1 の登録表 PreToolUse の 3 行目。**位置であって実行順ではない** — フックは並列に走る（§1）ので、他のフックが先に判定した前提を置かない）。`mcp__.*` は MCP 経由の draft 解除（`draft:false`）を捕まえるために要る（制御方式 4。置き場宛の書き込みは MCP では捕まえない）
 - 作業中チケットの有無・レビュー状態を問わず判定する
 
 ## 入出力
@@ -33,7 +33,7 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 
 ## 制御方式
 
-0. **`scope-limits.json` が読めない・解釈できない**（`HC_LIMITS_STATE` が `missing` / `broken`。副入力の破損・不在は `hook_read_input` を落とさないので、この分岐に**到達できる** — §1・DDR i0009-47）→ 判定をやめずに、`common.state_files` の**既定値** `logs/mr.json` / `logs/review-state.json` / `logs/review-history.jsonl` / `logs/merge-state.json` にフォールバックして続ける（`notify` で「既定値にフォールバックした」を記録）。置き場（`wip/10_tickets/10_doing/**`・`20_done/**`）と draft 解除の判定は設定に依存しないのでそのまま働く。**このフックは設定の破損では拒否に倒さない** — 倒すと `workflow-guard` が用意した WF210 の復旧経路（`scope-limits.json` 自身への ask 付きの書き込み）が潰れ、設定 1 ファイルの破損が完全なロックアウトになる（並列に走るので deny はどれか 1 つでも出れば成立する。DDR i0009-29）
+0. **`scope-limits.json` が読めない・解釈できない**（**1 の後に評価する** — 停止中のセッションでは 1 で終わるので、この分岐の `notify` は出ない。§3 の「停止中のフックは判定・注入を行わず `disabled` を 1 行残す」に従う。番号は判定の材料としての前後関係を表す）（`HC_LIMITS_STATE` が `missing` / `broken`。副入力の破損・不在は `hook_read_input` を落とさないので、この分岐に**到達できる** — §1・DDR i0009-47）→ 判定をやめずに、`common.state_files` の**既定値** `logs/mr.json` / `logs/review-state.json` / `logs/review-history.jsonl` / `logs/merge-state.json` にフォールバックして続ける（`notify` で「既定値にフォールバックした」を記録）。置き場（`wip/10_tickets/10_doing/**`・`20_done/**`）と draft 解除の判定は設定に依存しないのでそのまま働く。**このフックは設定の破損では拒否に倒さない** — 倒すと `workflow-guard` が用意した WF210 の復旧経路（`scope-limits.json` 自身への ask 付きの書き込み）が潰れ、設定 1 ファイルの破損が完全なロックアウトになる（並列に走るので deny はどれか 1 つでも出れば成立する。DDR i0009-29）
 1. 停止中 → `disabled` を記録して許可
 2. **書き込みツール**: 対象パスが
    - `state_files` に一致 → **deny WF301**
@@ -44,10 +44,10 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
    - 提供コマンド（共通仕様 §7-8）→ 許可（`ticket.sh` / `boundary.sh` / `finalize.sh` が唯一の書き換え経路。内部の処理はそもそも見えない）
    - `state_files` のパスが**書き込みを伴う位置**（リダイレクト先、`cp` / `mv` / `rm` / `tee` / `sed -i` / `truncate` / `git checkout --` / `git restore` の対象、`jq ... > file`）に現れる → **deny WF301**。引数以外の位置（`cat`、`grep`、`git diff`、地の文）は許可
    - `mv` / `cp` / `git mv` / `touch` / リダイレクトの**宛先**が `wip/10_tickets/10_doing/` → **deny WF302**、`20_done/` → **deny WF303**
-   - `rm` / `git rm` / `mv` / `git mv` の**元**（消える側。`cmdpos_operands` で位置引数を取り、`rm` / `git rm` は全部を元、`mv` は最後を宛先・それ以外を元とする）が `wip/10_tickets/10_doing/**` → **deny WF302**、`20_done/**` → **deny WF303**。作業中の取り消しは `ticket.sh cancel`、完了済みは触らない。**宛先だけでなく元も見る**のは、削除が置き場から状態を消す操作だから（継続条件と先行チケットの判定材料が失われる。DDR i0009-30）
+   - `rm` / `git rm` / `mv` / `git mv` の**元**（消える側。`cmdpos_operands` で位置引数を取り、`rm` / `git rm` は全部を元、`mv` は最後を宛先・それ以外を元とする）が `wip/10_tickets/10_doing/**` → **deny WF302**、`20_done/**` → **deny WF303**。**元が置き場のディレクトリ自身（`wip/10_tickets/10_doing`・`20_done`）またはその祖先（`wip/10_tickets`・`wip`）のときも同じ**（`**` の glob はパターン自身の親ディレクトリに一致しないため、別に書く。`rm -rf wip` が作業中 0 枚の窓で誰にも止められない経路を塞ぐ。DDR i0009-59）。作業中の取り消しは `ticket.sh cancel`、完了済みは触らない。**宛先だけでなく元も見る**のは、削除が置き場から状態を消す操作だから（継続条件と先行チケットの判定材料が失われる。DDR i0009-30）
    - `gh pr ready` / `gh pr edit --ready`（引数順を問わず）/ `glab mr update ... --ready` / `glab api ... "draft=false"` / `... /merge_requests/... -X PUT` に `draft` を含む → **deny WF304**（提供コマンド `finalize.sh` 経由のみ）
    - `opaque` / `degraded` で対象語（`state_files` の basename、`10_doing`、`20_done`、`ready`、`draft`）を含む → **deny WF309**。含まなければ許可
-4. **MCP ツール**（`mcp__` で始まる `tool_name`）: `mcp__*pull_request*` / `mcp__*merge_request*` で **`draft` を false にする入力** → **deny WF304**。**それ以外の MCP ツールは許可**（このフックが守るのは進行状態ファイル・置き場・draft 解除の 3 つで、MCP ツールがそのうち触り得るのは draft 解除だけ）。MCP ツールは書き込みツールでも実行ツールでもなく `file_path` も `command` も持たないので、制御方式 2・3 のどちらにも当たらない。この分岐が無いと 5 に落ちて**全 MCP 呼び出しが WF309 で拒否**され、外部委任モード（`gh` 不在時のフォールバック）が使えなくなる（DDR i0009-28）
+4. **MCP ツール**（`mcp__` で始まる `tool_name`）: `mcp__*pull_request*` / `mcp__*merge_request*` で **`draft` を false にする入力** → **deny WF304**。**それ以外の MCP ツールは許可**（このフックが守るのは進行状態ファイル・置き場・draft 解除の 3 つで、MCP ツールがそのうち触り得るのは draft 解除だけ）。MCP ツールは**このフックが読む `file_path` / `command` のキーを持たない**ため、制御方式 2・3 のどちらにも当たらない（MCP サーバは入力のスキーマを自由に決められるので「持たない」と断定はできない。**パス様のキーを持つ MCP ツールが現れたら制御方式 4 に置き場の判定を足す**）。この分岐が無いと 5 に落ちて**全 MCP 呼び出しが WF309 で拒否**され、外部委任モード（`gh` 不在時のフォールバック）が使えなくなる（DDR i0009-28）
 5. 入力不正 → 保護対象に関わり得るか判断できないため **deny WF309**。ただし `tool_input` から対象パスが読め、保護対象と無関係と確定できる操作は許可
 
 - 外部委任モード: 提供コマンド経由の操作は同じく許可。MCP ツールは制御方式 4 のとおり **draft 解除だけを塞ぎ、他は通す**（`mcp__github__get_issue` / `add_issue_comment` / `pull_request_read` などは働き続ける）。MCP 経由の**リモート書き込みの種別**（issue 作成・コメント・MR 編集）を宣言と突き合わせるのはこのフックの責務ではない（`workflow-guard` も強制しない — 共通仕様 §13・DDR i0009-27）
@@ -69,7 +69,7 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 
 ## 記録（logs/）
 
-- `decisions.jsonl` に deny（WF301〜309）を記録（`target` に対象パスまたはコマンドの先頭）。許可は記録しない（ホットパス）
+- `decisions.jsonl` に **`notify`**（制御方式 0 で `scope-limits.json` が読めず `common.state_files` の既定値にフォールバックしたとき。`note` にフォールバックした旨と `HC_LIMITS_STATE`）と deny（WF301〜309）を記録（`target` に対象パスまたはコマンドの先頭）。許可は記録しない（ホットパス）
 - 実行ログ: `logs/sh/hook-workflow-state-guard.log`
 
 ## テスト観点
@@ -86,6 +86,7 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 | SG-T08 | 正常系 | 地の文・コメント中の `review-state.json` / `ready` では拒否しない |
 | SG-T09 | 正常系 | **draft 解除以外の MCP ツール**（`mcp__github__get_issue` / `add_issue_comment` / `pull_request_read`）が**通る**（WF309 に落ちない）。`mcp__github__update_pull_request` の `draft:false` だけが WF304（負のコントロール付き） |
 | SG-T10 | 異常系 | `scope-limits.json` が無い・壊れているとき、**拒否に倒さず**既定の `state_files` で判定を続ける。`scope-limits.json` 自身への Write が**このフックを通る**（`workflow-guard` の WF210 の復旧経路を潰さない）。既定値にフォールバックした旨が記録に残る |
+| SG-T11 | 異常系 | **置き場ごとの削除**: `rm -rf wip/10_tickets/20_done` が WF303、`rm -rf wip/10_tickets` と `rm -rf wip` が WF302（作業中 0 枚でも拒否される）。`rm -rf wip/tmp` と `rm -rf logs` は通る（負のコントロール。DDR i0009-59） |
 
 ## 要件との対応
 
@@ -105,5 +106,6 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 | メイン: 確認ではなく拒否と案内 | 回復手順 |
 | 代替: 緊急停止 | 制御方式 1 |
 | 代替: 外部委任モード（MCP の draft 解除は拒否） | 制御方式（外部委任モード） |
-| 例外: 判定不能は関係しうる操作だけ拒否側 | 制御方式 4、WF309 |
+| 例外: 判定不能は関係しうる操作だけ拒否側 | 制御方式 5、WF309 |
+| 代替: 外部委任モード（MCP は draft 解除だけ塞ぐ） | 制御方式 4、WF304 |
 | 例外: 拒否されたら迂回せず提供コマンドか報告 | 回復手順 |

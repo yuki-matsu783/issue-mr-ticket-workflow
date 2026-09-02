@@ -46,5 +46,7 @@ keywords: [rm, git rm, mv, WF302, WF303, 20_done, 10_doing, 切れ目, 継続条
 
 ## 影響
 
+- **追記（0026）**: 元の判定が置き場の**ディレクトリ自身とその祖先**（`rm -rf wip`）を拾わないことが分かり、`i0009-59` で広げた
+
 - `10_spec/hooks/20-PreToolUse/workflow-state-guard.md` 制御方式 3・`SG-T02`
 - **実装フェーズへ**: `cmdpos.sh` が返すコマンド列から「元」の位置の引数を取る必要がある（`rm <paths...>` / `git rm <paths...>` / `mv <src> <dst>`）。`mv` は元と宛先の両方を見る

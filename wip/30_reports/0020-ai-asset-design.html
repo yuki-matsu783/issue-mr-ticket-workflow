@@ -228,7 +228,7 @@
   <ul>
     <li>更新対象: <code>12-SubagentStart/subagent-start-check.md</code>・<code>13-SubagentStop/subagent-stop-check.md</code>・<code>20-PreToolUse/workflow-state-guard.md</code>・<code>10-UserPromptSubmit/workflow-entry.md</code>、<code>10_spec/フック共通仕様.md</code>（§1・§3・§13）、<code>00_requirement/hooks/12-SubagentStart/subagent-start-check.md</code>・<code>20-PreToolUse/workflow-guard.md</code></li>
     <li>入力: <code>wip/30_reports/0015-ai-asset-design-appendix-A.md</code>（指摘 S1・R4・R5・R13・R20・R21・R23）、<code>wip/30_reports/0019-ai-asset-design.md</code>（並列実行の帰結）</li>
-    <li>公式の原文: <code>wip/tmp/hooks.md</code> の <code>:926</code>（<code>systemMessage</code>）・<code>:972</code>（次のモデル呼び出しで読む）・<code>:988</code>（<code>additionalContext</code> の入る位置）・<code>:1747</code></li>
+    <li>公式の原文: <code>wip/tmp/hooks.md</code> の <code>:926</code>（<code>systemMessage</code>）・<code>:972</code>（次のモデル呼び出しで読む）・<code>:989</code>（<code>additionalContext</code> の入る位置。0026 で <code>:988</code> から訂正 — <code>:988</code> は UserPromptSubmit の行）・<code>:1747</code></li>
     <li>実行はしていない（テストは実装フェーズ）</li>
   </ul>
 </section>
@@ -244,7 +244,7 @@
       <p class="basis">実測への依存: <strong>あり</strong>（<code>systemMessage</code> が実際に表示されるかはフェーズ 4c）</p>
       <details>
         <summary>根拠を見る（読んだ箇所と出力）</summary>
-        <pre><code>hooks.md:988 PreToolUse, PostToolUse, PostToolUseFailure, PostToolBatch:
+        <pre><code>hooks.md:989 PreToolUse, PostToolUse, PostToolUseFailure, PostToolBatch:
              next to the tool result
 hooks.md:972 Claude reads the reminder on the next model request
 hooks.md:926 systemMessage | Warning message shown to the user

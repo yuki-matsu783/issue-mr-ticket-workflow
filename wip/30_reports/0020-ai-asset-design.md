@@ -51,7 +51,7 @@ keywords: [WF801, systemMessage, additionalContext, 17 行, MCP, mcp__, WF304, W
 
 - 更新対象: `10_spec/hooks/12-SubagentStart/subagent-start-check.md`・`13-SubagentStop/subagent-stop-check.md`・`20-PreToolUse/workflow-state-guard.md`・`10-UserPromptSubmit/workflow-entry.md`、`10_spec/フック共通仕様.md`（§1・§3・§13）、`00_requirement/hooks/12-SubagentStart/subagent-start-check.md`・`20-PreToolUse/workflow-guard.md`
 - 入力: `wip/30_reports/0015-ai-asset-design-appendix-A.md`（指摘 S1・R4・R5・R13・R20・R21・R23）、`wip/30_reports/0019-ai-asset-design.md`（並列実行の帰結）
-- 公式の原文: `wip/tmp/hooks.md` の `:926`（`systemMessage`）・`:972`（次のモデル呼び出しで読む）・`:988`（`additionalContext` の入る位置）・`:1747`（PreToolUse の `additionalContext`）
+- 公式の原文: `wip/tmp/hooks.md` の `:926`（`systemMessage`）・`:972`（次のモデル呼び出しで読む）・`:989`（`additionalContext` の入る位置。0026 で `:988` から訂正 — `:988` は UserPromptSubmit の行）・`:1747`（PreToolUse の `additionalContext`）
 - 実行はしていない（テストは実装フェーズ）
 
 ## 実施した内容と結果

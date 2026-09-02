@@ -26,7 +26,7 @@ keywords: [hc_append_jsonl, hc_json_write, hc_lock, hc_unlock, mkdir ロック, 
 |---|---|
 | `hc_append_jsonl <file> <line>` | 1 行を 4 KB 未満に切り詰めて（切り詰めたら末尾に `…`）`>>` で追記する |
 | `hc_json_write <file> <content>` | 同じディレクトリの一時ファイル（`<name>.tmp.<pid>`）へ書いて `mv` で置き換える |
-| `hc_lock <name>` / `hc_unlock <name>` | `mkdir <name>.lock` によるロック。取得できなければ最大 2 秒待って非 0 を返す。`trap` でも解放する |
+| `hc_lock <name>` / `hc_unlock <name>` | `mkdir <name>.lock` によるロック。取得できなければ最大 2 秒待って非 0 を返す。`trap` でも解放する（**打ち切りでは `trap` が効かないため、陳腐化したロックの強制解放を持つ — `i0009-60`**） |
 
 §1 の `hook-common.sh` の説明にこの 4 つを載せ、lib 単体のテスト観点を `HK-T17` が受け持つ。
 

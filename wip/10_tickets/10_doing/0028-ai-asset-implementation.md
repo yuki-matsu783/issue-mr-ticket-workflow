@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まず判定が 1 つ
 allow:
   write: [".claude/hooks/**", ".claude/settings.json"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T18:42:42+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1daba0f"
 ---
 
 # 0028 ⓪ block-chmod の単独登録と T6（deny の効き方）の先行確認

@@ -30,6 +30,8 @@ interface PanelState {
   watcher?: vscode.FileSystemWatcher;
   timer?: NodeJS.Timeout;
   board?: Board;
+  /** 直前に観測した panel.visible。裏から表へ変わったときだけ読み直すために持つ */
+  wasVisible: boolean;
 }
 
 let state: PanelState | undefined;
@@ -52,13 +54,16 @@ export function openBoard(): void {
   }
 
   if (state !== undefined) {
-    // 既に開かれていれば増やさず前面に出す
+    // 既に開かれていれば増やさず前面に出す。reveal が誘発する
+    // onDidChangeViewState で二重に読み直さないよう、先に「表」として記録しておく
+    state.wasVisible = true;
     state.panel.reveal(state.panel.viewColumn);
     update();
     return;
   }
 
-  state = { panel: createPanel(), folder };
+  const panel = createPanel();
+  state = { panel, folder, wasVisible: panel.visible };
   registerPanelHandlers(state);
   update();
 }
@@ -94,8 +99,12 @@ function registerPanelHandlers(current: PanelState): void {
     handleMessage(message);
   });
 
+  // onDidChangeViewState は active の変化でも発火する。false → true の遷移でだけ読み直し、
+  // 隣のエディタへフォーカスを移すたびに Webview を作り直さない
   panel.onDidChangeViewState(() => {
-    if (panel.visible) {
+    const becameVisible = panel.visible && !current.wasVisible;
+    current.wasVisible = panel.visible;
+    if (becameVisible) {
       update();
     }
   });

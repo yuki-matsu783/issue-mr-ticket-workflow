@@ -74,7 +74,7 @@ test("TB-T15 載っていないパス・空文字・上位を含むパスで fal
   const board = buildBoard(scan({ todo: [ticket("0004", "todo")] }));
   assert.equal(isKnownTicketPath(board, "/etc/passwd"), false);
   assert.equal(isKnownTicketPath(board, ""), false);
-  assert.equal(isKnownTicketPath(board, "/w/wip/10_tickets/todo/../../../etc/passwd"), false);
-  assert.equal(isKnownTicketPath(board, "/w/wip/10_tickets/todo/0004-x.md "), false);
-  assert.equal(isKnownTicketPath(board, "/w/wip/10_tickets/todo/0099-x.md"), false);
+  assert.equal(isKnownTicketPath(board, "/w/wip/10_tickets/00_todo/../../../etc/passwd"), false);
+  assert.equal(isKnownTicketPath(board, "/w/wip/10_tickets/00_todo/0004-x.md "), false);
+  assert.equal(isKnownTicketPath(board, "/w/wip/10_tickets/00_todo/0099-x.md"), false);
 });

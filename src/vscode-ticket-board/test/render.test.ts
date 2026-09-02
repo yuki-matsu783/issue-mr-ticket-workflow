@@ -113,6 +113,34 @@ test("TB-T14 CSP の script-src と style-src に nonce が入り、外部を許
   assert.ok(html.includes(`<style nonce="TEST-NONCE-123">`));
   assert.ok(html.includes("acquireVsCodeApi()"));
   // 外部資源を読まない
-  assert.equal(/<(img|link|iframe)\b/.test(html), false);
-  assert.equal(html.includes("http://"), false);
+  assert.equal(/<(img|link|iframe|object|embed|source|base)\b/.test(html), false);
+  assert.equal(/https?:\/\//.test(html), false);
+  assert.equal(html.includes("@import"), false);
+  assert.equal(/url\(/.test(html), false);
+});
+
+test("TB-T14 不備の detail もエスケープする", () => {
+  const html = renderBoard(
+    buildBoard(scan({
+      todo: [ticket({
+        ticketType: '<img src=x onerror="alert(1)">',
+        issues: [
+          { code: "TB004", detail: '未知のチケットの種類（<img src=x onerror="alert(1)">）' },
+          { code: "TB006", detail: "番号が食い違う（ファイル名 0004 / 見出し <script>）" },
+        ],
+      })],
+    })),
+    OPTIONS,
+  );
+  assert.equal(/<img\b/.test(html), false);
+  assert.equal(html.includes("<script>"), false);
+  assert.ok(html.includes("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"));
+  assert.ok(html.includes("&lt;script&gt;"));
+});
+
+test("TB-T14 列のラベルと状態もエスケープを通す", () => {
+  const html = renderBoard(buildBoard(scan({})), OPTIONS);
+  // 列ラベルは定数だが、生成経路にエスケープが挟まっていることを型と出力で担保する
+  assert.ok(html.includes('data-state="cancelled"'));
+  assert.ok(html.includes("取り消し"));
 });

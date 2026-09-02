@@ -15,6 +15,13 @@ export type FrontmatterEntry =
 
 export interface FrontmatterDocument {
   readonly entries: ReadonlyMap<string, FrontmatterEntry>;
+  /** 終端の区切りより後ろの本文。見出しの探索を frontmatter の外に限るために持つ */
+  readonly body: string;
+}
+
+/** 区切り行の判定。行末の空白と BOM の有無で読めなくならないようにする */
+function isDelimiter(line: string): boolean {
+  return line.trim() === DELIMITER;
 }
 
 /**
@@ -22,11 +29,12 @@ export interface FrontmatterDocument {
  * 1 行目が区切りでない・終端の区切りが無い・空のときは undefined を返し、例外は投げない。
  */
 export function parseFrontmatter(text: string): FrontmatterDocument | undefined {
-  const lines = text.split(/\r?\n/);
-  if (lines[0] !== DELIMITER) {
+  // BOM 付きで保存されたファイルでも 1 行目を区切りと認められるように剥がす
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  if (lines.length === 0 || !isDelimiter(lines[0])) {
     return undefined;
   }
-  const end = lines.indexOf(DELIMITER, 1);
+  const end = lines.findIndex((line, index) => index > 0 && isDelimiter(line));
   if (end < 0) {
     return undefined;
   }
@@ -34,6 +42,8 @@ export function parseFrontmatter(text: string): FrontmatterDocument | undefined 
   const entries = new Map<string, FrontmatterEntry>();
   // 直前に現れた「値を持たないトップレベルのキー」。入れ子マッピングの親
   let parentKey: string | undefined;
+  // その親の子として認めるインデント幅。最初に現れた子の幅で決まる
+  let childIndent: number | undefined;
 
   for (const raw of lines.slice(1, end)) {
     const line = raw.replace(/\s+$/, "");
@@ -45,6 +55,7 @@ export function parseFrontmatter(text: string): FrontmatterDocument | undefined 
 
     if (!indented) {
       parentKey = undefined;
+      childIndent = undefined;
       if (!matched) {
         continue;
       }
@@ -69,6 +80,13 @@ export function parseFrontmatter(text: string): FrontmatterDocument | undefined 
     if (parentKey === undefined) {
       continue;
     }
+    // 1 段の字下げだけを子として認める。孫（より深い行）は親の値を上書きしうるので読み飛ばす
+    const indent = line.length - line.trimStart().length;
+    if (childIndent === undefined) {
+      childIndent = indent;
+    } else if (indent !== childIndent) {
+      continue;
+    }
     const child = line.trim();
     if (child.startsWith("-")) {
       // ブロック配列は解釈の対象外。キーを登録せず読み飛ばす
@@ -88,7 +106,7 @@ export function parseFrontmatter(text: string): FrontmatterDocument | undefined 
     }
   }
 
-  return { entries };
+  return { entries, body: lines.slice(end + 1).join("\n") };
 }
 
 function isInlineMap(value: string): boolean {

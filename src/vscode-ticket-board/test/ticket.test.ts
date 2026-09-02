@@ -1,4 +1,6 @@
 import { test } from "node:test";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import assert from "node:assert/strict";
 import { parseTicket, KNOWN_TICKET_TYPES } from "../src/core/ticket.js";
 
@@ -97,4 +99,81 @@ test("TB-T10 番号の食い違いで TB006 を付け、ファイル名の番号
   assert.ok(issue.detail.includes("0007"));
   assert.equal(t.number, "0004");
   assert.equal(t.title, "ずれた番号");
+});
+
+test("TB-T10 frontmatter の中の # 行を見出しとして採らない", () => {
+  const text = [
+    "---",
+    "type: ticket",
+    "# 0999 これは YAML コメント",
+    "ticket_type: investigation",
+    "executor: main",
+    "human_review: {required: true, reason: \"理由\"}",
+    "adversarial_review: {required: false, reason: \"基準どおり\"}",
+    "---",
+    "",
+    "# 0004 本物の見出し",
+  ].join("\n");
+  const t = parseTicket("/w/0004-investigation.md", "0004-investigation.md", "todo", text);
+  assert.equal(t.title, "本物の見出し");
+  assert.deepEqual(t.issues, []);
+});
+
+test("TB-T10 コードフェンスの中の # 行を見出しとして採らず TB005 を付ける", () => {
+  const text = [...HEAD, "", "## 作業ログ", "", "```sh", "# 9999 コメント行", "```", ""].join("\n");
+  const t = parseTicket("/w/0004-investigation.md", "0004-investigation.md", "todo", text);
+  assert.equal(t.title, "0004-investigation.md");
+  assert.deepEqual(t.issues.map((i: { code: string }) => i.code), ["TB005"]);
+});
+
+test("TB-T08 必須キーが scalar でないとき TB002 を付ける", () => {
+  const text = [
+    "---",
+    "ticket_type: [implementation]",
+    "executor: main",
+    "human_review:",
+    "  required: [true]",
+    "adversarial_review: {required: false}",
+    "---",
+    "",
+    "# 0004 見出し",
+  ].join("\n");
+  const t = parseTicket("/w/0004-implementation.md", "0004-implementation.md", "todo", text);
+  assert.equal(t.ticketType, undefined);
+  assert.equal(t.humanReview, undefined);
+  assert.deepEqual(
+    t.issues.map((i: { code: string; detail: string }) => `${i.code}:${i.detail}`),
+    [
+      "TB002:ticket_type が読み取れない（scalar でない）",
+      "TB002:human_review.required が読み取れない（scalar でない）",
+    ],
+  );
+});
+
+test("TB-T08 TB002 は TB003 より先に並ぶ", () => {
+  const text = [
+    "---",
+    "ticket_type: implementation",
+    "human_review: {required: maybe}",
+    "adversarial_review: {required: false}",
+    "---",
+    "",
+    "# 0004 見出し",
+  ].join("\n");
+  const t = parseTicket("/w/0004-implementation.md", "0004-implementation.md", "todo", text);
+  assert.deepEqual(t.issues.map((i: { code: string }) => i.code), ["TB002", "TB003"]);
+});
+
+test("TB-T06 ticket.sh が書き出す実物のチケットで誤検知が出ない", () => {
+  // 実物の写し（test/fixtures/）。テンプレートが変わって誤検知が出たら気づけるようにする
+  const fixture = path.join(__dirname, "..", "..", "test", "fixtures", "0011-implementation.md");
+  const t = parseTicket(fixture, "0011-implementation.md", "done",
+    fs.readFileSync(fixture, "utf8"));
+  assert.deepEqual(t.issues, []);
+  assert.equal(t.number, "0011");
+  assert.equal(t.title, "拡張ホスト層の実装と README（extension / board-panel）");
+  assert.equal(t.ticketType, "implementation");
+  assert.equal(t.executor, "main");
+  assert.equal(t.humanReview, false);
+  assert.equal(t.adversarialReview, true);
 });

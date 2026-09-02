@@ -101,3 +101,38 @@ test("TB-T05 バックスラッシュのエスケープを戻す", () => {
   assert.ok(doc);
   assert.deepEqual(doc.entries.get("reason"), { kind: "scalar", value: "a\\b" });
 });
+
+test("TB-T02 BOM 付きでも frontmatter を読み取れる", () => {
+  const doc = parseFrontmatter(`﻿${FULL}`);
+  assert.ok(doc);
+  assert.deepEqual(doc.entries.get("ticket_type"), { kind: "scalar", value: "investigation" });
+});
+
+test("TB-T02 区切り行の末尾に空白があっても読み取れる", () => {
+  const doc = parseFrontmatter(
+    ["--- ", "ticket_type: investigation", "---\t", "", "# 0004 見出し"].join("\n"),
+  );
+  assert.ok(doc);
+  assert.deepEqual(doc.entries.get("ticket_type"), { kind: "scalar", value: "investigation" });
+  assert.equal(doc.body.trim(), "# 0004 見出し");
+});
+
+test("TB-T04 2 段字下げの孫は親の値を上書きしない", () => {
+  const doc = parseFrontmatter(
+    ["---", "human_review:", "  required: true", "  meta:", "    required: false",
+     "executor: main", "---"].join("\n"),
+  );
+  assert.ok(doc);
+  assert.deepEqual(doc.entries.get("human_review.required"), { kind: "scalar", value: "true" });
+  assert.equal(doc.entries.has("human_review.meta"), false);
+  assert.deepEqual(doc.entries.get("executor"), { kind: "scalar", value: "main" });
+});
+
+test("TB-T01 body は終端の区切りより後ろだけを返す", () => {
+  const doc = parseFrontmatter(
+    ["---", "# 0999 これは YAML コメント", "executor: main", "---", "", "# 0004 本物の見出し"].join("\n"),
+  );
+  assert.ok(doc);
+  assert.equal(doc.body.includes("YAML コメント"), false);
+  assert.ok(doc.body.includes("# 0004 本物の見出し"));
+});

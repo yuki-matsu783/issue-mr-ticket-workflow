@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核の定義�
 allow:
   write: [".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:06:00+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "908dc9e"
 ---
 
 # 0025 レビュー指摘: worktree の作業ツリーと web の送信側・出力先（A3・A4・A5・B7・B8）

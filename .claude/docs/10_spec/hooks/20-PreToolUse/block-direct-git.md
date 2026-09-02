@@ -80,9 +80,9 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 | BG-T06 | 正常系 | `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "docs: x" a.md` と `push.sh` が通る |
 | BG-T07 | 境界 | 4097 文字のコマンドで `git` と `commit` を含めば WF403、含まなければ通る |
 | BG-T08 | 異常系 | PowerShell: `& git commit`、`git push; ls`、`.\git.exe commit` が拒否 |
-| BG-T09b | 正常系 | PowerShell: ヒアストリング内の `git commit`、`git status`、`git diff` は通る |
-| BG-T10 | 異常系 | `git revert HEAD`、`git cherry-pick abc`、`git rebase --continue`、`git am x.patch` が WF401。`git merge origin/main` は通る |
-| BG-T09 | 異常系 | 入力 JSON 不正で WF409 |
+| BG-T09 | 正常系 | PowerShell: ヒアストリング内の `git commit`、`git status`、`git diff` は通る |
+| BG-T10 | 異常系 | 制御方式 3 の「コミットを生成するサブコマンド」の**全要素**（`git revert HEAD`、`git cherry-pick abc`、`git rebase --continue`、`git am x.patch`、`git commit-tree abc123`）が WF401。**明示的に対象外の 2 つ**（`git merge origin/main`、`git stash`）は通る |
+| BG-T11 | 異常系 | 入力 JSON 不正で WF409 |
 
 ## 要件との対応
 

@@ -137,12 +137,12 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 
 | # | 項目 | 確かめ方（登録済みの本物のフックの記録で） |
 |---|---|---|
-| T1 | `SubagentStop` の出力がメインエージェントに届くか | サブエージェントを 1 つ起動し、`SubagentStop` の出力がメインの文脈に現れるかを見る |
+| ~~T1~~ | ~~`SubagentStop` の出力がメインエージェントに届くか~~ | **公式で解決済み・実測は不要**（`hooks.md:2346`「To inject context into the parent session after a subagent returns, use a `PostToolUse` hook on the `Agent` tool instead.」。現行の登録が公式の推奨形。共通仕様 §12 T1・DDR i0009-43） |
 | T2 | サブエージェント内のツール呼び出しの `session_id` が親と同じか | `decisions.jsonl` の `session_id` を親子で比較 |
 | T3 | `claude -p` を入力から判別できるか / `defer` の実在 | ヘッドレス実行時の入力（`permission_mode` 等）を `decisions.jsonl` に記録して比較 |
 | T4 | `SubagentStart` イベントと `model` / `agent_id` の実在 | ①の登録後にサブエージェントを起動し、`logs/` に記録が残るかを見る |
 | T6 | PreToolUse の deny が `permissionDecision` + 終了 0 で効くか | 段階登録の ②-1（拒否側 1 本目 `block-chmod` の登録）で真っ先に確かめる。効かなければ `exit 2` + stderr へ切り替え、§1 の登録ラッパーも作り直す |
-| T7 | `tool_response` の終了コードのフィールド名 | `post-push-*` が読む値を `logs/` に落として実物を見る |
+| T7 | `tool_response` の終了コードのフィールド名 | `post-push-*` が読む値を `logs/` に落として実物を見る。**公式で「終了コードのフィールドは存在しない」と分かっている（§12 T7）が、受け入れ条件 5 が「実物の確認に基づいて」を求めるため実測は省かない**（DDR i0009-43） |
 | — | `agent_type` の実物（`subagent-stop-check` が読む値。受け入れ条件 5） | T4 と同じサブエージェント起動で `logs/` に残る値を見る |
 | T8 | 案内側フックが `scope.sh` を `source` したとき `frontmatter.sh` が読めない場合の挙動（D2 の「案内側フックの `scope.sh` 読み込みポリシー」） | `frontmatter.sh` を一時的にリネーム（`mv`。宣言済みの `.claude/skills/20-common-step-shell-script/**` の内側）して案内側フックの挙動を見る。`chmod` は `block-chmod` が WF501 で拒否するうえ Windows では読み取り不可にできない |
 
@@ -151,12 +151,24 @@ AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driv
 | 項目 | 決める時期 |
 |---|---|
 | `HOOK_DENY_ID` の既定（§6 台帳に無い `WF009` をどう扱うか） | AI アセット設計 |
-| 「作業中チケット 2 枚以上」の扱い（G8）。WF207 の側で決め、`push.sh` / `run-tests.sh` / 完了検査の非対称を直すかは方針まで（提供コマンドの修正が要るなら 3/3 へ） | AI アセット設計（方針）→ 実装（WF207 の実装） |
+| 「作業中チケット 2 枚以上」の扱い（G8）。WF207 の側で決め、`push.sh` / `run-tests.sh` / 完了検査の非対称を直すかは方針まで（提供コマンドの修正が要るなら 3/3 へ） | **決定済み**（DDR `i0009-18`・`i0009-40`）: 実体は直さず 1 枚前提を仕様に明記。`push.sh` の項目 2 だけ #10 へ申し送る |
 | `investigation` 以外の実施タスクの `ops` 上限（D5）。`scope-limits.json` の実体を変えるかどうか | AI アセット設計（方針）→ 変えるならフェーズ 4 で実施（WF203 の確認 + HK-T02） |
 | `shellcheck` の CI 実行（D6） | AI アセット設計で方針決定まで（CI 設定の変更は本 issue のスコープ外） |
 | フェーズ 7 を通すための手（上記の第 1〜3 案のどれを採るか。既定は第 1 案 = `WORKFLOW_STATE_GUARD_ENFORCE=0` の新セッション） | AI アセット実装計画で案を確定し、フェーズ 7 の直前に人間と最終確認 |
 | 後続フェーズ（書き戻しの `ai-asset-design`）の要否 | フィードバック計画 |
 | 実行者を既定のサブエージェントに戻す時期 | #10（3/3）の全体計画 |
+
+## #10（3/3）への申し送り
+
+**全体まとめ（`10-task-overall-summary`）の段取りに入れる**: 完了処理の issue コメント（承認⑥）で #10 に引き継ぐ内容として、次を本文案に含める。ここに書かれていない限り引き継がれないので、まとめの前にこの表を読み直す。
+
+| # | 引き継ぐ内容 | 引き継ぎ先での扱い |
+|---|---|---|
+| 1 | **`boundary.sh` 依存で実施できないテスト観点 8 件**: `SE-T01` / `SE-T02` / `SE-T03` / `SE-T04` / `SE-T07` / `SE-T08` / `SE-T09` / `WE-T10`。加えて `SE-T05` / `SE-T06` の**前半**（後半はこの issue で実施済み） | `boundary.sh` の実装と同じ issue でテストを書く。仕様（`session-start.md` / `workflow-entry.md` のテスト観点表）は書き終わっており、実施だけが残る |
+| 2 | **`push.sh` の項目 2 の 1 枚目依存**（`push.sh:92-100`）。作業中チケットが 2 枚以上のとき、1 枚目の `allow.ops` に `remote-write:push` があれば push を通す。影響がリモートに及ぶ唯一の非対称（DDR `i0009-18`・`i0009-40`） | 提供コマンドの実体を直す（枚数を見て 2 枚以上なら止める、または全枚の宣言を見る）。この issue では提供コマンドの実体を触らない |
+| 3 | **`finalize.sh` 不在によるフェーズ 7 の詰み**（上記「②を登録したままフェーズ 7 に入ると」）と `boundary.sh` 不在によるレビュー依頼の直接投稿 | 3/3 で提供コマンドが揃えば解消する既知の逸脱 |
+| 4 | **実行者を既定のサブエージェントに戻す時期**（※1） | #10 の全体計画で決める |
+| 5 | 公式の仕様に無いイベント（`PostToolUseFailure` の常用・`PermissionRequest`）と空ディレクトリ 3 つの扱い | 3/3 または別 issue |
 
 ## 合意の記録
 

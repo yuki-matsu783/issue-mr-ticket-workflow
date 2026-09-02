@@ -26,7 +26,7 @@ keywords: [振り分け, 宣言, UserPromptSubmit, Skill, 拒否, 継続条件, 
 | 登録 | matcher | 役割 |
 |---|---|---|
 | UserPromptSubmit | — | `prompt_seq` を +1 し `declared_skill` を空にする。プロンプト 1 行目が `/00-workflow-issue-mr-driven` または `/00-workflow-quick-request`（引数付き可）なら宣言として記録する |
-| PreToolUse | `Skill` | `tool_input.skill` が振り分けスキル名（`.claude/hooks/config/entry-skills.txt`: `00-workflow-issue-mr-driven` / `00-workflow-quick-request`。`CLAUDE.md`「作業の振り分け」の表と同一 — テスト WE-T07 で照合）なら `declared_skill` に記録する。Skill ツール自体は常に許可。**振り分けスキル名の正はこのファイルで、照合を行うのはこのフック**。`hook-common.sh` の `tool_class` は「ツールの種類の分類」までを返す関数であり、スキル名の照合には使わない（`00-workflow-` の接頭辞判定を分類の根拠にすると、将来 `00-workflow-` で始まる別のスキルが増えたときにファイルとコードで判定が食い違う。DDR i0009-03）。`assets/entry-skills.txt` のパスの基準ディレクトリは 0014（フック共通仕様 §1）で確定するまで暫定 |
+| PreToolUse | `Skill` | `tool_input.skill` が振り分けスキル名（`.claude/hooks/config/entry-skills.txt`: `00-workflow-issue-mr-driven` / `00-workflow-quick-request`。`CLAUDE.md`「作業の振り分け」の表と同一 — テスト WE-T07 で照合）なら `declared_skill` に記録する。Skill ツール自体は常に許可。**振り分けスキル名の正はこのファイルで、照合を行うのはこのフック**。`hook-common.sh` の `tool_class` は「ツールの種類の分類」までを返す関数であり、スキル名の照合には使わない（`00-workflow-` の接頭辞判定を分類の根拠にすると、将来 `00-workflow-` で始まる別のスキルが増えたときにファイルとコードで判定が食い違う。DDR i0009-03） |
 | PreToolUse | 書き込み / 実行 / プランモード / 起動（共通仕様 §2 の分類）+ **`mcp__.*`** | 宣言と継続条件を判定し、未宣言なら拒否。**MCP ツールを含めるのは、宣言の有無の判定にツールの種類が要らないから**（何をする MCP ツールかを分類できなくても「振り分けを宣言したか」は判定できる）。MCP 経由のリモート書き込みの**種別**の強制は行わない（`workflow-guard` の責務外。共通仕様 §13・DDR i0009-27） |
 
 ## 入出力

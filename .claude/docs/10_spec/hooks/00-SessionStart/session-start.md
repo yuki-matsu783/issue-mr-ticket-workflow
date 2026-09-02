@@ -82,8 +82,6 @@ keywords: [SessionStart, 現在地, 注入, boundary.sh status, offline, ブラ�
 
 ## テスト観点
 
-| テスト ID | 種別 | 固定する振る舞い |
-|-----------|------|----------------|
 **接頭辞は `SE-T`**（旧 `SS-H`）。`run-tests.sh` が結果行から ID を抜き出す正規表現は `^(PASS|FAIL) ([A-Z]{2,6}-[TE][0-9]{2}[a-z]?)` で 3 文字目以降が `T` か `E` に限られるため、`SS-H*` は `--ids` の一覧にも重複検出にも現れない。`SS-T*` は `20-common-step-shell-script` の既存テストが使っているので、`SE-T` に変える（DDR i0009-08）。
 
 | テスト ID | 種別 | 固定する振る舞い | この issue で実施するか |

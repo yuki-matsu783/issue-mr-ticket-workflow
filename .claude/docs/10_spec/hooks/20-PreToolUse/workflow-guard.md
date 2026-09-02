@@ -52,6 +52,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
    - `remote-read`（`gh` / `glab` の参照系）→ 許可
    - `remote-write:<種別>` → チケットの `allow.ops` にその種別があり、かつ `types[t].ops` にもある → 許可、無ければ **deny WF206**
    - `build-test` / `hook-test` / `merge-base` → 同様に `allow.ops` と `types[t].ops` の両方にあれば許可、無ければ **deny WF204**
+   - `web`（`curl` / `wget`）→ 同様に `allow.ops` と `types[t].ops` の両方に `web` があれば許可、無ければ **deny WF204**。ただし出力先を持つ形（`curl` の `-o` / `-O` / `--output` / `--remote-name`、`wget` の既定と `-O <file>`）は**先に**書き込みとして扱い、出力先パスに 5 と同じ判定を当てる（`wip/tmp/**` / `logs/**` なら許可、それ以外は **deny WF205**）。`wget` は既定でカレントにファイルを作るため、`-O -`（標準出力）以外は常に出力先の判定を通す。宣言があっても書き込みの判定は免除しない（共通仕様 §8。DDR i0009-41）
    - 上記のいずれにも該当しない → **deny WF204**（既定拒否。読み取り系の一覧に足すか、分類を宣言するかを案内）
 7. **プランモード**（`EnterPlanMode`）: `types[t].plan_mode` が true でなければ **deny WF212**
 8. **起動**（`Agent` / `Workflow`）: 許可（実行者の不一致は `subagent-start-check` が伝える）
@@ -109,6 +110,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WG-T12 | 正常系 | EnterPlanMode が overall-plan で通り implementation で WF212 |
 | WG-T13 | 境界 | `WORKFLOW_HEADLESS=1` で WF202 が WF213（deny） |
 | WG-T14 | 正常系 | `commit.sh -m .. <禁止範囲のファイル>` が WF201 |
+| WG-T15 | 正常系 | `curl https://example.com/x` は `web` を宣言した investigation で通り、宣言の無い design では WF204。`curl -o wip/tmp/x.md <url>` は通り、`curl -o .claude/settings.json <url>` と `curl -O <url>`（カレントに作る）は宣言があっても WF205。`wget <url>` は `-O -` でなければ WF205。`WebFetch` は matcher 外なのでこのフックに届かない（届かないことを登録表 HK-T01 で固定する） |
 
 ## 要件との対応
 

@@ -28,7 +28,7 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 
 ## 入出力
 
-- 入力: `tool_name`、`tool_input`、`tool_response`（`ask` の後に実行されたかの判定に使う）。参照: 作業中チケットの frontmatter（`base_sha`、`ticket_type`、`predecessors`）、`git status --porcelain=v2 -z`（1 回）、`git diff --name-status <base_sha>`、`scope-limits.json`、`approvals.json`、`wip/10_tickets/20_done/`
+- 入力: `tool_name`、`tool_input`、`tool_response`（`ask` の後に実行されたかの判定に使う）。参照: 作業中チケットの frontmatter（`base_sha`、`ticket_type`、`predecessors`）、`git status --porcelain=v2 -z -uall`（1 回）、`git diff --name-status <base_sha>`、`scope-limits.json`、`approvals.json`、`wip/10_tickets/20_done/`
 - 出力: PostToolUse の additionalContext（WF601〜604）または無出力。`approvals.json` への追記
 
 ## 制御方式
@@ -36,13 +36,18 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 1. 停止中 → `disabled` を記録して抜ける。作業中チケット 0 枚 → 抜ける。2 枚以上・設定不正・種類不正 → 判定不能として黙って抜ける（拒否は `workflow-guard`）
 2. `base_sha` が無い → **WF604** を伝えて抜ける（差分判定は行わない）
 3. **承認の記憶**: 今回の操作が書き込み（または書き込みを伴うコマンド）で、対象パスが `scope.sh` の判定で WF202（未記載）に該当し、操作が実行された（PostToolUse に到達した = 承認された）→ 承認単位（親ディレクトリ。`file_granular` のファイルとリポジトリルート直下のファイルはファイル単位。`"."` は記録しない）を `approvals.json` に追記する。WF203（毎回確認）の範囲は記録しない
-4. **差分の検知**: `git status`（未追跡・変更・移動）と `git diff --name-status <base_sha>` を合わせ、パスごとに（移動は移動先で）`scope.sh` を適用する。除外: `logs/**`、`wip/00_overall_plan/**`、`wip/tmp/**`、機構自身の記録。判定が deny（禁止・保護）または ask（未記載で未承認）のパスがあれば **WF601** でパスの一覧と復旧の指示（許可範囲内へ戻す `git checkout <base_sha> -- <path>` / 未追跡は削除。必要ならユーザーに提案。迂回しない）を伝える
+4. **差分の検知**: `git status --porcelain=v2 -z -uall`（未追跡・変更・移動）と `git diff --name-status <base_sha>` を合わせ、パスごとに（移動は移動先で）`scope.sh` を適用する。**`-uall` は省略しない** — 既定の `-unormal` では未追跡がディレクトリ単位（`dir/`）に畳まれ、中身のファイルのパスが得られず許可範囲を判定できない。除外: `logs/**`、`wip/00_overall_plan/**`、`wip/tmp/**`、機構自身の記録。判定が deny（禁止・保護）または ask（未記載で未承認）のパスがあれば **WF601** でパスの一覧と復旧の指示（許可範囲内へ戻す `git checkout <base_sha> -- <path>` / 未追跡は削除。必要ならユーザーに提案。迂回しない）を伝える
 5. **先行チケット**: frontmatter の `predecessors` に `20_done/` に無い番号があれば **WF602**
 6. **種類の改変**: `git show <base_sha>:<チケットのパス>` の `ticket_type` と現在値が異なれば **WF603**（元の値と現在値。元に戻すこと）。`git show` が失敗する（未追跡のまま持ち越された全体計画チケットのように基準点のコミットにファイルが無い — DDR i0004-04）ときはこの検査を行わない（7 と同じく黙って抜ける）
 7. 差分の取得に失敗（git 不可）→ 黙って抜ける
 8. 1 回の操作で複数の警告があれば 1 つの additionalContext にまとめる（識別子ごとに段落）
 
 - 承認の記憶は `session_id` 単位でセッション限り
+
+### 意図的な緩和（検知の遅れ）
+
+- **失敗したツール呼び出しの後の差分は、次に成功した呼び出しまで検知されない**。終了コードが 0 以外のツール呼び出しでは PostToolUse フックが 1 本も起動しない（共通仕様 §2）ため、このフックが呼ばれるのは操作が成功したときだけになる。失敗しても書き込みが起きている形（部分的に書けた `Write`、途中で落ちたスクリプト）では、範囲外の差分が残ったまま次の成功した呼び出しまで通知されない
+- これは意図的な緩和として受け入れる。範囲外の書き込みに対する一次防御は `workflow-guard` の事前拒否（PreToolUse）で、このフックは副作用（生成物・移動）を拾う二次の検知であり、遅れて拾っても復旧の指示は同じだから
 
 ## エラー識別子とメッセージ
 
@@ -69,7 +74,7 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
 | DC-T01 | 正常系 | 作業中 0 枚で何も出さない。許可範囲内の差分だけなら何も出さない |
-| DC-T02 | 異常系 | 禁止範囲のファイルが変更・未追跡・移動先にあると WF601 でパスが列挙され、`logs/` と `wip/tmp/` は除外される |
+| DC-T02 | 異常系 | 禁止範囲のファイルが変更・未追跡・移動先にあると WF601 でパスが列挙され、`logs/` と `wip/tmp/` は除外される。**未追跡ディレクトリの中身もファイル単位で列挙される**（`-uall`。ディレクトリ名 1 件に畳まれない） |
 | DC-T03 | 正常系 | 未記載パスへの Write が通った後に `approvals.json` に親ディレクトリが追記され、`file_granular` はファイル単位。`confirm` 範囲は追記されない |
 | DC-T04 | 異常系 | `predecessors` が未完了で WF602 |
 | DC-T05 | 異常系 | `ticket_type` を書き換えると WF603（元の値付き） |

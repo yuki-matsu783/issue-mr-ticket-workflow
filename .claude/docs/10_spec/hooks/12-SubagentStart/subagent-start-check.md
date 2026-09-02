@@ -1,9 +1,9 @@
 ---
 type: spec
 title: subagent-start-check フック 仕様
-description: サブエージェント起動時に、対象チケット（作業中、無ければ未着手の先頭）の executor と起動モデルの不一致を通知し、チケットの要点（名前・種類・やってよいこと・DoD）を注入するフックの内部仕様。起動は妨げない。WF80x を定める
+description: サブエージェント起動時に、対象チケット（作業中、無ければ未着手の先頭）の要点（名前・種類・やってよいこと・DoD）をサブエージェントのコンテキストに注入するフックの内部仕様。起動は妨げない。WF802 を定める
 tags: [spec, hook, subagent-start-check]
-keywords: [SubagentStart, 実行者, executor, model, 不一致, 通知, 注入, additionalContext, 対象チケット, やってよいこと, DoD, WF801, WF802]
+keywords: [SubagentStart, 注入, additionalContext, 対象チケット, やってよいこと, DoD, WF802, hook_inject, 公開 API, 実行者, resolvedModel]
 ---
 
 # subagent-start-check フック 仕様
@@ -14,88 +14,76 @@ keywords: [SubagentStart, 実行者, executor, model, 不一致, 通知, 注入,
 
 案内側のフック。対象チケットは `10_doing/` の 1 枚、無ければ `00_todo/` の最小連番（チケットは 1 枚ずつ進むため次に実施されるもの — DDR i0001-23）。
 
+**このフックが担うのは要点の注入（WF802）だけ**で、実行者の不一致（WF801）と background 起動（WF814）の通知は `subagent-stop-check` が PostToolUse `Agent` で**起動後に**行う。起動前に伝える経路は持たない: `systemMessage` は対話 UI でユーザーに表示されず、`additionalContext` はどのイベントでもツール結果の隣かそれ以降にしか入らない（共通仕様 §3）。一方 **PostToolUse `Agent` の `tool_response.resolvedModel` には実際に使われたモデルが載る**ので、起動時にモデルを明示しない呼び出し（`tool_input.model` が空になる）でも、実行者の比較は起動後なら行える。
+
 禁止事項:
 
 - 起動の拒否
 - チケット本文の全文・他ファイルの注入
-- 起動モデルが特定できないときの通知（誤警告を出さない）
 - チケットが読めないときの通知
+- `hook-common` の private 関数（`__hc_*`）を直に呼ぶこと（出力の組み立ては公開 API を通す。§入出力）
 
 ## 呼出条件（イベント・matcher・登録）
 
-- **SubagentStart（全サブエージェント）**: 対象チケットの要点の注入（WF802）。`adversarial-reviewer` の起動でも働くが、注入する内容は同じ（レビュー対象の範囲を知る材料になる）
-- **PreToolUse、matcher `Agent`**: 実行者の不一致（WF801）の検知。同じスクリプトを 2 つのイベントに登録し、イベント名（`hook_event_name`）で処理を分ける。`SubagentStart` の入力に `model` は来ない（公式は「`model` を受け取れるのは `SessionStart` だけ」と明記）ため、比較の材料が取れるのは `Agent` ツールの `tool_input.model` を読める PreToolUse だけ（DDR i0009-06）
-- この 2 行目の登録により、フック共通仕様 §1 の登録表は **17 行**になった（PreToolUse の 7 行目。0014 で確定）
+- **SubagentStart（全サブエージェント。matcher なし）**: 対象チケットの要点の注入（WF802）。`adversarial-reviewer` の起動でも働くが、注入する内容は同じ（レビュー対象の範囲を知る材料になる）
+- 登録はこの 1 行だけで、**PreToolUse `Agent` には登録しない**（共通仕様 §1 の登録表）
 
 ## 入出力
 
-- 入力: SubagentStart では `agent_id`・`agent_type`（`model` は**来ない**）。PreToolUse `Agent` では `tool_input.model`・`tool_input.subagent_type`（どちらも `hook_read_input` が `HOOK_MODEL` / `HOOK_SUBAGENT_TYPE` に入れる）。参照: 対象チケットの frontmatter（`executor`、`ticket_type`、`allow`）と本文の DoD 節
-- 出力: SubagentStart の additionalContext（サブエージェントのコンテキストへ要点を注入）と、PreToolUse `Agent` の **`systemMessage` + `additionalContext` の 2 経路**（WF801）。**届く時点が違う**ことに注意する（DDR i0009-26）:
-  - **`systemMessage`**（公式「Warning message shown to the user」）は**ユーザーにその場で表示**される。**サブエージェントが動き出す前に人間が気づける唯一の経路**で、ユーザーは中断して起動し直せる
-  - **`additionalContext`** は公式が「PreToolUse … **next to the tool result**」「Claude reads the reminder on the next model request」と定めるとおり、**`Agent` ツールの結果の隣**に入る。つまりメインエージェントが読むのは**サブエージェントが走り終わった後**。PreToolUse に登録しても、メインエージェントへの到達は事後になる
-  - PreToolUse の通知は起動を止めない（`permissionDecision` を出さない）。あわせて `decisions.jsonl` に `notify` で記録する
+- 入力: `agent_id`・`agent_type`（`model` は**来ない**。公式は「`model` を受け取れるのは `SessionStart` だけ」と明記）。参照: 対象チケットの frontmatter（`ticket_type`、`allow`）と本文の DoD 節
+- 出力: SubagentStart の additionalContext（`hook_inject`）。`systemMessage` は出さない
+- **出力は `hook-common` の公開 API を通す**（`hook_inject` / `hook_notify` / `hook_record`）。`systemMessage` と `additionalContext` の **2 経路を同時に出す**必要が生じたときも、その 2 経路をまとめて出す**公開 API を `hook-common` に設けて**使う。マスク（`redact`）と JSON エスケープの規則をフック側に複製しないため、private 関数（`__hc_redact_to_reply` / `__hc_json_str`）をフックから直に呼ばない
 
 ## 制御方式
 
 1. 停止中 → `disabled` を記録して何もしない
-2. 対象チケットを決める。無ければ何もしない
-3. frontmatter が読めない・`executor` が解釈できない → 何もしない
-4. **不一致（PreToolUse `Agent` のときだけ）**: `tool_input.subagent_type` が**タスク実施者**（`task-executor`）で、`executor` が `main` 以外で、`tool_input.model` が特定でき、正規化（`claude-sonnet-4-5-...` → `sonnet` のように族名で比較。対応表は `.claude/hooks/config/model-aliases.txt`。フックが読む外部データの置き場はフック共通仕様 §1）した値が異なる → **WF801** を **`systemMessage` と `additionalContext` の両方**に書き、`decisions.jsonl` に `notify` で記録（`note` にチケット・実行者・起動モデル・`subagent_type`）。**起動は止めない**（通知であり `permissionDecision` は出さない）
-   - **`subagent_type` による絞り込み**: チケットの `executor` は**タスクの実施者**に対する指定であって、レビュアーや探索エージェントには当てはまらない。`adversarial-reviewer` / `Explore` などを別のモデルで起動するのは正当なので、`task-executor` 以外では判定しない（誤警告を出さない — 禁止事項。DDR i0009-32）
-   - **限界 1**: `Agent` ツールの `model` は任意引数で、省略時は「エージェント定義のモデル」が使われる。省略された起動では `tool_input.model` が空になり**比較そのものができない**（何も出さない）。この限界は経路（PreToolUse / SubagentStart / PostToolUse）を変えても解消しない
-   - **限界 2**: **メインエージェントに起動前に伝えることは Claude Code の仕様上できない**（`additionalContext` はどのイベントでもツール結果の隣かそれ以降にしか入らない）。ただしサブエージェントは既定で background なので、`Agent` の結果は**起動直後に返る**（§2・DDR i0009-50）。したがって実際には「サブエージェントが走り終わった後」ではなく「ほとんど動かないうち」に届く。この限界は当初の想定より軽い
-   - **記録**: 通知したときは `notify`、**通知しなかったときも `skip`（理由: 一致 / 対象チケット無し / `executor` の記載無し / `model` が特定できない / `subagent_type` が対象外）を `decisions.jsonl` に記録する**。`subagent-stop-check` が「PreToolUse の経路が使えたか」を記録の有無で判定するため、判定した事実を残す必要がある（DDR i0009-52）。起動前に届くのは `systemMessage` によるユーザーへの表示だけで、止めるかどうかは人間が決める。`permissionDecision: "ask"` にすれば起動を止められるが採らない（DDR i0009-26 の却下案）
-   - SubagentStart のときは不一致の判定を行わない（`model` が来ないため）
-5. **background 起動の警告（PreToolUse `Agent` のときだけ）**: `tool_input.subagent_type` が `task-executor` で、`tool_input.run_in_background` が明示的に `false` でない（省略を含む）とき → **WF803**。サブエージェントは既定で background で走り、そのとき `subagent-stop-check` の作業後の検査（WF811〜813）がメインエージェントに届かないため（§2・DDR i0009-50）。WF801 と同じく `systemMessage` + `additionalContext` の 2 経路で出し、起動は止めない
-6. **注入（SubagentStart のときだけ）**: `WF802` として、チケット名（`<連番>-<種類>`）/ タスクの種類 / やってよいこと（`allow.write` と `allow.ops` をそのまま）/ DoD（`- [ ]` 行だけ。根拠欄は除く）を注入する。合計 4 KB を超える DoD は件数と先頭 10 件にする
-7. 入力が解釈できない → 何もしない（起動を止めない）
+2. 対象チケットを決める。無ければ何もしない（`skip` を理由つきで記録する）
+3. frontmatter が読めない → 何もしない（`skip`）
+4. **注入**: `WF802` として、チケット名（`<連番>-<種類>`）/ タスクの種類 / やってよいこと（`allow.write` と `allow.ops` をそのまま）/ DoD（`- [ ]` 行だけ。根拠欄は除く）を注入する。合計 4 KB を超える DoD は件数と先頭 10 件にする
+5. 入力が解釈できない → 何もしない（起動を止めない）
 
-- **縮退（PreToolUse で `systemMessage` も `additionalContext` も届かない版）**: PreToolUse の登録を外し、実行者の不一致は `subagent-stop-check`（PostToolUse `Agent`）が**自分で判定して** WF801 を通知する（記録が 1 件も無い状態になるので縮退と判定される。DDR i0009-52）経路だけにする（ユーザーも起動前には気づけない。この場合 §1 は 16 行に戻る）。この縮退に落ちたときだけ、`subagent-stop-check` の再掲が唯一の通知経路になる（DDR i0009-31）
-- **縮退（SubagentStart イベントが使えない版）**: SubagentStart の登録を外し、要点の注入は起動プロンプト（`00-workflow-issue-mr-driven` の `assets/subagent-prompt.template.md`）だけを経路とする。不一致の検知（PreToolUse `Agent`）はそのまま残る
+- **縮退（SubagentStart イベントが使えない版）**: 登録を外し、要点の注入は起動プロンプト（`00-workflow-issue-mr-driven` の `assets/subagent-prompt.template.md`）だけを経路とする
 
 ## エラー識別子とメッセージ
 
 | ID | 種別 | 内容 |
 |----|------|------|
-| WF801 | 通知 | 実行者の不一致: チケットの `executor` / 起動したモデル / 対象チケット。`systemMessage`（ユーザーへ即時）と `additionalContext`（メインエージェントへ、`Agent` の結果と同時）の 2 経路で出す。続けるか起動し直すかは、ユーザー（起動前）または AI（結果を見た後）がチケットに従って判断する |
-| WF802 | 情報 | 対象チケットの要点の注入 |
-| WF803 | 通知 | **タスク実施者を background で起動しようとしている**（`tool_input.run_in_background` が明示的に `false` でない）。完了後の検査（WF811〜813）がメインエージェントに届かないこと・`run_in_background: false` で起動し直せることを伝える。`systemMessage` と `additionalContext` の 2 経路。起動は止めない |
+| WF802 | 情報 | 対象チケットの要点の注入（チケット名 / タスクの種類 / やってよいこと / DoD） |
 
 ## 回復手順
 
-- WF801: メインエージェントがサブエージェントを止めて正しいモデルで起動し直す（`00-workflow-issue-mr-driven` 手順 2-3）。実行者を変えたいなら未着手チケットの見直しで `executor` を直す（作業中のチケットは `workflow-guard` が改変を拒否する）
+- WF802 は情報で、回復手順を持たない。注入が働かない実行形態では起動プロンプトが唯一の経路になる（縮退）
+- 実行者の不一致に気づいたときの回復（サブエージェントを止めて正しいモデルで起動し直す。`00-workflow-issue-mr-driven` 手順 2-3）は `subagent-stop-check` の WF801 が案内する。実行者を変えたいなら未着手チケットの見直しで `executor` を直す（作業中のチケットは `workflow-guard` が改変を拒否する）
 
 ## 記録（logs/）
 
-- `decisions.jsonl`: `notify`（WF801）/ `inject`（WF802。`note` に対象チケットと注入バイト数）/ `skip`（対象なし・モデル不明・読めない）
+- `decisions.jsonl`: `inject`（WF802。`note` に対象チケットと注入バイト数）/ `skip`（対象なし・チケットが読めない）/ `disabled`（停止中）
 - 実行ログ: `logs/sh/hook-subagent-start-check.log`
 
 ## テスト観点
 
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
-| SA-T01 | 正常系 | 機械テスト。作業中チケットの executor=sonnet で、PreToolUse `Agent` の `tool_input.model`=claude-sonnet-… なら通知なし。SubagentStart では要点が注入される |
-| SA-T02 | 異常系 | 機械テスト。**PreToolUse `Agent`** で `subagent_type=task-executor`・executor=opus・`tool_input.model`=sonnet のとき WF801 が **`systemMessage` と `additionalContext` の両方**に出て記録に残る。起動は止まらない（`permissionDecision` を出さず終了 0） |
+| SA-T01 | 正常系 | 機械テスト。SubagentStart で作業中チケットの要点（チケット名・種類・やってよいこと・DoD）が additionalContext に注入される |
 | SA-T03 | 正常系 | 作業中が無く未着手の先頭が対象になる。チケットが 1 枚も無ければ無出力 |
-| SA-T04 | 正常系 | 機械テスト。`tool_input.model` が無い（`Agent` の `model` を省略した）起動で通知なし。SubagentStart の入力（`model` が来ない）でも通知は出さず、要点の注入だけを行う |
+| SA-T04 | 正常系 | 機械テスト。SubagentStart の入力に `model` が来なくても注入だけを行い、実行者に関する通知を出さない |
 | SA-T05 | 正常系 | frontmatter が壊れたチケットで無出力・終了 0 |
 | SA-T06 | 境界 | DoD が 4 KB 超で件数と先頭 10 件に縮む。本文の作業ログは注入されない |
-| SA-T07 | 正常系 | 機械テスト。`subagent_type` が `task-executor` 以外（`adversarial-reviewer` / `Explore`）のときは、executor が不一致でも通知しない（`task-executor` での正のコントロール付き） |
-| SA-T08 | 正常系 | 機械テスト。**通知しなかった場合も `decisions.jsonl` に `skip` が理由つきで残る**（一致 / 対象チケット無し / `executor` の記載無し / `model` が特定できない / `subagent_type` が対象外 の 5 通り）。通知したときは `notify`（DDR i0009-52） |
-| SA-T09 | 異常系 | 機械テスト。`subagent_type=task-executor` で `tool_input.run_in_background` が**無い**とき・`true` のときに **WF803** が `systemMessage` と `additionalContext` の両方に出る。`false` のときは出ない。`task-executor` 以外では `run_in_background` を問わず出ない（負のコントロール 2 件） |
+| SA-T08 | 正常系 | 機械テスト。注入したときは `decisions.jsonl` に `inject`、注入しなかったときも `skip` が理由つき（対象チケット無し / チケットが読めない）で残る |
 
 ## 要件との対応
 
 | 要件（受け入れ基準） | 実現箇所 |
 |--------------------|---------|
-| メイン: executor と起動モデルの比較・通知・記録 | 制御方式 4、WF801 |
+| メイン: executor と起動モデルの比較・通知・記録 | `subagent-stop-check` 制御方式 2、WF801（このフックは行わない） |
+| メイン: 起動前にユーザーへ / AI へは結果と同時（どちらも使えない版は事後の通知に縮退してよい） | 事後の通知に縮退している（概要）。起動前の経路は持たない |
 | メイン: 起動を妨げない | 禁止事項 |
-| メイン: 一致・対象なし・記載なしは通知しない | 制御方式 2〜4 |
-| メイン: タスクの実施者でないときは通知しない | 制御方式 4（`subagent_type` による絞り込み）、SA-T07 |
-| メイン: モデル不明は通知しない | 制御方式 4 |
-| メイン: background 起動の通知（起動は妨げない） | 制御方式 5、WF803、SA-T09 |
-| メイン: 要点の注入（全文は注入しない） | 制御方式 6、WF802 |
+| メイン: 一致・対象なし・記載なしは通知しない | `subagent-stop-check` 制御方式 2 |
+| メイン: タスクの実施者でないときは通知しない | `subagent-stop-check` 制御方式 2（`subagent_type` による絞り込み） |
+| メイン: モデル不明は通知しない | `subagent-stop-check` 制御方式 2 |
+| メイン: background 起動の通知（起動は妨げない） | `subagent-stop-check` の WF814 |
+| メイン: 要点の注入（全文は注入しない） | 制御方式 4、WF802 |
 | メイン: 対象なしは注入しない | 制御方式 2 |
 | メイン: 記録・識別子 | 記録、エラー識別子 |
 | 代替: 緊急停止 | 制御方式 1 |
-| 例外: チケット不読・入力不正は通す | 制御方式 3・7 |
+| 例外: チケット不読・入力不正は通す | 制御方式 3・5 |

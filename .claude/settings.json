@@ -103,7 +103,7 @@
       {
         "hooks": [
           {
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\"", 
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF509: フック block-chmod を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
             "type": "command"
           }, 
           {

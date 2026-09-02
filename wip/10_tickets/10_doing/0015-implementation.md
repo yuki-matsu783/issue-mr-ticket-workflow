@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "振る舞いが変わるため基�
 allow:
   write: ["src/**", "wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-02T06:34:16+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f39df8e"
 ---
 
 # 0015 敵対的レビュー指摘の反映（解析の正しさ・更新契機・テスト・README）

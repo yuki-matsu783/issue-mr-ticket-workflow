@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: overall-summary
-predecessors: ["0018", "0020"]
+predecessors: ["0018", "0020", "0021", "0022"]
 executor: main
 human_review: {required: true, reason: "片付け・draft 解除・外部への投稿の前の最終確認（基準どおり。差分 4 の対象外）"}
 adversarial_review: {required: false, reason: "基準どおり"}

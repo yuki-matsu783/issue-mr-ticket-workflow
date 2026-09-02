@@ -14,7 +14,7 @@ keywords: [SubagentStop, PostToolUse Agent, 作業中のまま, 未コミット,
 
 案内側のフック。同じスクリプトを 2 つのイベントに登録する: SubagentStop（検査して `logs/` に記録）と PostToolUse `Agent`（メインエージェント側で直前の記録を additionalContext として伝える。加えて `subagent-start-check` の WF801 記録も再掲する）。検査はいずれも同じ関数。
 
-WF801 の再掲は**事後の保険**であり、本線ではない。実行者の不一致の検知は `subagent-start-check` が PreToolUse `Agent` で起動前に行う（DDR i0009-06）。PreToolUse の経路が使えない縮退のときだけ、この再掲が唯一の通知経路になる。
+WF801 の再掲は**縮退時の唯一の通知経路**であり、通常経路では出さない（同じ不一致を 2 回通知しない。DDR i0009-31）。**再掲の条件**: 同じ `agent_id`（取れなければ同じセッションの直近）について、`decisions.jsonl` に `subagent-start-check` の WF801 の `notify` 記録が**無い**とき（= PreToolUse の経路が使えず縮退しているとき）だけ再掲する。実行者の不一致の検知は `subagent-start-check` が PreToolUse `Agent` で起動前に行う（DDR i0009-06）。PreToolUse の経路が使えない縮退のときだけ、この再掲が唯一の通知経路になる。
 
 禁止事項:
 
@@ -71,7 +71,7 @@ WF801 の再掲は**事後の保険**であり、本線ではない。実行者�
 | SP-T02 | 異常系 | `10_doing/` に 1 枚残ると WF811 と対処 3 点 |
 | SP-T03 | 異常系 | 未コミット 3 件（うち `logs/` 1 件）で WF812 に 2 件だけ列挙 |
 | SP-T04 | 異常系 | 禁止範囲のパスに差分があると WF813 |
-| SP-T05 | 正常系 | SubagentStop で記録し、PostToolUse(Agent) で同じ内容が additionalContext に出る。WF801 の記録があれば再掲される |
+| SP-T05 | 正常系 | SubagentStop で記録し、PostToolUse(Agent) で同じ内容が additionalContext に出る。**WF801 の再掲は縮退時だけ**: `subagent-start-check` の WF801 の `notify` 記録が `decisions.jsonl` に**ある**とき（通常経路）は再掲**しない**、**無い**とき（PreToolUse の経路が使えない縮退）だけ再掲する |
 | SP-T06 | 正常系 | `git` 不在で無出力・終了 0 |
 
 ## 要件との対応

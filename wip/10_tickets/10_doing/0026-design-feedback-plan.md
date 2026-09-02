@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:24:37+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "048c39d"
 ---
 
 # 0026 設計反映計画: docs/ のアプリルートへの移動と旧置き場の片付け

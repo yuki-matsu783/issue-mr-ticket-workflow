@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "正史（要件・仕様）の変�
 allow:
   write: ["docs/**", "wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T06:06:47+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f521206"
 ---
 
 # 0014 設計の敵対的レビュー指摘への対応（要件の欠落と仕様の矛盾の修正）

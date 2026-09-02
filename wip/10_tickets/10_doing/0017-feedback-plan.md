@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "同一ワークの再レビュー
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T06:56:26+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9be9af6"
 ---
 
 # 0017 フィードバック計画の敵対的レビュー指摘への対応（棚卸しの入力・分類・記録の欠落）

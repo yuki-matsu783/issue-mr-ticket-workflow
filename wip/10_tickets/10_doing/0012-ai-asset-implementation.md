@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズの敵対的レビュ
 allow:
   write: [".claude/skills/**", ".claude/hooks/config/scope-limits.json", ".claude/hooks/lib/tests/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T10:28:20+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "e418747"
 ---
 
 # 0012 実装: 共通ステップスキル 2 本・テンプレートと許可範囲設定

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "振る舞いが変わるため基�
 allow:
   write: ["src/**", "wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-02T06:19:38+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "7d207ae"
 ---
 
 # 0011 拡張ホスト層の実装と README（extension / board-panel）

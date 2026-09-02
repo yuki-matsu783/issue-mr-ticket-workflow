@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "フェーズ 6 の敵対的レビ
 allow:
   write: [".claude/hooks/config/scope-limits.json", ".claude/hooks/tests/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T11:32:55+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "18dc8c0"
 ---
 
 # 0031 実装: 旧置き場の deny とテストのアサーションを落とす

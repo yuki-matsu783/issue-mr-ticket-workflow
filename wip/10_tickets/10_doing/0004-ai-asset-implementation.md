@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "敵対的レビューエージェ
 allow:
   write: [".claude/skills/20-common-step-commit-push/scripts/commit.sh", ".claude/skills/20-common-step-commit-push/scripts/tests/test_commit.sh", ".claude/skills/20-common-step-ticket/scripts/ticket.sh", "wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-02T11:40:04+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "6bb378d"
 ---
 
 # 0004 commit.sh をステージ済みの削除に対応させ、テストを追加する

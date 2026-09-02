@@ -1,7 +1,7 @@
 {
   "enabledPlugins": {
-    "skill-creator@claude-plugins-official": true,
-    "plugin-dev@claude-plugins-official": true
+    "plugin-dev@claude-plugins-official": true, 
+    "skill-creator@claude-plugins-official": true
   },
   "permissions": {
     "defaultMode": "plan"
@@ -9,13 +9,118 @@
   "plansDirectory": "./wip/00_overall_plan",
   "autoCompactWindow": 600000,
   "hooks": {
-    "PreToolUse": [
+    "UserPromptSubmit": [
       {
-        "matcher": "Bash|PowerShell",
         "hooks": [
           {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\""
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh\"", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh\" --accumulate", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/workflow-diff-check.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-compact-prompt.sh\"", 
+            "type": "command"
+          }, 
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Bash|PowerShell"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/13-SubagentStop/subagent-stop-check.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Agent"
+      }
+    ], 
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/12-SubagentStart/subagent-start-check.sh\"", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Skill"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Bash|PowerShell"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/12-SubagentStart/subagent-start-check.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Agent"
+      }
+    ], 
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/13-SubagentStop/subagent-stop-check.sh\"", 
+            "type": "command"
+          }, 
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh\" --accumulate", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/00-SessionStart/session-start.sh\"", 
+            "type": "command"
           }
         ]
       }

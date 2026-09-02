@@ -53,8 +53,13 @@ base_sha: "c3440fc"
   - HK-T01 の期待値 `.claude/hooks/tests/fixtures/settings-hooks.expected.tsv`（17 行の逐語）と、HK-T01 / HK-T09 のテスト（`.claude/hooks/tests/test_config_integrity.sh`）
   - 段階ごとに貼り替える settings.json 全文 6 本（`wip/tmp/settings-stage1.json` / `settings-stage2-1..5.json`）
   - **手順とロックアウトの復旧手順は `wip/tmp/0031-handoff.md`**（セッションをまたぐのでここから読む）
-- 次にやること: 人間が `cp wip/tmp/settings-stage1.json .claude/settings.json` して Claude Code を再起動 → AI が軽い操作を通してコミット
-- 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（settings.json が未登録のため。登録が終われば通る）
+- **段階 ① 登録済み**（人間が `cp wip/tmp/settings-stage1.json .claude/settings.json` を実施）。軽い操作を通して確認した:
+  - **再起動なしで反映された**（実測）。`cp` の直後の Bash 呼び出しで `workflow-diff-check` と `workflow-entry` が発火した
+  - `session_id` は実 UUID（`ee9cc8e9-…`）。`logs/sessions/<uuid>/entry.json` が作られ、UserPromptSubmit で `prompt_seq=1`、PreToolUse `Skill` で `declared_skill=00-workflow-issue-mr-driven` が記録された
+  - Read（matcher 外・無反応）→ Skill 宣言（記録）→ Edit → `commit.sh` の順で通し、**想定外の deny は 0 件**
+  - **`WF601` が `settings.json` の変更を毎回列挙する**: このチケットは `.claude/settings.json` を `allow.write` に宣言しているのに、`common.confirm`（判定 4）が許可範囲（判定 5）より先に効いて `WF203` 扱いになるため。登録作業のチケットでは避けられないノイズ（0032 へ）
+- 次にやること: 人間が `cp wip/tmp/settings-stage2-1.json .claude/settings.json`（段階 ②-1）
+- 現時点の HK-T01 は**期待どおり 1 件だけ失敗する**（段階 ② が終われば通る）
 
 ### うまくいったこと
 

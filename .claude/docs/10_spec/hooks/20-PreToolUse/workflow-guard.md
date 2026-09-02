@@ -39,7 +39,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 1. 停止中 → `disabled` を記録して許可。作業中チケット 0 枚 → 許可（記録しない）
 2. 作業中チケットが 2 枚以上 → 提供コマンド（`ticket.sh` 等）以外の書き込み・実行を **deny WF207**（1 枚を残して他を `ticket.sh` で戻す対処を案内）。`ask` にはしない（ヘッドレス実行では確認の応答が得られず、確認が拒否に化けるため。共通仕様 §10）
    - **提供コマンド側は 2 枚以上を検知しない**（非対称）: `run-tests.sh` と `push.sh` は `10_doing/*.md` の 1 枚目だけを読んで `allow.ops` を判定し、`ticket.sh next` も 1 枚目だけを返す。件数で止めるのは `ticket.sh start`（2 枚目の着手を TK002 で拒否）だけで、完了検査は番号引数を取るので非対称ではない。したがって **2 枚以上の状態を「機構の異常」として止めるのはこのフックの役割**であり、提供コマンドの側は 1 枚である前提で動く（issue #9 G8。DDR i0009-02）
-3. `scope-limits.json` が無い・解釈できない → **deny WF210**。復旧経路として許可するのは: 提供コマンドの実行、`wip/10_tickets/**` への書き込み、`scope-limits.json` 自身への **ask（WF203）付きの**書き込み（設定が読めない間も上限設定の書き換えを AI の裁量にしない。ヘッドレスでは deny になり人間が直す）
+3. `scope-limits.json` が無い・解釈できない（`HC_LIMITS_STATE` が `missing` / `broken`。副入力の破損は `hook_read_input` を落とさない — §1・DDR i0009-47）→ **deny WF210**。復旧経路として許可するのは: 提供コマンドの実行、`wip/10_tickets/**` への書き込み、`scope-limits.json` 自身への **ask（WF203）付きの**書き込み（設定が読めない間も上限設定の書き換えを AI の裁量にしない。ヘッドレスでは deny になり人間が直す）
 4. チケットの frontmatter が読めない・`ticket_type` が `types` に無い → **deny WF211**。復旧経路: 提供コマンドの実行、そのチケットファイル自身の編集
 5. **書き込みツール**: 対象パス `p` を正規化（リポジトリルート相対）し、
    - `p` が作業中チケット自身で、変更範囲が frontmatter の `ticket_type` / `allow` / `executor` / `human_review` / `adversarial_review` / `predecessors` に及ぶ（Edit の `old_string` / `new_string` または Write の内容と現在値の差で判定）→ **deny WF208**。本文（DoD・作業ログ）だけなら許可
@@ -110,6 +110,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WG-T12 | 正常系 | EnterPlanMode が overall-plan で通り implementation で WF212 |
 | WG-T13 | 境界 | `WORKFLOW_HEADLESS=1` で WF202 が WF213（deny） |
 | WG-T14 | 正常系 | `commit.sh -m .. <禁止範囲のファイル>` が WF201 |
+| WG-T16 | 異常系 | `scope-limits.json` を壊した状態でも `tool_name` と対象パスがメッセージに載った **WF210** が返る（stdout が空にならない）。同じ状態で `commit.sh` の実行・`wip/10_tickets/**` への Write・`scope-limits.json` 自身への Write（WF203）が**通る**（復旧経路が生きている）。`approvals.json` を壊した状態では WF202 の承認済み判定だけが効かなくなり、他の判定は動く |
 | WG-T15 | 正常系 | `curl https://example.com/x` は `web` を宣言した investigation で通り、宣言の無い design では WF204。`curl -o wip/tmp/x.md <url>` は通り、`curl -o .claude/settings.json <url>` と `curl -O <url>`（カレントに作る）は宣言があっても WF205。`wget <url>` は `-O -` でなければ WF205。`WebFetch` は matcher 外なのでこのフックに届かない（届かないことを登録表 HK-T01 で固定する） |
 
 ## 要件との対応

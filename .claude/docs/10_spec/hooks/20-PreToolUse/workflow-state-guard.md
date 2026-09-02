@@ -33,7 +33,7 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 
 ## 制御方式
 
-0. **`scope-limits.json` が読めない・解釈できない** → 判定をやめずに、`common.state_files` の**既定値** `logs/mr.json` / `logs/review-state.json` / `logs/review-history.jsonl` / `logs/merge-state.json` にフォールバックして続ける（`notify` で「既定値にフォールバックした」を記録）。置き場（`wip/10_tickets/10_doing/**`・`20_done/**`）と draft 解除の判定は設定に依存しないのでそのまま働く。**このフックは設定の破損では拒否に倒さない** — 倒すと `workflow-guard` が用意した WF210 の復旧経路（`scope-limits.json` 自身への ask 付きの書き込み）が潰れ、設定 1 ファイルの破損が完全なロックアウトになる（並列に走るので deny はどれか 1 つでも出れば成立する。DDR i0009-29）
+0. **`scope-limits.json` が読めない・解釈できない**（`HC_LIMITS_STATE` が `missing` / `broken`。副入力の破損・不在は `hook_read_input` を落とさないので、この分岐に**到達できる** — §1・DDR i0009-47）→ 判定をやめずに、`common.state_files` の**既定値** `logs/mr.json` / `logs/review-state.json` / `logs/review-history.jsonl` / `logs/merge-state.json` にフォールバックして続ける（`notify` で「既定値にフォールバックした」を記録）。置き場（`wip/10_tickets/10_doing/**`・`20_done/**`）と draft 解除の判定は設定に依存しないのでそのまま働く。**このフックは設定の破損では拒否に倒さない** — 倒すと `workflow-guard` が用意した WF210 の復旧経路（`scope-limits.json` 自身への ask 付きの書き込み）が潰れ、設定 1 ファイルの破損が完全なロックアウトになる（並列に走るので deny はどれか 1 つでも出れば成立する。DDR i0009-29）
 1. 停止中 → `disabled` を記録して許可
 2. **書き込みツール**: 対象パスが
    - `state_files` に一致 → **deny WF301**

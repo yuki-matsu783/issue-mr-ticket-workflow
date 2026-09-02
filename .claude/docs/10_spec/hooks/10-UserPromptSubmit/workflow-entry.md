@@ -44,7 +44,7 @@ PreToolUse（書き込み / 実行 / プランモード / 起動）での判定�
    - チケットが無く `logs/review-state.json` の `state` が `requested` → 許可（`review`）
    - チケットが無く `logs/merge-state.json` の `state` が `started` / `cleaned` / `pushed` → **宣言が無くても**許可するのは、提供コマンド `finalize.sh`（release の再実行）と `boundary.sh`（`status` による現在地の確認）の実行だけ（共通仕様 §7-8 の識別）。それ以外の操作はこの分岐では決めず 3〜4 の宣言の判定に進む（宣言があれば通常どおり許可、無ければ WF101 で「再宣言するか、`finalize.sh release` を再実行する」を案内）。継続条件は緩和であって、宣言済みより厳しくはしない
    - 上記のどれにも当たらないが `20_done/` にだけチケットがある状態も `tickets` として通す（要件どおり。無宣言の窓になることは共通仕様 §13 の意図的な緩和）
-3. `entry.json` を読む。無い・壊れている → 未宣言として扱う（WF102。継続条件は 2 で評価済み）
+3. `entry.json` を読む（`hook_read_state`。`session_id` に依存するパスなので **`jq` の 2 回目**になる — §1・DDR i0009-46）。無い・壊れている（`HC_ENTRY_STATE` が `missing` / `broken`）→ 未宣言として扱う（WF102。継続条件は 2 で評価済み）
 4. `declared_skill` が空 → **deny WF101**。理由: 「このプロンプトでは振り分けが宣言されていない。Skill ツールで `00-workflow-issue-mr-driven` または `00-workflow-quick-request` を読み込んでから、元の操作をやり直すこと」
 5. 宣言あり → 許可（他の判定は行わない）
 6. 入力が解釈できない・`jq` が無い → **deny WF109**（機構の不調を明記）

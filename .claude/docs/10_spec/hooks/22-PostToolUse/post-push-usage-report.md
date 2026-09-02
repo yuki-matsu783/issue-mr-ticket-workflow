@@ -28,7 +28,7 @@ keywords: [PostToolUse, Stop, 対応工数, トークン, ツール実行回数,
 
 ## 入出力
 
-- 入力: `transcript_path`、`session_id`、（Stop）`stop_hook_active`。参照: `logs/usage/<branch>.json`（`{"since_sha","since_at","last_push_sha","push_count","sessions":{"<session_id>":{"input","output","cache_read","cache_write","tool_calls","responses","active_seconds","last_offset"}},"subagents":{...},"posted":false}`）、`logs/mr.json`。**`logs/push-state.json` は参照しない**（`post-push-compact-prompt` 専用。DDR i0009-24）
+- 入力: `transcript_path`（Stop / PostToolUse）、**`agent_transcript_path`（SubagentStop）**、`session_id`、`agent_id`（SubagentStop）、（Stop）`stop_hook_active`。**SubagentStop で `transcript_path` を読んではならない** — 公式は「The `transcript_path` is **the main session's transcript**, while `agent_transcript_path` is the subagent's own transcript stored in a nested `subagents/` folder.」と定めており、読み違えるとメイン分が `subagents[agent_id]` に**二重計上**され、`last_offset` も競合する。参照: `logs/usage/<branch>.json`（`{"since_sha","since_at","last_push_sha","push_count","sessions":{"<session_id>":{"input","output","cache_read","cache_write","tool_calls","responses","active_seconds","last_offset"}},"subagents":{...},"posted":false}`）、`logs/mr.json`。**`logs/push-state.json` は参照しない**（`post-push-compact-prompt` 専用。DDR i0009-24）
 - 出力: additionalContext（WF911: レポート本文と置き場）、`logs/usage/report-<branch>-<count>.md`
 
 ## 制御方式
@@ -36,7 +36,7 @@ keywords: [PostToolUse, Stop, 対応工数, トークン, ツール実行回数,
 ### `--accumulate`（Stop / SubagentStop）
 
 1. 停止中 → 何もしない
-2. `lib/transcript.sh` で `transcript_path` の `last_offset` 以降を読み、assistant メッセージの `usage`（input / output / cache_read_input_tokens / cache_creation_input_tokens）、`tool_use` ブロック数、assistant ターン数、タイムスタンプ列を得る
+2. `lib/transcript.sh` で対象の transcript（**Stop / PostToolUse は `transcript_path`、SubagentStop は `agent_transcript_path`**）の `last_offset` 以降を読み、assistant メッセージの `usage`（input / output / cache_read_input_tokens / cache_creation_input_tokens）、`tool_use` ブロック数、assistant ターン数、タイムスタンプ列を得る
 3. 実作業時間: 連続する assistant / tool_result のタイムスタンプ差を合計し、ユーザー入力待ち（user メッセージ直前の間隔）と 10 分を超える間隔を除く
 4. `logs/usage/<branch>.json` の該当セッション（サブエージェントは `subagents[agent_id]`）に加算し `last_offset` を更新する（二重計上防止）。`last_offset` の単位は transcript の**処理済み行数**（空行・壊れた行を含む総行数。`lib/transcript.sh` が返す `new_offset`）
 5. 読めない・形式不明 → 何もしない（読めた分だけ加算し `parse_errors` を +1）
@@ -88,7 +88,7 @@ keywords: [PostToolUse, Stop, 対応工数, トークン, ツール実行回数,
 |-----------|------|----------------|
 | UR-T01 | 正常系 | 固定の transcript から集計値（4 指標）が期待値と一致し、桁区切り・「H 時間 M 分」で本文が出る |
 | UR-T02 | 正常系 | `--accumulate` を 2 回呼んでも二重計上されない（`last_offset`） |
-| UR-T03 | 正常系 | 2 セッション分の蓄積が合算され、サブエージェント分が含まれる |
+| UR-T03 | 正常系 | 2 セッション分の蓄積が合算され、サブエージェント分が含まれる。**SubagentStop で `agent_transcript_path` を読む**（`transcript_path`（メインの transcript）を渡しても `subagents[]` に加算されない負のケースを添える） |
 | UR-T04 | 正常系 | `posted:false` のまま次の push でレポートに繰り越しの注記が付く。`posted:true` なら `since_sha` から |
 | UR-T05 | 異常系 | 状態破損で WF913 と今回起点、transcript 不読で無出力・終了 0 |
 | UR-T06 | 正常系 | MR 無しで「投稿先が無い」注記 |

@@ -87,7 +87,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
 | PP-T01 | 正常系 | `push.sh` 成功（HEAD == upstream）で WF901 が出て `push-state.json` が更新される |
-| PP-T02 | 正常系 | push 失敗・`git status` などでは何も出ず記録も変わらない。`grep "git push"` でも働かない |
+| PP-T02 | 正常系 | `git status` などでは何も出ず記録も変わらない。`grep "git push"` でも働かない。**push の失敗はこのフックに届かない**（失敗は `PostToolUseFailure` に流れる — §12 T7）ので、失敗ケースは lib 単体（HK-T13）でも本体でも検査しない |
 | PP-T03 | 正常系 | 直接 `git push` が成功したときも働く |
 | PP-T04 | 正常系 | GitHub / GitLab の origin（https / ssh）でリンク形式が表どおり |
 | PP-T05 | 境界 | 初回で WF902、MR 未記録で WF903、変更 20 件で 15 件 + 「他 5 件」 |

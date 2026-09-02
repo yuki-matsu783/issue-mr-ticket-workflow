@@ -102,7 +102,16 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | 1 | frontmatter は読めたがキーが無い・対象外の形 | **チケットの記載不正 → WF211**（復旧は記載の修正・`ticket.sh cancel`） |
 | 2 | ライブラリを読み込めていない（スタブ） | **機構の破損 → WFx09**（`workflow-guard` なら WF209。復旧は `.claude/` の状態確認とユーザーへの報告） |
 
-`scope.sh` は `fm_*` の戻り値 2 を自分の戻り値 2 としてそのまま呼び手に返す（1 と 2 を潰さない）。案内側のフックは 1 と 2 のどちらでも何も出さずに通すので区別を使わないが、区別できる形にしておくのは記録（`decisions.jsonl` の `note`）で原因を書き分けるため。
+**`FM_AVAILABLE` を設定するのは読み込み行**（読めたら 1、`nop` でフォールバックしたら 0）。`frontmatter.sh` 自身は設定しない（読み込めていないときに実行されるのはスタブの側なので、ライブラリに設定を任せられない）。
+
+**呼び出し規約**（`set -euo pipefail` の下で戻り値 1 / 2 を潰さないための書き方。DDR i0009-35）:
+
+- `local` と代入を**同じ行に書かない**。`local v=$(fm_get "$f" k)` は bash の仕様上 `local` の終了ステータス（常に 0）が返り、**戻り値が黙って失われる**。`local v; v="$(fm_get "$f" k)" || rc=$?` と 2 行に分ける
+- **`|| true` を使わない**。`set -e` で落ちないようにするためだけの `|| true` は戻り値を捨てる。`|| rc=$?` で受けて分岐する
+- 戻り値を使わない呼び出し（値が空でも困らない場面）でも `|| rc=$?` で受け、`rc` を無視すると決めたことがコードから読めるようにする
+- パイプやコマンド置換の中で `fm_*` を呼ばない（`$(...)` の中の非 0 は `set -e` の対象外になり、判定が静かに変わる）
+
+`scope.sh` は `fm_*` の戻り値 2 を `scope_load_ticket` の戻り値 2 としてそのまま呼び手に返す（1 と 2 を潰さない）。案内側のフックは 1 と 2 のどちらでも何も出さずに通すので区別を使わないが、区別できる形にしておくのは記録（`decisions.jsonl` の `note`）で原因を書き分けるため。
 
 `git rev-parse` だけに頼らないのは、フックが毎ツール呼び出しで git を起動することになる（Git Bash で約 95 ms/回）ことと、git 不在・リポジトリ外で `set -e` により即死することを避けるため。
 
@@ -113,7 +122,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | ライブラリの関数 | やること（分類） | やらないこと（照合。呼び手の責務） |
 |---|---|---|
 | `hook-common.sh` の `tool_class` | ツール名から種類（書き込み / 実行 / 読み取り / プランモード / 起動 / 宣言）を返す。`Skill` は `tool_input.skill` の値を見ずに**常に「宣言」**に分類する | 「その名前が振り分けスキルか」の照合。正は `.claude/hooks/config/entry-skills.txt` で、照合するのは `workflow-entry`（`00-workflow-` の接頭辞判定をライブラリに持たせない） |
-| `cmdpos.sh` | コマンド列を実行位置のセグメントに分け、実行体・第 1 サブコマンドを返す | 「そのコマンドを許してよいか」の判断（`workflow-guard` / `block-*` が行う） |
+| `cmdpos.sh` | コマンド列を実行位置のセグメントに分け、実行体・第 1 サブコマンド・**オプションを除いた位置引数**（`cmdpos_operands <i>`）を返す | 「そのコマンドを許してよいか」の判断（`workflow-guard` / `block-*` が行う）。「その位置引数が削除対象か宛先か」の解釈も呼び手（`workflow-state-guard` の WF302 / WF303）が行う |
 | `scope.sh` の `scope_classify` | 操作の分類（`read` / `build-test` / `hook-test` / `remote-read` / `remote-write:*` / `merge-base` / `provided`）を返す | 「その分類がチケットに宣言されているか」の判断（呼び手が `allow.ops` と突き合わせる） |
 | `frontmatter.sh` | frontmatter の値を返す（戻り値で「読めた / 無い / ライブラリ不在」を区別） | 値が仕様どおりかの検証（`ticket_type` が `types` にあるか等） |
 
@@ -191,6 +200,7 @@ log_debug "HEAD=5c19f25 doing=empty"   # LOG_LEVEL=DEBUG のときだけ書か�
 | SS-T01 | 正常系 | 雛形からコピーした sh が `bash -n` を通り、logger を source して結果出力の型で終了する |
 | SS-T02 | 異常系 | テスト雛形が失敗ケースを検出して非 0 で終了する |
 | SS-T03 | 正常系 | 読み込み行が、スキルの `scripts/`・フックのイベントディレクトリ・両者の `tests/` の 4 通りの深さから logger を解決する（fork なしの経路） |
+| SS-T05 | 正常系 | **読み込み行のコピーが雛形と一致する**: リポジトリ内のすべての `.sh`（`.claude/hooks/**` と `.claude/skills/*/scripts/**`）の `^__ss_load() {` から始まる行が、`assets/script.template.sh` のそれと**バイト一致**する。1 か所でも違えば失敗し、違うファイルを列挙する（読み込み行は 20 本以上に逐語コピーされており、雛形だけ直すと本番経路が旧仕様のまま残る。DDR i0009-36） |
 | SS-T04 | 異常系 | git 不在・リポジトリ外・`CLAUDE_PROJECT_DIR` 未設定でも読み込み行が失敗せず、logger が no-op になって本体が続行する。`nop` でも `LOGGER_ROOT` が設定される。`fatal` の最終行は `FATAL: <理由>` で終了 2、`deny` は `HOOK_DENY_ID`（未設定なら `WF009`。台帳の持ち主は共通ライブラリの読み込み行 — フック共通仕様 §6・DDR i0009-15）の deny JSON で終了 0。`frontmatter` の `nop` は `FM_AVAILABLE=0` とスタブ（出力なし・**戻り値 2**）を定義し、キー不在の戻り値 1 と区別できる |
 | FR-T01 | 正常系 | フラットなスカラーとフロー配列（`ticket_type` / `predecessors`）を読める |
 | FR-T02 | 正常系 | 入れ子マッピング（`allow.write` / `allow.ops`）をドット区切りで読める |

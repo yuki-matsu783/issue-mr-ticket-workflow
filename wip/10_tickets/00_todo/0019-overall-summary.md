@@ -7,7 +7,7 @@ human_review: {required: true, reason: "片付け・draft 解除・外部への�
 adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
-  ops: ["read"]
+  ops: ["read", "remote-read", "remote-write:issue-create", "remote-write:mr-edit", "remote-write:mr-comment", "remote-write:push", "remote-write:draft-ready"]
 started_at: ""
 completed_at: ""
 base_sha: ""

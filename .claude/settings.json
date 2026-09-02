@@ -105,6 +105,10 @@
           {
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\"", 
             "type": "command"
+          }, 
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-direct-git.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF409: フック block-direct-git を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
+            "type": "command"
           }
         ], 
         "matcher": "Bash|PowerShell"

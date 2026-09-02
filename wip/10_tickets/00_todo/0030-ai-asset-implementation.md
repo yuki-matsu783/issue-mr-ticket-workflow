@@ -23,13 +23,13 @@ base_sha: ""
 
 - [ ] workflow-entry.sh があり、UserPromptSubmit / PreToolUse Skill（宣言の記録）と PreToolUse の未宣言の拒否（WF101 系）の入口を持つ。jq の呼び出しが 2 回（hook_read_input + hook_read_state）で HK-T19 が通る（根拠: ）
 - [ ] workflow-state-guard.sh があり、制御方式 0（既定値へのフォールバックと notify。評価は制御方式 1 の後）から 5（判定不能）までを仕様の順で実装している。jq の呼び出しが 1 回で HK-T19 が通る（根拠: ）
-- [ ] 置き場の削除が、正規化した元パスの前方一致で置き場のディレクトリ自身と祖先（wip/10_tickets・wip）も拾い、rm -rf wip/tmp と rm -rf logs は通る。SG-T11 が通る（根拠: ）
+- [ ] 置き場の削除が、cmdpos_operands で取った位置引数に対して、正規化した元パスの前方一致で置き場のディレクトリ自身と祖先（wip/10_tickets・wip）も拾い、rm -rf wip/tmp と rm -rf logs は通る。SG-T11 が通る。自前で引数を再パースしていない（根拠: ）
 - [ ] block-direct-git.sh があり、cmdpos.sh を使ってサブコマンドを判定する。BG-T01〜T11 が通る。jq の呼び出しが 1 回（根拠: ）
 - [ ] workflow-guard.sh があり、制御方式 1〜6 を仕様の順で実装している。web の 3 段判定は scope.sh に委ね、CP_PROVIDED を直に見て素通ししない。jq の呼び出しが 2 回で HK-T19 が通る（根拠: ）
-- [ ] 作業ツリーの解決が §2 どおり（cwd が HOOK_ROOT と異なるとき cwd から上向きに .claude を探す。[ -d ] の繰り返しで git を呼ばない）。スクリプトの置き場は HOOK_ROOT、logs/ と wip/ は作業ツリー側（根拠: ）
-- [ ] ホットパス 5 本が git / date / sed / find を呼ばず、make_counting_path で数えた jq の回数が block-chmod・block-direct-git・workflow-state-guard = 1、workflow-guard・workflow-entry = 2 に固定されている（根拠: ）
+- [ ] 4 本とも作業ツリーの基準に 0027 で hook-common.sh に入れた HOOK_WORKTREE を使い、各フックが自前で解決していない（根拠: ）
+- [ ] ホットパス 5 本が git / date / sed / find を呼ばず、make_counting_path で数えた jq の回数が block-chmod・block-direct-git・workflow-state-guard = 1、workflow-guard・workflow-entry = 2 に固定されている。hook_field を追加で呼んでいない（0027 で hook_read_input が prompt などを取っているのが前提）（根拠: ）
 - [ ] 4 本とも実装の型に従い、bash -n と shellcheck を通り、bash <script> < 入力 JSON の単体実行で想定どおりの JSON を出す（ラッパー無しの状態で）（根拠: ）
-- [ ] 4 本のテストが run-tests.sh --ids で通る（WE-T* / SG-T* / BG-T* / WG-T*。boundary.sh 依存の WE-T10 を除く）（根拠: ）
+- [ ] 4 本のテストが `run-tests.sh --filter '<glob>' --ids` で通る（WE-T* / SG-T* / BG-T* / WG-T*。boundary.sh 依存の WE-T10 を除く）（根拠: ）
 
 ## 作業内容
 

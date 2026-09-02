@@ -28,7 +28,9 @@ base_sha: ""
 - [ ] subagent-start-check.sh があり、PreToolUse Agent（WF801 を systemMessage + additionalContext の 2 経路・WF803 の background 警告）と SubagentStart（要点の注入）の両方の入口を持つ。テストが通る（根拠: ）
 - [ ] subagent-stop-check.sh があり、tool_response.status（completed / async_launched）で分岐し agentId（camelCase）を読む。SubagentStop と PostToolUse Agent の両方の入口を持つ。テストが通る（根拠: ）
 - [ ] 6 本とも実装の型（HOOK_DENY_ID の代入 → lib の source → hook_init）に従い、bash -n と shellcheck を通り、bash <script> < 入力 JSON の単体実行が終了 0 で通る（根拠: ）
-- [ ] 6 本のテストが run-tests.sh --ids で通る（boundary.sh 依存の 10 件を除く。除いた ID を作業ログに列挙した）（根拠: ）
+- [ ] 6 本に「4c プローブ」を仕込んだ。環境変数 WORKFLOW_PROBE_4C=1 のときだけ有効で、(a) tool_response.status / agentId / agent_type / model / permission_mode / source / run_in_background の値と、その他のキーの有無と型だけを logs/hooks/probe-4c.jsonl に落とす、(b) subagent-start-check が Agent の呼び出しで無条件に systemMessage を 1 つ出す。既定（環境変数なし）では一切の副作用が無いことをテストで固定した（根拠: ）
+- [ ] 4c プローブが rules/logger.md の「値ではなく有無・長さ」からの逸脱であることと、値を落とすのが上記 7 フィールドに限られることを作業ログ「仕様からの逸脱」に書いた（根拠: ）
+- [ ] 6 本のテストが `run-tests.sh --filter '<glob>' --ids` で通る（boundary.sh 依存の 10 件を除く。除いた ID を作業ログに列挙した）（根拠: ）
 
 ## 作業内容
 
@@ -36,6 +38,8 @@ base_sha: ""
 - 案内側は fail-closed ラッパーを付けない（§3）。失敗は通す
 - 重い 2 本（session-start / post-push-usage-report）と軽い 4 本を含む。0006 f5 の分割を案内側 / 拒否側の区切りの内側で満たす
 - .claude/docs/** には書かない。決定は作業ログ「判断と根拠」に書く
+- 4c プローブが必要な理由: decisions.jsonl は 10 キー固定（§5）で permission_mode / model / tool_response / agent_type を入れる場所が無く、systemMessage を出す WF801 / WF803 は subagent_type が task-executor（.claude/agents/ は空で実装が無い）で executor が main 以外のときにしか発火しないため、そのままでは T9 が測れない
+- ⓪ の登録により block-chmod は本番で生きている。chmod を使う作業が出たら WORKFLOW_BLOCK_CHMOD_ENFORCE=0 の新セッションで回避する
 
 ## 作業ログ
 

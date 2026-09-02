@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0016 AI アセット実装計画 — 共通ライブラリの作り直しから 17 行の段階登録までを 6 枚に割り付ける</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ -->
+  <p class="kind">AI アセット実装計画 / issue #9 フェーズ 4</p>
+  <h1 id="title" data-required>0016 AI アセット実装計画 — 共通ライブラリの作り直しから 17 行の段階登録までを 6 枚に割り付ける</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-9-hook-bodies-settings</code></dd></div>
+    <div><dt>チケット</dt><dd>0016-ai-asset-implementation-plan</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead"><strong>設計は「lib は #6 で既に正しい」という前提で書かれたが、境界レビュー 2 巡がその前提を崩した</strong>。<code>hook-common.sh</code> には設計が要求する 5 関数（<code>hook_read_state</code> / <code>hc_append_jsonl</code> / <code>hc_json_write</code> / <code>hc_lock</code> / <code>hc_unlock</code>）が無く、<code>hook_read_input</code> は副入力を受け取れず、<code>scope.sh</code> は <code>web</code> を知らず読み込み関数がパスを引数に取る。<strong>フック本体 11 本を書く前に lib の改修が要る</strong>。そのうえで <strong>T6（<code>permissionDecision</code> + 終了 0 の deny が実際に効くか）を 11 本を書き切る前に確かめる</strong> — 外れたときの手戻りが 11 本 + 登録ラッパー全部に及ぶため。拒否側の最も単純な 1 本（<code>block-chmod</code>）を lib と同じチケットで先に書き、<strong>それだけを単独で登録して T6 を確かめる ⓪ の段</strong>を段階登録の前に置く。</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>枚</th><th>中身</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0027</td><td><code>hooks/lib</code> 5 本の改修 + <code>config</code> 3 ファイルの新規 + 読み込み行の一斉置換 + <code>block-chmod</code> 1 本</td><td>なし</td></tr>
+      <tr><td>0028</td><td><strong>⓪ T6 の先行確認</strong>（<code>block-chmod</code> だけをラッパー無しで登録し deny が効くかを見る）。結果で終了方式を確定</td><td>0027</td></tr>
+      <tr><td>0029</td><td>案内側 6 本とテスト</td><td>0027</td></tr>
+      <tr><td>0030</td><td>拒否側の残り 4 本とテスト</td><td>0028, 0029</td></tr>
+      <tr><td>0031</td><td>段階登録 ①・②（17 行）と<strong>フェーズ 4c の実測 8 項目</strong>、HK-T01 と全件</td><td>0030</td></tr>
+      <tr><td>0032</td><td><code>feedback-plan</code>（次の計画）</td><td>0027〜0031</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>実装前に確定した 8 件</h3>
+  <ol>
+    <li><strong>段階登録は 17 行</strong>（§1 の表が正）。案内側 <strong>12 行</strong>・拒否側 <strong>5 行</strong>。全体計画の「16 行 / ① 11 行」は <code>subagent-start-check</code> の PreToolUse <code>Agent</code> 登録（WF803）が増える前の数で、<strong>この計画で 17 行 / ① 12 行に組み直す</strong></li>
+    <li><strong>T6 の確認は ⓪ で行い、そのときラッパーを付けない</strong>。ラッパーは「本体が起動できない = deny」なので、T6 が未確認の段で付けると本体の不調と登録方式の不調が区別できず、しかも<strong>ラッパーは環境変数を見ないので環境変数で戻れない</strong>。⓪ は素の <code>command</code> で登録し最悪でも fail-open に留める</li>
+    <li><strong>T9（<code>systemMessage</code> の表示）は ① の後に確かめる</strong>。<code>subagent-start-check</code> の PreToolUse <code>Agent</code> 登録は<strong>案内側</strong>なので ① に入る。全体計画の 4c 表が「②-2 の後」と書いているのは 16 行時代の段の割り当てを参照した誤り</li>
+    <li><strong>HK-T01 の期待値は 17 行分の <code>command</code> 文字列の逐語一覧</strong>をフィクスチャ（<code>.claude/hooks/tests/fixtures/settings-hooks.expected.tsv</code>）に持つ。イベント名からディレクトリを機械変換できない行が 4 行あるため</li>
+    <li><strong>読み込み行は雛形を先に直してから 22 本へ配る</strong>。現在の雛形は仕様と 3 点ずれている（<code>FM_AVAILABLE</code> を設定しない / <code>fm_*</code> スタブの戻り値が 1（仕様は 2）/ フォールバックの <code>git rev-parse</code>）</li>
+    <li><strong>実装フェーズは DDR を書けない</strong>（<code>ai-asset-implementation.deny</code> に <code>.claude/docs/**</code>）。決定は作業ログに書き、0032 が棚卸ししてフェーズ 6 で DDR にする</li>
+    <li><strong><code>settings.json</code> は許可範囲に入っているが AI は書かない</strong>。機構としては確認つきで書けるが、この issue の制約として登録は人間の操作。AI は JSON と手順を提示し登録後のコミットだけを行う</li>
+    <li><strong>フェーズ 7 は第 1 案（<code>WORKFLOW_STATE_GUARD_ENFORCE=0</code> の新セッション）で通す</strong>。17 行の登録を保ったまま HK-T01 と全件が通る状態でマージできる唯一の案</li>
+  </ol>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <h3>入力（読んだもの）</h3>
+  <ul>
+    <li><strong>設計の結果報告 12 枚</strong>: <code>0012</code>〜<code>0015</code>・<code>0019</code>〜<code>0026</code> の「設計への反映（後続へ）」</li>
+    <li><strong>指摘の原文</strong>: <code>0015-...-appendix-A.md</code>（1 巡目 38 件）・<code>0022-...-appendix-A.md</code>（2 巡目 27 件）</li>
+    <li><strong>仕様</strong>: <code>フック共通仕様</code>（§1 登録表 17 行・§2 作業ツリー・§3 制御方式・§5 記録とロック・§8 <code>scope.sh</code> の出力の形・§11 HK-T01〜T20・§12 TBD）、フック個別 11 本、<code>20-common-step-shell-script</code></li>
+    <li><strong>実体</strong>: <code>.claude/hooks/lib/*.sh</code> 5 本・<code>config/</code> 2 ファイル・<code>__ss_load</code> を持つ 23 ファイル・<code>scope-limits.json</code></li>
+    <li><strong>申し送り</strong>: <code>0006</code> の 3 件（実装の型 / T6 を最初に / 重い 4 本と軽い 7 本）、全体計画の登録段取りと #10 への申し送り</li>
+  </ul>
+
+  <h3>実体と仕様の差分（この計画が拾った未実装）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>現状</th><th>仕様が要求するもの</th><th>割り当て</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/hooks/**</code> のフック本体</td><td><strong>0 本</strong>（9 つのイベントディレクトリはすべて空）</td><td>11 本</td><td>0027（1）・0029（6）・0030（4）</td></tr>
+      <tr><td><code>hook-common.sh</code></td><td>30 関数。<code>hook_read_input</code> は stdin だけを読む</td><td><code>hook_read_state</code> / <code>hc_append_jsonl</code> / <code>hc_json_write</code> / <code>hc_lock</code> / <code>hc_unlock</code> の <strong>5 関数が無い</strong>。副入力は <code>--rawfile</code> + <code>fromjson? // null</code> で受け <code>HC_&lt;名前&gt;_STATE</code> を立てる</td><td>0027</td></tr>
+      <tr><td><code>scope.sh</code></td><td>11 関数。読み込み関数がパス引数を取り自分で JSON を開く</td><td>パス引数を削り <code>HC_*</code> から詰め替える。<code>_SC_WEB_CMDS</code> と <code>web</code> の 3 段判定・出力先の走査、戻り値 3 状態、<code>|| true</code> の除去</td><td>0027</td></tr>
+      <tr><td><code>.claude/hooks/config/</code></td><td><code>scope-limits.json</code>・<code>task-types.tsv</code> の <strong>2 ファイル</strong></td><td>5 ファイル。<code>blocked-commands.txt</code>・<code>entry-skills.txt</code>・<code>model-aliases.txt</code> が<strong>無い</strong></td><td>0027</td></tr>
+      <tr><td>読み込み行</td><td>23 ファイルにコピー済みだが雛形自体が仕様と 3 点ずれている</td><td>雛形と 22 本がバイト一致（<code>SS-T05</code>）</td><td>0027</td></tr>
+      <tr><td><code>.claude/settings.json</code> の <code>hooks</code></td><td>未登録</td><td>17 行</td><td>0028（⓪ 1 行）・0031（①② 16 行）</td></tr>
+      <tr><td><code>.claude/rules/markdown-docs.md</code></td><td><strong>存在しない</strong>のに 2 つのルールが frontmatter の正として参照</td><td>参照が解決すること</td><td>0027</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>やらないこと</h3>
+  <ul>
+    <li><code>.claude/docs/**</code> への書き込み（実装フェーズの <code>deny</code>。書き戻しはフェーズ 6）</li>
+    <li>提供コマンドの実体の変更。<code>push.sh</code> の 1 枚目依存は #10 への申し送り 2</li>
+    <li><code>boundary.sh</code> / <code>finalize.sh</code> の実装（3/3）と依存する 10 件のテスト観点</li>
+    <li><code>scope-limits.json</code> の実体変更。<strong>15 種すべてが揃い <code>investigation.ops</code> に <code>web</code> も入っており変更不要</strong>と確認した</li>
+    <li><code>PostToolUseFailure</code> / <code>PermissionRequest</code> / <code>PreCompact</code> と空ディレクトリ 3 つ</li>
+    <li>マージ（人間が行う）</li>
+  </ul>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+
+  <h3>ステップ 1: 共通ライブラリと足場（0027）</h3>
+  <p><strong>1-1 読み込み行</strong>（<code>i0009-36</code>）。順序を守る: (1) <code>assets/script.template.sh</code> を仕様に合わせる（<code>FM_AVAILABLE</code> を設定 / <code>fm_*</code> スタブの戻り値を 1 → 2 / ルート解決 3 段目の扱いを確定）→ (2) <code>assets/test.template.sh</code> を揃える → (3) 残り 21 ファイルへ<strong>バイト一致で</strong>配る → (4) <code>SS-T05</code> を実装して通す（違うファイルを列挙して落ちる失敗ケースも）。</p>
+  <p><strong>1-2 <code>hook-common.sh</code></strong>。実装の型を 11 本で統一する（0006 f4）: <strong><code>HOOK_DENY_ID</code> の代入 → lib の <code>source</code> → <code>hook_init</code></strong>。この順でなければ読み込み行が出す <code>WFx09</code> が既定の <code>WF009</code> になる。</p>
+  <ul>
+    <li><code>hook_read_input</code>: stdin と<strong>パスが stdin に依存しない副入力</strong>を <strong>1 回の <code>jq</code></strong> で読む。存在するものだけ <code>--rawfile</code>、無いものは <code>--argjson &lt;名前&gt; null</code>（存在確認は <code>[ -f ]</code>）。<code>HC_&lt;名前&gt;_STATE</code>（<code>ok</code> / <code>missing</code> / <code>broken</code>）を立てる</li>
+    <li><code>hook_read_state</code>: <code>session_id</code> に依存する副入力を <strong>1 回の <code>jq</code></strong> で読む。要るフックだけが呼ぶ</li>
+    <li><code>hc_*</code> 4 関数: §1 の契約どおり。<strong>切り詰めは <code>hc_append_jsonl</code> が行い</strong>、<strong>2 秒と 60 秒は <code>hc_lock</code> が持つ</strong>。<code>hc_lock</code> は取得前に既存ロックの作成時刻を見て 60 秒より古ければ <code>rmdir</code> して強制解放し実行ログに 1 行残す（<code>i0009-60</code>）</li>
+    <li>作成時刻は <code>find &lt;dir&gt; -maxdepth 0 -mmin +1</code> で判定。<strong><code>hc_lock</code> はホットパスではない</strong>ので <code>find</code> の fork は上限に触れない。Windows の Git Bash での挙動は 0027 で実測して作業ログに残す</li>
+  </ul>
+  <p><strong>1-3 <code>scope.sh</code></strong>: 読み込み 2 関数からパス引数を削る（<code>i0009-48</code>）/ <code>scope_load_ticket</code> の戻り値を 0・1・2 に分ける（<code>i0009-16</code>）/ <code>web</code> の 3 段判定（<code>i0009-56</code>）と出力先の走査（<code>i0009-57</code>）/ <code>|| true</code> を <code>|| rc=$?</code> に（<code>i0009-35</code>）/ <code>hook-test</code> を <code>build-test</code> と <code>provided</code> より先に判定。</p>
+  <p><strong>1-4 <code>config</code> 3 ファイル</strong>を新規作成する。<code>.claude/hooks/config/**</code> は <code>common.confirm</code> なので 1 ファイルにつき WF203 の確認が出る。<strong>3 ファイルとも ⓪ より前に作る</strong>。</p>
+  <p><strong>1-5 <code>block-chmod</code> 1 本</strong>とそのテスト（⓪ で使う）。<strong>1-6 <code>.claude/rules/markdown-docs.md</code></strong> の参照不整合を解消する。</p>
+
+  <h3>ステップ 2: ⓪ T6 の先行確認（0028）</h3>
+  <ol>
+    <li>AI が貼る JSON 1 行分を提示する（<strong>ラッパー無しの素の <code>command</code></strong>）: <code>{"matcher": "Bash|PowerShell", "hooks": [{"type": "command", "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\""}]}</code></li>
+    <li><strong>登録前に人間がバックアップ</strong>を取る</li>
+    <li>人間が登録し、AI が <code>commit.sh</code> でコミットする（WF203 は人間が承認）</li>
+    <li><strong>新しいセッション</strong>で <code>chmod +x</code> を試し、<code>permissionDecision: "deny"</code> + 終了 0 で拒否されるかと <code>decisions.jsonl</code> の記録を見る</li>
+    <li><strong>効いた</strong>: §3 の終了方式が確定。0030 以降はラッパー付きで進む</li>
+    <li><strong>効かない</strong>: <code>exit 2</code> + stderr へ切り替える。<strong>影響を受ける本体は 1 本だけ</strong>で、手戻りは <code>hook-common.sh</code> の出力ヘルパに閉じる。仕様との食い違いは作業ログ「仕様からの逸脱」へ</li>
+    <li><strong>ロックアウト</strong>: <code>WORKFLOW_BLOCK_CHMOD_ENFORCE=0</code> の新セッション。ラッパーを付けていないので必ず戻れる</li>
+  </ol>
+
+  <h3>ステップ 3: 案内側 6 本（0029）</h3>
+  <p>0006 f5 の「重い 4 本と軽い 7 本」を<strong>案内側 / 拒否側の区切りの内側で</strong>満たす（重い 4 本のうち <code>session-start</code> と <code>post-push-usage-report</code> がここ、<code>workflow-guard</code> と <code>workflow-state-guard</code> が 0030）。</p>
+  <ul>
+    <li>案内側は<strong>ラッパー無し</strong>（失敗は通す）</li>
+    <li><code>session-start</code> は <code>boundary.sh status --offline</code>（3/3・未実装）が無ければ<strong>何も出さずに終了 0</strong>。依存する 8 件のテスト観点は<strong>書かずに #10 へ送る</strong></li>
+    <li><code>post-push-usage-report</code> は <code>--accumulate</code> と既定の両方で <strong><code>hc_lock usage-&lt;branch&gt;</code></strong> を取ってから加算する（<code>i0009-61</code>）。時刻の変換は自前の暦計算</li>
+    <li><code>subagent-start-check</code> は PreToolUse <code>Agent</code>（WF801 の 2 経路・WF803）と SubagentStart（要点の注入）の<strong>両方</strong>に登録される 1 本</li>
+    <li><code>subagent-stop-check</code> は PostToolUse <code>Agent</code> で <code>tool_response.status</code> で分岐し <code>agentId</code>（<strong>camelCase</strong>）を読む</li>
+  </ul>
+
+  <h3>ステップ 4: 拒否側の残り 4 本（0030）</h3>
+  <ul>
+    <li><strong>ホットパスの <code>jq</code> の回数を実装で固定</strong>: <code>block-chmod</code> / <code>block-direct-git</code> / <code>workflow-state-guard</code> = <strong>1 回</strong>、<code>workflow-guard</code> / <code>workflow-entry</code> = <strong>2 回</strong>。<code>make_counting_path</code> で数え <code>HK-T19</code> で固定</li>
+    <li><strong><code>git</code> / <code>date</code> / <code>sed</code> / <code>find</code> をホットパスで呼ばない</strong>。パス照合・コマンド分割は純 bash</li>
+    <li><strong>作業ツリーの解決</strong>（<code>i0009-55</code>）: <code>cwd</code> が <code>HOOK_ROOT</code> と異なるとき <code>cwd</code> から上向きに <code>.claude</code> を探す（<code>[ -d ]</code> の繰り返し。fork ゼロ）</li>
+    <li><strong>置き場の削除</strong>（<code>i0009-59</code>）: 正規化した元パスの前方一致で祖先（<code>wip/10_tickets</code> / <code>wip</code>）を拾う。<code>rm -rf wip/tmp</code> と <code>rm -rf logs</code> は通す</li>
+  </ul>
+
+  <h3>ステップ 5: 段階登録とフェーズ 4c の実測（0031）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>段</th><th>行数</th><th>中身</th><th>直後に確かめること</th></tr></thead>
+    <tbody>
+      <tr><td>⓪（0028 で完了）</td><td>1</td><td><code>block-chmod</code>（ラッパー無し）</td><td><strong>T6</strong></td></tr>
+      <tr><td>① 記録・案内側</td><td><strong>12</strong></td><td>SessionStart 1 / UserPromptSubmit 1 / PreToolUse <code>Skill</code> 1 / <strong>PreToolUse <code>Agent</code> 1</strong> / PostToolUse 4 / SubagentStart 1 / SubagentStop 2 / Stop 1</td><td><strong>T9</strong>・<strong>T4</strong>・<code>tool_response.status</code>・<code>agent_type</code>・<strong>T7</strong>・<strong>T2</strong></td></tr>
+      <tr><td>② 拒否側</td><td>4 + 1</td><td>PreToolUse の 4 本をラッパー付きで足し、<strong>⓪ の <code>block-chmod</code> にもラッパーを付ける</strong></td><td><strong>HK-T09</strong>・<strong>worktree</strong>・<strong>T8</strong>・<strong>ホットパスの実行時間</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>段ごとに<strong>新しいセッション</strong>で軽い操作（Read → Skill 宣言 → Edit → <code>commit.sh</code>）を通し、想定外の deny が出ないことを確かめる。各段の登録後に AI が <code>commit.sh .claude/settings.json</code> でコミットする。</p>
+
+  <h4>フェーズ 4c の実測（<code>T1</code> は <code>i0009-43</code> で公式解決済みのため含めない）</h4>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>項目</th><th>確かめ方</th><th>外れたときの影響</th></tr></thead>
+    <tbody>
+      <tr><td>T2</td><td>サブエージェント内の <code>session_id</code> が親と同じか</td><td><code>decisions.jsonl</code> の <code>session_id</code> を親子で比較</td><td><code>hook_read_state</code> が読む置き場</td></tr>
+      <tr><td>T3</td><td><code>claude -p</code> の判別 / <code>defer</code> の実在</td><td>ヘッドレス実行時の入力を <code>decisions.jsonl</code> に記録して比較</td><td>§10 のヘッドレス判定</td></tr>
+      <tr><td>T4</td><td><code>SubagentStart</code> と <code>model</code> / <code>agent_id</code> の実在</td><td>① の後にサブエージェントを 1 つ起動し <code>logs/</code> を見る</td><td>SubagentStart 登録</td></tr>
+      <tr><td>T6</td><td>deny が <code>permissionDecision</code> + 終了 0 で効くか</td><td><strong>⓪ で確認済み</strong>（0028）</td><td>拒否側 5 本 + ラッパー</td></tr>
+      <tr><td>T7</td><td><code>tool_response</code> の終了コードのフィールド名</td><td>実物を <code>logs/</code> に落として見る。<strong>公式では「存在しない」と分かっているが受け入れ条件 5 が実物の確認を求める</strong>ので省かない</td><td><code>push-detect.sh</code> の判定</td></tr>
+      <tr><td>T8</td><td><code>frontmatter.sh</code> 不在時の案内側の挙動</td><td>一時的に <code>mv</code>（宣言済みの範囲の内側）して見る。<code>chmod</code> は WF501 で拒否され Windows では読み取り不可にできない</td><td><code>scope.sh</code> の <code>nop</code> ポリシー</td></tr>
+      <tr><td>T9</td><td><strong><code>systemMessage</code> がユーザーに実際に表示されるか</strong></td><td>① の後、<code>executor</code> と違うモデルでサブエージェントを起動し警告が表示されるかを見る。<strong>17 行を保つ唯一の支え</strong></td><td>§1 の行数・WF801 の 2 経路</td></tr>
+      <tr><td>—</td><td><code>tool_response.status</code> が既定で <code>async_launched</code> か</td><td>同じ起動で <code>logs/</code> の <code>tool_response</code> を見る</td><td><code>subagent-stop-check</code> の分岐</td></tr>
+      <tr><td>—</td><td><code>agent_type</code> の実物</td><td>同じ起動で <code>logs/</code> の値を見る</td><td>受け入れ条件 5</td></tr>
+      <tr><td>—</td><td><strong>worktree で worktree 側のチケットを見るか</strong></td><td>② の後に <code>git worktree add</code> して Claude を移し、worktree 側の <code>10_doing/</code> にチケットを置いて判定するかを見る</td><td>§2 の作業ツリーの解決</td></tr>
+      <tr><td>—</td><td><strong>ホットパス 5 本の実行時間</strong></td><td>② の後、<code>logs/sh/</code> の所要時間を見る。あわせて <code>post-push-usage-report</code> を測り <strong>60 秒の閾値の妥当性</strong>を確かめる</td><td>§1 の 1 秒目安・<code>i0009-60</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>最終検査</strong>: <code>HK-T01</code>（17 行のフィクスチャと <code>settings.json</code> の行単位の照合）と <code>run-tests.sh --ids</code> の<strong>全件</strong>。全件は約 5 分かかるのでバックグラウンドでファイルに出す。</p>
+
+  <h3>ステップ 6: フィードバック計画（0032）</h3>
+  <p>実測の結果と「仕様からの逸脱」を棚卸しし、フェーズ 6（書き戻し）の要否を決める。<strong>実装中に生まれた決定は DDR になっていない</strong>ので、0032 が DDR 化の対象を列挙する。</p>
+
+  <h3>ヘッドレス実行の帰結</h3>
+  <ul>
+    <li><strong>⓪・①・② の登録は対話セッションでのみ可能</strong>。<code>settings.json</code> は <code>common.confirm</code> でヘッドレスでは WF203 が deny になる</li>
+    <li><code>config/</code> 3 ファイルの新規作成も同じ理由で対話セッションが要る</li>
+    <li>T3 の実測は逆に<strong>ヘッドレス実行そのものが対象</strong>なので <code>claude -p</code> を 1 回走らせる</li>
+  </ul>
+
+  <h3>許可範囲（やってよいこと）</h3>
+  <pre><code>allow:
+  write: [".claude/hooks/**", ".claude/skills/**", ".claude/rules/**", ".claude/settings.json"]
+  ops: ["read", "remote-read", "hook-test", "build-test"]</code></pre>
+  <ul>
+    <li><code>types.ai-asset-implementation.allow</code> の内側で絞っている（今回触らない 4 つは落とす）</li>
+    <li><strong><code>.claude/settings.json</code> を残すのは登録後のコミットの対象になるため</strong>。書き換えるのは人間で、AI が Edit / Write で触ることはしない</li>
+    <li><code>.claude/docs/**</code> は <code>types</code> の <code>deny</code> にあり宣言に書いても通らない。0032 は <code>ops: ["read", "remote-read"]</code> のみ</li>
+  </ul>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件（issue #9）</th><th>この計画が満たす形</th><th>検証</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>フック本体 11 本が仕様どおり動きテストが通る</td><td>0027（1）+ 0029（6）+ 0030（4）+ 各テスト</td><td><code>run-tests.sh --ids</code> の全件（<code>boundary.sh</code> 依存の 10 件を除く）</td></tr>
+      <tr><td>2</td><td><code>settings.json</code> への登録手順と登録後の全件・HK-T01</td><td>0028（⓪）+ 0031（①②）。手順はステップ 2・5</td><td>HK-T01 と全件の結果を実装結果報告に記録</td></tr>
+      <tr><td>3</td><td>TBD T1〜T4 の検証結果が仕様に反映され DDR に残る</td><td>0031 の実測 → 0032 が要否を決定 → フェーズ 6</td><td>共通仕様 §12 の該当行の消滅（フェーズ 6）</td></tr>
+      <tr><td>4</td><td><code>HOOK_DENY_ID</code> の既定と 2 枚以上をテストで固定</td><td>実装の型を 11 本で統一（0027 で確立）</td><td><code>WG-T*</code>（WF207）と <code>HK-T09</code></td></tr>
+      <tr><td>5</td><td><code>tool_response</code> / <code>agent_type</code> / <code>web</code> の強制 / <code>defer</code></td><td><code>web</code> は 0027。残りは 0031 の実測</td><td>実測表 + フェーズ 6 の書き戻し</td></tr>
+      <tr><td>6</td><td>仕様との食い違いを書き戻し DDR に残す</td><td>各チケットの作業ログ「仕様からの逸脱」→ 0032 の棚卸し</td><td>0032 の棚卸し表</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>この計画自身の検証</strong>: 計画書 <code>.md</code> と HTML ビューが揃い <code>check-html.sh</code> が OK を返すこと。チケット 6 枚が <code>00_todo/</code> にあり <code>predecessors</code> が依存と一致すること。</p>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>内容</th><th>先行</th><th>人間レビュー</th><th>敵対的レビュー</th></tr></thead>
+    <tbody>
+      <tr><td>0027</td><td><code>ai-asset-implementation</code></td><td>lib 5 本の改修 / <code>config</code> 3 ファイル / 読み込み行 23 ファイル / <code>block-chmod</code> / <code>markdown-docs.md</code></td><td>なし</td><td>要</td><td>要</td></tr>
+      <tr><td>0028</td><td><code>ai-asset-implementation</code></td><td>⓪ <code>block-chmod</code> 単独登録（人間）と <strong>T6 の確認</strong>。終了方式の確定</td><td>0027</td><td>要</td><td>不要</td></tr>
+      <tr><td>0029</td><td><code>ai-asset-implementation</code></td><td>案内側 6 本とテスト</td><td>0027</td><td>要</td><td>要</td></tr>
+      <tr><td>0030</td><td><code>ai-asset-implementation</code></td><td>拒否側の残り 4 本とテスト</td><td>0028, 0029</td><td>要</td><td>要</td></tr>
+      <tr><td>0031</td><td><code>ai-asset-implementation</code></td><td>段階登録 ①②（人間）+ <strong>4c の実測</strong> + HK-T01 + 全件</td><td>0030</td><td>要</td><td>要</td></tr>
+      <tr><td>0032</td><td><code>feedback-plan</code></td><td>実測結果と逸脱の棚卸し、フェーズ 6 の要否</td><td>0027〜0031</td><td>要</td><td>不要</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>実行者は全体計画の方針（全種類メインエージェント。※1 — サブエージェントの起動テンプレートが 3/3 で未実装、かつこの issue が実行者を検査するフックを作るため）に従う。人間レビューは承認④により opus の敵対的自己レビューで代替する。</p>
+  <ul>
+    <li><strong><code>work-defaults.md</code> の既定との差分</strong>: <code>ai-asset-implementation</code> の既定は「サブエージェント（opus）/ 人間レビュー要 / 敵対的レビュー要」。<strong>実行者だけ</strong>がメインエージェントに変わる。0028 は「中核を含まず判定が 1 つで実測が根拠」なので敵対的レビューを<strong>不要</strong>に下げる</li>
+  </ul>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処</th></tr></thead>
+    <tbody>
+      <tr><td><strong>⓪ でロックアウトする</strong>（<code>block-chmod</code> の判定が広すぎて全 Bash が deny）</td><td>作業不能</td><td>ラッパーを付けないので <code>WORKFLOW_BLOCK_CHMOD_ENFORCE=0</code> の新セッションで必ず戻れる。加えて登録前に <code>bash &lt;script&gt; &lt; 入力 JSON</code> を手で通す</td></tr>
+      <tr><td><strong>② でロックアウトする</strong>（拒否側 4 本 + ラッパー）</td><td>作業不能。<strong>ラッパーは環境変数を見ないので <code>WFx09</code> が出たら環境変数では戻らない</strong></td><td>(1) バックアップからの復元（人間）が唯一の経路。(2) 登録前に 4 本とも単体実行 + <code>bash -n</code> + <code>shellcheck</code>。(3) 1 行ずつ足して各行の後に軽い操作を通す</td></tr>
+      <tr><td><strong>T6 が外れる</strong></td><td><code>exit 2</code> + stderr への切り替え</td><td>⓪ で 1 本だけ書いた段で分かるので手戻りは <code>hook-common.sh</code> の出力ヘルパと <code>block-chmod</code> に閉じる</td></tr>
+      <tr><td><strong>T9 が外れる</strong></td><td>登録表を 16 行へ戻す。PreToolUse <code>Agent</code> 登録が意味を失う</td><td>① の後に確かめる。外れたら HK-T01 のフィクスチャを 16 行に直し §1 の書き戻しをフェーズ 6 へ</td></tr>
+      <tr><td><strong>worktree の実測で上向き探索が効かない</strong></td><td>worktree でフックが無効のまま</td><td>効かなければ「worktree では機構を使わない」運用に倒し、フェーズ 6 で §2 を書き直す</td></tr>
+      <tr><td><strong><code>hc_lock</code> の 60 秒が短すぎる</strong></td><td>使用量の集計が壊れる</td><td>0031 で実行時間を実測し妥当性を作業ログに残す。外れたら値と <code>HK-T20</code> の期待値を直す</td></tr>
+      <tr><td><strong>読み込み行の一斉置換で 1 本でも取りこぼす</strong></td><td><code>SS-T05</code> が落ち続ける</td><td><code>grep -rl</code> の一覧をチケットに固定し、置換後に<strong>もう一度 <code>grep</code> して差分 0</strong> を確かめる（0024・0026 の教訓）</td></tr>
+      <tr><td><strong><code>config/</code> 3 ファイルの作成で WF203 が連発する</strong></td><td>対話が止まる</td><td>⓪ より前（フック未登録の段）に 3 ファイルとも作る</td></tr>
+      <tr><td><strong>フェーズ 7 が通らない</strong></td><td>マージ前作業で詰む</td><td>第 1 案（<code>WORKFLOW_STATE_GUARD_ENFORCE=0</code> の新セッション）。フェーズ 7 の直前に人間と最終確認</td></tr>
+      <tr><td><strong>全件テストが約 5 分かかる</strong></td><td>反復が遅い</td><td>0031 ではバックグラウンド実行でファイルに出す。個別チケットでは <code>--ids</code> で絞る</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li><code>.claude/docs/**</code> への書き戻し（フェーズ 6）と DDR の作成</li>
+    <li>提供コマンドの実体の変更（<code>push.sh</code> の 1 枚目依存は #10 への申し送り 2）</li>
+    <li><code>boundary.sh</code> / <code>finalize.sh</code> の実装と依存する 10 件のテスト観点（申し送り 1）</li>
+    <li><code>scope-limits.json</code> の実体変更（変更不要と確認した）</li>
+    <li><code>PostToolUseFailure</code> / <code>PermissionRequest</code> / <code>PreCompact</code> と空ディレクトリ 3 つ（申し送り 5）</li>
+    <li><code>WebFetch</code> / <code>WebSearch</code> の強制（§13 の意図的な緩和）</li>
+    <li>マージ（人間）</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/rules/markdown-docs.md</code> を作るか参照を消すか</td><td>0027（実装時に判断し作業ログに根拠を残す）</td></tr>
+      <tr><td><code>hc_lock</code> の陳腐化 60 秒を変えるか</td><td>0031 の実行時間の実測後</td></tr>
+      <tr><td>読み込み行の 3 段目（<code>git rev-parse</code>）を残すか外すか</td><td>0027。<strong>外すと相対パス起動かつ <code>CLAUDE_PROJECT_DIR</code> 無しの経路が解決不能</strong>になるので既定は残す</td></tr>
+      <tr><td>フェーズ 6（書き戻し）の要否と範囲</td><td>0032（<code>feedback-plan</code>）</td></tr>
+      <tr><td>実行者を既定のサブエージェントに戻す時期</td><td>#10（3/3）の全体計画（申し送り 4）</td></tr>
+      <tr><td>フェーズ 7 を通す手の最終確認</td><td>フェーズ 7 の直前（第 1 案を既定として確定済み）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>対象なし</strong>: <code>src/**</code> の変更（この issue はソフトウェアではなく AI アセットが対象）。</p>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

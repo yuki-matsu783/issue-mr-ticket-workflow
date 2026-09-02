@@ -9,6 +9,8 @@ __ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d"
 __ss_load test-lib fatal
 
 # shellcheck disable=SC1091
+. "$LOGGER_ROOT/.claude/hooks/lib/cmdpos.sh"
+# shellcheck disable=SC1091
 . "$LOGGER_ROOT/.claude/hooks/lib/scope.sh"
 
 JSON="$LOGGER_ROOT/.claude/hooks/config/scope-limits.json"
@@ -29,8 +31,36 @@ assert_eq "HK-T02" "15" "$(printf '%s\n' "$json_types" | grep -c .)"
 assert_eq "HK-T02" "allow confirm file_granular protected state_files" "$(tl_jq -r '.common | keys | join(" ")' "$JSON")"
 assert_eq "HK-T02" "true" "$(tl_jq -r '[.types[] | has("ops")] | all' "$JSON")"
 assert_eq "HK-T02" "array" "$(tl_jq -r '.commands["build-test"] | type' "$JSON")"
-# HK-T02 アプリのテストコマンドが commands.build-test に列挙されている（列挙が無いと npm test が WF204 で止まる）
-assert_eq "HK-T02" "npm --prefix apl/vscode-ticket-board test / npm test" "$(tl_jq -r '.commands["build-test"] | sort | join(" / ")' "$JSON")"
+# 出荷される scope-limits.json を読んだうえで、コマンドの分類を実際に走らせる
+classify_real() { # $1=コマンド → 分類
+  scope_load "$JSON" implementation >/dev/null || { echo "load-error"; return; }
+  cmdpos_parse "$1"
+  scope_classify 0 >/dev/null
+  printf '%s\n' "$SC_CLASS"
+}
+has_build_test_cmd() { # $1=コマンド文字列 → yes/no（列挙に含まれるか）
+  if [ "$(tl_jq -r --arg c "$1" '.commands["build-test"] | index($c) != null' "$JSON")" = "true" ]; then echo yes; else echo no; fi
+}
+
+# HK-T02 アプリのテスト手順がクリーンな作業ツリーで最後まで通る形で列挙されている
+# （完全一致では見ない。アプリが増えたり形が足されたりしても、必要な形が残っていることだけを固定する）
+for c in "npm ci" "npm run compile" "npm test" \
+         "npm --prefix apl/vscode-ticket-board ci" \
+         "npm --prefix apl/vscode-ticket-board run compile" \
+         "npm --prefix apl/vscode-ticket-board test"; do
+  assert_eq "HK-T02" "yes" "$(has_build_test_cmd "$c")"
+done
+# npm install は列挙しない（package-lock.json を書き換えうるので人間の確認を通す）
+assert_eq "HK-T02" "no" "$(has_build_test_cmd "npm install")"
+
+# HK-T02 列挙した形が実際に build-test に分類され、列挙に無い形は分類されない（文字列の一致だけでなく振る舞いを見る）
+assert_eq "HK-T02" "build-test" "$(classify_real 'npm ci')"
+assert_eq "HK-T02" "build-test" "$(classify_real 'npm run compile')"
+assert_eq "HK-T02" "build-test" "$(classify_real 'npm test')"
+assert_eq "HK-T02" "build-test" "$(classify_real 'npm --prefix apl/vscode-ticket-board ci')"
+assert_eq "HK-T02" "build-test" "$(classify_real 'npm --prefix apl/vscode-ticket-board test')"
+assert_eq "HK-T02" "unknown" "$(classify_real 'npm install')"
+assert_eq "HK-T02" "unknown" "$(classify_real 'npm publish')"
 assert_eq "HK-T02" "6" "$(awk -F'\t' '{ print NF }' "$TSV" | sort -u | tr -d '\n')"
 # 対の相手が type 集合の中にあるか（- を除く）
 bad_pairs="$(grep -v '^#' "$TSV" | cut -f6 | tr -d '\r' | grep -v '^-$' | sort -u | comm -23 - <(printf '%s\n' "$json_types"))"

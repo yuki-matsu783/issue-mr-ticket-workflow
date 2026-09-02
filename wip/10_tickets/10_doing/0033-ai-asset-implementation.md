@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（中核である 
 allow:
   write: [".claude/skills/**"]
   ops: ["build-test"]
-started_at: ""
+started_at: "2026-09-02T14:02:51+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c5484d3"
 ---
 
 # 0033 レビュー 1 巡目の是正 1/2: 読み込み行の回帰・worktree 偽装・curl の分類・redact の退行・切り詰めの JSON 破壊

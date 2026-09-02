@@ -6,7 +6,7 @@ executor: main
 human_review: {required: true, reason: "基準どおり（拒否側は誤ると自分自身の操作を止める）"}
 adversarial_review: {required: true, reason: "基準どおり（中核。ロックアウトを起こし得る）"}
 allow:
-  write: [".claude/hooks/**"]
+  write: [".claude/hooks/**", "wip/10_tickets/**", "wip/30_reports/**", "wip/tmp/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
 started_at: ""
 completed_at: ""

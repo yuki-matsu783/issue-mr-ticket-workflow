@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "案内側フックの判定と記�
 allow:
   write: [".claude/hooks/**", "wip/10_tickets/**", "wip/30_reports/**", "wip/tmp/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-02T21:51:44+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b4154b0"
 ---
 
 # 0038 0029 の敵対的レビュー指摘 6 件の反映

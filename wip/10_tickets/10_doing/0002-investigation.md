@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ユーザー合意により人間
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-02T07:26:44+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "cfccef1"
 ---
 
 # 0002 既存要件書のフロー節・規模・自由記述の棚卸しと mermaid の制約確認

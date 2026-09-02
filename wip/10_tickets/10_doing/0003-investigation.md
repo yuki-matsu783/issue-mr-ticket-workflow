@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "フェーズごとに 1 回の敵�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-02T09:24:15+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "8097a60"
 ---
 
 # 0003 調査実施: 置き場依存箇所と issue #20 の 5 論点の現状（Q1〜Q9）

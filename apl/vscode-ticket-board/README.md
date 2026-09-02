@@ -5,6 +5,8 @@
 - 要件: `docs/00_requirement/vscode-ticket-board.md`
 - 仕様: `docs/10_spec/vscode-ticket-board.md`
 
+この README とソースのヘッダコメントに書かれた `docs/...` は、**このアプリルート（`apl/vscode-ticket-board/`）からの相対**を指す。設計文書はまだリポジトリ直下の `docs/` にあり、アプリルート配下へ移すのは issue #20 の後続フェーズ（設計反映）。それまでは直下の `docs/` を見る。
+
 ## できること
 
 | コマンド（コマンドパレット） | 動き |

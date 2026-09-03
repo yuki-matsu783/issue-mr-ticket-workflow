@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回は 00
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T18:04:16+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1f9c5bb"
 ---
 
 # 0012 10-task-overall-summary 仕様を追記 B1〜B4 のとおり改訂する

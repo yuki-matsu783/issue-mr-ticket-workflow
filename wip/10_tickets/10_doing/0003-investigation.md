@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "作るものの一覧を取り違�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T14:02:18+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c3282ee"
 ---
 
 # 0003 観点 A: タスクスキル 15 本・ワークフロースキル 2 本・エージェント 2 本の作成物の全件一覧

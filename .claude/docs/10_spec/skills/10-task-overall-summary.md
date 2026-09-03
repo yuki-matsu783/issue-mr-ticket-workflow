@@ -114,7 +114,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 - 段階 3: `release --external --pr <M> --body-file <path>` を渡すと、スクリプトはリンク一覧を組み立てて `<path>` に書き出し、`state` を `linked` にせずに終了 0 で戻る。呼び出し元が MCP ツール（`mcp__github__update_pull_request` 等）で本文を更新したあと、`release --external --pr <M> --linked` で再開する
 - 段階 6: 呼び出し元が MCP ツールで draft を解除したうえで `release --external --pr <M>` を実行すると、最終ゲートの検査だけを行って `state` を `ready` にする
-- `--external` は `logs/merge-state.json` に `via: "external"` を残す。`gh` 自身が確認する強度より劣ることを統括レポートに明記する。`curl` / `WebFetch` へ落とすことはしない（旧 SKILL.md が `merge-prep.sh --external` として書いていた経路をここへ移した）
+- `--external` は `logs/merge-state.json` に `via: "external"` を残す。`gh` 自身が確認する強度より劣ることを統括レポートに明記する。`curl` / `WebFetch` へ落とすことはしない（旧 SKILL.md が持っていた外部委任の経路を、`finalize.sh` の該当段階として引き取ったもの）
 
 ### エラー識別子
 

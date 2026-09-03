@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0011-0016 AI アセット設計結果 — 正史の改訂</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 20</span>
+    <span class="chip good">◎良 24</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -164,6 +164,10 @@
           <li><a href="#f18"><span class="mk good">◎</span> 18. テンプレートの置き場</a></li>
           <li><a href="#f19"><span class="mk good">◎</span> 19. 1 タスク 1 レポート</a></li>
           <li><a href="#f20"><span class="mk good">◎</span> 20. 保留 P7・P8 の判断</a></li>
+          <li><a href="#f21"><span class="mk good">◎</span> 21. eval ID の接頭辞 19 件</a></li>
+          <li><a href="#f22"><span class="mk good">◎</span> 22. 旧名を 0 件にした</a></li>
+          <li><a href="#f23"><span class="mk good">◎</span> 23. 旧資産の処遇と線引き</a></li>
+          <li><a href="#f24"><span class="mk good">◎</span> 24. 横断整合とヘッドレス</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -186,9 +190,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。<strong>0015 まで</strong>: 共通ステップ 2 本に申し送り <strong>#20〜#24</strong> を反映し、保留 <strong>P3・P7・P8</strong> を決着させた。<strong>これで食い違い 8 行がすべて決着した</strong>。</p>
+  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。<strong>0015 まで</strong>: 共通ステップ 2 本に申し送り <strong>#20〜#24</strong> を反映し、保留 <strong>P3・P7・P8</strong> を決着させた。<strong>これで食い違い 8 行がすべて決着した</strong>。<strong>0016（設計フェーズ完了）</strong>: eval ID の接頭辞を 19 アセット分すべて確定し（A1）、<code>.claude/docs/</code> の旧名を 0 件にし（A3 の文書側）、旧資産 5 件の処遇と扱わない申し送りの線引き（0 件）を DDR <code>i0010-04</code> に残した。<strong>食い違い 8 行・受け入れ条件 B1〜B4・申し送り 24 項目のすべてが正史に落ちた</strong>。実装フェーズへ送る保留は P1'・P2・P6 の 3 件。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>20</b><span>◎良</span></li>
+    <li class="kpi good"><b>24</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -216,10 +220,13 @@
         <li><a href="#f10">e10</a>・<a href="#f11">e11</a>: 実装計画スキルに申し送り 8 項目、設計計画スキルに 4 項目を反映した。許可範囲の方針に「3 項目は最小より優先」を足した</li>
         <li><a href="#f13">e13</a>・<a href="#f15">e15</a>・<a href="#f16">e16</a>: 敵対的レビューの出力に 2 つの一覧を追加、起動プロンプトにブランチ名を必須化、設計実施スキルに申し送り 2 項目と自分の反省 2 件を反映した</li>
         <li><a href="#f17">e17</a>〜<a href="#f20">e20</a>: 共通ステップ 2 本に申し送り 5 項目、テンプレートの置き場（P3）、1 タスク 1 レポート（食い違い #8）、保留 P7・P8 の判断</li>
+        <li><a href="#f22">e22</a>: <strong>旧名は増えることがある</strong>。設計の途中で自分が 1 件増やしていた。0 件の検索は「消したか」だけでなく「増やしていないか」の検査でもある</li>
+        <li><a href="#f23">e23</a>・<a href="#f24">e24</a>: 旧資産 5 件の処遇（削除 2・移設 1・移行 2）、扱わない申し送りは 0 件、横断文書と用語辞書の更新</li>
         <li><a href="#f5">e5</a>: CLI 不在時の release を「段階 3 と 6 だけを呼び出し元に代行させる」形で仕様に追加した</li>
         <li><a href="#f6">e6</a>〜<a href="#f9">e9</a>: B1（所在を本文へ）・B2（添付は人間）・B4（DoD の型）と申し送り #16・#17・#18 を <code>10-task-overall-summary</code> 仕様に反映した</li>
         <li><a href="#f12">e12</a>: <code>10-task-feedback-plan</code> のヘッドレス方針を「止まる」から「既定で進む」へ<strong>反転</strong>させた。別 issue の起票だけは例外として残した</li>
         <li><a href="#f14">e14</a>: エージェント 2 本の <code>model</code> の扱いが<strong>逆になる</strong>（レビュアーは定義で固定、実行者は起動時に上書き）。それぞれの理由を仕様に書いた</li>
+        <li><a href="#f21">e21</a>: <strong>19 のアセットすべてが eval を持つ</strong>と決め、そのために <code>20-common-step-spec</code> の節構成を 2 か所直した（スキルは eval を独立した節へ、エージェントは節を新設）</li>
       </ul>
     </div>
   </div>
@@ -569,6 +576,93 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       </div>
     </li>
 
+
+    <li class="tl-item">
+      <span class="tl-dot good">21</span>
+      <h3 id="f21">eval ID の接頭辞を 19 アセット分すべて確定した（A1） <span class="chip good">◎良</span> <span class="basis">根拠: 既存の接頭辞 28 個との突き合わせ</span></h3>
+      <p><strong>19 のアセットすべてが eval を持つ</strong>と決めた。受け入れ条件 A1 が「タスクスキル 15 本・ワークフロースキル 2 本・エージェント 2 本…eval 定義がある」と書いており、スクリプトの有無で区別していないためである。これに合わせて<strong>節構成を 2 か所直した</strong>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>種別</th><th>変更</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr><td>スキル</td><td><code>Script 処理</code> の中にあった eval の記述を独立した「テスト観点」節に出した</td><td>スクリプトの機械テストは<strong>スクリプトの入出力</strong>を固定するもので、<strong>スキルの手順どおりに振る舞うか</strong>は別の観点。混ぜるとスクリプトを持つスキルで eval が省かれる</td></tr>
+          <tr><td>エージェント</td><td>節構成に「テスト観点（eval ID の表）」を足した</td><td>元の節構成に eval を置く場所が無く、A1 を満たせなかった</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>アセット</th><th>接頭辞</th><th>アセット</th><th>接頭辞</th></tr></thead>
+        <tbody>
+          <tr><td><code>00-workflow-issue-mr-driven</code></td><td><code>WFD</code></td><td><code>10-task-feedback-plan</code></td><td><code>FBP</code></td></tr>
+          <tr><td><code>00-workflow-quick-request</code></td><td><code>QR</code></td><td><code>10-task-design-feedback-plan</code></td><td><code>DFP</code></td></tr>
+          <tr><td><code>10-task-overall-plan</code></td><td><code>OP</code></td><td><code>10-task-design-feedback-exec</code></td><td><code>DFE</code></td></tr>
+          <tr><td><code>10-task-investigation-plan</code></td><td><code>IVP</code></td><td><code>10-task-ai-asset-design-plan</code></td><td><code>ADP</code></td></tr>
+          <tr><td><code>10-task-investigation-exec</code></td><td><code>IVE</code></td><td><code>10-task-ai-asset-design-exec</code></td><td><code>ADE</code></td></tr>
+          <tr><td><code>10-task-design-plan</code></td><td><code>DGP</code></td><td><code>10-task-ai-asset-implementation-plan</code></td><td><code>AIP</code></td></tr>
+          <tr><td><code>10-task-design-exec</code></td><td><code>DGE</code></td><td><code>10-task-ai-asset-implementation-exec</code></td><td><code>AIE</code></td></tr>
+          <tr><td><code>10-task-implementation-plan</code></td><td><code>IMP</code></td><td><code>10-task-overall-summary</code></td><td><code>OSM</code></td></tr>
+          <tr><td><code>10-task-implementation-exec</code></td><td><code>IME</code></td><td><code>agents/task-executor</code></td><td><code>TXE</code></td></tr>
+          <tr><td></td><td></td><td><code>agents/adversarial-reviewer</code></td><td><code>ADV</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>計画と実施を <code>P</code> / <code>E</code> の末尾で対にし、AI アセット系は先頭を <code>A</code> で揃えた。すべて <code>run-tests.sh</code> の抽出規則（大文字 2〜6 文字 + <code>-T</code> / <code>-E</code> + 2 桁）に合う。19 件とも <code>フック共通仕様</code> §6 に登録し、既存の 28 個と重ならないことを確かめた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">22</span>
+      <h3 id="f22">旧名を <code>.claude/docs/</code> から 0 件にした（A3 の文書側） <span class="chip good">◎良</span> <span class="basis">根拠: 除外条件込みの grep が 0 件</span></h3>
+      <p>仕様書 <code>00-workflow-quick-request.md:32</code> が移行の説明として旧名を意図的に引用していた（0005 の c4）。<strong>旧名そのものを書かず、実体を参照更新一覧に委ねる</strong>書き方に直した。A3 は「旧名が <code>.claude/docs/</code> の DDR 以外で 0 件」なので、仕様書自身が破ってはいけない。</p>
+      <p>検索で確かめたところ、<strong>設計フェーズの途中で自分が 1 件増やしていた</strong>。0011 で <code>10-task-overall-summary</code> に旧コマンド名を書いた行である。旧名を出さない表現に書き換えた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>grep -rncE "(^|[^0-9-])(10-work-[a-z-]+|20-task-[a-z-]+|work-boundary\.sh|merge-prep\.sh|workflow-lib\.sh|retrospective)" \
+  .claude/docs/ --include="*.md" | grep -v "20_ddr/" | grep -v ":0$"
+→ 出力なし（0 件）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><strong>旧名は増えることがある</strong>。参照更新は実装フェーズの最後に行うが、それまでの間に設計が新しく旧名を書いてしまう。0 件の検索は「消したか」だけでなく「増やしていないか」の検査でもある。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">23</span>
+      <h3 id="f23">旧資産 5 件の処遇と、扱わない申し送りの線引きを決めた <span class="chip good">◎良</span> <span class="basis">根拠: 0003 の a8 と 0006 の d1</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>処遇</th><th>対象</th><th>判断の軸</th></tr></thead>
+        <tbody>
+          <tr><td>削除</td><td><code>issue-addendum.template.md</code>（重複）/ <code>issue-notify.template.md</code>（用途消滅）</td><td>中身が要らない</td></tr>
+          <tr><td>移設</td><td><code>references/issue-triage.md</code> → <code>20-common-step-issue</code></td><td>中身は要るが持ち主が変わった</td></tr>
+          <tr><td>移行</td><td><code>evals/evals.json</code> 2 本 → <code>.claude/evals/&lt;アセット名&gt;.md</code></td><td>中身も持ち主も要るが形式が古い</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><strong>扱わない申し送りは 0 件</strong>（保留 P5 は「該当なし」で閉じる）。0006 の d2 は「23 項目で作業量が見込みより大きい」と警告したが、反映先が仕様書ごとにまとまっていたため 4 枚のチケットに収まった。0006 の d1 対応表 24 行に「反映（どのチケットで）」を書き戻した（md と HTML の両方）。決定は DDR <code>i0010-04</code>。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">24</span>
+      <h3 id="f24">横断整合とヘッドレスの帰結を突き合わせた <span class="chip good">◎良</span> <span class="basis">根拠: 0007 の計画書の表と改訂後の仕様</span></h3>
+      <ul>
+        <li><strong>横断文書</strong>: <code>自己改善ワークフロー機構.md</code> に提供コマンドの置き場の原則を足した（0011）。<code>rules/ルール体系.md</code> は変更なし（この issue の決定はどれもルールの体系そのものを変えない）</li>
+        <li><strong>用語辞書</strong>: 「提供コマンド」に置き場の原則（0011）、「敵対的レビュー」に「実行者と別のモデルで動く」（0016）を足した</li>
+        <li><strong>ヘッドレスの帰結</strong>: 0007 の計画書の表と改訂後の仕様が一致する。<code>10-task-feedback-plan</code> は「進む」、<code>10-task-overall-summary</code> は「止まる」、エージェント 2 本は「進む」</li>
+      </ul>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>設計フェーズで正史に落ちたのは、食い違い 8 行・受け入れ条件 B1〜B4・申し送り 24 項目のすべて。実装フェーズへ送る保留は P1'・P2・P6 の 3 件。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -592,6 +686,11 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>申し送り #20〜#24 の反映</td><td>5 件すべてに反映先の節がある（#20 = <code>report-view</code> の「テンプレートの置き場（正）」/ #21 = <code>shell-script</code> の <code>fm_get</code> / <code>fm_list</code> / #22 = <code>run-tests.sh</code> と <code>commit-push</code> の CP-T11 / #23 = <code>run-tests.sh</code> の手順 2 / #24 = <code>report-view</code> の前提コマンド）</td></tr>
       <tr><td>食い違い #8 の決着</td><td>仕様は元から「1 タスク 1 レポート」。逸脱していたのは運用側。仕様に読み取りやすくする追記をした</td></tr>
       <tr><td>保留 P3・P7・P8</td><td>3 件とも決着（P3 = 共通は集約・種類ごとは各スキル / P7 = 実測に依存しない / P8 = 既に反映済みで扱う項目なし）</td></tr>
+      <tr><td>eval ID の接頭辞の重複</td><td>19 件とも既存の 28 個と重ならない。<code>フック共通仕様</code> §6 に登録済み</td></tr>
+      <tr><td><code>.claude/docs/</code> の旧名（DDR を除く）</td><td><strong>0 件</strong>。設計の途中で 1 件増えていたので直した</td></tr>
+      <tr><td>申し送り 24 項目の行き先</td><td>24 件すべて反映済み。扱わなかった項目は 0 件（DDR <code>i0010-04</code>）</td></tr>
+      <tr><td>横断文書・用語辞書</td><td><code>自己改善ワークフロー機構.md</code> と <code>90_glossary/ワークフロー用語.md</code> を更新。<code>ルール体系.md</code> は変更なし</td></tr>
+      <tr><td>ヘッドレスの帰結</td><td>0007 の計画書の表と改訂後の仕様が一致</td></tr>
     </tbody>
   </table>
   </div>
@@ -640,7 +739,10 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>R5</td><td>人間が添付した URL を AI に渡す経路（チャットで貼る / 本文に人間が直接書く）が未定</td><td>実装フェーズ（SKILL.md の手順）</td></tr>
       <tr><td>R6</td><td>md の共通の型 2 本が作成物に加わった。0003 の 55 件には無いので <strong>55 → 57</strong> になる</td><td>0016・実装フェーズ</td></tr>
       <tr><td>R7</td><td><code>rules/work-defaults.md</code> に敵対的レビュアーのモデルを書く列が無い</td><td>0016</td></tr>
-      <tr><td>R8</td><td>CP-T11 の追加でテスト ID の総数が <strong>193 → 194</strong> になる（CP-T08 の重複解消は振り直しなので純増 1）</td><td>0016・0017</td></tr>
+      <tr><td>R8</td><td>CP-T11 の追加でテスト ID の総数が <strong>193 → 194</strong> になる。eval ID 19 種の実体はこれとは別に数える</td><td>0017</td></tr>
+      <tr><td>R9</td><td><code>rules/work-defaults.md</code> に敵対的レビュアーのモデルを書く列が無い。<code>.claude/rules/</code> は設計チケットの許可範囲外なので実装フェーズで足す</td><td>0017・実装フェーズ</td></tr>
+      <tr><td>R10</td><td>エージェント定義の <code>model</code> を機構が検査できない。既知の一覧と突き合わせる検査を入れられるか</td><td>0017</td></tr>
+      <tr><td>R11</td><td>md と HTML の対応の自己チェックがテンプレートの構造上の差を織り込んでいない。数え方を「<code>###</code> の結論の数」と「<code>&lt;h3 id=</code>」の比較に絞りたい</td><td>実装フェーズ</td></tr>
     </tbody>
   </table>
   </div>

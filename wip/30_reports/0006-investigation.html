@@ -238,34 +238,35 @@
     <li class="tl-item">
       <span class="tl-dot good">1</span>
       <h3 id="f1">申し送りは 24 項目。反映先は 8 本の仕様書に散る <span class="chip good">◎良</span> <span class="basis">根拠: issue #10 本文と各仕様の grep</span></h3>
+      <p><strong>「反映」の列は設計フェーズ（チケット 0012〜0016）で書き戻した</strong>。24 項目すべてが反映済みになり、扱わなかった項目は無い（DDR <code>i0010-04</code>）。</p>
       <div class="tablewrap">
       <table>
-        <thead><tr><th>#</th><th>申し送り（要約）</th><th>反映先</th><th>節</th><th>反映済み</th></tr></thead>
+        <thead><tr><th>#</th><th>申し送り（要約）</th><th>反映先</th><th>節</th><th>反映（設計フェーズで書き戻し）</th></tr></thead>
         <tbody>
-          <tr><td>1</td><td>自律運用・ヘッドレスでは「対応先を決めて起票まで行い note で報告」</td><td>10-task-feedback-plan</td><td>処理フロー 4</td><td>未（正反対。d3）</td></tr>
-          <tr><td>2</td><td>テスト ID の抜き出し grep で割付表を機械的に作る</td><td>ai-asset-implementation-plan</td><td>テスト方針</td><td>未</td></tr>
-          <tr><td>3</td><td>テストを実行するチケットは build-test と hook-test を両方宣言</td><td>同上</td><td>許可範囲案</td><td>未</td></tr>
-          <tr><td>4</td><td>実装結果レポートは最初の実装チケットの DoD に</td><td>同上</td><td>DoD の型</td><td>未</td></tr>
-          <tr><td>5</td><td>計画の記述順と next の実行順を揃える</td><td>同上</td><td>ステップ</td><td>未</td></tr>
-          <tr><td>6</td><td>提供コマンド自身を変えるステップには、変更後の自分のコマンドで自分をコミット・完了させる最初の操作を書く</td><td>同上</td><td>ステップ</td><td>未</td></tr>
-          <tr><td>7</td><td>参照更新一覧は行末に依存しない検索語で書き、期待値は「残るもの」で</td><td>同上</td><td>参照更新一覧</td><td>未</td></tr>
-          <tr><td>8</td><td>期待値が変更対象に依存するテストを grep で洗い出し同じチケットの許可範囲に</td><td>同上</td><td>許可範囲案</td><td>未</td></tr>
-          <tr><td>9</td><td>値の往復が要る修正は両側の許可範囲を同じチケットに</td><td>同上</td><td>許可範囲案</td><td>未</td></tr>
-          <tr><td>10</td><td>実装を伴う候補があれば次の計画チケットは ai-asset-implementation-plan</td><td>ai-asset-design-plan</td><td>次の計画チケット</td><td>未</td></tr>
-          <tr><td>11</td><td>実装と仕様が食い違う候補はどちらを正にするかまで決める</td><td>同上</td><td>処理フロー</td><td>未</td></tr>
-          <tr><td>12</td><td>台帳を確定するチケットは識別子が 1 番号 1 原因かを確認する</td><td>同上</td><td>DoD の型</td><td>未</td></tr>
-          <tr><td>13</td><td>次の計画チケットの目的文に件数を固定で書かない</td><td>同上</td><td>処理フロー</td><td>未</td></tr>
-          <tr><td>14</td><td>実装を正として仕様に写すときは実装の該当行を作業ログに残す</td><td>ai-asset-design-exec</td><td>固有手順</td><td>未</td></tr>
-          <tr><td>15</td><td>設計チケットを分割したら各 DoD に「参照先の再読」</td><td>同上</td><td>DoD の型</td><td>未</td></tr>
-          <tr><td>16</td><td>全体まとめチケットの型（DoD の型）を仕様に置く</td><td>overall-summary</td><td>新設の節</td><td>未</td></tr>
-          <tr><td>17</td><td>手順の穴（HTML 添付）</td><td>同上</td><td>処理フロー 6</td><td>未（0004 の b7）</td></tr>
-          <tr><td>18</td><td>手順の穴（別 issue 起票の承認の取り方）</td><td>同上</td><td>処理フロー 2</td><td>未</td></tr>
-          <tr><td>19</td><td>敵対的レビューのプロンプト構成をテンプレートに</td><td>agents/adversarial-reviewer</td><td>定義ひな形</td><td>一部</td></tr>
-          <tr><td>20</td><td>計画書・レポートのテンプレート実体を assets として作る</td><td>各タスクスキル</td><td>assets</td><td>未（d6）</td></tr>
-          <tr><td>21</td><td>fm_get / fm_list の「クォートは外す」にエスケープ解除を含める</td><td>20-common-step-shell-script</td><td>142・143 行</td><td>未（実装済み。d4）</td></tr>
-          <tr><td>22</td><td>1 つのテスト ID を 2 ファイルに置いてよいか</td><td>同上</td><td>テストの作法</td><td>未（d5）</td></tr>
-          <tr><td>23</td><td>run-tests.sh の対象本数の数え方</td><td>同上</td><td>run-tests.sh の節</td><td>未</td></tr>
-          <tr><td>24</td><td>check-html.sh は awk を使う前提</td><td>20-common-step-report-view</td><td>前提コマンド</td><td>未（実装は awk を 3 か所で使用）</td></tr>
+          <tr><td>1</td><td>自律運用・ヘッドレスでは「対応先を決めて起票まで行い note で報告」</td><td>10-task-feedback-plan</td><td>処理フロー 4</td><td><strong>反映（0013）</strong>。正反対だったので置換。DDR <code>i0010-03</code></td></tr>
+          <tr><td>2</td><td>テスト ID の抜き出し grep で割付表を機械的に作る</td><td>ai-asset-implementation-plan</td><td>テスト方針</td><td>反映（0013）</td></tr>
+          <tr><td>3</td><td>テストを実行するチケットは build-test と hook-test を両方宣言</td><td>同上</td><td>許可範囲案</td><td>反映（0013）</td></tr>
+          <tr><td>4</td><td>実装結果レポートは最初の実装チケットの DoD に</td><td>同上</td><td>DoD の型</td><td>反映（0013）</td></tr>
+          <tr><td>5</td><td>計画の記述順と next の実行順を揃える</td><td>同上</td><td>ステップ</td><td>反映（0013）</td></tr>
+          <tr><td>6</td><td>提供コマンド自身を変えるステップには、変更後の自分のコマンドで自分をコミット・完了させる最初の操作を書く</td><td>同上</td><td>ステップ</td><td>反映（0013）</td></tr>
+          <tr><td>7</td><td>参照更新一覧は行末に依存しない検索語で書き、期待値は「残るもの」で</td><td>同上</td><td>参照更新一覧</td><td>反映（0013）</td></tr>
+          <tr><td>8</td><td>期待値が変更対象に依存するテストを grep で洗い出し同じチケットの許可範囲に</td><td>同上</td><td>許可範囲案</td><td>反映（0013）</td></tr>
+          <tr><td>9</td><td>値の往復が要る修正は両側の許可範囲を同じチケットに</td><td>同上</td><td>許可範囲案</td><td>反映（0013）</td></tr>
+          <tr><td>10</td><td>実装を伴う候補があれば次の計画チケットは ai-asset-implementation-plan</td><td>ai-asset-design-plan</td><td>次の計画チケット</td><td>反映（0013）</td></tr>
+          <tr><td>11</td><td>実装と仕様が食い違う候補はどちらを正にするかまで決める</td><td>同上</td><td>処理フロー</td><td>反映（0013）</td></tr>
+          <tr><td>12</td><td>台帳を確定するチケットは識別子が 1 番号 1 原因かを確認する</td><td>同上</td><td>DoD の型</td><td>反映（0013）</td></tr>
+          <tr><td>13</td><td>次の計画チケットの目的文に件数を固定で書かない</td><td>同上</td><td>処理フロー</td><td>反映（0013）</td></tr>
+          <tr><td>14</td><td>実装を正として仕様に写すときは実装の該当行を作業ログに残す</td><td>ai-asset-design-exec</td><td>固有手順</td><td>反映（0014）</td></tr>
+          <tr><td>15</td><td>設計チケットを分割したら各 DoD に「参照先の再読」</td><td>同上</td><td>DoD の型</td><td>反映（0014）</td></tr>
+          <tr><td>16</td><td>全体まとめチケットの型（DoD の型）を仕様に置く</td><td>overall-summary</td><td>新設の節</td><td>反映（0012）</td></tr>
+          <tr><td>17</td><td>手順の穴（HTML 添付）</td><td>同上</td><td>処理フロー 6</td><td>反映（0012）。DDR <code>i0010-02</code></td></tr>
+          <tr><td>18</td><td>手順の穴（別 issue 起票の承認の取り方）</td><td>同上</td><td>処理フロー 2</td><td>反映（0012）</td></tr>
+          <tr><td>19</td><td>敵対的レビューのプロンプト構成をテンプレートに</td><td>agents/adversarial-reviewer</td><td>定義ひな形</td><td><strong>反映（0014）</strong>。残っていた 2 つを <code>checked_ok</code> / <code>sampled</code> として追加</td></tr>
+          <tr><td>20</td><td>計画書・レポートのテンプレート実体を assets として作る</td><td>各タスクスキル</td><td>assets</td><td><strong>反映（0015）</strong>。共通の型は report-view、種類ごとの差分は各タスクスキル（保留 P3）</td></tr>
+          <tr><td>21</td><td>fm_get / fm_list の「クォートは外す」にエスケープ解除を含める</td><td>20-common-step-shell-script</td><td>142・143 行</td><td>反映（0015）</td></tr>
+          <tr><td>22</td><td>1 つのテスト ID を 2 ファイルに置いてよいか</td><td>同上</td><td>テストの作法</td><td><strong>反映（0015）</strong>。答えは「置かない」。<code>test_push.sh</code> 側を CP-T11 に振り直す</td></tr>
+          <tr><td>23</td><td>run-tests.sh の対象本数の数え方</td><td>同上</td><td>run-tests.sh の節</td><td>反映（0015）</td></tr>
+          <tr><td>24</td><td>check-html.sh は awk を使う前提</td><td>20-common-step-report-view</td><td>前提コマンド</td><td>反映（0015）</td></tr>
         </tbody>
       </table>
       </div>

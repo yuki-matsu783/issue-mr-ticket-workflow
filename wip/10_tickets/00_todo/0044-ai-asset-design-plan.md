@@ -23,6 +23,7 @@ base_sha: ""
 
 - [ ] 計画書 wip/20_plans/0044-ai-asset-design-plan.md と対の HTML がある（根拠: ）
 - [ ] 変更対象の文書（DDR・フック共通仕様 §1・§7）が列挙され、それぞれ何を書くかが決まっている（根拠: ）
+- [ ] 0045 から引き継いだ DDR（scope-limits.json の commands.build-test に wip/tmp/ の計測コマンドを足した判断）が、設計フェーズで書く対象として計画書に載っている（根拠: ）
 - [ ] 後続の ai-asset-design チケットが 00_todo にある（根拠: ）
 
 ## 作業内容

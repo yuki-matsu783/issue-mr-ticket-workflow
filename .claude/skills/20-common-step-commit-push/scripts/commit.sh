@@ -2,7 +2,7 @@
 # commit.sh — 対象を明示したコミット（提供コマンド）
 # 仕様: .claude/docs/10_spec/skills/20-common-step-commit-push.md「commit.sh」
 # 使い方: bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "<メッセージ>" [--allow-empty] <ファイル>...
-#   オプションは順不同。パスはリポジトリルート相対。
+#   オプションは順不同。パスはリポジトリルート相対。削除したファイルも同じようにパスで渡す（作業ツリーから消しただけでも、削除をステージ済みでもよい）。
 # 終了コード: 成功 0 / 検査未充足 1（CP002〜004）と `git commit` 自体の失敗 1（CP008）/ 引数や環境の誤り 2（CP001 対象の指定の誤り・CP007 引数・環境の誤り）。最終行は `OK: ...` または `CP<番号>: ...`
 set -euo pipefail
 
@@ -61,6 +61,12 @@ matches_exclude() { # $1=パス
   return 1
 }
 
+# 削除・リネーム元が既にステージされていれば 0（index と HEAD を、リネーム検出を切って比べる）
+has_staged_diff() { # $1=パス
+  git rev-parse --verify -q HEAD >/dev/null 2>&1 || return 1
+  [ -n "$(git diff --cached --no-renames --name-only -- "$1" 2>/dev/null | tr -d '\r')" ]
+}
+
 main() {
   local message="" allow_empty=0 files=() f
   # 1. 引数（順不同）
@@ -114,13 +120,22 @@ main() {
     result_ng 003 "対象がすべて除外パターンに一致した（${EXCLUDED[*]}）。除外パターンは $EXCLUDE_FILE" 1
   fi
 
-  # 4. ステージと差分の検査
-  local add_err
+  # 4. 対象の振り分け（ステージ対象 / ステージ済み）とステージ・差分の検査
+  local add_err to_add=()
   if [ "${#kept[@]}" -gt 0 ]; then
-    if ! add_err="$(git add -- "${kept[@]}" 2>&1)"; then
+    # 作業ツリーにも index にも無いパスは、削除・リネーム元が既にステージされているなら add し直さない
+    for f in "${kept[@]}"; do
+      if [ -e "$f" ] || [ -L "$f" ] || git ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+        to_add+=("$f")
+      elif ! has_staged_diff "$f"; then
+        print_excluded
+        result_ng 001 "作業ツリーにも追跡対象にも無く、ステージ済みの差分も無いパスがある（$f）。綴りを確かめる（削除したファイルなら、その削除がステージされているか作業ツリーから消えているだけかを確かめる）" 2
+      fi
+    done
+    if [ "${#to_add[@]}" -gt 0 ] && ! add_err="$(git add -- "${to_add[@]}" 2>&1)"; then
       print_excluded
       printf '%s\n' "$add_err"
-      result_ng 001 "git がステージできないパスがある（未追跡のまま削除・綴り誤り・.gitignore 対象）。上の git の出力を確認する" 2
+      result_ng 001 "git がステージできないパスがある（.gitignore 対象・権限など）。上の git の出力を確認する" 2
     fi
     # 実際にステージされたパスに除外パターンを当て直す（指定と実パスが異なる経路の保険）。一致があれば index から戻して止まる
     local staged_ng=() s

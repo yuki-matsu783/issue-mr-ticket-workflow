@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_commit.sh — commit.sh のテスト（仕様のテスト ID: CP-T01〜04）
+# test_commit.sh — commit.sh のテスト（仕様のテスト ID: CP-T01〜04・CP-T08〜10）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_commit*'
 set -uo pipefail
 
@@ -151,5 +151,68 @@ assert_contains "CP-T01" "CP002:"
 assert_eq "CP-T01" "" "$R_ERR"
 assert_eq "CP-T08" "CP002" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"   # 失敗側も logger 不在で最終行の型が守られる
 mv logger.sh.bak .claude/skills/20-common-step-shell-script/scripts/logger.sh
+
+# CP-T09 削除を含むコミット。rm のみ / rm + git add / git rm の 3 経路と、削除・追加・変更の混在
+echo d1 > del1.txt; echo d2 > del2.txt; echo d3 > del3.txt; echo d4 > del4.txt; echo m1 > mod1.txt
+git add del1.txt del2.txt del3.txt del4.txt mod1.txt && git commit -q -m "chore: 削除の題材を用意"
+# 経路 1: 作業ツリーから消しただけ（index には旧エントリが残る）
+rm del1.txt
+run_cmd bash "$COMMIT" -m "chore: del1 を削除" del1.txt
+assert_exit "CP-T09" 0
+assert_contains "CP-T09" "OK: 1 ファイルをコミットした"
+assert_eq "CP-T09" "D	del1.txt" "$(git show --pretty=format: --name-status HEAD | sed '/^$/d')"
+# 経路 2: 削除を git add でステージ済み
+rm del2.txt; git add del2.txt
+run_cmd bash "$COMMIT" -m "chore: del2 を削除" del2.txt
+assert_exit "CP-T09" 0
+assert_contains "CP-T09" "OK: 1 ファイルをコミットした"
+assert_eq "CP-T09" "D	del2.txt" "$(git show --pretty=format: --name-status HEAD | sed '/^$/d')"
+# 経路 3: git rm 済み
+git rm -q del3.txt
+run_cmd bash "$COMMIT" -m "chore: del3 を削除" del3.txt
+assert_exit "CP-T09" 0
+assert_contains "CP-T09" "OK: 1 ファイルをコミットした"
+assert_eq "CP-T09" "D	del3.txt" "$(git show --pretty=format: --name-status HEAD | sed '/^$/d')"
+# 削除だけでも CP004（差分なし）にならない（負のケースの正の期待値）
+assert_not_contains "CP-T09" "CP004:"
+# 混在: 削除（ステージ済み）・追加・変更を 1 回で渡す
+git rm -q del4.txt; echo n1 > new1.txt; echo m1x > mod1.txt
+run_cmd bash "$COMMIT" -m "chore: del4 を削除し new1 を追加して mod1 を変える" del4.txt new1.txt mod1.txt
+assert_exit "CP-T09" 0
+assert_contains "CP-T09" "OK: 3 ファイルをコミットした"
+assert_contains "CP-T09" "D	del4.txt"
+assert_contains "CP-T09" "A	new1.txt"
+assert_contains "CP-T09" "M	mod1.txt"
+if git status --porcelain -- del4.txt new1.txt mod1.txt | grep -q .; then fail "CP-T09" "混在コミットの後に対象の未コミットの変更が残った"; else pass "CP-T09"; fi
+
+# CP-T10 パスが git に見つからない 2 つの場合の区別と、削除対象への除外パターン
+before="$(count_commits)"
+# 作業ツリーにも追跡対象にも無く、ステージ済みの差分も無いパス（綴り誤り）
+run_cmd bash "$COMMIT" -m "chore: 綴り誤り" del1.txt
+assert_exit "CP-T10" 2
+assert_eq "CP-T10" "CP001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "CP-T10" "del1.txt"
+assert_contains "CP-T10" "作業ツリーにも追跡対象にも無く、ステージ済みの差分も無い"
+# .gitignore 対象は git add の失敗として止まり、上の文言とは別（負のケースの正の期待値）
+echo 'ignored.txt' > .gitignore; git add .gitignore && git commit -q -m "chore: .gitignore を置く"
+echo i > ignored.txt
+before="$(count_commits)"
+run_cmd bash "$COMMIT" -m "chore: 無視対象" ignored.txt
+assert_exit "CP-T10" 2
+assert_eq "CP-T10" "CP001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "CP-T10" "ステージできない"
+assert_not_contains "CP-T10" "作業ツリーにも追跡対象にも無く、ステージ済みの差分も無い"
+assert_eq "CP-T10" "$before" "$(count_commits)"
+# 除外パターンは削除対象にも当たる（追跡済みの除外対象を消しても CP003 で止まる）
+echo s > deleted-token.txt; git add deleted-token.txt && git commit -q -m "chore: 除外対象を追跡させる"
+git rm -q deleted-token.txt
+before="$(count_commits)"
+run_cmd bash "$COMMIT" -m "chore: deleted-token を削除" deleted-token.txt
+assert_exit "CP-T10" 1
+assert_eq "CP-T10" "CP003" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "CP-T10" "deleted-token.txt（*token*）"
+assert_eq "CP-T10" "$before" "$(count_commits)"
+git reset -q --hard >/dev/null
+
 
 finish

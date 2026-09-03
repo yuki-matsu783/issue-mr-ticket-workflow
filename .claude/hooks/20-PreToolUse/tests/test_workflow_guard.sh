@@ -17,7 +17,8 @@ mkdir -p "$TMP_REPO/.claude/hooks/20-PreToolUse" "$TMP_REPO/.claude/hooks/lib" "
          "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts" "$TMP_REPO/.claude/docs" \
          "$TMP_REPO/wip/10_tickets/00_todo" "$TMP_REPO/wip/10_tickets/10_doing" "$TMP_REPO/wip/10_tickets/20_done" \
          "$TMP_REPO/wip/30_reports" "$TMP_REPO/wip/tmp" "$TMP_REPO/logs" "$TMP_REPO/fixtures" \
-         "$TMP_REPO/src/api" "$TMP_REPO/src/other" "$TMP_REPO/tools" "$TMP_REPO/tests"
+         "$TMP_REPO/apl/app/src/api" "$TMP_REPO/apl/app/src/other" "$TMP_REPO/apl/app/docs" \
+         "$TMP_REPO/tools" "$TMP_REPO/tests"
 cp "$SRC/20-PreToolUse/workflow-guard.sh" "$TMP_REPO/.claude/hooks/20-PreToolUse/"
 cp "$SRC/lib/hook-common.sh" "$SRC/lib/cmdpos.sh" "$SRC/lib/scope.sh" "$TMP_REPO/.claude/hooks/lib/"
 cp "$SK/logger.sh" "$SK/frontmatter.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
@@ -50,13 +51,13 @@ allow:
 ## 作業ログ
 EOF
 }
-mk_ticket 0003-implementation      implementation           '["src/api/**", "docs/**"]'                                   '["read"]'
-mk_ticket 0004-implementation      implementation           '["src/api/**"]'                                              '["read", "build-test"]'
+mk_ticket 0003-implementation      implementation           '["apl/app/src/api/**", "apl/app/docs/**"]'                   '["read"]'
+mk_ticket 0004-implementation      implementation           '["apl/app/src/api/**"]'                                              '["read", "build-test"]'
 mk_ticket 0005-overall-plan        overall-plan             '[]'                                                          '["read", "remote-write:issue-create"]'
 mk_ticket 0006-ai-asset-design     ai-asset-design          '[".claude/docs/**"]'                                         '["read"]'
 mk_ticket 0007-ai-asset-impl       ai-asset-implementation  '[".claude/hooks/**", ".claude/settings.json", "CLAUDE.md"]'  '["read", "hook-test"]'
 mk_ticket 0008-investigation       investigation            '[]'                                                          '["read", "web"]'
-mk_ticket 0009-design              design                   '["docs/**"]'                                                 '["read"]'
+mk_ticket 0009-design              design                   '["apl/app/docs/**"]'                                         '["read"]'
 mk_ticket 0010-bogus               no-such-type             '[]'                                                          '["read"]'
 
 set_ticket() { # $1... = fixtures の名前（0 個なら作業中なし）
@@ -107,7 +108,7 @@ tp() { run EnterPlanMode; }
 case_no_ticket() {
   set_ticket
   reset_logs
-  assert_eq "WG-T01" "allow" "$(tf 'src/api/a.ts')"
+  assert_eq "WG-T01" "allow" "$(tf 'apl/app/src/api/a.ts')"
   assert_eq "WG-T01" "allow" "$(tf '.claude/settings.json')"
   assert_eq "WG-T01" "allow" "$(tc 'rm -rf src')"
   assert_eq "WG-T01" "allow" "$(tp)"
@@ -122,9 +123,9 @@ case_allow() {
   reset_logs; set_approvals
   assert_eq "WG-T02" "allow" "$(tf 'wip/30_reports/a.md')"        # common.allow
   assert_eq "WG-T02" "allow" "$(tf 'wip/tmp/x.txt')"
-  assert_eq "WG-T02" "allow" "$(tf 'src/api/a.ts')"               # 宣言 ∩ types.allow
-  assert_eq "WG-T02" "WF202" "$(tf 'src/other/b.ts')"             # 上限内だが宣言外 → 未記載扱い
-  assert_eq "WG-T02" "WF201" "$(tf 'docs/x.md')"                  # 宣言にあるが上限外（types.deny）→ 無視される
+  assert_eq "WG-T02" "allow" "$(tf 'apl/app/src/api/a.ts')"               # 宣言 ∩ types.allow
+  assert_eq "WG-T02" "WF202" "$(tf 'apl/app/src/other/b.ts')"             # 上限内だが宣言外 → 未記載扱い
+  assert_eq "WG-T02" "WF201" "$(tf 'apl/app/docs/x.md')"          # 宣言にあるが上限外（types.deny）→ 無視される
   # 作業中チケットの本文（作業ログ）は宣言によらず通る
   assert_eq "WG-T02" "allow" "$(te 'wip/10_tickets/10_doing/0003-implementation.md' '## 作業ログ' '## 作業ログ
 - 追記')"
@@ -132,8 +133,8 @@ case_allow() {
   if [[ -s "$DEC" ]]; then pass "WG-T02"; else fail "WG-T02" "判定が記録されない"; fi
   # 宣言が空なら types.allow がそのまま効く
   set_ticket 0004-implementation
-  assert_eq "WG-T02" "allow" "$(tf 'src/api/a.ts')"
-  assert_eq "WG-T02" "WF202" "$(tf 'src/other/b.ts')"
+  assert_eq "WG-T02" "allow" "$(tf 'apl/app/src/api/a.ts')"
+  assert_eq "WG-T02" "WF202" "$(tf 'apl/app/src/other/b.ts')"
 }
 
 # ---- WG-T03: 保護範囲と種類ごとの明示許可 ----
@@ -145,7 +146,7 @@ case_protected() {
   # `.` や `..` を挟んだ書き方で保護範囲の glob をすり抜けられない
   assert_eq "WG-T03" "WF201" "$(tf './.claude/settings.json')"
   assert_eq "WG-T03" "WF201" "$(tf 'wip/../.claude/settings.json')"
-  assert_eq "WG-T03" "WF201" "$(tf 'src/api/../../.claude/hooks/x.sh')"
+  assert_eq "WG-T03" "WF201" "$(tf 'apl/app/src/api/../../../../.claude/hooks/x.sh')"
   assert_eq "WG-T03" "WF205" "$(tc 'echo x > wip/tmp/../../.claude/settings.json')"
   set_ticket 0006-ai-asset-design
   assert_eq "WG-T03" "allow" "$(tf '.claude/docs/10_spec/x.md')"   # types.allow で保護範囲を上書き
@@ -182,8 +183,8 @@ case_unlisted() {
 # ---- WG-T05: 毎回確認の範囲 ----
 case_confirm() {
   set_ticket 0003-implementation
-  set_approvals package.json .claude/hooks/config
-  assert_eq "WG-T05" "WF203" "$(tf 'package.json')"                # types.confirm（承認済みでも毎回）
+  set_approvals apl/app/package.json .claude/hooks/config
+  assert_eq "WG-T05" "WF203" "$(tf 'apl/app/package.json')"        # types.confirm（承認済みでも毎回）
   # implementation では .claude/** が保護範囲（判定 2）で止まるので、confirm（判定 4）には届かない。
   # common.confirm が効くのは、その種類の allow に明示されている .claude/** の中だけ（下の ai-asset-implementation）
   assert_eq "WG-T05" "WF201" "$(tf '.claude/hooks/config/scope-limits.json')"
@@ -197,12 +198,12 @@ case_confirm() {
 case_commands() {
   set_ticket 0003-implementation
   assert_eq "WG-T06" "allow" "$(tc 'ls -la src')"
-  assert_eq "WG-T06" "allow" "$(tc 'cat src/api/a.ts | grep x')"
+  assert_eq "WG-T06" "allow" "$(tc 'cat apl/app/src/api/a.ts | grep x')"
   assert_eq "WG-T06" "allow" "$(tc 'git status --short')"
   assert_eq "WG-T06" "allow" "$(tc 'gh pr view 3 --json number')"          # remote-read
   assert_eq "WG-T06" "allow" "$(tc 'bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next')"
-  assert_eq "WG-T06" "WF205" "$(tc 'echo x > src/api/a.ts')"
-  assert_eq "WG-T06" "WF205" "$(tc 'cp a.md src/api/a.md')"
+  assert_eq "WG-T06" "WF205" "$(tc 'echo x > apl/app/src/api/a.ts')"
+  assert_eq "WG-T06" "WF205" "$(tc 'cp a.md apl/app/src/api/a.md')"
   assert_eq "WG-T06" "WF205" "$(tc 'rm -rf src/api')"
   assert_eq "WG-T06" "allow" "$(tc 'echo x > wip/tmp/a.txt')"              # 書いてよい置き場
   assert_eq "WG-T06" "allow" "$(tc 'echo x >> logs/sh/a.log')"
@@ -210,7 +211,7 @@ case_commands() {
   assert_eq "WG-T06" "allow" "$(tc 'for f in a b; do echo $f; done')"
   assert_eq "WG-T06" "allow" "$(tc 'if true; then ls; fi')"
   assert_eq "WG-T06" "allow" "$(tc 'case $x in a) ls;; esac')"
-  assert_eq "WG-T06" "WF205" "$(tc 'for f in a; do echo x; done > src/api/a.ts')"
+  assert_eq "WG-T06" "WF205" "$(tc 'for f in a; do echo x; done > apl/app/src/api/a.ts')"
   assert_eq "WG-T06" "allow" "$(tc 'for f in a; do echo x; done > wip/tmp/a.txt')"
   assert_eq "WG-T06" "WF204" "$(tc 'npm test')"                            # build-test の宣言が無い
   set_ticket 0004-implementation
@@ -253,7 +254,7 @@ case_self_edit() {
   assert_eq "WG-T09" "WF208" "$(te "$t" 'ticket_type: implementation' 'ticket_type: design')"
   assert_eq "WG-T09" "WF208" "$(te "$t" 'adversarial_review: {required: false, reason: "テスト"}' 'adversarial_review: {required: true, reason: "テスト"}')"
   # 入れ子の write / ops 行だけを差し替える形も検知する（allow: 行に触れずに宣言を広げられないこと）
-  assert_eq "WG-T09" "WF208" "$(te "$t" '  write: ["src/api/**", "docs/**"]' '  write: [".claude/**"]')"
+  assert_eq "WG-T09" "WF208" "$(te "$t" '  write: ["apl/app/src/api/**", "apl/app/docs/**"]' '  write: [".claude/**"]')"
   assert_eq "WG-T09" "WF208" "$(te "$t" '  ops: ["read"]' '  ops: ["read", "remote-write:push"]')"
   assert_eq "WG-T09" "WF208" "$(te "$t" 'executor: main' 'executor: sub')"
   assert_eq "WG-T09" "allow" "$(te "$t" '## 作業ログ' '## 作業ログ
@@ -285,7 +286,7 @@ case_config() {
   set_ticket 0003-implementation
   # 設定なし
   rm -f "$LIMITS"
-  assert_eq "WG-T11" "WF210" "$(tf 'src/api/a.ts')"
+  assert_eq "WG-T11" "WF210" "$(tf 'apl/app/src/api/a.ts')"
   assert_eq "WG-T11" "WF203" "$(tf '.claude/hooks/config/scope-limits.json')"
   assert_eq "WG-T11" "allow" "$(tf 'wip/10_tickets/10_doing/0003-implementation.md')"
   assert_eq "WG-T11" "allow" "$(tc 'bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next')"
@@ -293,12 +294,12 @@ case_config() {
   printf '%s' "$LIMITS_JSON" > "$LIMITS"
   # 種類が設定に無い
   set_ticket 0010-bogus
-  assert_eq "WG-T11" "WF211" "$(tf 'src/api/a.ts')"
+  assert_eq "WG-T11" "WF211" "$(tf 'apl/app/src/api/a.ts')"
   assert_eq "WG-T11" "allow" "$(tf 'wip/10_tickets/10_doing/0010-bogus.md')"
   assert_eq "WG-T11" "allow" "$(tc 'bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next')"
   # frontmatter が無いチケットも WF211
   printf 'ticket without frontmatter\n' > "$TMP_REPO/wip/10_tickets/10_doing/0010-bogus.md"
-  assert_eq "WG-T11" "WF211" "$(tf 'src/api/a.ts')"
+  assert_eq "WG-T11" "WF211" "$(tf 'apl/app/src/api/a.ts')"
   # 設定ありのときの毎回確認（ai-asset-implementation でも）
   set_ticket 0007-ai-asset-impl
   assert_eq "WG-T11" "WF203" "$(tf '.claude/hooks/config/scope-limits.json')"
@@ -319,8 +320,8 @@ case_headless() {
   set_ticket 0003-implementation
   set_approvals
   assert_eq "WG-T13" "WF213" "$(run_env WORKFLOW_HEADLESS=1 Write file_path "$TMP_REPO/tools/gen.py")"
-  assert_eq "WG-T13" "WF213" "$(run_env WORKFLOW_HEADLESS=1 Write file_path "$TMP_REPO/package.json")"
-  assert_eq "WG-T13" "allow" "$(run_env WORKFLOW_HEADLESS=1 Write file_path "$TMP_REPO/src/api/a.ts")"
+  assert_eq "WG-T13" "WF213" "$(run_env WORKFLOW_HEADLESS=1 Write file_path "$TMP_REPO/apl/app/package.json")"
+  assert_eq "WG-T13" "allow" "$(run_env WORKFLOW_HEADLESS=1 Write file_path "$TMP_REPO/apl/app/src/api/a.ts")"
   assert_eq "WG-T13" "WF201" "$(run_env WORKFLOW_HEADLESS=1 Write file_path "$TMP_REPO/.claude/settings.json")"
   # 停止中は何もしない
   assert_eq "WG-T13" "allow" "$(run_env WORKFLOW_ENFORCE=0 Write file_path "$TMP_REPO/.claude/settings.json")"
@@ -329,7 +330,7 @@ case_headless() {
   # ホットパス: jq は入力の 1 回と承認の記憶の 1 回まで。git / date / sed / find は呼ばない（HK-T19）
   local bash_bin; bash_bin="$(command -v bash)"
   make_counting_path jq git date sed find awk grep cat tr cut head tail wc sort uniq
-  run_cmd env PATH="$COUNTING_PATH" "$bash_bin" -c     "printf '%s' '$(payload Write file_path "$TMP_REPO/src/api/a.ts")' | '$bash_bin' '$TMP_HOOK'"
+  run_cmd env PATH="$COUNTING_PATH" "$bash_bin" -c     "printf '%s' '$(payload Write file_path "$TMP_REPO/apl/app/src/api/a.ts")' | '$bash_bin' '$TMP_HOOK'"
   assert_eq "WG-T13" "2" "$(counted_calls jq)"
   assert_eq "WG-T13" "0" "$(counted_calls git)"
   assert_eq "WG-T13" "0" "$(counted_calls date)"
@@ -346,11 +347,11 @@ case_provided_args() {
   set_ticket 0003-implementation
   local cp=".claude/skills/20-common-step-commit-push/scripts/commit.sh"
   assert_eq "WG-T14" "WF201" "$(tc "bash $cp -m 'chore: x' .claude/settings.json")"
-  assert_eq "WG-T14" "allow" "$(tc "bash $cp -m 'chore: x' wip/30_reports/a.md src/api/a.ts")"
+  assert_eq "WG-T14" "allow" "$(tc "bash $cp -m 'chore: x' wip/30_reports/a.md apl/app/src/api/a.ts")"
   assert_eq "WG-T14" "WF202" "$(tc "bash $cp -m 'chore: x' tools/gen.py")"
   # メッセージ・オプションの値をパスとして扱わない
   assert_eq "WG-T14" "allow" "$(tc "bash $cp -m 'fix: a.md を直す' wip/tmp/a.txt")"
-  assert_eq "WG-T14" "allow" "$(tc 'bash .claude/skills/20-common-step-ticket/scripts/ticket.sh create --type implementation --allow-write "src/**"')"
+  assert_eq "WG-T14" "allow" "$(tc 'bash .claude/skills/20-common-step-ticket/scripts/ticket.sh create --type implementation --allow-write "apl/*/src/**"')"
 }
 
 # ---- WG-T15: web の分類と出力先 ----
@@ -361,7 +362,7 @@ case_web() {
   assert_eq "WG-T15" "allow" "$(tc 'curl -o wip/tmp/x.md https://example.com/x')"
   assert_eq "WG-T15" "WF205" "$(tc 'curl -o .claude/settings.json https://example.com/x')"
   assert_eq "WG-T15" "WF205" "$(tc 'curl -O https://example.com/x')"
-  assert_eq "WG-T15" "WF205" "$(tc 'curl https://example.com/x > src/api/a.ts')"
+  assert_eq "WG-T15" "WF205" "$(tc 'curl https://example.com/x > apl/app/src/api/a.ts')"
   assert_eq "WG-T15" "allow" "$(tc 'curl https://example.com/x > wip/tmp/a.txt')"
   assert_eq "WG-T15" "WF205" "$(tc 'wget https://example.com/x')"
   assert_eq "WG-T15" "allow" "$(tc 'wget -O - https://example.com/x')"
@@ -394,22 +395,22 @@ case_web_upload() {
 case_broken() {
   set_ticket 0003-implementation
   printf '%s' '{ not json' > "$LIMITS"
-  local out; out="$(raw Write file_path "$TMP_REPO/src/api/a.ts")"
+  local out; out="$(raw Write file_path "$TMP_REPO/apl/app/src/api/a.ts")"
   assert_eq "WG-T16" "WF210" "$(lab "$out")"
   case "$out" in *Write*) pass "WG-T16" ;; *) fail "WG-T16" "tool_name が案内に無い" ;; esac
-  case "$out" in *src/api/a.ts*) pass "WG-T16" ;; *) fail "WG-T16" "対象パスが案内に無い" ;; esac
+  case "$out" in *apl/app/src/api/a.ts*) pass "WG-T16" ;; *) fail "WG-T16" "対象パスが案内に無い" ;; esac
   # 復旧経路
   assert_eq "WG-T16" "allow" "$(tc 'bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m x wip/tmp/a')"
   assert_eq "WG-T16" "allow" "$(tf 'wip/10_tickets/10_doing/0003-implementation.md')"
   assert_eq "WG-T16" "WF203" "$(tf '.claude/hooks/config/scope-limits.json')"
   # 検証に落ちる設定（キー不足）も同じ扱い
   printf '%s' '{"common":{"allow":[]},"types":{}}' > "$LIMITS"
-  assert_eq "WG-T16" "WF210" "$(tf 'src/api/a.ts')"
+  assert_eq "WG-T16" "WF210" "$(tf 'apl/app/src/api/a.ts')"
   printf '%s' "$LIMITS_JSON" > "$LIMITS"
   # 承認の記憶が壊れているときは、承認済み判定だけが効かなくなる
   mkdir -p "${APPROVALS%/*}"; printf '%s' '{ not json' > "$APPROVALS"
   assert_eq "WG-T16" "WF202" "$(tf 'tools/gen.py')"
-  assert_eq "WG-T16" "allow" "$(tf 'src/api/a.ts')"
+  assert_eq "WG-T16" "allow" "$(tf 'apl/app/src/api/a.ts')"
   assert_eq "WG-T16" "WF201" "$(tf '.claude/settings.json')"
   set_approvals
 }

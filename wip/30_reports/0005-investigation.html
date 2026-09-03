@@ -149,7 +149,7 @@
           <li><a href="#f3"><span class="mk warn">△</span> 3. 置換先の無い旧名が 2 種</a></li>
           <li><a href="#f4"><span class="mk stop">✕</span> 4. 仕様書の旧名が A3 と衝突</a></li>
           <li><a href="#f5"><span class="mk good">◎</span> 5. 0 件を判定する検索コマンド</a></li>
-          <li><a href="#f6"><span class="mk good">◎</span> 6. 旧名に依存するテストは無い</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 旧名依存のテストは無い（置き場依存は 4 行）</a></li>
           <li><a href="#f7"><span class="mk good">◎</span> 7. CLAUDE.md と用語集は既に新名</a></li>
         </ol>
       </li>
@@ -192,7 +192,7 @@
       <p class="label">◇承認が欲しい</p>
       <p class="sub">方針は決めた</p>
       <ul>
-        <li><a href="#f3">c3</a>: <code>20-task-gh-install</code>（3 件）は記述ごと削除、<code>retrospective</code>（6 件）は <code>feedback-plan</code> に言い換え</li>
+        <li><a href="#f3">c3</a>: <code>20-task-gh-install</code>（3 件）は記述ごと削除、<code>retrospective</code>（<strong>10 件</strong>。SKILL.md 6 + <code>evals.json</code> 4）は <code>feedback-plan</code> に言い換え</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -200,7 +200,7 @@
       <p class="sub">ほぼ確実</p>
       <ul>
         <li><a href="#f1">c1</a>・<a href="#f2">c2</a>: 残存の内訳と置換表</li>
-        <li><a href="#f5">c5</a>〜<a href="#f7">c7</a>: 検索コマンド、テストへの影響なし、<code>CLAUDE.md</code> と用語集は反映済み</li>
+        <li><a href="#f5">c5</a>〜<a href="#f7">c7</a>: 検索コマンド、旧名を期待値に持つテストは 0 本（置き場に依存するテスト 4 行は別。0004 の b4）、<code>CLAUDE.md</code> と用語集は反映済み</li>
       </ul>
     </div>
   </div>
@@ -253,7 +253,25 @@
       <div class="box ok">
         <p class="label">結論</p>
         <p><code>assets/issue-notify.template.md</code>（1 件）は 0003 の a8 で削除の対象なのでファイルごと無くなる。</p>
-        <p><strong>訂正（敵対的レビュー 1 回目の指摘 6）</strong>: 初版は <code>evals/evals.json</code> 2 本（26 件）も「ファイルごと無くなる」に含めていたが誤り。a8 の見立ては削除ではなく <code>.claude/evals/&lt;アセット名&gt;.md</code> への<strong>移行</strong>で、<code>eval.template.md</code> は <code>evals.json</code> の項目を Markdown の表に写すもの。写した先は <code>.md</code> なので<strong>旧名は移行先に持ち越され</strong>、c5 の検索に引っかかる。移行時に書き換えなければ V6 が落ちる。<code>evals.json</code> には旧名 5 種の外に <code>retrospective</code> が 4 件あり（c3 の 6 件は SKILL.md だけの数）、移行先でも同じ言い換えが要る。</p>
+        <p><strong>訂正（敵対的レビュー 1 回目の指摘 6）</strong>: 初版は <code>evals/evals.json</code> 2 本（26 件）も「ファイルごと無くなる」に含めていたが誤り。a8 の見立ては削除ではなく <code>.claude/evals/&lt;アセット名&gt;.md</code> への<strong>移行</strong>で、<code>eval.template.md</code> は <code>evals.json</code> の項目を Markdown の表に写すもの。写した先は <code>.md</code> なので<strong>旧名は移行先に持ち越され</strong>、c5 の検索に引っかかる。移行時に書き換えなければ V6 が落ちる。<code>evals.json</code> には旧名 5 種の外に <code>retrospective</code> が 4 件あり、移行先でも同じ言い換えが要る。</p>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象</th><th>件数</th><th>扱い</th></tr></thead>
+        <tbody>
+          <tr><td><code>00-workflow-issue-mr-driven/SKILL.md</code></td><td>77</td><td>改訂の中で置換</td></tr>
+          <tr><td><code>00-workflow-quick-request/SKILL.md</code></td><td>6</td><td>同上</td></tr>
+          <tr><td><code>10_spec/skills/00-workflow-quick-request.md</code></td><td>1</td><td>c4 の判断による</td></tr>
+          <tr><td><code>issue-mr-driven/evals/evals.json</code> → <code>.claude/evals/00-workflow-issue-mr-driven.md</code></td><td>25</td><td><strong>移行時に書き換える</strong>（旧名を持ち越さない）</td></tr>
+          <tr><td><code>quick-request/evals/evals.json</code> → <code>.claude/evals/00-workflow-quick-request.md</code></td><td>1</td><td>同上</td></tr>
+          <tr><td><code>issue-mr-driven/assets/issue-notify.template.md</code></td><td>1</td><td>ファイルごと削除</td></tr>
+          <tr><td>合計</td><td>111</td><td>—</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">補足</p>
+        <p>実際に「置換」が要るのは SKILL.md 2 本の 83 件と仕様書の 1 件。<code>evals.json</code> の 26 件は移行時の書き換え、<code>issue-notify.template.md</code> の 1 件は削除で消える。</p>
       </div>
     </li>
 
@@ -290,7 +308,7 @@
         <thead><tr><th>旧名</th><th>件数</th><th>状況</th><th>見立て</th></tr></thead>
         <tbody>
           <tr><td><code>20-task-gh-install</code></td><td>3</td><td>対応するスキルが無い。<code>20-common-step-issue</code> 仕様は「CLI 未導入・未認証 → 停止」とだけ定める</td><td>記述ごと削除し「停止して案内する」に書き換える</td></tr>
-          <tr><td><code>retrospective</code>（チケット type）</td><td>6</td><td><code>task-types.tsv</code> の 15 種に存在しない。用語集は「フィードバック計画: 実装より後に置く振り返りのタスク」と定義</td><td><code>feedback-plan</code> に言い換える（日本語の「振り返り」は語として残してよい）</td></tr>
+          <tr><td><code>retrospective</code>（チケット type）</td><td><strong>10</strong></td><td><code>task-types.tsv</code> の 15 種に存在しない。用語集は「フィードバック計画: 実装より後に置く振り返りのタスク」と定義。内訳は SKILL.md 6（53・121・202 行に各 2）+ <code>evals.json</code> 4（43・45・104・106 行）。初版は SKILL.md だけを数えて 6 件としていた（2 回目の指摘 7 による訂正）</td><td><code>feedback-plan</code> に言い換える（日本語の「振り返り」は語として残してよい）。<code>evals.json</code> の 4 件は移行先で言い換える</td></tr>
         </tbody>
       </table>
       </div>
@@ -338,7 +356,7 @@
 
     <li class="tl-item">
       <span class="tl-dot good">6</span>
-      <h3 id="f6">期待値が変更対象に依存するテストは 1 本も無い <span class="chip good">◎良</span> <span class="basis">根拠: テストディレクトリの grep</span></h3>
+      <h3 id="f6">旧名を期待値に持つテストは 1 本も無い（ただし置き場に依存するテストは 4 行ある） <span class="chip good">◎良</span> <span class="basis">根拠: テストディレクトリの grep</span></h3>
       <div class="tablewrap">
       <table>
         <thead><tr><th>テスト</th><th>参照している名前</th><th>影響</th></tr></thead>
@@ -398,7 +416,8 @@
 
 <section id="appendix">
   <h2>付録: 置換対象の行単位の一覧</h2>
-  <p>計画書 0002「成果物の形 C」が求める「ファイル:行 / 旧名 / 置換後の候補」の形（敵対的レビュー 1 回目の指摘 8 による追加）。<strong>1:1 の置換で済む 7 種（96 件）は行単位の一覧を作らない</strong>。置換後の名前が文脈によらず決まるため一括置換で足り、行番号は実装時の <code>grep</code> で足りる（c2 の表がその対応表）。行ごとに参照先が変わる <code>10-work-ticket-driven</code>（12 件・11 行）だけを列挙する。</p>
+  <p>計画書 0002「成果物の形 C」が求める「ファイル:行 / 旧名 / 置換後の候補」の形（敵対的レビュー 1 回目の指摘 8 による追加）。<strong>1:1 の置換で済む 7 種（95 件）は行単位の一覧を作らない</strong>。置換後の名前が文脈によらず決まるため一括置換で足り、行番号は実装時の <code>grep</code> で足りる（c2 の表がその対応表）。行ごとに参照先が変わるものだけを列挙する。</p>
+  <p>内訳は 95（1:1）+ 12（<code>10-work-ticket-driven</code>）+ 3（<code>20-task-gh-install</code>。置換先なし。c3）+ <strong>1（<code>workflow-lib.sh</code>）</strong> = 111。<code>workflow-lib.sh</code> は c2 が「1:1 ではないので文脈に応じて書き換える」と分類しているので下表に含める（初版は「7 種 96 件」と数えてこの 1 件をどの一覧にも載せていなかった — 敵対的レビュー 2 回目の指摘 2 による訂正）。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>ファイル:行</th><th>文脈</th><th>置換後の候補</th></tr></thead>
@@ -412,6 +431,7 @@
       <tr><td>10</td><td>同上 <code>:140</code></td><td>「手順 1 でチケット全件を作るのではなく」</td><td><code>10-task-overall-plan</code></td></tr>
       <tr><td>11</td><td><code>quick-request/SKILL.md:51</code></td><td>「再開が正しいか確認」</td><td><code>00-workflow-issue-mr-driven</code>（手順 0 の再開判定）</td></tr>
       <tr><td>12</td><td><code>10_spec/skills/00-workflow-quick-request.md:32</code></td><td>移行の指示としての引用</td><td>c4 の判断による</td></tr>
+      <tr><td>13</td><td><code>quick-request/evals/evals.json:21</code></td><td>eval の期待出力「<code>.claude/hooks/workflow-lib.sh</code> の判定順序を読んで説明する」</td><td><code>.claude/hooks/lib/</code> の 5 本（<code>hook-common.sh</code> / <code>cmdpos.sh</code> / <code>scope.sh</code> / <code>push-detect.sh</code> / <code>transcript.sh</code>）。判定順序を読む対象は <code>scope.sh</code> と <code>cmdpos.sh</code>。移行時に書き換える</td></tr>
     </tbody>
   </table>
   </div>

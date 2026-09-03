@@ -1,7 +1,7 @@
 ---
 type: report
 title: 0004 調査結果 — boundary.sh / finalize.sh の仕様の洗い出しと実装済みフックとの食い違い
-description: 提供コマンド 2 本（boundary.sh 5 サブコマンド・finalize.sh release 6 段階）の判定順・入出力・logs のスキーマを仕様から書き出し、置き場のハードコード・段階順の内部矛盾・注入整形の未実装・全体まとめの完了検査の出力先という 4 件の食い違いを列挙した調査結果
+description: 提供コマンド 2 本（boundary.sh 5 サブコマンド・finalize.sh release 6 段階）の判定順・入出力・logs のスキーマを仕様から書き出し、置き場のハードコード・段階順の内部矛盾・注入整形の未実装・全体まとめの完了検査の出力先を含む食い違い 8 行を 4 列の一覧に整理した調査結果
 tags: [report, investigation, issue-10]
 keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review-state, merge-state, mr.json, 置き場, session-start, 段階順, pre_cleanup_sha, BD001, FN001]
 ---
@@ -12,14 +12,14 @@ keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review
 
 提供コマンド 2 本の仕様は**そのまま実装に落とせる粒度**にある。`boundary.sh` は 5 サブコマンド（`status` / `note` / `request` / `skip` / `complete`）で、前提検査・エラー識別子 BD001〜005・テスト ID BD-T01〜13 まで書かれている。`finalize.sh` は `release` 1 本で、6 段階（前提検査 → 完了検査 → 片付け → push → 最終ゲートと draft 解除 → 出力）と冪等の規則、FN001〜003・FN-T01〜05 が揃っている。`logs/` の 4 ファイルは**書く側（仕様）と読む側（実装済みフック）でキー名が一致**しており、そのまま結線できる。
 
-食い違いは **4 件**。うち 2 件は設計で先に決めないと実装できない。最も重いのは `finalize.sh release` の段階順が **issue #10 の追記 3 の要求と仕様内で矛盾している**こと（本文のリンク一覧を書く時点で `pre_cleanup_sha` が未確定）。次に、置き場が仕様（`skills/*/scripts/`）と実装（`session-start.sh` のハードコード `.claude/hooks/boundary.sh`）で割れている。
+**仕様と実装の**食い違いは **4 件**（置き場 2 種・注入整形・完了検査の出力先）。うち 2 件は設計で先に決めないと実装できない。下記「食い違いの一覧」は、これに**仕様の内部矛盾・仕様と issue の食い違い・仕様と運用の食い違い** 4 件を加えた 8 行で、設計が扱う総数はそちら。最も重いのは `finalize.sh release` の段階順が **issue #10 の追記 3 の要求と仕様内で矛盾している**こと（本文のリンク一覧を書く時点で `pre_cleanup_sha` が未確定）。次に、置き場が仕様（`skills/*/scripts/`）と実装（`session-start.sh` のハードコード `.claude/hooks/boundary.sh`）で割れている。
 
 - ◎良 4 件 / △注意 4 件 / ✕問題 2 件
 
 ### ◆特に見てほしい（判断に困っている）
 
 - **b6**: `finalize.sh release` の段階順が矛盾。仕様の処理フローは 5（MR 本文の最終化）→ 6（HTML 添付）→ 7（push）→ 9（release で片付け）だが、`pre_cleanup_sha` は release の段階 3 で初めて確定する。**本文にリンク一覧を書く時点で片付け前 SHA が無い**。issue 追記 3 が求める「片付け直前の SHA 確定 → 本文のリンク一覧更新 → 片付け」を成立させるには、release に本文更新の段階を足すか、手順 5 を release の直前に移すかを設計で決める必要がある
-- **b4**: 置き場の食い違い。仕様は `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh` と `.claude/skills/10-task-overall-summary/scripts/finalize.sh`、実装済みの `session-start.sh` は `$HOOK_WORKTREE/.claude/hooks/boundary.sh` をハードコードしている。**どちらに寄せるかで直す対象が変わる**（仕様 4 行 vs 実装 1 行 + 案内文 2 行）
+- **b4**: 置き場の食い違い。仕様は `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh` と `.claude/skills/10-task-overall-summary/scripts/finalize.sh`、実装済みの `session-start.sh` は `$HOOK_WORKTREE/.claude/hooks/boundary.sh` をハードコードしている。**どちらに寄せるかで直す対象が変わる**（仕様 4 行 vs 実装側 7 行 = ハードコード 1 + 案内文 2 + テストの入力 4）
 
 ### ◇承認が欲しい（方針は決めた）
 
@@ -185,6 +185,8 @@ issue #10 の追記 3 は「リンク一覧を本文に書くなら、**片付�
 
 計画書 0002「成果物の形」が求める列（項目 / 仕様の言い分 / 実装の言い分 / 実測に依存するか）で全件を並べる。初版は b4〜b8 に散らして書いていた（敵対的レビュー 1 回目の指摘 8 による追加）。
 
+**8 行の内訳**（敵対的レビュー 2 回目の指摘 5 による補足）: サマリが言う「仕様と実装の食い違い 4 件」は #1・#2・#3・#6。残る 4 行は種類が違う — #4 は**仕様の内部矛盾**（実装がまだ無い）、#5 は**仕様と issue の追記の食い違い**、#7 は**仕様と旧 SKILL.md の食い違い**、#8 は**仕様と運用の食い違い**。列は 4 列で揃えているが、「実装の言い分」の欄が実装以外を指す行がある。
+
 | # | 項目 | 仕様の言い分 | 実装の言い分 | 実測に依存するか |
 |---|---|---|---|---|
 | 1 | `boundary.sh` の置き場 | `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`（サンプル 3 行 + Script 処理） | `.claude/hooks/boundary.sh`（`session-start.sh:64` のハードコード、`workflow-state-guard.sh:40` の案内文、テスト 2 行） | 依存しない（読み取りで確定） |
@@ -215,7 +217,7 @@ grep -n "TK005\|overall-summary" .claude/skills/20-common-step-ticket/scripts/ti
 | # | 設計で決めること | 効く受け入れ条件・保留 |
 |---|---|---|
 | 1 | `finalize.sh release` の段階順（b6 の案 a / b / c）。本文のリンク一覧をいつ書くか | B3 |
-| 2 | 提供コマンド 2 本の置き場（b4 の案 a / b）。決めた側に合わせて仕様 4 行か実装 3 行を直す | A2、保留 P1 |
+| 2 | 提供コマンド 2 本の置き場（b4 の案 a / b）。決めた側に合わせて仕様 4 行か**実装側 7 行**（ハードコード 1 + 案内文 2 + テストの入力 4）を直す。テスト 4 行を許可範囲に入れ忘れないこと | A2、保留 P1 |
 | 3 | 手順 6 の書き換え（投稿先を本文の表に、添付は人間の操作に、`curl` の記述を削除）と DDR への実測の記録 | B1・B2 |
 | 4 | release 段階 2 の出力先（DoD × 根拠を統括レポートに写す） | B4 |
 | 5 | `session-start` の注入整形（制御方式 4〜11）をこの issue に含めるか | 受け入れ条件に無い。スコープの合意 |
@@ -226,7 +228,7 @@ grep -n "TK005\|overall-summary" .claude/skills/20-common-step-ticket/scripts/ti
 
 | 計画時の見込み | 実際 | どう扱ったか |
 |---|---|---|
-| 置き場の食い違いは機構を壊す | `cmdpos.sh` が両方のパス形を提供コマンドと認めるため、分類は壊れない。実害はハードコード 1 行と案内文 2 行だけ | 「✕問題」に留めつつ、影響範囲を正確に書いた |
+| 置き場の食い違いは機構を壊す | `cmdpos.sh` が両方のパス形を提供コマンドと認めるため、分類は壊れない。実害は実装側 7 行（ハードコード 1・案内文 2・テストの入力 4）の書き換え | 「✕問題」に留めつつ、影響範囲を書いた。初版は 3 行としてテスト 4 行を落としており、敵対的レビュー 1 回目の指摘 7 で直した |
 | `logs/` のスキーマに不整合があるはず | 4 ファイルとも書く側と読む側でキーが一致していた | 「◎良」として、そのまま結線できることを記録した |
 | 食い違いは置き場だけ | 段階順の内部矛盾（b6）という、より重いものが出た | 設計への反映の 1 番目に置いた |
 

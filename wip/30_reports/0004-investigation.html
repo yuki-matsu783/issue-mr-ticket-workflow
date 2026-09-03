@@ -177,7 +177,7 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">提供コマンド 2 本の仕様はそのまま実装に落とせる粒度にある。<code>boundary.sh</code> は 5 サブコマンド、<code>finalize.sh</code> は <code>release</code> 1 本で 6 段階。<code>logs/</code> の 4 ファイルは書く側（仕様）と読む側（実装済みフック）でキー名が一致しており、そのまま結線できる。食い違いは 4 件で、うち 2 件は設計で先に決めないと実装できない。最も重いのは <code>finalize.sh release</code> の段階順が issue 追記 3 の要求と仕様内で矛盾していること。</p>
+  <p class="lead">提供コマンド 2 本の仕様はそのまま実装に落とせる粒度にある。<code>boundary.sh</code> は 5 サブコマンド、<code>finalize.sh</code> は <code>release</code> 1 本で 6 段階。<code>logs/</code> の 4 ファイルは書く側（仕様）と読む側（実装済みフック）でキー名が一致しており、そのまま結線できる。<strong>仕様と実装の</strong>食い違いは 4 件（置き場 2 種・注入整形・完了検査の出力先）で、うち 2 件は設計で先に決めないと実装できない。<a href="#conflicts">食い違いの一覧</a>は、これに仕様の内部矛盾・仕様と issue の食い違い・仕様と運用の食い違い 4 件を加えた 8 行で、設計が扱う総数はそちら。最も重いのは <code>finalize.sh release</code> の段階順が issue 追記 3 の要求と仕様内で矛盾していること。</p>
   <ul class="kpis">
     <li class="kpi good"><b>4</b><span>◎良</span></li>
     <li class="kpi warn"><b>4</b><span>△注意</span></li>
@@ -413,6 +413,7 @@
 <section id="conflicts">
   <h2>食い違いの一覧（計画書が求めた形）</h2>
   <p>計画書 0002「成果物の形」が求める列（項目 / 仕様の言い分 / 実装の言い分 / 実測に依存するか）で全件を並べる。初版は b4〜b8 に散らして書いていた（敵対的レビュー 1 回目の指摘 8 による追加）。</p>
+  <p><strong>8 行の内訳</strong>（敵対的レビュー 2 回目の指摘 5 による補足）: サマリが言う「仕様と実装の食い違い 4 件」は #1・#2・#3・#6。残る 4 行は種類が違う — #4 は仕様の内部矛盾（実装がまだ無い）、#5 は仕様と issue の追記の食い違い、#7 は仕様と旧 SKILL.md の食い違い、#8 は仕様と運用の食い違い。列は 4 列で揃えているが「実装の言い分」の欄が実装以外を指す行がある。</p>
   <div class="tablewrap">
   <table>
     <thead><tr><th>#</th><th>項目</th><th>仕様の言い分</th><th>実装の言い分</th><th>実測に依存するか</th></tr></thead>

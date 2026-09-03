@@ -188,7 +188,7 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li><a href="#f6">a6</a>: eval ID が 19 本中 1 本（<code>AS-E01</code>、しかも例文）にしか振られていない。<strong>採番規則は既に正史にあり</strong>（<code>フック共通仕様</code> §6・<code>20-common-step-spec</code>）、<code>SC-E03</code> が表の定義を義務づけているので、設計で決めるのは接頭辞とチケットの割り方だけ</li>
+        <li><a href="#f6">a6</a>: eval ID が 19 本中 1 本（<code>AS-E01</code>、しかも例文）にしか振られていない。<strong>採番規則は既に正史にある</strong>（<code>フック共通仕様</code> §6・<code>20-common-step-spec</code>）。ただし義務が及ぶのは<strong>スクリプトを持たないスキル 15 本</strong>で、スクリプトを持つ 2 本とエージェント 2 本は設計の判断</li>
         <li><a href="#f7">a7</a>: 実施タスク 6 本が使うレポートの md テンプレートが存在しない。置き場（report-view に集約 / 各スキルに複製）は保留 P3・Q2 そのもの</li>
       </ul>
     </div>
@@ -220,7 +220,7 @@
       <li>申し送りの反映先（0006 の担当）</li>
       <li>eval を実行したときの結果（issue のスコープ外。定義まで）</li>
       <li>チケット分割の粒度（保留 P6。実装計画の担当。この報告は 55 件の内訳を渡すだけ）</li>
-      <li><strong>この 55 件に含まれないが実装に入る見込みのもの</strong>: <code>session-start</code> の注入整形（0004 の b5）と <code>session-start.sh:64</code> のパス修正、それに伴うテスト 8 件（0006 の e5）。0003 の観点は「19 本の仕様から作るもの」でフック側の残作業は範囲外。0007 は 0003 だけでなく 0004・0006 も入力にすること</li>
+      <li><strong>この 55 件に含まれないが実装に入る見込みのもの</strong>: <code>session-start</code> の注入整形（0004 の b5）と <code>session-start.sh:64</code> のパス修正、それに伴うテスト 8 件（0006 の e5）と <code>SE-T05</code>・<code>SE-T06</code> の前半の実装（ID としては通っているため 8 件に含まれない）。0003 の観点は「19 本の仕様から作るもの」でフック側の残作業は範囲外。0007 は 0003 だけでなく 0004・0006 も入力にすること</li>
     </ul>
   </div>
 </section>
@@ -361,20 +361,35 @@
         </tbody>
       </table>
       </div>
-      <p>実測でも <code>10_spec/</code> に <code>AC-E01〜04</code> / <code>FM-E01〜03</code> / <code>IS-E01〜03</code> / <code>RQ-E01〜07</code> / <code>SC-E01〜03</code> の 20 件が存在する。したがって 17 本の仕様に eval ID の表が無いのは「未決定」ではなく<strong>既存の規則への不適合</strong>で、選択の余地は無い。</p>
+      <p>実測でも <code>10_spec/</code> に <code>AC-E01〜04</code> / <code>FM-E01〜03</code> / <code>IS-E01〜03</code> / <code>RQ-E01〜07</code> / <code>SC-E01〜03</code> の 20 件が存在する。</p>
+      <div class="box warn">
+        <p class="label">再訂正（敵対的レビュー 2 回目の指摘 3）</p>
+        <p>最初の訂正は義務の範囲を広く取りすぎた。<code>20-common-step-spec.md:56</code> の条件は「<strong>スクリプトが無ければ</strong>…eval ID の表で定義する」で、<code>SC-E03</code> も <code>フック共通仕様:187</code> も「スクリプトを持たないスキル」と限定している。エージェントの節構成（同 57 行）には「Script 処理」も「テスト観点」も無く、eval ID の表を置く節が正史に存在しない。</p>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>群</th><th>本数</th><th>状態</th></tr></thead>
+        <tbody>
+          <tr><td>スクリプトを持たないスキル</td><td>15</td><td><strong>既存の規則への不適合</strong>。選択の余地なく eval ID の表を足す</td></tr>
+          <tr><td>スクリプトを持つスキル（<code>overall-summary</code>・<code>issue-mr-driven</code>）</td><td>2</td><td>義務の対象外。テスト観点は FN-T / BD-T で持つ。eval を足すかは<strong>設計の判断</strong></td></tr>
+          <tr><td>エージェント 2 本</td><td>2</td><td>節構成に置き場が無い。足すなら節構成そのものの追加が要る。<strong>設計の判断</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
       <div class="tablewrap">
       <table>
         <thead><tr><th>案</th><th>判定</th></tr></thead>
         <tbody>
-          <tr><td>(a) 設計フェーズで 17 本の仕様に eval ID の表を足す（エージェント 2 本も）</td><td><strong>これ以外に無い</strong>（<code>20-common-step-spec.md:56</code> の義務）</td></tr>
-          <tr><td>(b) eval 定義側だけで採番し仕様には書かない</td><td>不可（節構成と <code>SC-E03</code> に反する）</td></tr>
+          <tr><td>(a) 設計フェーズで 15 本の仕様に eval ID の表を足す</td><td><strong>義務</strong>（<code>20-common-step-spec.md:56</code>）</td></tr>
+          <tr><td>(b) eval 定義側だけで採番し仕様には書かない</td><td>不可（15 本について。節構成と <code>SC-E03</code> に反する）</td></tr>
           <tr><td>(c) 規則だけ決めて ID は実装時に振る</td><td>不可（実装は <code>.claude/docs/**</code> に書けない）</td></tr>
+          <tr><td>残る 4 本</td><td>A1 が 19 本すべてに eval 定義を求めるかを設計で確かめ、要るなら節構成の扱いも決める</td></tr>
         </tbody>
       </table>
       </div>
       <div class="box stop">
         <p class="label">結論</p>
-        <p>設計で決めるのは「19 本それぞれの接頭辞を何にするか」（既存 5 種と全テスト ID の接頭辞に重ねない）と「19 本ぶんをどう設計チケットに割るか」の 2 点だけ。</p>
+        <p>設計で決めるのは「15 本それぞれの接頭辞」（既存 5 種と全テスト ID の接頭辞に重ねない。<code>overall-summary</code> と <code>issue-mr-driven</code> は <code>FN</code> / <code>BD</code> を既に持つ）、「残る 4 本に eval が要るか」、「設計チケットへの割り方」の 3 点。</p>
       </div>
     </li>
 
@@ -458,7 +473,7 @@ done</code></pre>
 <section id="next" data-required>
   <h2>設計への反映</h2>
   <ol>
-    <li>19 本それぞれの eval ID の<strong>接頭辞</strong>（既存 5 種と全テスト ID の接頭辞に重ねない）と、19 本ぶんの設計チケットの割り方。採番規則そのものは既に正史にあるので決め直さない（a6 の訂正）— 効く先: A1、保留 P6</li>
+    <li><strong>15 本</strong>（スクリプトを持たないスキル）の eval ID の接頭辞（既存 5 種と全テスト ID の接頭辞に重ねない）と設計チケットの割り方。採番規則そのものは既に正史にあるので決め直さない。<strong>残る 4 本</strong>（スクリプトを持つ 2 本・エージェント 2 本）に eval が要るかは A1 の文言と節構成の扱いを含めて判断する（a6 の訂正と再訂正）— 効く先: A1、保留 P6</li>
     <li>レポートの md テンプレートの置き場（a7 の案 a / b / c）— 効く先: 申し送り 0022 E4、保留 P3・Q2</li>
     <li>旧 <code>00-workflow-*</code> の 4 資産の処遇（削除 / 移設 / 移行）— 効く先: A3、申し送り 0022 E1</li>
     <li>共通手順を SKILL.md にどう書くか（複製しない書き方）— 効く先: A1</li>

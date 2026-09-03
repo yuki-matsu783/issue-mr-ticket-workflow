@@ -1,0 +1,131 @@
+---
+type: overall-plan
+title: issue #10 全体計画 — 自己改善ワークフロー機構の実装 3/3（タスク／ワークフロースキル・エージェント・提供コマンド）
+description: タスクスキル 15 本・ワークフロースキル 2 本・エージェント 2 本・finalize.sh / boundary.sh を実装し、旧名の参照更新で機構を自己完結させる issue の全体計画。フェーズ列、受け入れ条件との対応、work-defaults との差分としての実行者・レビュー要否・やってよいこと、機構自身を作りながら使うことへの対処を定める
+tags: [overall-plan, issue-10, ai-asset]
+keywords: [全体計画, フェーズ列, AI アセット, タスクスキル, ワークフロースキル, エージェント, boundary.sh, finalize.sh, 参照更新, 申し送り, work-defaults, BD-T01, FN-T01]
+---
+
+# issue #10 全体計画 — 自己改善ワークフロー機構の実装 3/3
+
+## 対象
+
+- 対象 issue: #10 https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10
+- MR: #35 https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35（draft）
+- ブランチ: `feature-10-task-skills-agents-finalize`（`origin/main` 7cf83a2 から分岐。7cf83a2 は #9 の PR #12 が squash で入った版）
+- 開始コミット 36fd9a0: 前 issue（#9 / PR #12）がマージ時に片付けきれなかった作業領域 `wip/` を空に戻した（103 ファイル削除）。#9 の成果物は PR #12 とマージ済みの履歴から辿れる
+- マージ方式: squash / merge commit / rebase のすべてが許可（`gh repo view --json squashMergeAllowed,mergeCommitAllowed,rebaseMergeAllowed` → すべて true）。main の履歴は #2・#5・#7・#9 とも squash なので、本 MR も squash 前提とする（設定変更はしない）
+
+## 種別
+
+**AI アセット**。変更対象は `.claude/skills/**`（タスクスキル 15 本の新規作成・ワークフロースキル 2 本の改訂）、`.claude/agents/**`（2 本の新規作成）、提供コマンド 2 本（`boundary.sh` / `finalize.sh`）とそのテスト、`.claude/evals/**`、`CLAUDE.md`、および設計の書き戻し先 `.claude/docs/`（`10_spec/`・`90_glossary/`・`20_ddr/`）。`apl/` とアプリのソースコードは含まない。
+
+## フェーズ列
+
+AI アセットのテンプレート（`10_spec/skills/00-workflow-issue-mr-driven.md`「フェーズ列のテンプレート」）をそのまま採用する。省略なし。
+
+| 順 | フェーズ | チケット種類 | この issue での中身 |
+|---|---|---|---|
+| 1 | 全体計画 | `overall-plan` | 本計画（このチケット。指摘反映の追加チケットを含む） |
+| 2 | 調査 | `investigation-plan` → `investigation` | **読み取りだけで答えられる問い**に限る: (a) タスクスキル 15 本・ワークフロースキル 2 本・エージェント 2 本の仕様から「処理フロー / OUT ひな形 / 参照ナレッジ / assets / eval ID」を全件抜き出し、作るものの一覧と重複・欠落を出す。(b) `boundary.sh` / `finalize.sh` の仕様（BD001〜005 / BD-T01〜13、FN001〜003 / FN-T01〜05）の判定順・入出力・`logs/` のスキーマを洗い出し、実装済みフックの期待（`workflow-state-guard` が案内する `.claude/hooks/boundary.sh`）との食い違いを列挙する。(c) 旧名（`work-boundary.sh` / `merge-prep.sh` / `10-work-` / `20-task-gh-` / `workflow-lib.sh`）の残存箇所を `参考ディレクトリ/`・`logs/`・DDR を除いて全件洗い出す。(d) #6 / #9 の申し送り（issue 本文の一覧）を、反映先の仕様書ごとに割り付ける。実測が要る問いは実装フェーズの検証項目として整理するだけ |
+| 3 | AI アセット設計 | `ai-asset-design-plan` → `ai-asset-design` | `.claude/docs/` への書き込み。(a) 申し送りの仕様反映（計画タスク共通・`10-task-feedback-plan`・`10-task-ai-asset-*-plan`・`10-task-ai-asset-design-exec`・`10-task-overall-summary`・`adversarial-reviewer`・`20-common-step-shell-script`・`20-common-step-report-view`）。(b) issue 追記分の `10-task-overall-summary` 仕様の改訂（手順 6 の投稿先を MR 本文の `## 統括` に、HTML 添付は人間の操作に、手順 5〜9 の順序、全体まとめチケットの完了検査の代替）。(c) 調査 (b) で出た食い違いの解消（提供コマンドの置き場を含む）。(d) `90_glossary/` の用語更新。経緯は DDR `i0010-NN` に残す |
+| 4 | AI アセット実装・テスト | `ai-asset-implementation-plan` → `ai-asset-implementation` | 主作業。(a) 提供コマンド `boundary.sh` / `finalize.sh` とテスト（BD-T01〜13 / FN-T01〜05）。(b) タスクスキル 15 本（SKILL.md・assets のテンプレート実体・eval 定義）。(c) エージェント 2 本（`task-executor` / `adversarial-reviewer`）と eval 定義。(d) ワークフロースキル 2 本の改訂と旧名の参照更新（`CLAUDE.md`・`00-workflow-*` の SKILL.md と evals・`assets/issue-notify.template.md`）。(e) `fm_get` のエスケープ解除と `TICKET-T05` の期待値の同時修正。(f) `run-tests.sh --ids` の全件通過。このフェーズは `.claude/docs/**` に書けないので、判明した食い違いは作業ログに残す |
+| 5 | フィードバック計画 | `feedback-plan` | 実装で判明した仕様との食い違い・申し送りのうち扱えなかったものを棚卸しし、後続フェーズ（仕様への書き戻しと DDR）の要否を決める。受け入れ条件 A5 は「仕様に反映されていること」を求めるので、書き戻しの `ai-asset-design` が要る見込みが高い（決定はこのフェーズで行う） |
+| 6 | 後続（フィードバック計画が選んだものだけ） | `ai-asset-design` 系 / `ai-asset-implementation` 系 | 未定 |
+| 7 | 全体まとめ | `overall-summary` | 統括レポート、MR 本文の最終整形（成果物リンク一覧を本文の `## 統括` に置く）、片付け、draft 解除。**この issue で `finalize.sh` を作るので、初めて `finalize.sh release` を自分に対して使う機会になる**（下記「機構自身を作りながら使う」） |
+
+テンプレートとの差分: なし。
+
+**実装の順序（フェーズ 4 の a → b/c/d）の理由**: `boundary.sh` を先に作ると、その後のタスクの切れ目で自分自身を使ってレビュー依頼と完了を記録できる（`logs/review-state.json` が生まれ、#9 で逸脱として残した「`gh pr comment` の直接投稿」が解消する）。ただし切り替えの時期は実装計画で決める（作りたてのコマンドで機構を止めないため、最初の 1 回は空振りを確認してから使う）。
+
+## 受け入れ条件との対応
+
+issue #10 の受け入れ条件は本文 5 件（A1〜A5）と 2026-09-02 追記 4 件（B1〜B4）。
+
+| # | 受け入れ条件（要約） | 満たすフェーズ | 確認の根拠 |
+|---|---|---|---|
+| A1 | タスクスキル 15 本・ワークフロースキル 2 本・エージェント 2 本が仕様の「処理フロー」「OUT ひな形」「参照ナレッジ」と 1:1 で、eval 定義がある（実行はしない） | 2（一覧化）→ 4b・4c・4d | 仕様の節と作成物の対応表（`20-common-step-ai-asset-creator` の作法）。`.claude/evals/` に定義があること |
+| A2 | `finalize.sh` / `boundary.sh` が仕様の Script 処理どおりに動き、FN-T01〜05 と BD-T01〜13 が失敗ケースを含めて通る | 2（仕様の洗い出し）→ 4a | `run-tests.sh --ids` の出力 |
+| A3 | 旧名（5 種）が `.claude/docs/` の DDR 以外で 0 件 | 2c（洗い出し）→ 4d | 参照更新後の `grep` 結果（`参考ディレクトリ/`・`logs/` を除外） |
+| A4 | 申し送りが各仕様書に反映され（扱わないものは理由つきで DDR に）、`fm_get` のエスケープ解除と `TICKET-T05` の期待値が同じチケットで直っている | 2d（割り付け）→ 3a・4e | 申し送り一覧 × 反映先の対応表。`TICKET-T05` の通過 |
+| A5 | 実装で判明した仕様との食い違いを仕様書へ書き戻し、経緯を DDR に残す | 5（棚卸し）→ 6 | フィードバック計画の一覧と、後続の設計チケットの成果 |
+| B1 | `10-task-overall-summary` 手順 6 が「本文の `## 統括` 配下に成果物のリンク一覧を表で記載」で、コメント投稿を求めていない | 3b | 仕様の該当節 |
+| B2 | 同手順 6 が「HTML 添付は人間がブラウザで行い、AI は返った URL を記録」で、API 添付（`uploads.github.com` への `curl`）の記述が残っていない。実測の根拠は DDR | 3b | 仕様の該当節と DDR |
+| B3 | 手順 5〜9 の順序が「片付け直前の SHA 確定 → 本文のリンク一覧更新 → 片付け」で成立（`finalize.sh release` の段階と矛盾しない） | 3b（決定）→ 4a（実装） | 仕様の手順と `finalize.sh` の段階の照合 |
+| B4 | 全体まとめチケットの完了検査の代替（DoD × 根拠を統括レポートに写す）が仕様に書かれている | 3b | 仕様の該当節 |
+
+## 方針
+
+基準は `.claude/rules/work-defaults.md`。差分は「何を・どちらへ・なぜ」で書く。#9 の方針を踏襲し、変えた点は理由を添える。
+
+| type | 基準（work-defaults） | この issue | 差分（何を → どちらへ・なぜ） |
+|---|---|---|---|
+| overall-plan | メイン / 要 / 不要 | メイン / **人間** / 不要 | 基準どおり。この issue は機構の作法そのものを決めるので、全体計画だけは人間の承認③を取る |
+| investigation-plan | opus サブ / 不要 / 不要 | メイン / 不要 / 不要 | 実行者: サブ → **メイン**（※1） |
+| investigation | sonnet サブ / 要 / 不要 | メイン / 代替 / 要 | 実行者: サブ → **メイン**（※1）。人間レビュー: 要 → 代替（※2）。敵対的レビュー: 不要 → **要**（作るものの一覧を取り違えると 15 本すべてに波及する） |
+| ai-asset-design-plan | opus サブ / 不要 / 不要 | メイン / 不要 / 不要 | 実行者: サブ → **メイン**（※1） |
+| ai-asset-design | opus サブ / 要 / 要 | メイン / 代替 / 要 | 実行者: サブ → **メイン**（※1）。人間レビュー: 要 → 代替（※2）。敵対的レビューは基準どおり要 |
+| ai-asset-implementation-plan | opus サブ / 要 / 不要 | メイン / 代替 / 要 | 実行者: サブ → **メイン**（※1）。人間レビュー: 要 → 代替（※2）。敵対的レビュー: 不要 → **要**（提供コマンド 2 本は中核で、許可範囲とロックアウトの検討を含む） |
+| ai-asset-implementation | opus サブ / 要 / 要 | メイン / 代替 / 要（切れ目ごと 1 回） | 実行者: サブ → **メイン**（※1）。人間レビュー: 要 → 代替（※2）。敵対的レビューは基準どおり要。中核そのものなので軽減しない |
+| feedback-plan | メイン / 要 / 不要 | メイン / 代替 / 要 | 人間レビュー: 要 → 代替（※2）。敵対的レビュー: 不要 → **要**（後続フェーズの要否を人間の代わりに検証するため） |
+| overall-summary | メイン / 要（最終確認）/ 不要 | メイン / **人間**（最終確認）/ 不要 | 基準どおり。draft 解除の前の最終確認だけは人間が行う。マージも人間 |
+
+（※1）**実行者を全種類メインエージェントに倒す**。理由: `task-executor` エージェントとサブエージェントの起動テンプレートは**この issue で作るもの**であり、作っている途中の定義に自分の実行を依存させると、失敗の原因が「運用の誤り」か「定義の欠陥」か切り分けられない。#9 と同じ判断で、サブエージェントは**敵対的レビュー**にだけ使う。作った `task-executor` の実運用は次の issue から始める。
+
+（※2）**承認④（人間レビュー）の代替**: 切れ目ごとに差分を **fable のサブエージェント**に渡して敵対的レビューを行い、指摘に対応してから次のフェーズへ進む。**1 フェーズあたりのレビューは最大 2 回**（下記「敵対的レビューの回し方」）。レビュー依頼コメントの MR への投稿は証跡として続ける。全体計画（承認③）と draft 解除の直前だけは人間が確認する。
+
+### 敵対的レビューの回し方（承認③で合意）
+
+| 回 | やること | 打ち切り条件 |
+|---|---|---|
+| 1 回目 | フェーズの差分（そのタスクで積んだコミットの範囲）を fable のサブエージェントに渡し、観点・確度・「問題なしと判断した点」を含む形で指摘を出させる | 指摘 0 件ならその場で次のフェーズへ（2 回目は行わない） |
+| 対応 | 確度 0.5 以上の指摘を同じ type の追加チケットに落として対応する。対応しないと決めた指摘は理由を作業ログに残す | — |
+| 2 回目 | 対応後の差分を同じ観点で再レビューする（**このフェーズで最後**） | 2 回目で新たに出た指摘は、機構が止まる・受け入れ条件を満たさないものだけ追加チケットで対応し、**再レビューはしない**。それ以外は**フィードバック計画（フェーズ 5）へ回す** |
+
+- 上限を 2 回に固定する理由: 敵対的レビューは指摘が尽きないため、回数を切らないとフェーズが閉じない。2 回目の残りをフィードバック計画に集約すれば、issue 全体として取りこぼさずに済む
+- レビュアーのモデルは **fable**（`claude-fable-5-1`）。`work-defaults.md` の既定は実行者のモデルを定めるもので、敵対的レビュアーのモデルは定めていない。この issue では fable に固定する
+- 実行者（メインエージェント）と敵対的レビュアー（fable のサブエージェント）は別プロセスにする。自己レビューにしない
+
+やってよいこと（`allow`）:
+
+| type | write（宣言） | ops |
+|---|---|---|
+| 計画系（`*-plan`） | `wip/**` | `read`, `remote-read` |
+| `feedback-plan` | `wip/**` | `read`, `remote-read`, `remote-write:issue-create`（別 issue の起票） |
+| `investigation` | `wip/**` | `read`, `remote-read`, `build-test`（既存テストの実行で現状を確かめる場合のみ） |
+| `ai-asset-design` | `.claude/docs/**`, `wip/**` | `read`, `remote-read` |
+| `ai-asset-implementation` | `.claude/skills/**`, `.claude/agents/**`, `.claude/evals/**`, `.claude/hooks/**`（提供コマンドの置き場が `.claude/hooks/` に決まった場合とそのテスト）, `CLAUDE.md`, `wip/**` | `read`, `build-test`, `hook-test`, `remote-read` |
+| `overall-summary` | `wip/**` | `read`, `remote-read`, `merge-base`, `remote-write:mr-edit`, `remote-write:mr-comment`, `remote-write:issue-create`, `remote-write:attach`, `remote-write:push`, `remote-write:draft-ready` |
+
+- `wip/**` は `scope-limits.json` の `common.allow` により宣言によらず書ける。上表の `wip/**` は意図の記録
+- `.claude/settings.json` は**この issue では変えない**（フックの登録 16 行は #9 で完了済み。提供コマンドの追加は登録を伴わない）。変更が必要と分かったらフィードバック計画で扱う
+- `.claude/hooks/config/**` は変えない見込み。`task-types.tsv` のスキル名は既に新名で、変更が要るなら `common.confirm` により WF203 の確認が入る
+- コミット・push・チケットの状態遷移は提供コマンド（`commit.sh` / `push.sh` / `ticket.sh`）経由のみ
+
+## 機構自身を作りながら使う（この issue 固有の制約）
+
+この issue の成果物は、この issue を進めるための道具そのものである。次の 4 点を段取りとして固定する。
+
+1. **タスクスキルが無い間は仕様書を直接読む**: `10-task-*` の SKILL.md は未作成なので、各フェーズは `.claude/docs/10_spec/skills/10-task-*.md` の「処理フロー」を手順として読み、メインエージェントが実施する。フェーズ 4b で SKILL.md ができた後も、**この issue の中では仕様書を正として使い続ける**（作りたての SKILL.md に切り替えると、成果物の欠陥と運用の誤りが混ざる）
+2. **`boundary.sh` が無い間の切れ目**: 切れ目の判定・レビュー依頼・完了の記録は `boundary.sh`（フェーズ 4a）が担う設計だが、それまでは `gh pr comment` の直接投稿で代替する（#9 と同じ既知の逸脱。`logs/review-state.json` は生成されない）。4a の完了後にこの逸脱を解消するかは実装計画で決める
+3. **`finalize.sh` の初回使用がフェーズ 7**: 全体まとめは `finalize.sh release` が唯一の経路として設計されており、登録済みの `workflow-state-guard` は片付け・draft 解除の手作業を拒否する。**FN-T01〜05 が通ることと、この issue の全体まとめで実際に通ることは別**なので、フェーズ 4a では自分自身に対する空振り（`--dry-run` 相当か、前提未充足で FN001 が正しく出ること）まで確かめる。それでも通らなければ #9 と同じく手作業で代替し、原因をフィードバック計画に上げる
+4. **旧ワークフロースキルの改訂は最後**（4d）: `00-workflow-issue-mr-driven` / `00-workflow-quick-request` の SKILL.md は、この issue の進行中もセッションの入口で読み込まれる。先に書き換えると、進行中の自分の手順が変わる。**参照更新はフェーズ 4 の最後に置き、書き換えた後は同じセッションで手順を切り替えない**
+
+## 保留した点
+
+| # | 保留した項目 | 決める時期 |
+|---|---|---|
+| P1 | 提供コマンド 2 本の置き場。仕様は `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh` と `.claude/skills/10-task-overall-summary/scripts/finalize.sh`、実装済みフック（`workflow-state-guard` の案内文・`session-start`）は `.claude/hooks/boundary.sh` と `.claude/hooks/finalize.sh` を指しており食い違う | 調査 (b) で全件洗い出し、AI アセット設計 (c) で決めて仕様とフックの片方を直す |
+| P2 | `boundary.sh` を作った後、この issue の切れ目でそれを使い始めるか（逸脱の解消を先送りするか） | AI アセット実装計画 |
+| P3 | タスクスキル 15 本の `assets/*.template.md`（計画書・レポート・フィードバック計画のテンプレート実体）を各スキルに置くか、`20-common-step-report-view` に集約するか（申し送り 0022 E4） | AI アセット設計 |
+| P4 | エージェント 2 本のモデル指定と `tools` の絞り込み | AI アセット設計 |
+| P5 | 申し送りのうち、この issue で扱わないものの線引き（DDR に理由付きで残す分） | AI アセット設計計画 |
+| P6 | フェーズ 4 のチケット分割の粒度（提供コマンド 2 本・スキル 15 本・エージェント 2 本・参照更新をいくつのチケットに割るか） | AI アセット実装計画 |
+
+## 合意の記録
+
+| 承認 | 日時 | 承認者 | 内容 |
+|---|---|---|---|
+| ① | 2026-09-03 | ユーザー | 既存 issue #10 で対応する（追記はしない）。あわせて、main に残っていた #9 の作業領域は新ブランチの最初のコミットで片付ける |
+| ② | 2026-09-03 | ユーザー | ブランチ `feature-10-task-skills-agents-finalize`、MR タイトル `feat: 自己改善ワークフロー機構の実装 3/3: タスク／ワークフロースキル・エージェント・finalize.sh / boundary.sh と参照更新 (#10)` |
+| ③ | 2026-09-03 | ユーザー | フェーズ列はテンプレートどおり省略なし。実行者は全種類メインエージェント（`task-executor` はこの issue で作るものなので実運用は次 issue から）。人間レビューは**fable のサブエージェントによる敵対的レビューで代替**し、**フェーズごとに最大 2 回**、指摘に対応してから次フェーズへ進む。やってよいことは上表のとおり |

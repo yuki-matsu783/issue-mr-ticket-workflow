@@ -58,5 +58,5 @@ issue #6（PR #7）の全体まとめを手作業で代替したときに、こ�
 
 - `10_spec/skills/10-task-overall-summary.md`: 処理フロー 6 を「成果物のリンク一覧と HTML 添付」に書き換え、`uploads.github.com` への `curl` の記述を削除。禁止事項に「リンクを列挙した通常コメントの投稿」と「AI による GitHub への添付」を追加。OUT ひな形の `attachment-comment.template.md` を `summary-section.template.md` に置き換え
 - `00_requirement/skills/10-task-overall-summary.md`: 添付の受け入れ基準を「人間が行い AI は URL を記録」に、代替フロー「添付できない環境」を「添付が無くても補わない」に書き換え
-- リンク一覧の書き込みは `finalize.sh release` の段階 3 が行う（`pre_cleanup_sha` が確定するのがそこであるため。DDR `i0010-01` と同じチケットで決めた段階の並び）
+- リンク一覧の書き込みは `finalize.sh release` の段階 4 が行う（`pre_cleanup_sha` が確定するのがそこであるため。段階の並びの正は `10_spec/skills/10-task-overall-summary.md` の Script 処理）
 - テスト観点 FN-T06 が「リンク一覧が `pre_cleanup_sha` に固定され、片付けコミットの後も辿れる」を固定する

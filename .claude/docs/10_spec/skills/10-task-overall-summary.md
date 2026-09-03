@@ -54,7 +54,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 4. **統括レポート**: `wip/30_reports/` に md + HTML（report-view の手順）で 1 つ作る。内容: 受け入れ条件との対応（どのタスク・テストで満たしたか）/ 各タスクのレビュー結果（省略はその旨）/ フィードバック計画の対応（この MR / 別 issue / 対応しない）/ 残課題
 5. **MR 本文の最終化**: 統括レポートの要約（受け入れ条件との対応・残課題・別 issue 一覧）を、MR 本文の見出し `## 統括` の節として書き写す。GitHub は `gh pr edit --body-file`、GitLab は issue 仕様「GitLab の長文送信」の API 経由（`wip/` 配下のパスを恒久参照として書かない）
 6. **成果物のリンク一覧と HTML 添付**: 成果物の所在は**通常コメントではなく MR 本文（description）で辿れるようにする**。コメントは流れて見つけにくいためで、**リンクを列挙したコメントの投稿は行わない**（issue #10 追記 1）。
-   - **リンク一覧（必須）**: `wip/30_reports/` の HTML レポートへのリンクを、MR 本文の見出し `## 統括` 配下に**表**（レポート名 / 1 行説明 / リンク）で記載する。リンクは片付け直前の SHA に固定した blob URL（`https://<ホスト>/<owner>/<repo>/blob/<SHA>/wip/30_reports/<ファイル>`）を使うため、**この書き込みは `finalize.sh release` の段階 3 が行う**（手順 9。`pre_cleanup_sha` が確定するのがそこであるため）。手順 5 と 6 では本文の要約だけを書き、リンク一覧の場所（見出し `## 統括` 配下）を空けておく
+   - **リンク一覧（必須）**: `wip/30_reports/` の HTML レポートへのリンクを、MR 本文の見出し `## 統括` 配下に**表**（レポート名 / 1 行説明 / リンク）で記載する。リンクは片付け直前の SHA に固定した blob URL（`https://<ホスト>/<owner>/<repo>/blob/<SHA>/wip/30_reports/<ファイル>`）を使うため、**この書き込みは `finalize.sh release` の段階 4 が行う**（手順 9。`pre_cleanup_sha` が確定するのがそこであるため）。手順 5 と 6 では本文の要約だけを書き、リンク一覧の場所（見出し `## 統括` 配下）を空けておく
    - **HTML の添付（任意。GitHub）**: 添付は**人間がブラウザで MR 本文に対して行う**。**AI はこの手順で何もしない**（待たない・催促しない・URL を受け取る手続きも持たない）。人間が本文に直接添付するので、AI が URL を書き写す必要が無いためである。GitHub の API（`uploads.github.com/user-attachments/assets`）は `.html` を受け付けず（`content_type is not included in the list of allowed content types`。`image/png` だけが通る）、ブラウザ側の経路はセッション Cookie と CSRF トークンを要求するため API トークンでは再現できない。**AI が API での添付を試みてはならない**（実測の根拠は DDR `i0010-02`）
    - **HTML の添付（任意。GitLab）**: `glab api "projects/:id/uploads" --form "file=@<ファイル>"` は公式の API なので、**AI が添付して返された markdown リンクを本文に書いてよい**。GitHub と扱いが違うのはホストの制約の違いによる
    - 段階 4（本文のリンク一覧の更新）は `## 統括` 配下の**リンク一覧の表の中身だけ**を置き換える。人間が本文のどこかに添付したリンクは、この置き換えで消してはならない
@@ -80,7 +80,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 ## OUT ひな形
 
 - 統括レポート: report-view のレポートテンプレートを使う（節は処理フロー 4 の内容 + 「完了検査」節。後者は release の段階 2 が書き出す）
-- 本文の `## 統括` 節: `assets/summary-section.template.md`（受け入れ条件との対応の表 / 残課題 / 別 issue 一覧 / **成果物のリンク一覧の表**（レポート名・1 行説明・リンク。中身は release の段階 3 が埋める））
+- 本文の `## 統括` 節: `assets/summary-section.template.md`（受け入れ条件との対応の表 / 残課題 / 別 issue 一覧 / **成果物のリンク一覧の表**（レポート名・1 行説明・リンク。中身は release の段階 4 が埋める））
 - 添付コメントのテンプレートは持たない（リンク一覧は本文に置き、コメントは投稿しないため。issue #10 追記 1）
 
 ## 参照ナレッジ

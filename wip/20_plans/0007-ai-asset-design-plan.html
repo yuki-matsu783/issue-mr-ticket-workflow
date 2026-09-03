@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0007 AI アセット設計計画 — 提供コマンドの置き場の決着・overall-summary 仕様の改訂・申し送り 23 項目の反映</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット設計計画 / フェーズ 3</p>
+  <h1 id="title" data-required>0007 AI アセット設計計画 — 提供コマンドの置き場の決着・overall-summary 仕様の改訂・申し送り 23 項目の反映</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
+    <div><dt>チケット</dt><dd>0007-ai-asset-design-plan</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">19 本のアセットの要件定義書と仕様書は<strong>すでに全件そろっている</strong>（skills 25・agents 2）。したがってこのフェーズは新規の設計ではなく<strong>既存の正史の改訂</strong>である。材料は「仕様と実装などの食い違い 8 行」「issue 追記の受け入れ条件 B1〜B4」「#6 / #9 の申し送り 23 項目」の 3 つで、これらを 8 本の仕様書・要件定義書・DDR に落とす設計チケットを 6 枚起こす。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li><strong>保留 P1 は仕様側に寄せる</strong>。提供コマンド 2 本は各スキルの <code>scripts/</code> に置き、実装側 7 行（ハードコード 1・案内文 2・テストの入力 4）を実装フェーズで直す</li>
+      <li>中核（<code>session-start.sh</code>）の変更が入るので、ロックアウト対策の入力として設計の成果に明記する</li>
+      <li>設計チケットは<strong>反映先の仕様書のまとまり</strong>で分ける（同じ文書を 2 枚が同時に書き換えないため）</li>
+      <li>アセット本体（<code>.claude/skills/</code>・<code>hooks/</code>・<code>agents/</code>・<code>settings.json</code>）には触らない。触るのは <code>.claude/docs/</code> だけ</li>
+      <li>新規 DDR は 4 件（置き場の判断 / HTML 添付の実測 / feedback-plan の書き換え / 扱わない申し送り）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <h3>材料の内訳</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td>仕様と実装・issue・運用の食い違い</td><td>8 行（うち仕様と実装の食い違いは 4 件）</td><td>0004 の「食い違いの一覧」</td></tr>
+      <tr><td>issue 追記の受け入れ条件</td><td>B1〜B4（<code>10-task-overall-summary</code> 仕様の改訂 4 点）</td><td>issue #10 追記（2026-09-02）</td></tr>
+      <tr><td>#6 / #9 の申し送り</td><td>24 項目のうち反映済み 1 項目を除く 23 項目</td><td>0006 の d1 対応表</td></tr>
+      <tr><td>作成物の一覧</td><td>55 件。eval ID の接頭辞と対象本数が未確定</td><td>0003 の a6・付録</td></tr>
+      <tr><td>旧名の残存</td><td>6 ファイル・111 件。うち仕様書 1 行が A3 と衝突</td><td>0005 の c1・c4</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>改訂する文書と骨子</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>アセット</th><th>改訂する文書</th><th>骨子</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>00-workflow-issue-mr-driven</code>（<code>boundary.sh</code>）</td><td>仕様</td><td>置き場をスキル配下と確定（現行どおり）。実装側 7 行を直す旨を「現行アセットとの差分」に追加</td></tr>
+      <tr><td>2</td><td><code>10-task-overall-summary</code>（<code>finalize.sh</code>）</td><td>要件 + 仕様</td><td>手順 6 を本文の <code>## 統括</code> 配下の表に（B1）／ HTML 添付は人間がブラウザで行い AI は URL を記録（B2）／ <code>release</code> の段階順（B3）／ 完了検査の代替（B4）／ 全体まとめチケットの DoD の型（#16）／ 別 issue 起票の承認の取り方（#18）</td></tr>
+      <tr><td>3</td><td><code>hooks/00-SessionStart/session-start</code></td><td>仕様 + フック共通仕様</td><td>注入の整形（6 行・<code>position</code> ごとの文言・WF702 / WF703）と <code>boundary.sh</code> のパスがスキル配下であること（食い違い #3）</td></tr>
+      <tr><td>4</td><td><code>20-common-step-ticket</code>（<code>ticket.sh</code>）</td><td>仕様</td><td>TK005 の代替経路を明記し、<code>finalize.sh release</code> 段階 2 の出力先と対応させる（食い違い #6）</td></tr>
+      <tr><td>5</td><td><code>10-task-ai-asset-implementation-plan</code></td><td>要件 + 仕様</td><td>申し送り #2〜#9（テスト ID 割付表の機械生成／両ops 宣言／実装結果レポートの DoD／記述順と実行順／提供コマンド自身を変えるステップ／参照更新一覧／依存テストの許可範囲／値の往復）</td></tr>
+      <tr><td>6</td><td><code>10-task-ai-asset-design-plan</code></td><td>要件 + 仕様</td><td>申し送り #10〜#13（次の計画チケットの種類／実装と仕様の食い違いは計画で正を決める／1 番号 1 原因／目的文に件数を書かない）</td></tr>
+      <tr><td>7</td><td><code>10-task-feedback-plan</code></td><td>要件 + 仕様</td><td>申し送り #1。処理フロー 4 の<strong>書き換え</strong>（現行と正反対のため追記ではなく置換）</td></tr>
+      <tr><td>8</td><td><code>10-task-ai-asset-design-exec</code></td><td>仕様</td><td>申し送り #14（実装の該当行を作業ログに）／#15（分割時は各 DoD に「参照先の再読」）</td></tr>
+      <tr><td>9</td><td><code>agents/adversarial-reviewer</code></td><td>要件 + 仕様</td><td>申し送り #19 の残り（「問題なしと判断した点」と抜き取り検証の一覧）／モデルと <code>tools</code>（保留 P4）</td></tr>
+      <tr><td>10</td><td><code>agents/task-executor</code></td><td>要件 + 仕様</td><td>モデルと <code>tools</code>（P4）／起動プロンプトにブランチ名を明示（サブエージェントはセッション開始時の gitStatus を見るため）</td></tr>
+      <tr><td>11</td><td><code>20-common-step-shell-script</code></td><td>仕様</td><td>申し送り #21（<code>\"</code> / <code>\\</code> の解除）／#22（1 テスト ID を 2 ファイルに置かない）／#23（<code>run-tests.sh</code> の対象本数の数え方）</td></tr>
+      <tr><td>12</td><td><code>20-common-step-report-view</code></td><td>仕様</td><td>申し送り #24（前提コマンドに awk）／レポート md テンプレートの置き場（P3・#20）／md と HTML の対応の自己チェック</td></tr>
+      <tr><td>13</td><td><code>10-task-investigation-exec</code></td><td>仕様</td><td>食い違い #8。共通手順 4 を運用実績（1 チケット 1 レポート）に合わせる</td></tr>
+      <tr><td>14</td><td><code>00-workflow-quick-request</code></td><td>仕様</td><td>32 行の旧名の引用を A3 と衝突しない書き方に直す（c4）</td></tr>
+      <tr><td>15</td><td>eval ID の接頭辞（横断）</td><td><code>20-common-step-spec</code> または各仕様</td><td>15 本の接頭辞を確定。スクリプトを持つ 2 本とエージェント 2 本に eval が要るかを A1 の文言から判断</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>横断整合</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>文書</th><th>追加・変更する項目</th></tr></thead>
+    <tbody>
+      <tr><td><code>00_requirement/自己改善ワークフロー機構.md</code></td><td>提供コマンドの置き場の原則（それを使うスキルの <code>scripts/</code> に置く）。フックとの区別</td></tr>
+      <tr><td><code>00_requirement/rules/ルール体系.md</code></td><td>変更なしの見込み（設計チケットで確認する）</td></tr>
+      <tr><td><code>90_glossary/</code></td><td>「提供コマンド」の定義に置き場の原則を含める。「敵対的レビュー」に上限回数の運用を含めるか判断</td></tr>
+      <tr><td><code>20_ddr/</code></td><td>新規 4 件: (a) 置き場を仕様側に寄せた判断と却下案／(b) HTML 添付が API で成立しない実測／(c) <code>feedback-plan</code> のヘッドレス方針の書き換え／(d) 扱わない申し送りと理由（P5）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+
+  <div class="box">
+    <p class="label">中核変更の要否</p>
+    <p><strong>要（ただし設計フェーズでは仕様のみ）</strong>。保留 P1 を仕様側に寄せると決めるため、実装済みフック 2 本の 3 行（<code>session-start.sh:64</code> のハードコード、<code>workflow-state-guard.sh:40, 43</code> の案内文）が実装フェーズの変更対象になる。<code>session-start.sh</code> は注入そのものを止め得るため、ロックアウト対策の入力として設計の成果に明記する。</p>
+  </div>
+
+  <h3>置き場をどちらに寄せるかの判断</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>論点</th><th><code>.claude/skills/*/scripts/</code> に寄せる</th><th><code>.claude/hooks/</code> に寄せる</th></tr></thead>
+    <tbody>
+      <tr><td>変更行数</td><td>実装側 7 行（ハードコード 1・案内文 2・テストの入力 4）</td><td>仕様側 4 行（サンプル 3 + Script 処理 1）× 2 本</td></tr>
+      <tr><td>一貫性</td><td>既存の提供コマンド 5 本がすべてスキルの <code>scripts/</code> にある</td><td>フックと提供コマンドが同じディレクトリに混ざる</td></tr>
+      <tr><td>フックの認識</td><td><code>scope.sh</code> の提供コマンド判定は両方の形を受け付けるので、どちらでも動く</td><td>同左</td></tr>
+      <tr><td>所有関係</td><td>スキルと一緒に読める（<code>boundary.sh</code> はワークフロー、<code>finalize.sh</code> は全体まとめが使う）</td><td>フックはイベント駆動、提供コマンドは呼び出し駆動で性質が違う</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>行数だけを見れば実装側に寄せる方がわずかに少ないが（7 対 8）、<strong>既存 5 本との一貫性</strong>と<strong>所有関係の明示</strong>が勝つ。申し送り #11（実装と仕様の食い違いは計画の段階で正を決める）に従い、ここで決めきる。</p>
+
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>提供コマンド 2 本の置き場と Script 処理を確定する（0011）</h3>
+      <p>食い違い #1・#2・#3・#6・#7 を一度に解消する。<code>boundary.sh</code> と <code>finalize.sh</code> の仕様に置き場を明記し、<code>session-start</code> の注入形式と <code>ticket.sh</code> の TK005 の代替経路を対応させる。B3 の段階順もここで <code>release</code> 側から決める。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3><code>10-task-overall-summary</code> 仕様を B1〜B4 のとおり改訂する（0012）</h3>
+      <p>0011 が決めた <code>release</code> の段階順を前提に、手順 5〜9 を整える。申し送り #16・#17・#18 と食い違い #4・#5 も同じ文書なのでここでまとめる。HTML 添付の実測は DDR に落とす（B2 が明示的に要求）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>計画系タスクスキル 3 本に申し送り #1〜#13 を反映する（0013）</h3>
+      <p><code>ai-asset-implementation-plan</code> に 8 項目、<code>ai-asset-design-plan</code> に 4 項目、<code>feedback-plan</code> に 1 項目。<code>feedback-plan</code> だけは現行と正反対なので置換になり、判断の経緯を DDR (c) に残す。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>実施系タスクスキルとエージェント 2 本を整える（0014）</h3>
+      <p>申し送り #14・#15・#19 を反映し、保留 P4（モデルと <code>tools</code>）を決める。<code>task-executor</code> の起動プロンプトにブランチ名を明示する件も、この issue の運用で判明した事実として仕様に入れる。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">5</span>
+      <h3>共通ステップ 2 本とテンプレートの置き場を決める（0015）</h3>
+      <p>申し送り #20〜#24 と保留 P3、食い違い #8。P8（<code>20-common-step-requirement</code> の <code>####</code> 小節）は確認だけ行い、#8 の進行中の見直しと重なるなら扱わない。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">6</span>
+      <h3>eval ID・旧名・扱わない申し送りを締める（0016）</h3>
+      <p>0013〜0015 が終わってから行う。eval ID の接頭辞は他の仕様が確定してからでないと重複を避けられず、扱わない申し送りの線引き（P5）も全チケットの結果を見てから決まる。</p>
+    </li>
+  </ol>
+
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>1〜6（0011〜0016 の全チケット共通）</td><td><code>.claude/docs/**</code>、<code>wip/**</code></td><td><code>read</code>、<code>remote-read</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>アセット本体（<code>.claude/skills/</code>・<code>hooks/</code>・<code>rules/</code>・<code>agents/</code>・<code>settings.json</code>）は <code>write</code> に含めない。設計フェーズで書くのは正史だけである。</p>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>B1・B2・B4 が仕様に書かれたか</td><td>issue 追記の条件文と仕様の該当節を 1 対 1 で突き合わせる</td><td>0012 の DoD の根拠欄（ファイル:行）</td></tr>
+      <tr><td>B3 の段階順が成立するか</td><td><code>finalize.sh release</code> の段階（0011）と手順 5〜9（0012）を並べ、<code>pre_cleanup_sha</code> が本文更新より前に確定することを確認する</td><td>0011・0012 の両方の DoD</td></tr>
+      <tr><td>申し送り 23 項目が反映されたか</td><td>0006 の d1 対応表の 24 行に「反映済み / 扱わない（理由）」を書き戻す</td><td>0016 の成果物（更新した対応表）</td></tr>
+      <tr><td>食い違い 8 行が決着したか</td><td>0004 の食い違い一覧に「決着先（仕様 / 実装 / フィードバック計画）」の列を足す</td><td>0011・0012 の成果物</td></tr>
+      <tr><td>1:1:1 と横断文書の整合</td><td>改訂した仕様に対応する要件定義書があり、横断文書と用語辞書が矛盾しないことを確認する</td><td>各チケットの DoD「横断文書・用語辞書と整合している」</td></tr>
+      <tr><td>eval ID の重複が無いか</td><td>確定した接頭辞を既存の全テスト ID・eval ID の接頭辞と突き合わせる</td><td>0016 の DoD</td></tr>
+      <tr><td>設計フェーズ全体</td><td>fable の敵対的レビュー（1 回目 = 0011〜0016 完了時、2 回目 = 指摘対応後）</td><td>結果報告と MR の切れ目コメント</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>機械テストはこのフェーズでは動かない（アセット本体を変えないため）。<code>check-html.sh</code> だけは計画書と結果報告に対して通す。</p>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0011</td><td><code>ai-asset-design</code></td><td>ステップ 1。提供コマンド 2 本の置き場を仕様側に確定し、食い違い #1・#2・#3・#6・#7 と B3 の段階順を解消する</td><td>—</td></tr>
+      <tr><td>0012</td><td><code>ai-asset-design</code></td><td>ステップ 2。<code>10-task-overall-summary</code> 仕様を B1〜B4 のとおり改訂し、申し送り #16・#17・#18 と食い違い #4・#5 を反映する</td><td>0011</td></tr>
+      <tr><td>0013</td><td><code>ai-asset-design</code></td><td>ステップ 3。計画系タスクスキル 3 本に申し送り #1〜#13 を反映する（<code>feedback-plan</code> は書き換え）</td><td>—</td></tr>
+      <tr><td>0014</td><td><code>ai-asset-design</code></td><td>ステップ 4。実施系タスクスキルとエージェント 2 本に #14・#15・#19 を反映し、モデルと <code>tools</code> を確定する</td><td>—</td></tr>
+      <tr><td>0015</td><td><code>ai-asset-design</code></td><td>ステップ 5。共通ステップ 2 本に #20〜#24 を反映し、テンプレートの置き場（P3）と食い違い #8 を決める</td><td>—</td></tr>
+      <tr><td>0016</td><td><code>ai-asset-design</code></td><td>ステップ 6。eval ID の接頭辞と対象本数を確定し、旧名の扱い（c4）・旧資産 4 件の処遇・扱わない申し送り（P5）を DDR に落とす</td><td>0013・0014・0015</td></tr>
+      <tr><td>0017</td><td><code>ai-asset-implementation-plan</code></td><td>次の計画チケット（フェーズ 4 の計画）</td><td>0011〜0016</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>実行者はすべてメインエージェント（全体計画の方針。<code>task-executor</code> はこの issue で作る対象）。人間レビューは fable の敵対的レビューで代替し、設計フェーズの 2 回は<strong>実施タスクの切れ目</strong>で使う。</p>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td>置き場を仕様側に寄せた結果、実装フェーズで <code>session-start.sh</code> を壊す</td><td>セッション開始時の注入が止まり、機構が自分を案内できなくなる</td><td>設計の成果に「変更する 7 行」を列挙し、実装計画（0017）のロックアウト対策の入力にする。実装は 1 行ずつ、テスト 4 行を同じチケットの許可範囲に入れる</td></tr>
+      <tr><td><code>feedback-plan</code> の書き換えが他の仕様の前提を崩す</td><td>ヘッドレスの帰結が仕様間で矛盾する</td><td>0013 で書き換えたあと、0016 で全仕様のヘッドレスの帰結を突き合わせる</td></tr>
+      <tr><td>設計チケットが同じ文書を同時に書き換える</td><td>後のチケットが前の変更を上書きする</td><td>チケットを反映先の仕様書のまとまりで分けた。<code>10-task-overall-summary</code> だけは 0011（Script 処理）と 0012（手順）に割れるので、0012 の先行に 0011 を置いた</td></tr>
+      <tr><td>eval ID の接頭辞が既存と衝突する</td><td>実装フェーズで採番をやり直す</td><td>0016 を 0013〜0015 の後に置き、確定済みの全 ID を見てから決める</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li>アセット本体（SKILL.md・エージェント定義・スクリプト・テスト・eval の実体 55 件）の作成。実装フェーズ（フェーズ 4）で行う</li>
+    <li>旧名 111 件の実際の置換。参照更新は実装フェーズの最後に行う（全体計画「機構自身を作りながら使う」）</li>
+    <li>BD-T01〜13・FN-T01〜05 の実装と実行</li>
+    <li>#8 で進行中の要件書の型の見直し（P8 で重なりを確認するだけ）</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>P1'（<code>session-start.sh</code> のハードコード 1 行をどのチケットで直すか）</td><td>AI アセット実装計画（0017）。ロックアウトの危険がある中核なので実装計画で扱う</td></tr>
+      <tr><td>P2（<code>boundary.sh</code> を作った後この issue の切れ目で使い始めるか）</td><td>AI アセット実装計画（据え置き）</td></tr>
+      <tr><td>P6（フェーズ 4 のチケット分割の粒度）</td><td>AI アセット実装計画（据え置き）</td></tr>
+      <tr><td>P7（申し送り #23 の答えが実測に依存する場合の扱い）</td><td>0015。実測が要るなら実装フェーズの検証項目に回す</td></tr>
+      <tr><td>P8（<code>20-common-step-requirement</code> の <code>####</code> 小節が本当に未反映か）</td><td>0015。#8 の進行中の見直しと重なるなら扱わない</td></tr>
+      <tr><td>対象なし</td><td>無し。すべての材料に反映先がある</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

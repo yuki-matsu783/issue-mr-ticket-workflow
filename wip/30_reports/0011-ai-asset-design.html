@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0011-0016 AI アセット設計結果 — 正史の改訂</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 8</span>
+    <span class="chip good">◎良 11</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -153,6 +153,9 @@
           <li><a href="#f7"><span class="mk good">◎</span> 7. 添付は人間がブラウザで</a></li>
           <li><a href="#f8"><span class="mk good">◎</span> 8. 全体まとめの DoD の型</a></li>
           <li><a href="#f9"><span class="mk good">◎</span> 9. 別 issue 起票の承認の取り方</a></li>
+          <li><a href="#f10"><span class="mk good">◎</span> 10. 実装計画に申し送り 8 項目</a></li>
+          <li><a href="#f11"><span class="mk good">◎</span> 11. 設計計画に申し送り 4 項目</a></li>
+          <li><a href="#f12"><span class="mk good">◎</span> 12. ヘッドレス方針の反転</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -175,9 +178,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。</p>
+  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>8</b><span>◎良</span></li>
+    <li class="kpi good"><b>11</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -202,8 +205,10 @@
       <p class="sub">ほぼ確実</p>
       <ul>
         <li><a href="#f3">e3</a>: TK005 は例外ではなく設計。完了検査そのものは <code>ticket_check_completion</code> を共有して release の段階 2 が行う</li>
+        <li><a href="#f10">e10</a>・<a href="#f11">e11</a>: 実装計画スキルに申し送り 8 項目、設計計画スキルに 4 項目を反映した。許可範囲の方針に「3 項目は最小より優先」を足した</li>
         <li><a href="#f5">e5</a>: CLI 不在時の release を「段階 3 と 6 だけを呼び出し元に代行させる」形で仕様に追加した</li>
         <li><a href="#f6">e6</a>〜<a href="#f9">e9</a>: B1（所在を本文へ）・B2（添付は人間）・B4（DoD の型）と申し送り #16・#17・#18 を <code>10-task-overall-summary</code> 仕様に反映した</li>
+        <li><a href="#f12">e12</a>: <code>10-task-feedback-plan</code> のヘッドレス方針を「止まる」から「既定で進む」へ<strong>反転</strong>させた。別 issue の起票だけは例外として残した</li>
       </ul>
     </div>
   </div>
@@ -392,6 +397,48 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       </div>
     </li>
 
+
+    <li class="tl-item">
+      <span class="tl-dot good">10</span>
+      <h3 id="f10">実装計画スキルに申し送り 8 項目を反映した <span class="chip good">◎良</span> <span class="basis">根拠: 0006 の d1 対応表 #2〜#9</span></h3>
+      <p>8 項目は<strong>性質で 3 つに分かれる</strong>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>性質</th><th>項目</th><th>反映先</th></tr></thead>
+        <tbody>
+          <tr><td>計画の書き方</td><td>記述順と実行順の一致（#5）／提供コマンド自身を変えるステップ（#6）／テスト ID の機械的な抜き出し（#2）／実装結果レポートを最初の DoD に（#4）</td><td>処理フローのステップ・テスト方針・DoD の型</td></tr>
+          <tr><td>許可範囲の広げ方</td><td><code>build-test</code> と <code>hook-test</code> の両宣言（#3）／依存するテストを同じチケットへ（#8）／値の往復の両側（#9）</td><td>処理フローの許可範囲案</td></tr>
+          <tr><td>参照更新の書き方</td><td>検索語は行末に依存しない形・期待値は「残るもの」で書く（#7）</td><td>処理フローと OUT ひな形</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>許可範囲について方針を 1 つ足した。従来は「ステップごとに最小」だけだったが、上の 3 項目は<strong>最小より優先する</strong>と明記した。狭すぎる宣言は WF204 / WF205 で止まり、チケットの途中で範囲を広げる相談になる。その相談を避けるほうが、宣言を 1 行狭くすることより価値が高い。OUT ひな形に「依存するテスト」の行を足した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">11</span>
+      <h3 id="f11">設計計画スキルに申し送り 4 項目を反映した <span class="chip good">◎良</span> <span class="basis">根拠: 0006 の d1 対応表 #10〜#13</span></h3>
+      <p>#11（実装と仕様が食い違う候補は計画で正を決める）は、<strong>0011 で自分が実践した内容をそのまま仕様に書いた</strong>形になる。決め方として「変更行数だけで選ばず、一貫性・所有関係・波及範囲を並べて比べる」を明記した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>#13（次の計画チケットの目的文に件数を書かない）は、0007 で起票した 0017 の目的文が件数を書いていないことを確認したうえで書いた。#10（候補に実装を伴うものがあれば次は実装計画）と #12（台帳は 1 番号 1 原因）も要件と仕様の両方に落とした。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">12</span>
+      <h3 id="f12">フィードバック計画のヘッドレス方針を反転させた <span class="chip good">◎良</span> <span class="basis">根拠: 0006 の d3（現行仕様と申し送り B7 が正反対）</span></h3>
+      <p>現行仕様は「ヘッドレスでは一覧と提案をコミットせずに報告してセッションを終える」、申し送り #1 は「対応先を決めて起票まで行い <code>note</code> で報告」。<strong>正反対</strong>なので追記ではなく置換になった。</p>
+      <p>申し送り側を採った理由は、<strong>止めると issue が宙に浮く</strong>ことにある。フィードバック計画は後続フェーズの要否を確定させるタスクなので、ここで止まると後続の計画チケットが 1 枚も起票されず、次のセッションが再開しても何をすべきかが決まっていない。既定の提案（「この MR で対応」）を採ることは、ユーザーが提示されたら選んだであろう選択肢を選ぶことに等しい。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><strong>別 issue の起票だけは例外</strong>として、ヘッドレスでも行わない。取り消せない外部への副作用であり、<code>10-task-overall-summary</code> の別 issue 起票と同じ扱いに揃えた。判断の経緯と却下案 4 件は DDR <code>i0010-03</code> に残した。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -408,6 +455,8 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td><code>check-html.sh</code></td><td>0004 の HTML が 7 項目通過</td></tr>
       <tr><td><code>uploads.github.com</code> への <code>curl</code> の記述</td><td>仕様から 0 件（禁止事項に「AI が行ってはならない」として残る）</td></tr>
       <tr><td>B1〜B4 の条件文と仕様の対応</td><td>4 件すべてに該当節がある（B1 = 処理フロー 6 / B2 = 処理フロー 6・禁止事項・DDR <code>i0010-02</code> / B3 = 固定順序と release 段階 3 / B4 = release 段階 2 と「全体まとめチケットの DoD の型」）</td></tr>
+      <tr><td>申し送り #1〜#13 の反映</td><td>13 件すべてに反映先の節がある（#1 = <code>feedback-plan</code> 処理フロー 4 と DDR <code>i0010-03</code> / #2〜#9 = <code>ai-asset-implementation-plan</code> / #10〜#13 = <code>ai-asset-design-plan</code>）</td></tr>
+      <tr><td>要件と仕様の順序</td><td>3 本とも要件定義書に受け入れ基準を足してから仕様を書いた（<code>ai-asset-design-docs</code> ルール「仕様書は対応する要件書より先に変えない」）</td></tr>
     </tbody>
   </table>
   </div>

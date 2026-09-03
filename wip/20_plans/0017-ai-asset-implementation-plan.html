@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0017 AI アセット実装・テスト計画 — 作成物 57 件・テスト 33 件・旧名 111 件の割り付け</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装・テスト計画</p>
+  <h1 id="title" data-required>0017 AI アセット実装・テスト計画 — 作成物 57 件・テスト 33 件・旧名 111 件の割り付け</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
+    <div><dt>チケット</dt><dd>0017</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-04</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">設計フェーズで固めた正史から、アセット本体 <strong>57 件</strong>を作る実装チケット <strong>9 枚</strong>を起こす。あわせて、この issue で足す機械テスト <strong>33 件</strong>を各ステップに配り、旧名 <strong>111 件</strong>の参照更新と 0 件判定の検索を決め、中核 3 か所のロックアウト対策を付ける。着手の前に、<strong>19 アセットの仕様書に eval の表が無い</strong>という設計の欠落を設計チケット 1 枚で閉じる。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li><strong>保留 P6（作成物の割り付け）</strong>: 57 件を 9 枚に割った。固定順（設定・定義 → 中核 → 中核のテスト → スキル・エージェント → 参照更新）に並べ、連番を実行順に振った</li>
+      <li><strong>保留 P2（<code>boundary.sh</code> をこの issue の切れ目で使うか）</strong>: <strong>使わない</strong>。作りかけのコマンドに自分の進行を依存させると失敗の切り分けができず、切れ目の証跡が 2 系統に割れる。実運用は次の issue から</li>
+      <li><strong>保留 P1'（<code>session-start.sh</code> の 1 行）</strong>: S4（チケット 0027）。ロックアウト対策は <strong>SE-T10</strong>（<code>SE-T05</code> 後半はパスを踏まないので使わない）</li>
+      <li><strong>設計への差し戻し</strong>: 19 アセットの eval の表が無い。実装計画で埋めず、設計チケット 0023 を先頭に置く</li>
+    </ul>
+  </div>
+  <div class="box stop">
+    <p class="label">設計への差し戻し（実装より先に閉じる）</p>
+    <p>19 アセットの仕様書に「テスト観点」節（eval ID の表）が <strong>1 つも無い</strong>。受け入れ条件 A1（eval 定義 19 件）に直接効く欠落で、実装計画で埋めてよいものではない。接頭辞 19 種は <code>フック共通仕様</code> §6 に登録済み（0016）なので、残るのは各仕様書に表を書くことだけ。</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>事実</th><th>実測</th></tr></thead>
+      <tbody>
+        <tr><td>eval 節を持つ仕様書</td><td>5 本（<code>20-common-step-</code> の ai-asset-creator / feature-mr / issue / requirement / spec）</td></tr>
+        <tr><td>eval 節を持たない 19 アセット</td><td><code>00-workflow-*</code> 2 本・<code>10-task-*</code> 15 本・<code>agents/*</code> 2 本の<strong>全件</strong></td></tr>
+        <tr><td>登録済みの eval ID 接頭辞</td><td>19 種</td></tr>
+        <tr><td>実体としての eval ID</td><td><strong>0 件</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>実装チケットを起こさない選択は採らない。欠けているのは 19 節だけで、機械テストの ID 198 件は揃っており、フェーズ全体を止める理由にならない。</p>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <p>0003 の a1 が数えた 55 件に、設計フェーズで加わった 2 件（レポート・計画書の md 共通テンプレート。残課題 R6）を足した <strong>57 件</strong>。<code>summary-section.template.md</code> は <code>attachment-comment.template.md</code> の置き換えなので増減しない（残課題 R4）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td><code>assets/</code> のテンプレート実体 13 件</td><td>全件新規</td><td>0003 の a2（全件が仕様に名前とパスで書かれている）→ S1（0024）</td></tr>
+      <tr><td>md の共通テンプレート 2 件</td><td>全件新規</td><td>残課題 R6 → S1（0024）</td></tr>
+      <tr><td>提供コマンド <code>boundary.sh</code> + テスト</td><td>新規 2 件</td><td><code>00-workflow-issue-mr-driven</code> 仕様 Script 処理 → S2（0025）</td></tr>
+      <tr><td>提供コマンド <code>finalize.sh</code> + テスト</td><td>新規 2 件</td><td><code>10-task-overall-summary</code> 仕様 Script 処理 → S3（0026）</td></tr>
+      <tr><td>SKILL.md（タスクスキル）15 件・エージェント定義 2 件</td><td>全件新規</td><td>各仕様の OUT ひな形・定義ひな形 → S6（0029）</td></tr>
+      <tr><td>SKILL.md（ワークフロースキル）2 件</td><td>全件改訂</td><td>既存を書き換え（旧名 83 件を含む）→ S7（0030）</td></tr>
+      <tr><td>eval 定義 19 件</td><td>新規 17 / 移行 2</td><td>DDR <code>i0010-04</code>（<code>evals.json</code> からの移行）→ S8（0031）</td></tr>
+      <tr><td><strong>合計 57 件</strong></td><td>—</td><td>—</td></tr>
+      <tr><td><code>session-start.sh:64</code>・<code>workflow-state-guard.sh:40, 43</code></td><td>57 件の外。中核 3 行</td><td><code>00-workflow-issue-mr-driven</code> 仕様「現行アセットとの差分」→ S4（0027）</td></tr>
+      <tr><td>テスト 4 行・<code>session-start</code> の注入整形</td><td>57 件の外</td><td>期待値が置き場に依存。<code>SE-T05</code>・<code>SE-T06</code> の前半 → S4（0027）</td></tr>
+      <tr><td><code>check-html.sh</code> の <code>RV009</code>・<code>CP-T08</code> の振り直し</td><td>57 件の外</td><td>DDR <code>i0010-05</code>、申し送り #22 → S5（0028）</td></tr>
+      <tr><td>旧資産 5 件（削除 2・移設 1・移行 2）</td><td>57 件の外</td><td>DDR <code>i0010-04</code> → S8（0031）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <p>固定順（設定・定義 → 中核 → 中核のテスト → スキル・ルール・エージェント → 参照更新）に並べた。<strong>計画書のこの並びとチケットの実行順を一致させる</strong>ため、連番は実行順に振ってある。</p>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">0</span>
+      <h3>19 アセットの仕様書に eval ID の表を書く（設計の差し戻し・チケット 0023）</h3>
+      <p>接頭辞は <code>フック共通仕様</code> §6 にある。各仕様書の「テスト観点」節に <code>&lt;接頭辞&gt;-E&lt;2 桁&gt;</code> の表（入力・期待する振る舞い・判定方法）を書く。<strong>種類は <code>ai-asset-design</code></strong> で、実装ではない。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>設定・定義: テンプレート実体 15 件（チケット 0024）</h3>
+      <p><code>assets/</code> の 13 件と md の共通テンプレート 2 件。仕様の OUT ひな形が名前とパスを持っているので、そのまま落とせる。中核を含まない。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>中核: <code>boundary.sh</code> とそのテスト（チケット 0025）<span class="chip stop">中核</span></h3>
+      <p>5 サブコマンド（status / note / request / skip / complete）と <code>logs/review-state.json</code>。テストは BD-T01〜BD-T13 の 13 件。<strong>作った直後に自分の進行へ組み込まない</strong>（保留 P2 の判断）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>中核: <code>finalize.sh</code> とそのテスト・完了検査の共有（チケット 0026）<span class="chip stop">中核</span></h3>
+      <p><code>release</code> の 8 段階と <code>logs/merge-state.json</code>。テストは FN-T01〜FN-T09 の 9 件。<strong>値の往復</strong>: 完了検査を <code>ticket.sh</code> から <code>ticket_check_completion</code> として切り出し、<code>finalize.sh</code> が source する。切り出す側・使う側・往復のテストを同じチケットに置く。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>中核: フック 3 行の追随とテスト 4 行・<code>session-start</code> の注入（チケット 0027）<span class="chip stop">中核</span></h3>
+      <p><code>session-start.sh:64</code> のパス、<code>workflow-state-guard.sh:40, 43</code> の案内文、期待値が置き場に依存するテスト 4 行。あわせて <code>boundary.sh</code> 依存が解けた SE-T01〜04・SE-T07〜10 と WE-T10 を実装する。<code>SE-T05</code>・<code>SE-T06</code> は ID としては通っているが<strong>前半の実装が残る</strong>。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">5</span>
+      <h3><code>check-html.sh</code> の RV009 と <code>CP-T08</code> の振り直し（チケット 0028）</h3>
+      <p><code>awk</code> の存在確認を入れて <code>RV009</code>・終了 2 を返す（RV-T08）。<code>test_push.sh</code> 側の <code>CP-T08</code> を <code>CP-T11</code> に振り直す（1 つの ID を 2 ファイルに置かない）。どちらも既存の提供コマンドの小さな修正。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">6</span>
+      <h3>スキル・エージェント: タスクスキル 15 本 + エージェント 2 本（チケット 0029）</h3>
+      <p>各仕様の OUT ひな形・定義ひな形から SKILL.md とエージェント定義を作る。分量が 1 枚に収まらなければ、着手時に計画側 8 本 / 実施側 7 本の 2 枚に割り、計画書のステップ表も同じチケットの中で書き直す。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">7</span>
+      <h3>ワークフロースキル 2 本の SKILL.md 改訂（チケット 0030）</h3>
+      <p>既存 2 本を新仕様に書き換える。旧名 <strong>83 件</strong>（<code>00-workflow-issue-mr-driven/SKILL.md</code> 77 + <code>00-workflow-quick-request/SKILL.md</code> 6）の置換をこの中で行う。<code>20-task-gh-install</code> の 3 件は置換先が無いので文を落とす。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">8</span>
+      <h3>eval 定義 19 件と旧資産 5 件の処遇（チケット 0031）</h3>
+      <p>0023 が書いた表を <code>.claude/evals/&lt;アセット名&gt;.md</code> に落とす。うち 2 件は旧 <code>evals.json</code> からの移行で、旧名 <strong>26 件</strong>を移行先で書き換える（持ち越さない）。旧資産 5 件（削除 2・移設 1・移行 2）もここで処遇する。<code>rules/work-defaults.md</code> に敵対的レビュアーのモデルの列を足す（残課題 R7・R9）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">9</span>
+      <h3>参照更新の総仕上げと 0 件判定（チケット 0032）</h3>
+      <p>残った旧名（仕様書の 1 件を含む）を片付け、下記の検索で 0 件を確かめる。<code>run-tests.sh --ids</code> で全件 198 件の突合を 1 回行う。</p>
+    </li>
+  </ol>
+
+  <h3>許可範囲（やってよいこと）</h3>
+  <p>ステップごとに最小。ただし次の 3 つは「最小」より優先する。テストを走らせるチケットは <code>build-test</code> と <code>hook-test</code> を<strong>両方</strong>宣言する。依存するテストファイルと、値の往復の両側は同じチケットに入れる。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>S0（0023）</td><td><code>.claude/docs/**</code>, <code>wip/**</code></td><td>read, remote-read</td></tr>
+      <tr><td>S1（0024）</td><td><code>.claude/skills/**</code>, <code>wip/**</code></td><td>read, remote-read</td></tr>
+      <tr><td>S2（0025）</td><td><code>.claude/skills/00-workflow-issue-mr-driven/**</code>, <code>logs/**</code>, <code>wip/**</code></td><td>read, build-test, hook-test, remote-read</td></tr>
+      <tr><td>S3（0026）</td><td><code>.claude/skills/10-task-overall-summary/**</code>, <code>.claude/skills/20-common-step-ticket/**</code>, <code>logs/**</code>, <code>wip/**</code></td><td>read, build-test, hook-test, remote-read</td></tr>
+      <tr><td>S4（0027）</td><td><code>.claude/hooks/**</code>, <code>logs/**</code>, <code>wip/**</code></td><td>read, build-test, hook-test, remote-read</td></tr>
+      <tr><td>S5（0028）</td><td><code>.claude/skills/20-common-step-report-view/**</code>, <code>.claude/skills/20-common-step-commit-push/**</code>, <code>logs/**</code>, <code>wip/**</code></td><td>read, build-test, hook-test, remote-read</td></tr>
+      <tr><td>S6（0029）</td><td><code>.claude/skills/**</code>, <code>.claude/agents/**</code>, <code>wip/**</code></td><td>read, remote-read</td></tr>
+      <tr><td>S7（0030）</td><td><code>.claude/skills/00-workflow-issue-mr-driven/**</code>, <code>.claude/skills/00-workflow-quick-request/**</code>, <code>wip/**</code></td><td>read, remote-read</td></tr>
+      <tr><td>S8（0031）</td><td><code>.claude/evals/**</code>, <code>.claude/skills/**</code>, <code>.claude/rules/**</code>, <code>wip/**</code></td><td>read, remote-read</td></tr>
+      <tr><td>S9（0032）</td><td><code>.claude/**</code>, <code>wip/**</code></td><td>read, build-test, hook-test, remote-read</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><strong>0026 が <code>20-common-step-ticket/**</code> も持つ理由（値の往復）</strong>: 完了検査を切り出す側（<code>ticket.sh</code>）と使う側（<code>finalize.sh</code>）の両方に手が入る。片側だけを直すと、もう一方が古い形を期待して壊れる</li>
+    <li><strong>0027 が <code>.claude/hooks/**</code> を丸ごと持つ理由（依存するテスト）</strong>: パスを変えると、期待値にそのパスを持つテスト 4 行が赤くなる。実装とテストを同じチケットに閉じる</li>
+    <li><strong>0032 が <code>.claude/**</code> を持つ理由</strong>: 旧名がどこに残っているかは検索の結果で決まり、事前に絞れない。書き込みは「旧名を新名に置き換える」ことに限り、振る舞いを変える変更はしない（DoD で担保する）</li>
+  </ul>
+
+  <h3>提供コマンド自身を作るステップ（S2・S3）</h3>
+  <p><code>boundary.sh</code> と <code>finalize.sh</code> は<strong>この機構が自分の作業に使う提供コマンド</strong>なので、書いた直後の 1 回目が壊れているとそのチケットを終わらせる手段が無くなる。両ステップの手順に次を明示する。</p>
+  <ol>
+    <li>スクリプトを書く</li>
+    <li><code>commit.sh</code> で自分をコミットする（この 1 回目が検証を兼ねる。<code>boundary.sh</code> / <code>finalize.sh</code> 自身はまだ手順に組み込まない）</li>
+    <li>テストを書いて <code>run-tests.sh --filter</code> で対象だけ実行する</li>
+    <li><code>ticket.sh complete &lt;番号&gt;</code></li>
+    <li>失敗したら <code>git reset --hard &lt;base_sha&gt;</code> で戻す（<code>base_sha</code> はチケットの frontmatter に機構が記録している）</li>
+  </ol>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <h3>テスト ID の抜き出しと突合</h3>
+  <pre><code>grep -rhoE "[A-Z]{2,6}-[TE][0-9]{2}[a-z]?" .claude/docs/10_spec/ | sort -u</code></pre>
+  <p>この正規表現は <code>run-tests.sh</code> が <code>PASS</code> / <code>FAIL</code> 行から ID を抽出する形と同じにしてある。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>抜き出しと割付表の一致</td><td>抜き出しの出力 220 − 仕様書の IN / OUT サンプルに書かれた例示 2（<code>WD-T06</code>・<code>AS-E01</code>）= <strong>218</strong>。割付表の行数と一致する</td><td>218（機械 198 / eval 20）</td></tr>
+      <tr><td><code>boundary.sh</code> の 5 サブコマンド</td><td>S2 で <code>run-tests.sh --filter boundary</code></td><td>BD-T01〜BD-T13（13 件）</td></tr>
+      <tr><td><code>finalize.sh release</code> の 8 段階</td><td>S3 で <code>run-tests.sh --filter finalize</code></td><td>FN-T01〜FN-T09（9 件）</td></tr>
+      <tr><td>現在地の注入</td><td>S4 で <code>run-tests.sh --filter session-start</code></td><td>SE-T01〜04・SE-T07〜10（8 件）</td></tr>
+      <tr><td>入口ガードの継続判定</td><td>S4 で <code>run-tests.sh --filter workflow-entry</code></td><td>WE-T10（1 件）</td></tr>
+      <tr><td>HTML 検査の環境不備</td><td>S5 で <code>PATH</code> から <code>awk</code> を外して実行</td><td>RV-T08（1 件）</td></tr>
+      <tr><td>push の前チェック</td><td>S5 で <code>run-tests.sh --filter push</code></td><td>CP-T11（1 件）</td></tr>
+      <tr><td>全件と ID の突合</td><td>S9 で <code>run-tests.sh --ids</code> を 1 回</td><td>198 件が PASS・重複 ID の報告が 0 件</td></tr>
+      <tr><td>eval 19 件</td><td>0023 が仕様書に表を書き、S8 が <code>.claude/evals/</code> に定義を作る。<strong>定義までで実行しない</strong></td><td><code>.claude/evals/</code> が 28 本（既存 9 + 新規 19）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <p class="label">この issue で足す機械テストは 33 件</p>
+    <p>現在通っているのは 165 件（0006 の e1 の実測）。BD 13 + FN 9 + SE 8 + WE 1 + RV 1 + CP 1 = 33 で、165 + 33 = <strong>198</strong>。</p>
+    <p><strong>ID 数に現れないが実装が残るもの</strong>: <code>SE-T05</code>・<code>SE-T06</code> の<strong>前半</strong>。仕様は両方とも「前半は 3/3 へ」と定めるが、issue #9 は後半だけを実装したため ID は PASS 一覧に載っている。S4 の DoD に「前半の観点が実装され、テストの本文が両方の観点を踏む」を明示する。</p>
+    <p>全件実行は 10 分前後かかる（既定のタイムアウトは 1 本あたり 120 秒で、全件の合計ではない）。<strong>2 本同時に走らせない</strong>（無関係なテストまで TIMEOUT する）。</p>
+  </div>
+
+  <h3>参照更新の一覧</h3>
+  <p>旧名は <strong>6 ファイル・111 件</strong>（0005 の c1）。検索語は行末に依存しない形で書き、<strong>期待値は「残るもの」で書く</strong>。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>旧名</th><th>新名</th><th>件数</th><th>入れるステップ</th></tr></thead>
+    <tbody>
+      <tr><td><code>work-boundary.sh</code></td><td><code>boundary.sh</code></td><td>26</td><td>S7（14）・S8（12）</td></tr>
+      <tr><td><code>merge-prep.sh</code></td><td><code>finalize.sh</code></td><td>26</td><td>S7（20）・S8（5）・S8 の削除（1）</td></tr>
+      <tr><td><code>10-work-overall-plan</code></td><td><code>10-task-overall-plan</code></td><td>12</td><td>S7（8）・S8（4）</td></tr>
+      <tr><td><code>10-work-&lt;phase&gt;-plan</code> / <code>-exec</code></td><td><code>10-task-&lt;phase&gt;-plan</code> / <code>-exec</code></td><td>8</td><td>S7</td></tr>
+      <tr><td><code>20-task-gh-issue</code></td><td><code>20-common-step-issue</code></td><td>13</td><td>S7</td></tr>
+      <tr><td><code>20-task-gh-feature</code></td><td><code>20-common-step-feature-mr</code></td><td>9</td><td>S7</td></tr>
+      <tr><td><code>20-task-ai-asset-creator</code></td><td><code>20-common-step-ai-asset-creator</code></td><td>1</td><td>S7</td></tr>
+      <tr><td><code>workflow-lib.sh</code></td><td><code>.claude/hooks/lib/</code> の 5 本</td><td>1</td><td>S8（1:1 ではないので文脈に応じて）</td></tr>
+      <tr><td><code>10-work-ticket-driven</code></td><td>行ごとに参照先が変わる</td><td>12</td><td>S7（6）・S8（4）・S9（仕様書の 1 件）</td></tr>
+      <tr><td><code>20-task-gh-install</code></td><td><strong>置換先なし</strong></td><td>3</td><td>S7（文を落とす）</td></tr>
+      <tr><td><code>retrospective</code></td><td><code>10-task-feedback-plan</code> の振り返り</td><td>10</td><td>S7（6）・S8（4）</td></tr>
+      <tr><td><strong>合計</strong></td><td>—</td><td><strong>111</strong></td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <pre><code>grep -rnoE "(^|[^0-9-])(workflow-issue-mr-driven|workflow-quick-request)|20-task-ai-asset-creator|20-task-gh-[a-z]*|10-work-[a-z-]*|work-boundary\.sh|merge-prep\.sh|workflow-lib\.sh" \
+  --include='*.md' --include='*.json' --include='*.tsv' --include='*.txt' --include='*.sh' . \
+  | grep -v '^\./参考ディレクトリ/' | grep -v '^\./logs/' | grep -v '^\./wip/' | grep -v '^\./\.claude/docs/20_ddr/'</code></pre>
+  <p>前置を <code>(^|[^0-9-])</code> にしてあるのは、新名 <code>00-workflow-issue-mr-driven</code> の部分一致（実測で 100 件超の偽陽性）を避けつつ、行頭から始まる旧名も拾うため。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>期待値（残るもので書く）</th></tr></thead>
+    <tbody>
+      <tr><td>上の検索の出力</td><td>空</td></tr>
+      <tr><td><code>.claude/docs/20_ddr/</code> の旧名</td><td>経緯の記録として<strong>残る</strong>（除外している）</td></tr>
+      <tr><td><code>.claude/docs/90_glossary/</code> の別名・禁止表記</td><td>旧称が別名として<strong>残る</strong>（除外していないので、ヒットしたら禁止表記の欄かを目視で確かめる）</td></tr>
+      <tr><td><code>ls -d .claude/skills/*/ | wc -l</code></td><td><strong>26</strong>（現在 11 + 新規のタスクスキル 15）</td></tr>
+      <tr><td><code>.claude/hooks/config/entry-skills.txt</code> の非コメント行</td><td><code>00-workflow-quick-request</code> と <code>00-workflow-issue-mr-driven</code> の 2 行</td></tr>
+      <tr><td><code>.claude/evals/</code> のファイル数</td><td><strong>28</strong>（既存 9 + 新規 19）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>0 件だけを期待値にしないのは、検索語が間違っていて何もヒットしない場合と区別が付かないため。スキルディレクトリ数と eval のファイル数が「残るもの」の側の担保になる。</p>
+
+  <h3>依存するテスト</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>変更対象</th><th>依存するテスト</th><th>入れるステップ</th></tr></thead>
+    <tbody>
+      <tr><td><code>boundary.sh</code> の置き場</td><td><code>test_workflow_entry.sh:144</code>（WE-T11）・<code>test_workflow_state_guard.sh:118</code>（SG-T05）</td><td>S4（0027）</td></tr>
+      <tr><td><code>finalize.sh</code> の置き場</td><td><code>test_workflow_entry.sh:143</code>（WE-T06）・<code>test_workflow_state_guard.sh:117</code>（SG-T05）</td><td>S4（0027）</td></tr>
+      <tr><td><code>ticket.sh</code> の完了検査の切り出し</td><td><code>test_ticket.sh</code>（TICKET-T02〜T04・T07）</td><td>S3（0026）</td></tr>
+      <tr><td><code>CP-T08</code> の振り直し</td><td><code>test_push.sh</code></td><td>S5（0028）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>旧名を期待値に持つテストは 1 本も無い</strong>（0005 の c6）。赤くなるのは<strong>置き場の変更</strong>の 4 行だけで、上の表に入れてある。</p>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0023</td><td><code>ai-asset-design</code></td><td>S0: 19 アセットの仕様書に eval ID の表を書く</td><td>0017</td></tr>
+      <tr><td>0024</td><td><code>ai-asset-implementation</code></td><td>S1: テンプレート実体 15 件</td><td>0023</td></tr>
+      <tr><td>0025</td><td>同上</td><td>S2: <code>boundary.sh</code> とそのテスト（BD-T01〜13）<span class="chip stop">中核</span></td><td>0024</td></tr>
+      <tr><td>0026</td><td>同上</td><td>S3: <code>finalize.sh</code> とそのテスト（FN-T01〜09）・完了検査の共有<span class="chip stop">中核</span></td><td>0025</td></tr>
+      <tr><td>0027</td><td>同上</td><td>S4: フック 3 行の追随とテスト 4 行・注入（SE-T01〜10・WE-T10）<span class="chip stop">中核</span></td><td>0026</td></tr>
+      <tr><td>0028</td><td>同上</td><td>S5: <code>RV009</code>（RV-T08）と <code>CP-T08</code> の振り直し（CP-T11）</td><td>0027</td></tr>
+      <tr><td>0029</td><td>同上</td><td>S6: タスクスキル 15 本 + エージェント 2 本</td><td>0028</td></tr>
+      <tr><td>0030</td><td>同上</td><td>S7: ワークフロースキル 2 本の改訂（旧名 83 件）</td><td>0029</td></tr>
+      <tr><td>0031</td><td>同上</td><td>S8: eval 定義 19 件と旧資産 5 件の処遇（旧名 26 件）</td><td>0030</td></tr>
+      <tr><td>0032</td><td>同上</td><td>S9: 参照更新の総仕上げと 0 件判定</td><td>0031</td></tr>
+      <tr><td>0033</td><td><code>feedback-plan</code></td><td>次の計画チケット（振り返りと後続フェーズの決定）</td><td>0024〜0032</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>S2 と S3 を分けた理由</strong>: どちらも提供コマンド 1 本 + そのテストで、<code>boundary.sh</code> は 5 サブコマンド 13 テスト、<code>finalize.sh</code> は 1 サブコマンド 8 段階 9 テスト。1 枚にすると差分が大きくなりすぎ、失敗時に戻す範囲が広がる。中核は「小さく変えて都度テストする」。</p>
+  <p><strong>S4 を S2・S3 の後に置いた理由</strong>: <code>session-start</code> と <code>workflow-entry</code> のテスト 8 件は <code>boundary.sh status --offline</code> に依存する。<code>boundary.sh</code> が無い状態では「本物と一致するか」という観点が成立しない。</p>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <h3>ロックアウト対策（中核を変える 3 ステップ）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>止まり方</th><th>検知</th><th>復旧</th></tr></thead>
+    <tbody>
+      <tr><td>S2（<code>boundary.sh</code> 新規）</td><td><strong>止まらない</strong>。新規作成でフックは参照していない（<code>session-start.sh</code> は不在なら無出力で終了 0）。作った直後に自分の進行へ組み込まないので、壊れていても作業は続く</td><td><code>run-tests.sh --filter boundary</code></td><td><code>git reset --hard &lt;base_sha&gt;</code></td></tr>
+      <tr><td>S3（<code>finalize.sh</code> 新規・<code>ticket.sh</code> の切り出し）</td><td><strong><code>ticket.sh</code> が止まると全チケットの状態遷移ができなくなる</strong>。関数を切り出す変更なので、source の順序や変数名の衝突で <code>ticket.sh</code> 自体が壊れうる</td><td>切り出した直後に <code>ticket.sh next</code> を実行して JSON が返ることを確かめる（この 1 回目が検証を兼ねる）</td><td><code>git reset --hard &lt;base_sha&gt;</code>。<code>ticket.sh</code> が動かない状態では <code>complete</code> も打てないので、<strong>先に git で戻してから</strong>やり直す</td></tr>
+      <tr><td>S4（<code>session-start.sh:64</code>・<code>workflow-state-guard.sh:40, 43</code>）</td><td><code>session-start.sh</code> は<strong>セッション開始時の注入そのもの</strong>を行う。パスを取り違えると現在地が一切注入されなくなり、<strong>不在時は無出力で終了 0 に倒れるため壊れたことに気づきにくい</strong></td><td><strong>SE-T10</strong>（新しい置き場に置いたときに注入され、旧い置き場だけに置いたときは注入されず <code>hook_record skip</code> の理由が「不在」になる）。<strong><code>SE-T05</code> の後半では代えられない</strong> — <code>jq</code> の検査はスクリプト不在の分岐より後にあり、パスを取り違えたままでも同じ結果になる</td><td><code>git reset --hard &lt;base_sha&gt;</code>。注入が無くても作業は続けられるので、セッションが使えなくなる形の詰まり方はしない</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>WORKFLOW_ENTRY_ENFORCE=0</code> による強制の無効化は<strong>使わない</strong>（ユーザーの明示的な指示があるときだけ。<code>CLAUDE.md</code>）。</p>
+
+  <h3>リスク</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td><code>ticket_check_completion</code> を関数として切り出せない（現行の <code>ticket.sh</code> の構造次第）</td><td>S3 が止まる。<code>finalize.sh</code> の段階 2 が検査を二重実装することになり、仕様と食い違う</td><td>切り出しが無理なら<strong>設計へ差し戻す</strong>（<code>20-common-step-ticket</code> 仕様の「二重実装しない」を書き直す）。実装で辻褄を合わせない</td></tr>
+      <tr><td>タスクスキル 15 本の SKILL.md が 1 枚のチケットに収まらない</td><td>S6 の差分が大きくなりレビューが効かなくなる</td><td>着手時に分量を見て 2 枚に割る。割ったら計画書のステップ表も同じチケットの中で書き直す（記述順と実行順の一致）</td></tr>
+      <tr><td>旧名の置換で新名の部分一致を巻き込む</td><td><code>00-workflow-issue-mr-driven</code> が壊れる</td><td>0 件判定に加えてスキルディレクトリ数 26 と <code>entry-skills.txt</code> の 2 行を検査する。壊れていればこの 2 つが落ちる</td></tr>
+      <tr><td>全件テストが 10 分前後かかり、S9 で初めて全体の赤が見つかる</td><td>手戻りが S2 まで遡りうる</td><td>各ステップで <code>--filter</code> を回し、S9 の全件は確認の位置づけにする。<code>--filter</code> が通ったものが <code>--ids</code> で落ちるのは重複 ID のときだけ</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li><strong>eval の実行</strong>。定義の作成・更新までで、評価の実行は人間の判断（DDR <code>i0001-20</code>）</li>
+    <li><strong><code>boundary.sh</code> をこの issue の切れ目で使うこと</strong>（保留 P2 の判断）。実運用は次の issue から</li>
+    <li><strong>スクリプトを持つ既存スキル 4 本の eval</strong>（<code>ticket</code> / <code>commit-push</code> / <code>report-view</code> / <code>shell-script</code>）。<code>20-common-step-spec</code> 仕様の適用範囲を「新規作成と、テスト観点を追加・変更する更新のとき」に限ったので、遡及は別 issue</li>
+    <li><strong>エージェント定義の <code>model</code> の機械検査</strong>（残課題 R10）・<strong>md と HTML の対応の自己チェックの数え方</strong>（残課題 R11）。どちらもフィードバック計画（0033）へ回す</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>P2: <code>boundary.sh</code> をこの issue の切れ目で使い始めるか</td><td><strong>この計画で決めた</strong>。使い始めない。作りかけのコマンドに自分の進行を依存させると失敗の切り分けができず、証跡が 2 系統に割れる</td></tr>
+      <tr><td>P6: 作成物をどうチケットに割るか</td><td><strong>この計画で決めた</strong>。57 件を 9 枚に割った</td></tr>
+      <tr><td>P1': <code>session-start.sh</code> の 1 行をどのチケットで直すか</td><td><strong>この計画で決めた</strong>。S4（0027）。対策は SE-T10</td></tr>
+      <tr><td>R7 / R9: <code>rules/work-defaults.md</code> に敵対的レビュアーのモデルの列が無い</td><td>S8（0031）で足す。0020 で「モデルの突き合わせは起動側の責務」と決めたので、差し替え先を書く場所が要る</td></tr>
+      <tr><td>R10: エージェント定義の <code>model</code> を機構が検査できない</td><td>この issue では扱わない。フィードバック計画（0033）へ</td></tr>
+      <tr><td>R11: md と HTML の対応の自己チェックの数え方</td><td>この issue では扱わない。フィードバック計画（0033）へ</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

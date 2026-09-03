@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回は 00
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T18:28:31+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "109c470"
 ---
 
 # 0014 実施系タスクスキルとエージェント 2 本を整え、モデルと tools を確定する

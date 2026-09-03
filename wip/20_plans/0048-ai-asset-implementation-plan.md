@@ -47,16 +47,23 @@ keywords: [実装計画, cmdpos.sh, test_cmdpos.sh, HK-T05, HK-T12, run-tests, �
 
 ## 許可範囲案
 
-実装チケット 0049 に与える範囲。`scope-limits.json` の `ai-asset-implementation` の既定（`.claude/hooks/**` を含む）より狭く取る。
+実装チケット 0051 に与える範囲。`scope-limits.json` の `ai-asset-implementation` の既定（`.claude/hooks/**` を含む）より狭く取る。
 
 | ステップ | 書き込み先 | 実行コマンド |
 |---|---|---|
-| 1〜3 | `.claude/hooks/lib/tests/**`、`wip/**`、`logs/**` | `run-tests.sh`（hook-test）、`git diff`（read）、`check-html.sh`（read） |
+| 1〜3 | `.claude/hooks/lib/tests/**`、`wip/**`、`logs/**` | `run-tests.sh`（build-test + hook-test）、`git diff`（read）、`check-html.sh`（read） |
 
 - `allow.write`: `[".claude/hooks/lib/tests/**", "wip/**"]`
-- `allow.ops`: `["read", "hook-test"]`
-- `build-test` は宣言しない。npm も `wip/tmp/` の計測スクリプトも今回は使わない
+- `allow.ops`: `["read", "build-test", "hook-test"]`
 - `.claude/hooks/lib/cmdpos.sh` を書き込み先に**入れない**。据え置きが決定なので、書けないほうが決定に沿う
+
+### `build-test` を宣言する理由（当初案の訂正）
+
+当初この計画は `allow.ops` を `["read", "hook-test"]` とし、「npm も `wip/tmp/` の計測スクリプトも使わないので `build-test` は要らない」と書いていた。これは誤りだった。
+
+`run-tests.sh` は自分の中で作業中チケットの `allow.ops` を検査しており（TR006）、**`build-test` を無条件に要求する**。テスト対象に `.claude/hooks/**` が含まれるときに `hook-test` が追加で要る、という関係で、`hook-test` は `build-test` の代わりにならない。フックの分類（`scope_classify`）が `bash <.claude/hooks/**/tests/*.sh>` を `hook-test` に分類することと、提供コマンド `run-tests.sh` が要求する分類は別物である。
+
+最初のチケット 0049 はこの誤った宣言で起票したため、`run-tests.sh` が TR006 で止まった。迂回せず、本節を訂正したうえでチケットを起こし直した（0049 は取り消し、0051 が後継）。
 
 ## テスト方針
 
@@ -76,12 +83,14 @@ eval の定義は無い。今回の変更は機械テストで全量が見られ
 
 | # | 区分 | 内容 | 依存 | チケット |
 |---|---|---|---|---|
-| 1 | 中核 | `cmdpos.sh` が基準点から変わっていないことを `git diff origin/main -- .claude/hooks/lib/cmdpos.sh` が空であることで示す | なし | 0049 |
-| 2 | 中核の機械テスト | `test_cmdpos.sh` の HK-T05 に `cat <<EOF⏎EOF⏎git push` を足す。期待は 2 段・`exe=git sub=push`（`cat` の段が消えないことも併せて見る） | 1 | 0049 |
-| 3 | 中核の機械テスト | `run-tests.sh --ids` を全体とフィルタ別に実行し、ID の集合と件数を 0045 時点と突き合わせる | 2 | 0049 |
-| 4 | 参照更新 | 下表の検索を実施し、更新箇所が無いことを記録する | 3 | 0049 |
+| 1 | 中核 | `cmdpos.sh` が基準点から変わっていないことを `git diff origin/main -- .claude/hooks/lib/cmdpos.sh` が空であることで示す | なし | 0051 |
+| 2 | 中核の機械テスト | `test_cmdpos.sh` の HK-T05 に `cat <<EOF⏎EOF⏎git push` を足す。期待は 2 段・`exe=git sub=push`（`cat` の段が消えないことも併せて見る） | 1 | 0051 |
+| 3 | 中核の機械テスト | `run-tests.sh --ids` を全体とフィルタ別に実行し、ID の集合と件数を 0045 時点と突き合わせる | 2 | 0051 |
+| 4 | 参照更新 | 下表の検索を実施し、更新箇所が無いことを記録する | 3 | 0051 |
 
-ステップ 1〜4 は 1 チケット（0049）に収める。中核の変更が無く、テストの追加が 1 件だけで、分割すると確認の単位が細かくなりすぎるため。
+ステップ 1〜4 は 1 チケット（0051）に収める。中核の変更が無く、テストの追加が 1 件だけで、分割すると確認の単位が細かくなりすぎるため。
+
+後続の計画チケットは 0050（`feedback-plan`）。先行を 0051 に付け替える。
 
 ## 参照更新一覧
 
@@ -102,10 +111,10 @@ eval の定義は無い。今回の変更は機械テストで全量が見られ
 
 | 変えるもの | ホットパスへの影響 | 復旧手順 |
 |---|---|---|
-| `test_cmdpos.sh`（テストファイル） | 無し。`settings.json` から起動されず、フックの実行経路に入らない | `git checkout <0049 の base_sha> -- .claude/hooks/lib/tests/test_cmdpos.sh` |
+| `test_cmdpos.sh`（テストファイル） | 無し。`settings.json` から起動されず、フックの実行経路に入らない | `git checkout <0051 の base_sha> -- .claude/hooks/lib/tests/test_cmdpos.sh` |
 
 - `WORKFLOW_ENTRY_ENFORCE=0` は使わない（ユーザーの明示が無い）
-- 基準点は 0049 の `base_sha`。テストファイル 1 本を戻せば元に戻る
+- 基準点は 0051 の `base_sha`。テストファイル 1 本を戻せば元に戻る
 
 ## リスク
 

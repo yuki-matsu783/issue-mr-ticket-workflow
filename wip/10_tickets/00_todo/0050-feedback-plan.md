@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: feedback-plan
-predecessors: ["0049"]
+predecessors: ["0051"]
 executor: main
 human_review: {required: true, reason: "後続フェーズの要否は人間の判断（work-defaults 基準どおり）"}
 adversarial_review: {required: false, reason: "基準どおり"}

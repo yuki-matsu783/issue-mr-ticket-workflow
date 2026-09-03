@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "全体計画の方針どおり、
 allow:
   write: [".claude/hooks/lib/tests/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-03T12:14:08+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "dd953c7"
 ---
 
 # 0052 shlex 据え置きの決定を実装に反映しテストで固定する

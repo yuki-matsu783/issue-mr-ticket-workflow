@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回目は
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T21:10:35+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b5a5398"
 ---
 
 # 0020 敵対的レビュー 1 回目: 台帳・参照・識別子・ロックアウト対策の誤り 9 件を直す

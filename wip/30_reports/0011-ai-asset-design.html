@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0011-0016 AI アセット設計結果 — 正史の改訂</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 4</span>
+    <span class="chip good">◎良 8</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -149,6 +149,10 @@
           <li><a href="#f3"><span class="mk good">◎</span> 3. TK005 は設計・検査は共有</a></li>
           <li><a href="#f4"><span class="mk warn">△</span> 4. テスト観点を 2 件追加</a></li>
           <li><a href="#f5"><span class="mk good">◎</span> 5. CLI 不在時の release</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 所在をコメントから本文へ</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. 添付は人間がブラウザで</a></li>
+          <li><a href="#f8"><span class="mk good">◎</span> 8. 全体まとめの DoD の型</a></li>
+          <li><a href="#f9"><span class="mk good">◎</span> 9. 別 issue 起票の承認の取り方</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -171,9 +175,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。</p>
+  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi good"><b>8</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -199,6 +203,7 @@
       <ul>
         <li><a href="#f3">e3</a>: TK005 は例外ではなく設計。完了検査そのものは <code>ticket_check_completion</code> を共有して release の段階 2 が行う</li>
         <li><a href="#f5">e5</a>: CLI 不在時の release を「段階 3 と 6 だけを呼び出し元に代行させる」形で仕様に追加した</li>
+        <li><a href="#f6">e6</a>〜<a href="#f9">e9</a>: B1（所在を本文へ）・B2（添付は人間）・B4（DoD の型）と申し送り #16・#17・#18 を <code>10-task-overall-summary</code> 仕様に反映した</li>
       </ul>
     </div>
   </div>
@@ -335,6 +340,58 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       </div>
     </li>
 
+
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">成果物の所在をコメントから MR 本文へ移した（B1） <span class="chip good">◎良</span> <span class="basis">根拠: issue #10 追記 1</span></h3>
+      <p>処理フロー 6 を「成果物のリンク一覧と HTML 添付」に書き換え、<strong>リンクを列挙した通常コメントの投稿をやめた</strong>。所在は本文の見出し <code>## 統括</code> 配下の表（レポート名 / 1 行説明 / リンク）で辿る。リンクは片付け直前の SHA に固定した blob URL なので、片付け後も永続的に開ける。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>コメントの投稿は禁止事項にも入れた。「投稿してもよいが本文にも書く」だと二重管理になり、片方が古くなる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">GitHub への HTML 添付を AI の手順から外した（B2） <span class="chip good">◎良</span> <span class="basis">根拠: issue #10 追記 2 の実測</span></h3>
+      <p><code>uploads.github.com</code> への <code>curl</code> を仕様から削除し、禁止事項に移した。<strong>添付は人間がブラウザで本文に行い、AI は返った URL を記録するだけ</strong>にする。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>送り方</th><th>content_type</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td>生バイナリ + ヘッダ</td><td><code>text/html</code></td><td>422 <code>content_type is not included in the list of allowed content types</code></td></tr>
+          <tr><td>同上</td><td><code>text/markdown</code> / <code>text/plain</code> / <code>application/zip</code> / <code>application/pdf</code></td><td>422 同じ</td></tr>
+          <tr><td>同上</td><td><code>image/png</code></td><td><strong>201 Created</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><code>image/png</code> が同じトークン・同じエンドポイントで通るので、リクエストの組み立てではなく<strong>種別で拒否されている</strong>。ブラウザ側の 3 段階の経路（CSRF トークン → S3 署名 → 確定）も、1 段目が PAT では 302 → <code>/login</code> になりアセット id が採番されないため再現できない。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実測は DDR <code>i0010-02</code> に写した。<strong>添付は任意</strong>の位置づけに下げたので、「添付できない環境」という代替フローの分岐が 1 本消えた。GitLab は <code>glab api uploads</code> が公式に使えるので AI が添付してよい（ホストで扱いが違うことを明記した）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">8</span>
+      <h3 id="f8">全体まとめチケットの DoD の型を新設した（B4・申し送り #16） <span class="chip good">◎良</span> <span class="basis">根拠: TK005 と申し送り 0038</span></h3>
+      <p>仕様に節「全体まとめチケットの DoD の型」を作り、6 つの型を置いた（別 issue の確認 / 衝突解消 / 統括レポートの 4 節 / 本文の書き写し / 受け入れ条件の根拠 / <code>.claude/docs/</code> の未反映が無いこと）。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>根拠欄には<strong>チケット番号・レポートの節・テスト ID</strong>を書き、<code>wip/</code> 配下のパスは恒久参照として書かない（片付けで消えるため）。要件書にも受け入れ基準を 1 件足した（完了検査の結果を統括レポートに書き出してから片付けに進む）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">9</span>
+      <h3 id="f9">別 issue 起票の承認の取り方を決めた（申し送り #18） <span class="chip good">◎良</span> <span class="basis">根拠: #6 の全体まとめの手作業代替</span></h3>
+      <p>処理フロー 2 に承認の取り方を書いた。<strong>候補が複数あっても承認は一覧で 1 回</strong>取り、1 件ずつ聞かない。一覧には「タイトル案・1 行の要旨・出どころ（チケット番号と作業ログの節）」を並べ、「全部 / 一部（番号指定）/ 起票しない」から選ばせる。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>ヘッドレスでは候補を統括レポートに書いて<strong>起票せずに次へ進む</strong>。承認が要る外部への副作用を無断で起こさない。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -349,6 +406,8 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>食い違い 8 行のうち 0011 で決着した数</td><td>5 行（#1・#2・#3・#6・#7）。#4 は仕様を書き換えて解消、#5 は 0012、#8 は 0015</td></tr>
       <tr><td>0004 の食い違い一覧</td><td>「決着先」の列を追加し、8 行すべてに行き先を書いた（md と HTML の両方）</td></tr>
       <tr><td><code>check-html.sh</code></td><td>0004 の HTML が 7 項目通過</td></tr>
+      <tr><td><code>uploads.github.com</code> への <code>curl</code> の記述</td><td>仕様から 0 件（禁止事項に「AI が行ってはならない」として残る）</td></tr>
+      <tr><td>B1〜B4 の条件文と仕様の対応</td><td>4 件すべてに該当節がある（B1 = 処理フロー 6 / B2 = 処理フロー 6・禁止事項・DDR <code>i0010-02</code> / B3 = 固定順序と release 段階 3 / B4 = release 段階 2 と「全体まとめチケットの DoD の型」）</td></tr>
     </tbody>
   </table>
   </div>
@@ -393,6 +452,8 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>R1</td><td>本文のリンク一覧の表を機械的に見分ける方法が未定</td><td>実装フェーズ（0017 の計画）</td></tr>
       <tr><td>R2</td><td><code>ticket_check_completion</code> の切り出しが現行の <code>ticket.sh</code> の構造で成立するか未確認</td><td>実装フェーズ</td></tr>
       <tr><td>R3</td><td>テスト ID 総数が 191 から 193 に変わったことを実装計画の割付表に反映する</td><td>0017</td></tr>
+      <tr><td>R4</td><td><code>assets/summary-section.template.md</code> が作成物に加わった。0003 の 55 件には <code>attachment-comment.template.md</code> として数えられているので置き換えであり増減は無い</td><td>0016・実装フェーズ</td></tr>
+      <tr><td>R5</td><td>人間が添付した URL を AI に渡す経路（チャットで貼る / 本文に人間が直接書く）が未定</td><td>実装フェーズ（SKILL.md の手順）</td></tr>
     </tbody>
   </table>
   </div>

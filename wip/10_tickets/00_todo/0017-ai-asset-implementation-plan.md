@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation-plan
-predecessors: ["0011", "0012", "0013", "0014", "0015", "0016"]
+predecessors: ["0011", "0012", "0013", "0014", "0015", "0016", "0018", "0019", "0020"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは fable の敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "実装フェーズの 2 回は計画タスクと実施タスクの切れ目で使う（全体計画）"}

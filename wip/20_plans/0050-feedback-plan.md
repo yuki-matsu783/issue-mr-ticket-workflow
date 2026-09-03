@@ -87,6 +87,14 @@ issue #15 の 2026-09-03 追記分 6 件。
 
 **本チケットでは起票しない。** 起票は次の全体まとめチケット（0053）で行う。理由は `10-task-feedback-plan` 仕様の処理フロー 5 からの逸脱にあたるため、下の「仕様からの逸脱」に記録する。
 
+起票結果（全体まとめ 0053 で実施）:
+
+| 仮番号 | 起票された issue |
+|---|---|
+| A | **#37** https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/37 |
+| B | **#38** https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/38 |
+| C | **#39** https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/39 |
+
 | 仮番号 | 題名（案） | 内容 |
 |---|---|---|
 | A | `cmdpos.sh` がクォートで割った語のサブコマンドを判定できない | `git 'commit'` の `sub` が `_` になる。`test_cmdpos.sh` が「判定できない既知の制約」として固定している。`shlex` に頼らず直せる見込みがある（0046 A-3 で `shlex` 版が正しく解いた 6 件のうちの 1 件）。拒否側に倒れるので危険側ではないが、`git` のサブコマンド判定に依存する 5 本のフックの精度が落ちる |

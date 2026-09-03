@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-03T11:39:38+00:00"
 completed_at: ""
 base_sha: "47f93ce"
+cancelled_at: "2026-09-03T12:13:09+00:00"
+cancel_reason: "allow.ops の宣言誤り。run-tests.sh は build-test を無条件に要求する（TR006）が、本チケットは read と hook-test しか宣言していなかった。計画書 0048 の許可範囲を訂正し、後継 0051 を起票する"
 ---
 
 # 0049 shlex 据え置きの決定を実装に反映しテストで固定する

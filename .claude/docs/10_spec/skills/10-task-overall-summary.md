@@ -22,7 +22,7 @@ keywords: [全体まとめ, finalize.sh, cleanup, ready, 片付け, draft 解除
 - 成果物のリンクを列挙した**通常コメントの投稿**（本文の `## 統括` 配下に置く。issue #10 追記 1）
 - **GitHub への HTML 添付を AI が行うこと**（`uploads.github.com` への `curl`、web ルートの `upload/policies/repository-files` への再現を含む。DDR `i0010-02`）
 - rebase・片側丸ごと採用の衝突解消、承認なしの衝突解消
-- MR のマージ、`gh pr ready` / `glab mr update --ready` 相当の直接実行（`finalize.sh ready` 経由のみ）
+- MR のマージ、`gh pr ready` / `glab mr update --ready` 相当の直接実行（`finalize.sh release` の段階 7 経由のみ。`ready` という単独のサブコマンドは持たない）
 - ソースコード・設計文書・`.claude/` 配下への書き込み（衝突解消の取り込みで生じる変更を除く）
 - 進行状態（`logs/` のファイル）の直接編集
 - `.claude/docs/` への書き写し（残すべき内容が未反映なら別 issue 起票に回す）
@@ -55,9 +55,10 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 5. **MR 本文の最終化**: 統括レポートの要約（受け入れ条件との対応・残課題・別 issue 一覧）を、MR 本文の見出し `## 統括` の節として書き写す。GitHub は `gh pr edit --body-file`、GitLab は issue 仕様「GitLab の長文送信」の API 経由（`wip/` 配下のパスを恒久参照として書かない）
 6. **成果物のリンク一覧と HTML 添付**: 成果物の所在は**通常コメントではなく MR 本文（description）で辿れるようにする**。コメントは流れて見つけにくいためで、**リンクを列挙したコメントの投稿は行わない**（issue #10 追記 1）。
    - **リンク一覧（必須）**: `wip/30_reports/` の HTML レポートへのリンクを、MR 本文の見出し `## 統括` 配下に**表**（レポート名 / 1 行説明 / リンク）で記載する。リンクは片付け直前の SHA に固定した blob URL（`https://<ホスト>/<owner>/<repo>/blob/<SHA>/wip/30_reports/<ファイル>`）を使うため、**この書き込みは `finalize.sh release` の段階 3 が行う**（手順 9。`pre_cleanup_sha` が確定するのがそこであるため）。手順 5 と 6 では本文の要約だけを書き、リンク一覧の場所（見出し `## 統括` 配下）を空けておく
-   - **HTML の添付（任意）**: 添付は**人間がブラウザで MR 本文に対して行う**。AI は添付を行わず、人間から渡された URL（`user-attachments/files/<id>/<name>`）を本文に記録するだけにする。GitHub の API（`uploads.github.com/user-attachments/assets`）は `.html` を受け付けず（`content_type is not included in the list of allowed content types`。`image/png` だけが通る）、ブラウザ側の経路はセッション Cookie と CSRF トークンを要求するため API トークンでは再現できない。**AI が API での添付を試みてはならない**（実測の根拠は DDR `i0010-02`）
-   - GitLab は `glab api "projects/:id/uploads" --form "file=@<ファイル>"` が使えるので、AI が添付して返された markdown リンクを本文に書いてよい
-   - 添付が無くても、リンク一覧が本文にある以上、成果物は辿れる。したがって**添付の有無を代替フローの分岐にしない**（「添付できない環境」という縮退の記述は不要になった）
+   - **HTML の添付（任意。GitHub）**: 添付は**人間がブラウザで MR 本文に対して行う**。**AI はこの手順で何もしない**（待たない・催促しない・URL を受け取る手続きも持たない）。人間が本文に直接添付するので、AI が URL を書き写す必要が無いためである。GitHub の API（`uploads.github.com/user-attachments/assets`）は `.html` を受け付けず（`content_type is not included in the list of allowed content types`。`image/png` だけが通る）、ブラウザ側の経路はセッション Cookie と CSRF トークンを要求するため API トークンでは再現できない。**AI が API での添付を試みてはならない**（実測の根拠は DDR `i0010-02`）
+   - **HTML の添付（任意。GitLab）**: `glab api "projects/:id/uploads" --form "file=@<ファイル>"` は公式の API なので、**AI が添付して返された markdown リンクを本文に書いてよい**。GitHub と扱いが違うのはホストの制約の違いによる
+   - 段階 4（本文のリンク一覧の更新）は `## 統括` 配下の**リンク一覧の表の中身だけ**を置き換える。人間が本文のどこかに添付したリンクは、この置き換えで消してはならない
+   - 添付が無くても、リンク一覧が本文にある以上、成果物は辿れる。したがって**添付の有無を代替フローの分岐にしない**（「添付できない環境」という縮退の記述は不要になった）。ヘッドレスや人間が現れない実行でも、この手順は待たずに次へ進む
 7. **push**: `push.sh` で push し、統括レポートを履歴に載せる（片付けで消える前に、リンク一覧が指す先を実在させるため）
 8. **（レビュー要の場合のみ）** `boundary.sh request --final` でレビューを依頼し（全体まとめチケットは作業中のままなので `--final` が要る — `00-workflow-issue-mr-driven` 仕様）、完了連絡を受けて `boundary.sh complete --final`（未解決スレッドの確認込み）が通ってから次へ。レビュー不要なら `boundary.sh skip --final --reason`
 9. **完了検査から draft 解除まで**: `finalize.sh release` を実行する（下記。完了検査 → **SHA の確定と本文のリンク一覧の更新** → 片付け → push → 最終ゲート → draft 解除 を 1 コマンドで連続実行。途中で失敗したら同じコマンドの再実行で続きから進む）
@@ -90,30 +91,31 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 ## Script 処理
 
-`scripts/finalize.sh <subcommand>`。**実体の置き場は `.claude/skills/10-task-overall-summary/scripts/finalize.sh`**（このスキルが所有する提供コマンド。既存の 5 本と同じく、使うスキルの `scripts/` に置く）。起動は常にリポジトリルート相対表記で行う（`フック共通仕様` §8）。実装済みのフックが `.claude/hooks/finalize.sh` を案内している 3 行（`workflow-state-guard.sh:40, 43` とテスト 2 行）は実装フェーズで直す（一覧は `00-workflow-issue-mr-driven` 仕様「現行アセットとの差分」）。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "started" | "linked" | "cleaned" | "pushed" | "ready", "via": "cli" | "external", "pre_cleanup_sha": ..., "started_at": ..., "linked_at": ..., "cleaned_at": ..., "pushed_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
+`scripts/finalize.sh <subcommand>`。**実体の置き場は `.claude/skills/10-task-overall-summary/scripts/finalize.sh`**（このスキルが所有する提供コマンド。既存の 5 本と同じく、使うスキルの `scripts/` に置く）。起動は常にリポジトリルート相対表記で行う（`フック共通仕様` §7 の項目 8「提供コマンドの識別」）。実装済みのフックが `.claude/hooks/finalize.sh` を案内している 3 行（`workflow-state-guard.sh:40, 43` とテスト 2 行）は実装フェーズで直す（一覧は `00-workflow-issue-mr-driven` 仕様「現行アセットとの差分」）。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "started" | "recorded" | "linked" | "cleaned" | "pushed" | "ready", "via": "cli" | "external", "pre_cleanup_sha": ..., "started_at": ..., "recorded_at": ..., "linked_at": ..., "cleaned_at": ..., "pushed_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
-`logs/merge-state.json` が無い・壊れている場合、release は状態を実態から再導出して書き戻してから続ける: `wip/` に成果物があり本文にリンク一覧の表が無い → 未実施（`started` の記録があっても前提検査からやり直す）/ `wip/` に成果物があり本文にリンク一覧の表がある → `linked` / `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
+`logs/merge-state.json` が無い・壊れている場合、release は状態を実態から再導出して書き戻してから続ける: `wip/` に成果物があり統括レポートに「完了検査」節が無い → 未実施（`started` の記録があっても前提検査からやり直す）/ `wip/` に成果物があり「完了検査」節はあるが本文に固定マーカー `<!-- finalize:linked <sha> -->` が無い → `recorded` / マーカーがある → `linked`（`sha` を `pre_cleanup_sha` として復元する）/ `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。**`linked` の判定に「リンク一覧の表があるか」を使わない**。表の骨格は `summary-section.template.md` が処理フロー 5 の時点で置くので、中身が空でも表は存在し、空の表を `linked` と誤判定するためである。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
 
 ### release
 
-本文のリンク一覧の更新から draft 解除までを段階（stage）として順に実行する。各段階の完了を `logs/merge-state.json` の `state`（`started` → `linked` → `cleaned` → `pushed` → `ready`）に記録し、再実行時は記録済みの段階を飛ばして続きから行う（冪等）。
+完了検査の書き出しから draft 解除までを段階（stage）として順に実行する。各段階の完了を `logs/merge-state.json` の `state`（`started` → `recorded` → `linked` → `cleaned` → `pushed` → `ready`）に記録し、再実行時は記録済みの段階を飛ばして続きから行う（冪等）。
 
 1. **前提検査**（初回のみ）: 未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に見出し `## 統括` がある — 手順 5 の見出し文字列と一致で判定）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）/ 全体まとめチケットが人間レビュー要なら `logs/review-state.json` の最終レビューが `completed`、不要なら `skipped`（`boundary.sh` の記録。`00-workflow-issue-mr-driven` 仕様）
 2. **完了検査**（初回のみ）: 全体まとめチケットの完了検査（DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する。検査ロジックは `ticket.sh` の完了検査を共通関数として source して使い、二重実装しない。**検査の結果（DoD 1 件ごとの合否と根拠欄の内容）は統括レポートの「完了検査」節へ書き出す**。全体まとめチケット自身は `ticket.sh complete` を通れない（TK005 が必ず拒否する — `20-common-step-ticket` 仕様）ため、チケットに残る形の完了記録が存在しない。片付けでチケットごと消える前に、検査の通過を統括レポートという残る場所へ写すのがこの段階の役目である（issue #10 追記 4 の受け入れ条件 B4）
-3. **片付け直前の SHA の確定と本文のリンク一覧の更新**: 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、その SHA に固定した成果物リンクの一覧（`https://<ホスト>/<owner>/<repo>/blob/<SHA>/wip/30_reports/<ファイル>`）を組み立てて、MR 本文の見出し `## 統括` 配下に**表として**書き込む。`state` を `linked` にする。本文の他の節（処理フロー 5 で書いた要約）は書き換えない。**この段階を片付けより前に置くのは、リンクが `pre_cleanup_sha` に依存するためである**。処理フロー 5（本文の最終化）の時点では片付けがまだ行われておらず SHA が確定しないので、リンク一覧だけをここへ分けている（issue #10 追記 3）
-4. **片付け**: 完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`state` を `cleaned` にする
-5. **push**: `push.sh` を内部から実行し（前チェック込み）、`state` を `pushed` にする
-6. **最終ゲートと draft 解除**: `git fetch` して origin/<default> に対する遅れ・衝突が無いことを検査し、`gh pr ready <M>` / `glab mr update <M> --ready` を実行して `state` を `ready` にする。検査で止まったら（FN003）取り込み（処理フロー 3 の要領で承認を得て merge）を行い、release を再実行する。統括レポート・添付・本文はやり直さない（取り込みが成果物の内容に影響した場合のみ、該当箇所を更新して push してから再実行する）
-7. **出力**: 解除した MR の番号と URL、削除した件数、`pre_cleanup_sha` から組み立てた作業領域リンク（GitLab: `https://<ホスト>/<プロジェクト>/-/tree/<SHA>/wip/30_reports`、GitHub: `https://github.com/<owner>/<repo>/tree/<SHA>/wip/30_reports`。コミット固定のため片付け後も辿れる）を出力する
+3. **完了検査の書き出しと push**: 段階 2 が組み立てた「完了検査」節を統括レポートの md に追記し、`20-common-step-report-view` の手順で HTML にも反映して `check-html.sh` を通す。`commit.sh` でコミットし、`push.sh` で push して `state` を `recorded` にする。**この段階が無いと、書き出した「完了検査」節がどのコミットにも載らないまま段階 5 の片付けで消える**（`wip/` は片付けで削除されるので、コミットされていない変更は履歴のどこにも残らない）。段階 4 が固定する `pre_cleanup_sha` は、このコミットを含む HEAD になる
+4. **片付け直前の SHA の確定と本文のリンク一覧の更新**: 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、その SHA に固定した成果物リンクの一覧（`https://<ホスト>/<owner>/<repo>/blob/<SHA>/wip/30_reports/<ファイル>`）を組み立てて、MR 本文の見出し `## 統括` 配下の**リンク一覧の表の中身だけ**を書き込む。書き込みの後、本文に固定マーカー `<!-- finalize:linked <pre_cleanup_sha> -->` を残して `state` を `linked` にする。本文の他の節（処理フロー 5 で書いた要約、人間が添付したリンク）は書き換えない。**この段階を片付けより前に置くのは、リンクが `pre_cleanup_sha` に依存するためである**。処理フロー 5（本文の最終化）の時点では片付けがまだ行われておらず SHA が確定しないので、リンク一覧だけをここへ分けている（issue #10 追記 3）
+5. **片付け**: 完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`state` を `cleaned` にする
+6. **push**: `push.sh` を内部から実行し（前チェック込み）、`state` を `pushed` にする
+7. **最終ゲートと draft 解除**: `git fetch` して origin/<default> に対する遅れ・衝突が無いことを検査し、`gh pr ready <M>` / `glab mr update <M> --ready` を実行して `state` を `ready` にする。検査で止まったら（FN003）取り込み（処理フロー 3 の要領で承認を得て merge）を行い、release を再実行する。統括レポート・本文はやり直さない（取り込みが成果物の内容に影響した場合のみ、該当箇所を更新して push してから再実行する）
+8. **出力**: 解除した MR の番号と URL、削除した件数、`pre_cleanup_sha` から組み立てた作業領域リンク（GitLab: `https://<ホスト>/<プロジェクト>/-/tree/<SHA>/wip/30_reports`、GitHub: `https://github.com/<owner>/<repo>/tree/<SHA>/wip/30_reports`。コミット固定のため片付け後も辿れる）を出力する
 
-段階と `state` の対応: 前提検査・完了検査 → `started` / リンク一覧の更新 → `linked` / 片付け → `cleaned` / push → `pushed` / draft 解除 → `ready`。
+段階と `state` の対応: 前提検査・完了検査 → `started` / 完了検査の書き出しと push → `recorded` / リンク一覧の更新 → `linked` / 片付け → `cleaned` / push → `pushed` / draft 解除 → `ready`。
 
 ### CLI が使えない環境での release
 
-`gh` / `glab` のどちらも使えない環境では、段階 3（本文のリンク一覧の更新）と段階 6（draft 解除）がリモートに書けない。この 2 段階だけを呼び出し元に代行させる:
+`gh` / `glab` のどちらも使えない環境では、段階 4（本文のリンク一覧の更新）と段階 7（draft 解除）がリモートに書けない。この 2 段階だけを呼び出し元に代行させる:
 
-- 段階 3: `release --external --pr <M> --body-file <path>` を渡すと、スクリプトはリンク一覧を組み立てて `<path>` に書き出し、`state` を `linked` にせずに終了 0 で戻る。呼び出し元が MCP ツール（`mcp__github__update_pull_request` 等）で本文を更新したあと、`release --external --pr <M> --linked` で再開する
-- 段階 6: 呼び出し元が MCP ツールで draft を解除したうえで `release --external --pr <M>` を実行すると、最終ゲートの検査だけを行って `state` を `ready` にする
+- 段階 4: `release --external --pr <M> --body-file <path>` を渡すと、スクリプトはリンク一覧と固定マーカーを組み立てて `<path>` に書き出し、`state` を `linked` にせずに終了 0 で戻る。呼び出し元が MCP ツール（`mcp__github__update_pull_request` 等）で本文を更新したあと、`release --external --pr <M> --linked` で再開する
+- 段階 7: 呼び出し元が MCP ツールで draft を解除したうえで `release --external --pr <M>` を実行すると、最終ゲートの検査だけを行って `state` を `ready` にする
 - `--external` は `logs/merge-state.json` に `via: "external"` を残す。`gh` 自身が確認する強度より劣ることを統括レポートに明記する。`curl` / `WebFetch` へ落とすことはしない（旧 SKILL.md が持っていた外部委任の経路を、`finalize.sh` の該当段階として引き取ったもの）
 
 ### エラー識別子
@@ -128,38 +130,55 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
-| FN-T01 | 正常系 | release が完了検査 → リンク一覧の更新 → 片付け → push → 解除を 1 回で行い、状態が ready になる |
+| FN-T01 | 正常系 | release が完了検査 → 書き出しと push → リンク一覧の更新 → 片付け → push → 解除を 1 回で行い、状態が ready になる |
 | FN-T02 | 異常系 | 他のチケットが残っている release が FN001、DoD 未充足が FN002 |
 | FN-T03 | 異常系 | base が進んでいる release が FN003 で止まり、片付けは巻き戻らない |
 | FN-T04 | 正常系 | push で失敗した後の再実行が片付けをやり直さず push から続く |
 | FN-T05 | 正常系 | ready 後の再実行が何もせず成功する（冪等） |
-| FN-T06 | 正常系 | 本文に書き込むリンク一覧が `pre_cleanup_sha` に固定されており、片付けコミットの後もそのリンクから成果物が辿れる（段階 3 が段階 4 より前に走ることを固定する。issue #10 追記 3） |
-| FN-T07 | 正常系 | 完了検査の結果（DoD 1 件ごとの合否と根拠）が統括レポートの「完了検査」節に書き出されてから片付けが走る（issue #10 追記 4） |
+| FN-T06 | 正常系 | 本文に書き込むリンク一覧が `pre_cleanup_sha` に固定されており、片付けコミットの後もそのリンクから成果物が辿れる（段階 4 が段階 5 より前に走ることを固定する。issue #10 追記 3） |
+| FN-T07 | 正常系 | 完了検査の結果（DoD 1 件ごとの合否と根拠）が、**`pre_cleanup_sha` が指すコミットの統括レポートに含まれている**（段階 3 が書き出しをコミットして push し、段階 4 がその HEAD を固定することを合わせて確かめる。書き出しだけを見て通さない。issue #10 追記 4） |
+| FN-T08 | 境界 | 記録を失った再導出で、本文にリンク一覧の**空の表**があるだけの状態が `linked` にならない（固定マーカー `<!-- finalize:linked <sha> -->` が無ければ `recorded` に倒れ、段階 4 をやり直す） |
+| FN-T09 | 正常系 | 段階 4 の本文書き換えが、`## 統括` 配下のリンク一覧の表の中身だけを置き換え、人間が添付したリンクと処理フロー 5 の要約を残す |
 
 ## 要件との対応
 
 | 要件（受け入れ基準） | 実現箇所 |
 |--------------------|---------|
-| メイン: メインエージェント専任 | 禁止事項・呼出条件 |
-| メイン: 着手と固定順序 | 処理フロー 1〜10、禁止事項（順序） |
-| メイン: 別 issue 起票（承認 → 起票） | 処理フロー 2 |
-| メイン: 衝突確認・承認 → merge・rebase 禁止 | 処理フロー 3、禁止事項 |
-| メイン: 統括レポート（md + HTML・内容 4 点） | 処理フロー 4 |
-| メイン: MR 本文の最終化（書き写し） | 処理フロー 5 |
-| メイン: 成果物のリンク一覧と HTML 添付 | 処理フロー 6（リンク一覧は本文の `## 統括` 配下の表。書き込みは release 段階 3）・release 段階 3。GitHub での添付は人間がブラウザで行い AI は URL を記録する（DDR `i0010-02`）。GitLab は `glab api uploads` を AI が使ってよい |
-| メイン: 作業中 issue へ書き込まない | 禁止事項 |
-| メイン: 書き写しは MR 本文と添付に限る・未反映は別 issue | 処理フロー 2・5、禁止事項 |
-| メイン: 片付け（提供コマンド・完了内包・logs は対象外） | finalize.sh release 1〜3 |
-| メイン: 統括レポートの push（毎回・履歴に載せる） | 処理フロー 7、FN001（push 済み検査）。片付けで消える前にリンク一覧が指す先を実在させる |
-| メイン: 全体まとめチケットの DoD の型 | 「全体まとめチケットの DoD の型」節（申し送り 0038） |
-| メイン: 完了検査の代替（DoD × 根拠を統括レポートへ） | release 段階 2、`20-common-step-ticket` 仕様 complete 2（TK005 は設計） |
-| メイン: 片付け以降は 1 コマンド・個別操作なし・再実行のみ許可 | finalize.sh release 4・5（entry の継続判定は logs/ の記録） |
-| メイン: draft 解除直前の再確認 | finalize.sh release 5（最終ゲート） |
-| メイン: 結果報告と停止・マージしない・作業領域リンクを添える | 処理フロー 10・finalize.sh release 6、禁止事項 |
-| 代替: 反映なし・再開・添付なし・draft のまま | 処理フロー 2・呼出条件（logs から再開）・処理フロー 6（添付は任意。リンク一覧が本文にあるので縮退にならない）・ユーザー選択で停止 |
-| 代替: CLI が使えない環境 | 「CLI が使えない環境での release」（段階 3 と 6 だけを `--external` で代行） |
-| 代替: レビュー要時のレビュー依頼 | 処理フロー 8（push は 7 で毎回実施済み） |
-| 例外: 片付け前提未充足・衝突判断・起票の失敗 | FN001〜003・処理フロー 3・停止（再試行しない） |
-| チケットの扱い（宣言・レビュー既定不要） | 処理フロー 1（宣言）・全体計画の方針 |
-| 整合: 提供コマンド経由・進行状態の直接編集禁止 | Script 処理・禁止事項 |
-| 整合: draft 解除時の作業領域が空の検査 | finalize.sh ready 1 |
+| メイン 1: メインエージェント専任 | 呼出条件、禁止事項（サブエージェントに委ねない） |
+| メイン 2: 着手と固定順序 | 処理フロー 1〜10、禁止事項（順序の入れ替え） |
+| メイン 3: 別 issue 起票（承認 → 起票） | 処理フロー 2 |
+| メイン 4: 衝突確認・承認 → merge・rebase 禁止 | 処理フロー 3、禁止事項 |
+| メイン 5: 統括レポート（md + HTML・内容 4 点） | 処理フロー 4 |
+| メイン 6: MR 本文の最終化（書き写し） | 処理フロー 5 |
+| メイン 7: 成果物の所在は MR 本文のリンク一覧（コメントにしない） | 処理フロー 6（本文の `## 統括` 配下の表）、release 段階 4（書き込み）、禁止事項 |
+| メイン 8: 公式 API の無いホストでは添付を人間が行い、スキルは何もしない | 処理フロー 6「HTML の添付（任意。GitHub）」、禁止事項（DDR `i0010-02`） |
+| メイン 9: 公式 API のあるホストではスキルが添付してリンクを記録してよい | 処理フロー 6「HTML の添付（任意。GitLab）」 |
+| メイン 10: 本文の書き換えで添付のリンクを消さない | 処理フロー 6、release 段階 4（表の中身だけを置換）、FN-T09 |
+| メイン 11: 添付は任意で分岐させない | 処理フロー 6 の最終項 |
+| メイン 12: 書き写しは MR 本文と統括レポートに限る・未反映は別 issue | 処理フロー 2・5、禁止事項（`.claude/docs/` を書かない） |
+| メイン 13: 作業中 issue へ書き込まない | 禁止事項 |
+| メイン 14: 統括レポートの push（毎回・履歴に載せる） | 処理フロー 7、FN001（push 済み検査）。片付けで消える前にリンク一覧が指す先を実在させる |
+| メイン 15: 完了検査の結果を統括レポートへ書き出してから片付けへ | release 段階 2（検査と組み立て）・段階 3（書き出しとコミットと push）、`20-common-step-ticket` 仕様 complete 2（TK005 は設計）、FN-T07 |
+| メイン 16: 片付け（提供コマンド・完了内包・logs は対象外） | release 段階 5 |
+| メイン 17: 片付け以降は 1 コマンド・個別操作なし・再実行のみ許可 | release 段階 5・6（entry の継続判定は logs/ の記録）、FN-T05 |
+| メイン 18: draft 解除直前の再確認 | release 段階 7（最終ゲート） |
+| メイン 19: 結果報告と停止・マージしない・作業領域リンクを添える | 処理フロー 10・release 段階 8、禁止事項 |
+| 代替 1: 反映すべき内容が残っていないときは起票しない | 処理フロー 2（「追加の反映なし」と確認範囲を書く） |
+| 代替 2: 再開時は進行状態から続け、済んだ手順をやり直さない | 呼出条件（`logs/merge-state.json` から再開）、release の冪等（記録済みの段階を飛ばす） |
+| 代替 3: 添付が無くても何も補わない | 処理フロー 6 の最終項 |
+| 代替 4: draft のまま置く選択 | 処理フロー 9（ユーザー選択で release を実行せず停止） |
+| 代替 5: 人間レビュー要時のレビュー依頼 | 処理フロー 8（push は 7 で毎回実施済み） |
+| 代替 6: CLI が使えない環境は呼び出し元が代行 | 「CLI が使えない環境での release」（段階 4 と 7 だけを `--external` で代行。`via: "external"` を記録） |
+| 例外 1: 片付けの前提未充足は報告して手順へ戻る | FN001（前提検査）・FN002（完了検査）、禁止事項（進行状態の直接編集） |
+| 例外 2: 衝突の解消方針が一意に決まらないときは判断を仰ぐ | 処理フロー 3（両側の意図を要約して承認・得られなければ停止） |
+| 例外 3: 別 issue の起票の失敗は再試行しない | 処理フロー 2（実施済み・未実施の別を報告して停止） |
+| 例外 4: ヘッドレスで別 issue 起票が要るときは起票せず進む | 処理フロー 2 の最終項（候補と本文案を統括レポートへ） |
+| 例外 5: ヘッドレスで衝突解消・draft 解除の判断が要るときは停止 | 処理フロー 3・9、FN003 後の取り込みは承認が要る |
+| 例外 6: HTML ビューの機械的検査の問題は解消してから進む | 処理フロー 4（`check-html.sh`）、release 段階 3（書き出し後の再検査） |
+| 規約 1: 全体まとめチケットのやってよいこと | 処理フロー 1（着手時の宣言）、禁止事項（`.claude/` 配下を書かない） |
+| 規約 2: 全体まとめチケットの完了条件の型と根拠の書き方 | 「全体まとめチケットの DoD の型」節（申し送り 0038） |
+| 規約 3: 人間レビュー要否は全体計画に従い既定は不要 | 処理フロー 8（方針が無ければ依頼せず進む） |
+| 整合 1: 提供コマンド経由・進行状態の直接編集禁止 | Script 処理・禁止事項 |
+| 整合 2: draft 解除時の作業領域が空の検査 | release 段階 7（最終ゲート。`wip/` は段階 5 で空になっている） |
+| 整合 3: 統括レポートの節順・視覚語彙はテンプレートに従う | 参照ナレッジ（`20-common-step-report-view` のレポートテンプレート）、処理フロー 4 |
+| 整合 4: 作業ログは他の task スキルと同じ固定見出しで追記 | 処理フロー 1・10（着手時と締めで追記） |

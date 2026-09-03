@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0011-0016 AI アセット設計結果 — 正史の改訂</title>
+<title>0011-0021 AI アセット設計結果 — 正史の改訂</title>
 <style>
   /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
   * { box-sizing: border-box; }
@@ -127,7 +127,7 @@
 
 <aside class="sidebar">
   <p class="kind">AI アセット設計結果 / フェーズ 3</p>
-  <h1 id="title" data-required>0011-0016 AI アセット設計結果 — 正史の改訂</h1>
+  <h1 id="title" data-required>0011-0021 AI アセット設計結果 — 正史の改訂</h1>
 
   <p class="counts" id="counts" data-required>
     <span class="chip good">◎良 24</span>
@@ -168,6 +168,11 @@
           <li><a href="#f22"><span class="mk good">◎</span> 22. 旧名を 0 件にした</a></li>
           <li><a href="#f23"><span class="mk good">◎</span> 23. 旧資産の処遇と線引き</a></li>
           <li><a href="#f24"><span class="mk good">◎</span> 24. 横断整合とヘッドレス</a></li>
+          <li><a href="#f25"><span class="mk good">◎</span> 25. 完了検査の書き出しと push</a></li>
+          <li><a href="#f26"><span class="mk good">◎</span> 26. 添付の可否をホストで分ける</a></li>
+          <li><a href="#f27"><span class="mk good">◎</span> 27. ヘッドレスの帰結を分ける</a></li>
+          <li><a href="#f28"><span class="mk good">◎</span> 28. 再導出を固定マーカーに</a></li>
+          <li><a href="#f29"><span class="mk good">◎</span> 29. 要件書の規約違反を直す</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -181,7 +186,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
-    <div><dt>チケット</dt><dd>0011〜0016</dd></div>
+    <div><dt>チケット</dt><dd>0011〜0016・0021</dd></div>
     <div><dt>作成日</dt><dd>2026-09-03</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -190,9 +195,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。<strong>0015 まで</strong>: 共通ステップ 2 本に申し送り <strong>#20〜#24</strong> を反映し、保留 <strong>P3・P7・P8</strong> を決着させた。<strong>これで食い違い 8 行がすべて決着した</strong>。<strong>0016（設計フェーズ完了）</strong>: eval ID の接頭辞を 19 アセット分すべて確定し（A1）、<code>.claude/docs/</code> の旧名を 0 件にし（A3 の文書側）、旧資産 5 件の処遇と扱わない申し送りの線引き（0 件）を DDR <code>i0010-04</code> に残した。<strong>食い違い 8 行・受け入れ条件 B1〜B4・申し送り 24 項目のすべてが正史に落ちた</strong>。実装フェーズへ送る保留は P1'・P2・P6 の 3 件。</p>
+  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。<strong>0015 まで</strong>: 共通ステップ 2 本に申し送り <strong>#20〜#24</strong> を反映し、保留 <strong>P3・P7・P8</strong> を決着させた。<strong>これで食い違い 8 行がすべて決着した</strong>。<strong>0016（設計フェーズ完了）</strong>: eval ID の接頭辞を 19 アセット分すべて確定し（A1）、<code>.claude/docs/</code> の旧名を 0 件にし（A3 の文書側）、旧資産 5 件の処遇と扱わない申し送りの線引き（0 件）を DDR <code>i0010-04</code> に残した。<strong>食い違い 8 行・受け入れ条件 B1〜B4・申し送り 24 項目のすべてが正史に落ちた</strong>。実装フェーズへ送る保留は P1'・P2・P6 の 3 件。<strong>0021（敵対的レビュー 1 回目の反映 1/3）</strong>: fable の敵対的レビューが返した <strong>22 件のうち 9 件</strong>（<code>10-task-overall-summary</code> に関わる分）を反映した。最も重いのは <strong>B4 が成立していなかった</strong>こと。完了検査の結果を書き出す段階はあったが、その節をコミットする段階が無く、片付けで <code>wip/</code> ごと消えていた。段階を 1 つ足して <strong>release は 8 段階</strong>になった。残る 13 件は 0019・0020 が引き取る。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>24</b><span>◎良</span></li>
+    <li class="kpi good"><b>28</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -201,7 +206,7 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li><a href="#f2">e2</a>: release に段階を 1 つ増やしたため <code>logs/merge-state.json</code> の <code>state</code> に <code>linked</code> が加わり、記録が壊れたときの再導出も 1 段増えた。判定材料を「本文にリンク一覧の表があるか」にしたが、表の有無を機械的に見分ける方法は実装フェーズで確かめる必要がある</li>
+        <li><a href="#f25">e25</a>: 敵対的レビューが指した穴（完了検査の節がコミットされないまま片付けで消える）を段階の追加で塞いだ。<strong>release は 8 段階</strong>になり、<code>state</code> は <code>started → recorded → linked → cleaned → pushed → ready</code> の 6 値になった。段階を増やす判断を 2 回続けたので、これ以上増やさずに済む形か見てほしい</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -222,7 +227,8 @@
         <li><a href="#f17">e17</a>〜<a href="#f20">e20</a>: 共通ステップ 2 本に申し送り 5 項目、テンプレートの置き場（P3）、1 タスク 1 レポート（食い違い #8）、保留 P7・P8 の判断</li>
         <li><a href="#f22">e22</a>: <strong>旧名は増えることがある</strong>。設計の途中で自分が 1 件増やしていた。0 件の検索は「消したか」だけでなく「増やしていないか」の検査でもある</li>
         <li><a href="#f23">e23</a>・<a href="#f24">e24</a>: 旧資産 5 件の処遇（削除 2・移設 1・移行 2）、扱わない申し送りは 0 件、横断文書と用語辞書の更新</li>
-        <li><a href="#f5">e5</a>: CLI 不在時の release を「段階 3 と 6 だけを呼び出し元に代行させる」形で仕様に追加した</li>
+        <li><a href="#f5">e5</a>: CLI 不在時の release を「リンク一覧の更新と draft 解除の 2 段階だけを呼び出し元に代行させる」形で仕様に追加した（0021 の振り直し後は段階 4 と 7）</li>
+        <li><a href="#f26">e26</a>〜<a href="#f29">e29</a>: HTML 添付の可否をホストで分けて要件と仕様の矛盾を解き、ヘッドレスの帰結を項目ごとに分け、再導出の判定材料を固定マーカーにし、要件書の規約違反 6 種を直した</li>
         <li><a href="#f6">e6</a>〜<a href="#f9">e9</a>: B1（所在を本文へ）・B2（添付は人間）・B4（DoD の型）と申し送り #16・#17・#18 を <code>10-task-overall-summary</code> 仕様に反映した</li>
         <li><a href="#f12">e12</a>: <code>10-task-feedback-plan</code> のヘッドレス方針を「止まる」から「既定で進む」へ<strong>反転</strong>させた。別 issue の起票だけは例外として残した</li>
         <li><a href="#f14">e14</a>: エージェント 2 本の <code>model</code> の扱いが<strong>逆になる</strong>（レビュアーは定義で固定、実行者は起動時に上書き）。それぞれの理由を仕様に書いた</li>
@@ -237,7 +243,7 @@
     <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
     <ul>
       <li><strong>実装が仕様どおりに書けるか</strong>。<code>ticket_check_completion</code> を関数として切り出せるか、<code>finalize.sh</code> から source できるかは <code>ticket.sh</code> の現行の構造を読んだうえでの見込みで、実装して確かめてはいない</li>
-      <li><strong>本文のリンク一覧の表を機械的に見分けられるか</strong>（<a href="#f2">e2</a>）。再導出の判定材料として仕様に書いたが、判定の実現方法は実装フェーズに残る</li>
+      <li><strong>固定マーカーが本文の編集で失われないか</strong>（<a href="#f28">e28</a>）。再導出は <code>&lt;!-- finalize:linked &lt;sha&gt; --&gt;</code> の有無で判定するが、人間が本文を編集してマーカーを消した場合の振る舞いは仕様に書いていない（<code>pre_cleanup_sha</code> を履歴から再構成する経路は残してある）</li>
       <li>仕様の改訂が <strong>SKILL.md の手順に落とせるか</strong>。SKILL.md はまだ存在せず、実装フェーズで書く</li>
       <li><strong>旧名の残存</strong>。この節までの改訂で旧名を新たに書いていないことは確認したが、A3 の 0 件判定は 0016 と実装フェーズが行う</li>
     </ul>
@@ -663,6 +669,63 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       </div>
     </li>
 
+    <li>
+      <h3 id="f25">release に「完了検査の書き出しと push」の段階を足した（指摘 1） <span class="chip good">◎良</span> <span class="basis">根拠: 敵対的レビュー 1 回目の指摘 1 と改訂前の段階 2〜5</span></h3>
+      <p>段階 2 が組み立てた「完了検査」節は、どこにもコミットされないまま段階 5 の片付けで <code>wip/</code> ごと消えていた。B4（完了検査の通過を残る場所に写す）が成立しない穴である。</p>
+      <ul>
+        <li>段階 3「完了検査の書き出しと push」を新設し、<code>state</code> に <code>recorded</code> を足した。以降の段階を 4〜8 に振り直した</li>
+        <li><code>pre_cleanup_sha</code> は「段階 3 のコミットを含む HEAD」と定義し直した。本文のリンク一覧が指す先に「完了検査」節が実在する</li>
+        <li>FN-T07 を「書き出した」ではなく「<code>pre_cleanup_sha</code> が指すコミットの統括レポートに含まれている」に強めた</li>
+      </ul>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>release は 8 段階になり、<code>state</code> は <code>started → recorded → linked → cleaned → pushed → ready</code> の 6 値。</p>
+      </div>
+    </li>
+
+    <li>
+      <h3 id="f26">HTML 添付の可否をホストで分け、要件と仕様の矛盾を解いた（指摘 2・10） <span class="chip good">◎良</span> <span class="basis">根拠: DDR <code>i0010-02</code> と要件の無条件の禁止文</span></h3>
+      <p>要件は「スキルが自らアップロードの API を呼んではならない」と無条件に禁じ、仕様は GitLab では AI が添付してよいとしていた。DDR <code>i0010-02</code> の決定は後者である。</p>
+      <ul>
+        <li>要件の受け入れ基準を 4 本に分けた。公式 API が無いホスト（GitHub）は人間が行いスキルは何もしない（待たない・催促しない）、公式 API があるホスト（GitLab）はスキルが添付してよい、添付の後に本文を書き換えるときリンクを消さない、添付は任意で分岐させない</li>
+        <li>段階 4 の本文書き換えを「<code>## 統括</code> 配下のリンク一覧の<strong>表の中身だけ</strong>を置き換える」に限定した。人間が本文のどこに添付を貼っても消えない</li>
+        <li>受け渡しの経路を「人間が本文に直接貼る」1 つに決めたので、残課題 R5 は閉じる</li>
+        <li>FN-T09（本文書き換えが添付と要約を残す）を足した</li>
+      </ul>
+    </li>
+
+    <li>
+      <h3 id="f27">ヘッドレス実行の帰結を項目ごとに分けた（指摘 3） <span class="chip good">◎良</span> <span class="basis">根拠: 0007 の計画書の表と要件の例外フロー</span></h3>
+      <p>要件の例外フローは「ヘッドレスでは報告して停止」と一括りだったが、0007 の計画書は「別 issue 起票だけは進む」としていた。</p>
+      <ul>
+        <li>別 issue の起票 → 起票せず、候補と本文案を統括レポートに書いて<strong>次の手順へ進む</strong></li>
+        <li>衝突の解消・draft 解除の可否 → <strong>停止</strong>して次回セッションで進行状態から再開する</li>
+        <li>制約条件の「外部的制約」も同じ書き分けに揃えた</li>
+      </ul>
+    </li>
+
+    <li>
+      <h3 id="f28">再導出の判定材料を固定マーカーにした（指摘 9） <span class="chip good">◎良</span> <span class="basis">根拠: <code>summary-section.template.md</code> が表の骨格を先に置くこと</span></h3>
+      <p><code>logs/merge-state.json</code> を失ったときの再導出が「本文にリンク一覧の表があるか」で <code>linked</code> を判定していた。表の骨格は処理フロー 5 の時点でテンプレートが置くので、中身が空でも表は存在し、必ず <code>linked</code> と誤判定する。</p>
+      <ul>
+        <li>判定材料を固定マーカー <code>&lt;!-- finalize:linked &lt;sha&gt; --&gt;</code> に変え、「表があるか」を使わないことを明文で禁じた</li>
+        <li>マーカーからは <code>pre_cleanup_sha</code> も復元できる</li>
+        <li>FN-T08（空の表が <code>linked</code> にならない）を足した</li>
+      </ul>
+    </li>
+
+    <li>
+      <h3 id="f29">要件書の規約違反と段階番号の振り直し漏れを直した（指摘 5・6・14・15） <span class="chip good">◎良</span> <span class="basis">根拠: <code>ai-asset-design-docs</code> ルールと受け入れ基準 38 件の数え直し</span></h3>
+      <ul>
+        <li><strong>段階番号</strong>: 「要件との対応」表が旧番号のままだった。7 段階に振り直し、定義の無い <code>finalize.sh ready</code> への参照を「<code>release</code> の段階 7 経由（<code>ready</code> という単独のサブコマンドは持たない）」に直した</li>
+        <li><strong>添付の追随</strong>: frontmatter の description / keywords、概要、固定順序、スコープ、着手手順、書き写し、レビュー依頼のタイミングまで「添付は任意」の前提に揃えた</li>
+        <li><strong>不足していた受け入れ基準</strong>: 「全体まとめチケットの完了条件の型」と「CLI が使えない実行環境」の 2 件を足した。どちらも仕様側にだけあって要件が無い状態だった</li>
+        <li><strong><code>issue の受け入れ条件との対応</code></strong>: 概要章に小節を置き、B1〜B4 を受け入れ基準に対応づけた（A5 は該当なしと理由を書いた）</li>
+        <li><strong>規約節の見出し</strong>: 「全体まとめチケットの扱い」を <code>規約: 全体まとめチケット</code> に改め、規約節に混ざっていた分岐（CLI が使えない環境）を代替フローへ移した</li>
+        <li><strong>表の行数一致</strong>: 「要件との対応」表が 28 行で受け入れ基準 38 件を束ねていた。1 基準 1 行に開いて 38 行に揃えた</li>
+      </ul>
+    </li>
+
   </ol>
 </section>
 
@@ -678,7 +741,7 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>0004 の食い違い一覧</td><td>「決着先」の列を追加し、8 行すべてに行き先を書いた（md と HTML の両方）</td></tr>
       <tr><td><code>check-html.sh</code></td><td>0004 の HTML が 7 項目通過</td></tr>
       <tr><td><code>uploads.github.com</code> への <code>curl</code> の記述</td><td>仕様から 0 件（禁止事項に「AI が行ってはならない」として残る）</td></tr>
-      <tr><td>B1〜B4 の条件文と仕様の対応</td><td>4 件すべてに該当節がある（B1 = 処理フロー 6 / B2 = 処理フロー 6・禁止事項・DDR <code>i0010-02</code> / B3 = 固定順序と release 段階 3 / B4 = release 段階 2 と「全体まとめチケットの DoD の型」）</td></tr>
+      <tr><td>B1〜B4 の条件文と仕様の対応</td><td>4 件すべてに該当節がある（B1 = 処理フロー 6 / B2 = 処理フロー 6・禁止事項・DDR <code>i0010-02</code> / B3 = 固定順序と release 段階 4 / B4 = release 段階 2・3 と「全体まとめチケットの DoD の型」。段階番号は 0021 の振り直し後）</td></tr>
       <tr><td>申し送り #1〜#13 の反映</td><td>13 件すべてに反映先の節がある（#1 = <code>feedback-plan</code> 処理フロー 4 と DDR <code>i0010-03</code> / #2〜#9 = <code>ai-asset-implementation-plan</code> / #10〜#13 = <code>ai-asset-design-plan</code>）</td></tr>
       <tr><td>要件と仕様の順序</td><td>3 本とも要件定義書に受け入れ基準を足してから仕様を書いた（<code>ai-asset-design-docs</code> ルール「仕様書は対応する要件書より先に変えない」）</td></tr>
       <tr><td>申し送り #14・#15・#19 の反映</td><td>3 件すべてに反映先の節がある（#14・#15 = <code>ai-asset-design-exec</code> 処理フロー / #19 = <code>adversarial-reviewer</code> の出力スキーマと進め方 5 段階）</td></tr>
@@ -691,6 +754,11 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>申し送り 24 項目の行き先</td><td>24 件すべて反映済み。扱わなかった項目は 0 件（DDR <code>i0010-04</code>）</td></tr>
       <tr><td>横断文書・用語辞書</td><td><code>自己改善ワークフロー機構.md</code> と <code>90_glossary/ワークフロー用語.md</code> を更新。<code>ルール体系.md</code> は変更なし</td></tr>
       <tr><td>ヘッドレスの帰結</td><td>0007 の計画書の表と改訂後の仕様が一致</td></tr>
+      <tr><td>敵対的レビュー 1 回目の指摘（0021 の担当分）</td><td>9 件（1・2・3・5・6・9・10・14・15）すべてに反映先の節がある。残る 13 件は 0019・0020</td></tr>
+      <tr><td><code>10-task-overall-summary</code> の受け入れ基準と「要件との対応」表</td><td>38 件 : 38 行で一致（<code>ai-asset-design-docs</code> ルール「行数が一致する」）</td></tr>
+      <tr><td><code>finalize.sh ready</code> への参照</td><td><code>.claude/docs/</code> に 0 件。旧 SKILL.md の 1 行は参照更新（A3）で消す</td></tr>
+      <tr><td><code>release</code> の段階数と <code>state</code> の並び</td><td>8 段階 / <code>started → recorded → linked → cleaned → pushed → ready</code>。処理フロー・段階の説明・対応表・テスト観点の 4 か所で一致</td></tr>
+      <tr><td>要件と仕様の順序（0021 分）</td><td>受け入れ基準を先に足してから仕様を書いた。段階番号の振り直しは要件の変更を伴わない表記の追従</td></tr>
     </tbody>
   </table>
   </div>
@@ -704,7 +772,7 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
     <tbody>
       <tr><td>1</td><td><code>session-start.sh:64</code> を直すチケットのロックアウト対策（変更前後で SE-T05 後半を通す、<code>hook_record skip</code> のログを確認する）</td><td>保留 P1'、A2</td></tr>
       <tr><td>2</td><td>テスト 4 行を、パスを変えるチケットと同じ許可範囲に入れる</td><td>申し送り 0038、A2</td></tr>
-      <tr><td>3</td><td>本文のリンク一覧の表を機械的に見分ける方法（再導出の判定材料）</td><td>A2、e2</td></tr>
+      <tr><td>3</td><td>固定マーカー <code>&lt;!-- finalize:linked &lt;sha&gt; --&gt;</code> の埋め込みと読み出し（再導出の判定材料。表の有無では判定しない）</td><td>A2、e28、FN-T08</td></tr>
       <tr><td>4</td><td><code>ticket_check_completion</code> の切り出しと <code>finalize.sh</code> からの source</td><td>A2、B4</td></tr>
       <tr><td>5</td><td>FN-T06・FN-T07 を含めたテスト ID 総数 193 での割付</td><td>A1、A2</td></tr>
     </tbody>
@@ -719,8 +787,10 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
       <tr><td>置き場の確定は仕様の 8 行を直すだけ</td><td>原則として要件書と用語辞書にも書く必要があった（2 本だけの措置にすると次の提供コマンドで同じ議論が起きる）</td><td>横断文書と用語辞書に書き、DDR に格上げの理由を残した</td></tr>
-      <tr><td>B3 は段階の入れ替えで済む</td><td>入れ替えでは足りず、処理フロー 5 から「リンク一覧」だけを切り出して release の新しい段階にする必要があった</td><td>段階を 6 から 7 に増やし、<code>state</code> に <code>linked</code> を足した</td></tr>
+      <tr><td>B3 は段階の入れ替えで済む</td><td>入れ替えでは足りず、処理フロー 5 から「リンク一覧」だけを切り出して release の新しい段階にする必要があった</td><td>段階を 6 から 7 に増やし、<code>state</code> に <code>linked</code> を足した（0021 でさらに「完了検査の書き出しと push」が加わり 8 段階）</td></tr>
       <tr><td>食い違い #6 は「出力先を決める」だけ</td><td>検査の実装の共有まで書かないと、release と <code>ticket.sh</code> で検査が二重になる</td><td><code>ticket_check_completion</code> を共有関数として仕様に定義した</td></tr>
+      <tr><td>B4 は「完了検査の結果を統括レポートに書き出す」で足りる</td><td>書き出すだけでは、その節がコミットされないまま片付けで消える</td><td>0021 で書き出しをコミット・push する段階を独立させ、<code>state</code> に <code>recorded</code> を足した（<a href="#f25">e25</a>）</td></tr>
+      <tr><td>ヘッドレスの帰結は 1 本の例外フローで書ける</td><td>別 issue 起票（進む）と衝突解消・draft 解除（止まる）で帰結が逆だった</td><td>0021 で項目を分け、制約条件の書き方も揃えた（<a href="#f27">e27</a>）</td></tr>
     </tbody>
   </table>
   </div>
@@ -732,11 +802,11 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
   <table>
     <thead><tr><th>#</th><th>残課題</th><th>引き取り先</th></tr></thead>
     <tbody>
-      <tr><td>R1</td><td>本文のリンク一覧の表を機械的に見分ける方法が未定</td><td>実装フェーズ（0017 の計画）</td></tr>
+      <tr><td>R1</td><td><s>本文のリンク一覧の表を機械的に見分ける方法が未定</s> → <strong>0021 で決着</strong>。固定マーカーの有無で判定する（<a href="#f28">e28</a>）</td><td>完了</td></tr>
       <tr><td>R2</td><td><code>ticket_check_completion</code> の切り出しが現行の <code>ticket.sh</code> の構造で成立するか未確認</td><td>実装フェーズ</td></tr>
       <tr><td>R3</td><td>テスト ID 総数が 191 から 193 に変わったことを実装計画の割付表に反映する</td><td>0017</td></tr>
       <tr><td>R4</td><td><code>assets/summary-section.template.md</code> が作成物に加わった。0003 の 55 件には <code>attachment-comment.template.md</code> として数えられているので置き換えであり増減は無い</td><td>0016・実装フェーズ</td></tr>
-      <tr><td>R5</td><td>人間が添付した URL を AI に渡す経路（チャットで貼る / 本文に人間が直接書く）が未定</td><td>実装フェーズ（SKILL.md の手順）</td></tr>
+      <tr><td>R5</td><td><s>人間が添付した URL を AI に渡す経路が未定</s> → <strong>0021 で決着</strong>。人間が MR 本文に直接貼り、段階 4 はリンク一覧の表の中身だけを置き換える（AI は URL を受け取らない）</td><td>完了</td></tr>
       <tr><td>R6</td><td>md の共通の型 2 本が作成物に加わった。0003 の 55 件には無いので <strong>55 → 57</strong> になる</td><td>0016・実装フェーズ</td></tr>
       <tr><td>R7</td><td><code>rules/work-defaults.md</code> に敵対的レビュアーのモデルを書く列が無い</td><td>0016</td></tr>
       <tr><td>R8</td><td>CP-T11 の追加でテスト ID の総数が <strong>193 → 194</strong> になる。eval ID 19 種の実体はこれとは別に数える</td><td>0017</td></tr>

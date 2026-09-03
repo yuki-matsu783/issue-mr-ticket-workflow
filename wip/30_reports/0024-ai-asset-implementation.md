@@ -132,6 +132,7 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 | 名前の食い違い | 0 件。`attachment-comment.template.md` は現行仕様に無く、`summary-section.template.md` として作った |
 | `boundary.sh` の機械テスト | `BD-T01`〜`BD-T13` の 13 件・アサーション 74 件が PASS（`run-tests.sh --filter '*test_boundary*'` → `OK: 1 本 / 13 件`） |
 | `boundary.sh` の終了コード | 成功 0 / 前提未充足 1（BD001〜BD005）/ 引数・環境の誤り 2。最終行は `OK:` または `BDxxx:` |
+| 全件テスト（回帰） | `OK: 26 本 / 178 件`。26 ファイルすべて PASS。テスト ID の総数は 165 → **178**（`BD-T01`〜`BD-T13` の 13 件が増えた） |
 
 ## 設計への反映
 

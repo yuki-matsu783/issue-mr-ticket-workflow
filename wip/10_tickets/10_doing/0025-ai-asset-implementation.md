@@ -22,7 +22,7 @@ base_sha: "509240b"
 ## DoD
 
 - [x] bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh が 5 サブコマンド（status / note / request / skip / complete）を持ち、00-workflow-issue-mr-driven 仕様の Script 処理のとおりになっている（根拠: `usage()` と `main()` の case が 5 サブコマンド。判定は仕様「切れ目の判定（正）」「全体まとめの切れ目（--final）」「進行状態と記録」のとおりで、固定マーカー・BD001〜BD005・`--offline` / `--final` / `--standalone` / `--external` / `--accept-unresolved` を実装した）
-- [x] 機械テスト BD-T01〜BD-T13 の 13 件が通る（根拠: `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_boundary*'` → `OK: 1 本 / 13 件`、`passed=74 failures=0`。DoD の `--filter boundary` はグロブがパス全体に当たるため一致せず、`'*test_boundary*'` に読み替えた）
+- [x] 機械テスト BD-T01〜BD-T13 の 13 件が通る（根拠: `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_boundary*'` → `OK: 1 本 / 13 件`、`passed=74 failures=0`。DoD の `--filter boundary` はグロブがパス全体に当たるため一致せず、`'*test_boundary*'` に読み替えた。全件実行でも回帰なし: `OK: 26 本 / 178 件`、全 26 ファイルが PASS）
 - [x] 終了コードが 成功 0 / 前提・状態の未充足 1 / 引数・環境の誤り 2 で、最終行が OK: または BDxxx: になっている（根拠: `boundary.sh bogus` → `BD001: 引数・環境の誤り — 不明なサブコマンド: bogus…` / exit 2。`status --nope` も同じ。BD-T03 / T05 / T09 / T12 が exit 1 と `BDxxx:` を確かめている）
 - [x] 共通 logger を読み込み logs/sh/ に実行ログを残している（rules/logger.md の使い分け）（根拠: `__ss_load logger nop` を読み込み行のまま使用。`logs/sh/boundary.log` が生成されている）
 - [x] 書いた直後の 1 回目を commit.sh で自分をコミットして検証し、失敗時に戻す基準点（base_sha）を作業ログに記録している（根拠: 基準点は `509240b`（frontmatter の base_sha）。復旧は `git checkout 509240b -- .claude/skills/00-workflow-issue-mr-driven/scripts/`。commit.sh でのコミットは下の作業ログに記録）

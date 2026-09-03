@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "全体計画の方針どおり、
 allow:
   write: ["wip/**"]
   ops: ["hook-test"]
-started_at: ""
+started_at: "2026-09-03T11:39:38+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "47f93ce"
 ---
 
 # 0049 shlex 据え置きの決定を実装に反映しテストで固定する

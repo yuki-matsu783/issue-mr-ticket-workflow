@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの敵対的レ
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T03:57:24+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "4e31be2"
 ---
 
 # 0023 19 アセットの仕様書に eval ID の表を書く

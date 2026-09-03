@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回は 00
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T20:03:24+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b6a64f1"
 ---
 
 # 0016 eval ID の接頭辞・旧名の扱い・扱わない申し送りを締める

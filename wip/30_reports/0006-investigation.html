@@ -156,6 +156,7 @@
       <li><a href="#verified">検証の結果</a></li>
       <li><a href="#next">設計への反映</a></li>
       <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#addendum">追記（0008 / 実測）</a></li>
       <li><a href="#todo">残課題</a></li>
     </ol>
   </nav>
@@ -211,7 +212,7 @@
   <div class="box warn">
     <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
     <ul>
-      <li><strong><code>run-tests.sh</code> の実行結果</strong>。<code>hook-test</code> が未宣言で TR006 に拒否された。代わりに <code>frontmatter.sh</code> とテストの該当行を読んで判断し、実行での確認は追加チケット 0008 に回した（<a href="#f7">d7</a>）</li>
+      <li><s><strong><code>run-tests.sh</code> の実行結果</strong></s>。0006 の時点では <code>hook-test</code> 未宣言で TR006 に拒否され、ソースの該当行を読んで判断した（<a href="#f7">d7</a>）。<strong>追加チケット 0008 で実行し、結論が一致することを確かめた</strong>（<a href="#addendum">追記</a>）</li>
       <li>各項目をどう書くか（文言）。この報告は反映先の仕様書と節まで</li>
       <li>「この issue で扱う / 扱わない」の決定。判断材料までを渡す</li>
       <li>申し送りの出どころ（#6 のチケット 0022・0026・0028 ほか）の元の文脈。issue #10 本文の要約だけを読んでいる</li>
@@ -430,10 +431,51 @@ TR006: 作業中チケット 0006-investigation.md の allow.ops に無い分類
   </div>
 </section>
 
+<section id="addendum">
+  <h2>追記（チケット 0008 / 実測）</h2>
+  <p>追加チケット 0008（<code>hook-test</code> 宣言つき）で <code>run-tests.sh --ids</code> を実行した。<strong>読み取りで出した d4・d5 の結論は実測と一致した</strong>。あわせて、この issue の実装フェーズで追加すべきテスト ID が 26 件と確定した。</p>
+
+  <h3>e1. 全件が通っている（25 本 / 165 件 / 失敗 0）</h3>
+  <pre><code>$ bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids
+（25 本すべて PASS）
+OK: 25 本 / 165 件
+FAIL ID:  （なし）</code></pre>
+  <p>所要時間は 5〜6 分（Bash ツールの 300 秒の上限を超えたため、バックグラウンド実行に切り替えた）。</p>
+
+  <h3>e2. d5 のとおり、重複 ID は CP-T08 の 1 件だけ</h3>
+  <pre><code>重複 ID:
+CP-T08 (.claude/skills/20-common-step-commit-push/scripts/tests/test_commit.sh, .claude/skills/20-common-step-commit-push/scripts/tests/test_push.sh)</code></pre>
+  <p>全件実行のたびにこの 1 行が出続けるので、どちらかの ID を振り直すまで解消しない。</p>
+
+  <h3>e3. d4 のとおり、FR-T03 と TICKET-T05 は通っている</h3>
+  <p>PASS ID の一覧に <code>FR-T03</code>（<code>fm_get</code> / <code>fm_list</code> のエスケープ解除）と <code>TICKET-T05</code>（書き出したファイルのエスケープ済みの形）の両方が含まれる。実装・テストは済んでおり、残るのは仕様の 2 行という d4 の結論が裏づけられた。</p>
+
+  <h3>e4. <code>--ids</code> は一覧を出すだけでなく全件を実行する（0006 の記述の訂正）</h3>
+  <p>0006 の「スコープ外で見つけたこと」に「<code>--ids</code> は一覧を出すだけ」と書いたが誤り。<code>--ids</code> は全件を実行したうえで PASS / FAIL の ID 一覧と重複 ID を追加で出力する。問題の中身は変わらないが、原因は「一覧しか出ない」ことではなく<strong>ID を指定して部分実行するオプションが無い</strong>ことにある。</p>
+
+  <h3>e5. この issue で追加すべきテスト ID は 26 件</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>出どころ</th><th>不足しているテスト ID</th><th>件数</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td><code>hooks/00-SessionStart/session-start</code></td><td>SE-T01・02・03・04・07・08・09</td><td>7</td><td><code>boundary.sh status --offline</code> に依存（#9 で 3/3 へ）</td></tr>
+      <tr><td><code>hooks/10-UserPromptSubmit/workflow-entry</code></td><td>WE-T10</td><td>1</td><td>同上</td></tr>
+      <tr><td><code>00-workflow-issue-mr-driven</code>（<code>boundary.sh</code>）</td><td>BD-T01〜BD-T13</td><td>13</td><td>提供コマンドが未作成</td></tr>
+      <tr><td><code>10-task-overall-summary</code>（<code>finalize.sh</code>）</td><td>FN-T01〜FN-T05</td><td>5</td><td>同上</td></tr>
+      <tr><td>合計</td><td>—</td><td><strong>26</strong></td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box ok">
+    <p class="label">結論</p>
+    <p>現在の 165 件に 26 件を足して <strong>191 件</strong>が、この issue の完了時に通っているべき数。受け入れ条件 A2 に加えて <code>session-start</code> と <code>workflow-entry</code> の 8 件も同時に解ける（0004 の b5 のスコープの合意が、ここでは数として現れる）。</p>
+  </div>
+</section>
+
 <section id="todo" data-required>
   <h2>残課題</h2>
   <ul>
-    <li>R1: <code>run-tests.sh --ids</code> の実行による確認（<code>hook-test</code> 宣言つき）→ 追加チケット 0008</li>
+    <li>R1: <s><code>run-tests.sh --ids</code> の実行による確認</s> → チケット 0008 で実施済み（上記 e1〜e5）</li>
     <li>R2: 要件書の <code>####</code> 小節が反映済みかの確認（#8 の状態を見る）→ 設計計画 0007</li>
     <li>R3: 申し送りの元の文脈（#6 のチケット群）は読んでいない。文面を書く段で元の記述が要るかもしれない → 設計（0007 が必要性を判断）</li>
     <li>R4: <code>10-task-ai-asset-implementation-plan</code> に 8 項目が集中しており、1 つの仕様書への追記としては大きい。節の構成ごと見直すかは設計の判断 → 設計（0007）</li>

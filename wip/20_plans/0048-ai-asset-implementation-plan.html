@@ -135,7 +135,7 @@
       <li><code>.claude/hooks/lib/cmdpos.sh</code> は変更しない。書き込み先にも入れない</li>
       <li><code>test_cmdpos.sh</code> の HK-T05 に <code>cat &lt;&lt;EOF⏎EOF⏎git push</code> を 1 件足す。新しいテスト ID は作らない</li>
       <li><code>scope-limits.json</code> の <code>commands.build-test</code> の 2 行は DDR i0015-02 の決定どおり残す</li>
-      <li>実装チケットは 0051 の 1 枚。次の計画チケットとしてフィードバック計画 0050 を起こす</li>
+      <li>実装チケットは 0052 の 1 枚。次の計画チケットとしてフィードバック計画 0050 を起こす</li>
     </ul>
   </div>
 </section>
@@ -185,7 +185,7 @@
     <li class="step">
       <span class="step-no">2</span>
       <h3>テストを 1 件足す</h3>
-      <p><code>test_cmdpos.sh</code> の HK-T05 に <code>cat &lt;&lt;EOF⏎EOF⏎git push</code> を足す。期待は 2 段・<code>exe=git sub=push</code>。<code>cat</code> の段が消えていないことも併せて見る。</p>
+      <p><code>test_cmdpos.sh</code> の HK-T05 に <code>cat &lt;&lt;EOF⏎EOF⏎git push</code> を足す。期待は 3 段（<code>cat</code> / 本文のデータ段 <code>data=1</code> / <code>exe=git sub=push data=0</code>）。0046 が「2 段」と書いたのは試作が本文をデータ段として出さなかったためで、<code>cmdpos.sh</code> は本文も 1 段として出す。</p>
     </li>
     <li class="step">
       <span class="step-no">3</span>
@@ -204,7 +204,7 @@
   <table>
     <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
     <tbody>
-      <tr><td>1〜4（チケット 0051）</td><td><code>.claude/hooks/lib/tests/**</code>, <code>wip/**</code></td><td><code>read</code>, <code>build-test</code>, <code>hook-test</code></td></tr>
+      <tr><td>1〜4（チケット 0052）</td><td><code>.claude/hooks/lib/tests/**</code>, <code>wip/**</code></td><td><code>read</code>, <code>build-test</code>, <code>hook-test</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -216,7 +216,7 @@
     <p class="label">当初案の訂正</p>
     <p>当初この計画は <code>allow.ops</code> を <code>["read", "hook-test"]</code> とし、「npm も <code>wip/tmp/</code> の計測スクリプトも使わないので <code>build-test</code> は要らない」と書いていた。これは誤りだった。</p>
     <p><code>run-tests.sh</code> は自分の中で作業中チケットの <code>allow.ops</code> を検査しており（TR006）、<strong><code>build-test</code> を無条件に要求する</strong>。テスト対象に <code>.claude/hooks/**</code> が含まれるときに <code>hook-test</code> が追加で要る、という関係で、<code>hook-test</code> は <code>build-test</code> の代わりにならない。フックの分類（<code>scope_classify</code>）が <code>bash &lt;.claude/hooks/**/tests/*.sh&gt;</code> を <code>hook-test</code> に分類することと、提供コマンド <code>run-tests.sh</code> が要求する分類は別物である。</p>
-    <p>最初のチケット 0049 はこの誤った宣言で起票したため <code>run-tests.sh</code> が TR006 で止まった。迂回せず、本節を訂正したうえでチケットを起こし直した（0049 は取り消し、0051 が後継）。</p>
+    <p>最初のチケット 0049 はこの誤った宣言で起票したため <code>run-tests.sh</code> が TR006 で止まった。迂回せず、本節を訂正したうえでチケットを起こし直した。起こし直しは 2 回になっている。0049 は上の誤った宣言、0051 は <code>ticket.sh</code> の <code>--allow-write</code> / <code>--allow-ops</code> を繰り返し指定して最後の 1 件だけが残ったため（同フラグはカンマ区切りの 1 引数を取る）。0052 が後継。</p>
   </div>
 
   <h3>参照更新一覧</h3>
@@ -244,7 +244,7 @@
       <tr><td>提供コマンドの識別が変わらない</td><td>同上</td><td>HK-T12</td></tr>
       <tr><td><code>commands.build-test</code> の 2 行追加が形式検査を壊していない</td><td><code>--filter '*config_integrity*'</code></td><td>HK-T02</td></tr>
       <tr><td>コマンドの分類の振る舞い</td><td><code>--filter '*scope*'</code></td><td>HK-T15・HK-T16</td></tr>
-      <tr><td>検査 ID の集合と件数が 0045 時点と同じ</td><td><code>run-tests.sh --ids</code>（フィルタ無し）を 0045 の記録と突き合わせる</td><td>成果物: 実装結果レポート <code>wip/30_reports/0051-ai-asset-implementation.md</code> と対の HTML</td></tr>
+      <tr><td>検査 ID の集合と件数が 0045 時点と同じ</td><td><code>run-tests.sh --ids</code>（フィルタ無し）を 0045 の記録と突き合わせる</td><td>成果物: 実装結果レポート <code>wip/30_reports/0052-ai-asset-implementation.md</code> と対の HTML</td></tr>
     </tbody>
   </table>
   </div>
@@ -259,8 +259,9 @@
     <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
     <tbody>
       <tr><td>0049（取り消し）</td><td><code>ai-asset-implementation</code></td><td><code>allow.ops</code> に <code>build-test</code> が無く <code>run-tests.sh</code> が TR006 で止まったため取り消した</td><td>0048</td></tr>
-      <tr><td>0051</td><td><code>ai-asset-implementation</code></td><td>ステップ 1〜4。据え置きの確認・テスト 1 件の追加・全テストの実行と ID の突き合わせ・参照更新の検索記録・実装結果レポート</td><td>0048</td></tr>
-      <tr><td>0050</td><td><code>feedback-plan</code></td><td>後続フェーズの要否を決める。<code>git 'commit'</code> の制約と <code>scope.sh</code> / <code>hook-common.sh</code> の扱いを別 issue にするか</td><td>0051</td></tr>
+      <tr><td>0051（取り消し）</td><td><code>ai-asset-implementation</code></td><td><code>ticket.sh</code> のフラグをカンマ区切りではなく繰り返しで渡し、許可範囲が最後の 1 件だけになったため取り消した</td><td>0048</td></tr>
+      <tr><td>0052</td><td><code>ai-asset-implementation</code></td><td>ステップ 1〜4。据え置きの確認・テスト 1 件の追加・全テストの実行と ID の突き合わせ・参照更新の検索記録・実装結果レポート</td><td>0048</td></tr>
+      <tr><td>0050</td><td><code>feedback-plan</code></td><td>後続フェーズの要否を決める。<code>git 'commit'</code> の制約と <code>scope.sh</code> / <code>hook-common.sh</code> の扱いを別 issue にするか</td><td>0052</td></tr>
     </tbody>
   </table>
   </div>
@@ -286,7 +287,7 @@
   <table>
     <thead><tr><th>変えるもの</th><th>ホットパスへの影響</th><th>復旧手順</th></tr></thead>
     <tbody>
-      <tr><td><code>test_cmdpos.sh</code>（テストファイル）</td><td>無し。<code>settings.json</code> から起動されず、フックの実行経路に入らない</td><td><code>git checkout &lt;0051 の base_sha&gt; -- .claude/hooks/lib/tests/test_cmdpos.sh</code></td></tr>
+      <tr><td><code>test_cmdpos.sh</code>（テストファイル）</td><td>無し。<code>settings.json</code> から起動されず、フックの実行経路に入らない</td><td><code>git checkout &lt;0052 の base_sha&gt; -- .claude/hooks/lib/tests/test_cmdpos.sh</code></td></tr>
     </tbody>
   </table>
   </div>

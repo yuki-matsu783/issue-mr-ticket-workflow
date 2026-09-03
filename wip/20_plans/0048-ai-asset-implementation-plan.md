@@ -47,7 +47,7 @@ keywords: [実装計画, cmdpos.sh, test_cmdpos.sh, HK-T05, HK-T12, run-tests, �
 
 ## 許可範囲案
 
-実装チケット 0051 に与える範囲。`scope-limits.json` の `ai-asset-implementation` の既定（`.claude/hooks/**` を含む）より狭く取る。
+実装チケット 0052 に与える範囲。`scope-limits.json` の `ai-asset-implementation` の既定（`.claude/hooks/**` を含む）より狭く取る。
 
 | ステップ | 書き込み先 | 実行コマンド |
 |---|---|---|
@@ -63,7 +63,13 @@ keywords: [実装計画, cmdpos.sh, test_cmdpos.sh, HK-T05, HK-T12, run-tests, �
 
 `run-tests.sh` は自分の中で作業中チケットの `allow.ops` を検査しており（TR006）、**`build-test` を無条件に要求する**。テスト対象に `.claude/hooks/**` が含まれるときに `hook-test` が追加で要る、という関係で、`hook-test` は `build-test` の代わりにならない。フックの分類（`scope_classify`）が `bash <.claude/hooks/**/tests/*.sh>` を `hook-test` に分類することと、提供コマンド `run-tests.sh` が要求する分類は別物である。
 
-最初のチケット 0049 はこの誤った宣言で起票したため、`run-tests.sh` が TR006 で止まった。迂回せず、本節を訂正したうえでチケットを起こし直した（0049 は取り消し、0051 が後継）。
+最初のチケット 0049 はこの誤った宣言で起票したため、`run-tests.sh` が TR006 で止まった。迂回せず、本節を訂正したうえでチケットを起こし直した。起こし直しは 2 回になっている。
+
+| チケット | 取り消した理由 |
+|---|---|
+| 0049 | `allow.ops` が `["read", "hook-test"]` だった（本節の訂正前の宣言） |
+| 0051 | `ticket.sh` の `--allow-write` / `--allow-ops` を繰り返し指定したため最後の 1 件だけが残り、`ops` が `["hook-test"]` になった。同フラグはカンマ区切りの 1 引数を取る |
+| 0052 | 後継。`--allow-ops "read,build-test,hook-test"` で起票 |
 
 ## テスト方針
 
@@ -83,14 +89,14 @@ eval の定義は無い。今回の変更は機械テストで全量が見られ
 
 | # | 区分 | 内容 | 依存 | チケット |
 |---|---|---|---|---|
-| 1 | 中核 | `cmdpos.sh` が基準点から変わっていないことを `git diff origin/main -- .claude/hooks/lib/cmdpos.sh` が空であることで示す | なし | 0051 |
-| 2 | 中核の機械テスト | `test_cmdpos.sh` の HK-T05 に `cat <<EOF⏎EOF⏎git push` を足す。期待は 2 段・`exe=git sub=push`（`cat` の段が消えないことも併せて見る） | 1 | 0051 |
-| 3 | 中核の機械テスト | `run-tests.sh --ids` を全体とフィルタ別に実行し、ID の集合と件数を 0045 時点と突き合わせる | 2 | 0051 |
-| 4 | 参照更新 | 下表の検索を実施し、更新箇所が無いことを記録する | 3 | 0051 |
+| 1 | 中核 | `cmdpos.sh` が基準点から変わっていないことを `git diff origin/main -- .claude/hooks/lib/cmdpos.sh` が空であることで示す | なし | 0052 |
+| 2 | 中核の機械テスト | `test_cmdpos.sh` の HK-T05 に `cat <<EOF⏎EOF⏎git push` を足す。期待は 3 段（`cat` / 本文のデータ段 `data=1` / `exe=git sub=push data=0`）。0046 が「2 段」と書いたのは試作が本文をデータ段として出さなかったためで、`cmdpos.sh` は本文も 1 段として出す | 1 | 0052 |
+| 3 | 中核の機械テスト | `run-tests.sh --ids` を全体とフィルタ別に実行し、ID の集合と件数を 0045 時点と突き合わせる | 2 | 0052 |
+| 4 | 参照更新 | 下表の検索を実施し、更新箇所が無いことを記録する | 3 | 0052 |
 
-ステップ 1〜4 は 1 チケット（0051）に収める。中核の変更が無く、テストの追加が 1 件だけで、分割すると確認の単位が細かくなりすぎるため。
+ステップ 1〜4 は 1 チケット（0052）に収める。中核の変更が無く、テストの追加が 1 件だけで、分割すると確認の単位が細かくなりすぎるため。
 
-後続の計画チケットは 0050（`feedback-plan`）。先行を 0051 に付け替える。
+後続の計画チケットは 0050（`feedback-plan`）。先行を 0052 に付け替える。
 
 ## 参照更新一覧
 
@@ -111,10 +117,10 @@ eval の定義は無い。今回の変更は機械テストで全量が見られ
 
 | 変えるもの | ホットパスへの影響 | 復旧手順 |
 |---|---|---|
-| `test_cmdpos.sh`（テストファイル） | 無し。`settings.json` から起動されず、フックの実行経路に入らない | `git checkout <0051 の base_sha> -- .claude/hooks/lib/tests/test_cmdpos.sh` |
+| `test_cmdpos.sh`（テストファイル） | 無し。`settings.json` から起動されず、フックの実行経路に入らない | `git checkout <0052 の base_sha> -- .claude/hooks/lib/tests/test_cmdpos.sh` |
 
 - `WORKFLOW_ENTRY_ENFORCE=0` は使わない（ユーザーの明示が無い）
-- 基準点は 0051 の `base_sha`。テストファイル 1 本を戻せば元に戻る
+- 基準点は 0052 の `base_sha`。テストファイル 1 本を戻せば元に戻る
 
 ## リスク
 

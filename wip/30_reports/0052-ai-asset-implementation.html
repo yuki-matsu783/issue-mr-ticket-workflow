@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0052 shlex 据え置きの決定を実装に反映しテストで固定した結果</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装結果</p>
+  <h1 id="title" data-required>0052 shlex 据え置きの決定を実装に反映しテストで固定した結果</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 本番コードは据え置き</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. テストを 1 件足した（期待値が計画と違った）</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. テスト 25 本 165 ID が全通過</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 参照更新は 0 件</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/shlex-hook-inspection-7t4sc1</code></dd></div>
+    <div><dt>チケット</dt><dd>0052（0049・0051 の後継）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead"><strong>本番コードは 1 行も変えていない。</strong> 決定が「外部の字句解析器を使わず据え置く」なので、変更しないことが実装の結果になる。実質の作業はテスト 1 件の追加で、決定の根拠になった振る舞いのうち唯一固定されていなかったものを HK-T05 に足した。テストは 25 本 165 ID が全通過している。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>「決定が据え置きだから実装は対象なし」で終わらせず、テストを 1 件足したこと。#15 の受け入れ条件 5 は「既存のテストが同じ ID・同じ結果で通る」までしか求めていない。この追加が範囲の広げすぎに当たらないか</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>期待値が計画（2 段）と実際（3 段）で食い違ったとき、テストを緩めずに実際の 3 段構造をそのまま固定したこと</li>
+        <li>チケットを 2 回起こし直したこと（0049・0051 を取り消し）。いずれも許可範囲の宣言誤りで、迂回はしていない</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>参照更新の 4 件の検索結果（いずれも更新箇所なし）</li>
+        <li>テストの件数の突き合わせ（0045 時点と一致、<code>test_cmdpos.sh</code> だけ +4）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><code>scope.sh</code> と <code>hook-common.sh</code> を据え置くべきかは確かめていない。DDR i0015-01 は「同じ結論になる見込みが高い」と書いたが実測はしていない</li>
+      <li><code>cmdpos.sh</code> の既知の制約（<code>git 'commit'</code>）は直していない。テストは制約を制約のまま固定している</li>
+      <li>ホットパスの実測は本チケットではやり直していない。0043 の測定値をそのまま使っている</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>基準点: チケット 0052 の <code>base_sha</code>（<code>dd953c7</code>）。<code>origin/main</code> との差分で据え置きを確認した</li>
+    <li>テストランナー: <code>bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids --timeout 300</code></li>
+    <li>比較対象: チケット 0045 の作業ログに記録した 4 本のテストの件数</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">本番コードは据え置き <span class="chip good">◎良</span> <span class="basis">根拠: git diff の行数</span></h3>
+      <p><code>cmdpos.sh</code> は <code>origin/main</code> から 1 行も変わっていない。<code>scope-limits.json</code> の差分は 0045 で足した 2 行だけで、本チケットでは触れていない。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ git diff origin/main -- .claude/hooks/lib/cmdpos.sh | wc -l
+0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>「変更しない」という決定が、差分の不在という検査可能な形で示せている。許可範囲からも <code>cmdpos.sh</code> を外してあるので、書こうとしても書けない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">テストを 1 件足した（期待値が計画と違った） <span class="chip warn">△注意</span> <span class="basis">根拠: HK-T05 の 4 アサーション</span></h3>
+      <p><code>cat &lt;&lt;EOF⏎EOF⏎git push</code> は 0046 の A-3 が見つけた「<code>shlex</code> が誤る 7 件」のうち、唯一テストで固定されていなかった入力である。仕様書 §7 は今回の追記でこの振る舞いを名指ししており、仕様が主張している以上テストで固定しておく必要があった。</p>
+      <p>計画は「2 段」を期待すると書いていたが、実際は <strong>3 段</strong>だった。0046 が「2 段」と書いたのは調査で作った <code>shlex</code> 版の試作がヒアドキュメント本文をデータ段として出さなかったためで、<code>cmdpos.sh</code> は本文も 1 段として出し <code>data=1</code> を立てる。<strong>判定の結論（<code>git push</code> を実行位置として検出する）は 0046 の観測どおり</strong>で、食い違ったのは段の数え方だけだった。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/hooks/lib/tests/test_cmdpos.sh   # 追加直後（期待値 count=2 のとき）
+FAIL HK-T05: 出力に 'count=2' が無い :
+count=3 degraded=0
+seg0: exe=cat sub=_    args=[_]    ... gitlike=0 data=0
+seg1: exe=_   sub=     args=[]     ... gitlike=1 data=1
+seg2: exe=git sub=push args=[push] ... gitlike=0 data=0
+
+# 期待値を実際の 3 段構造に直した後
+$ bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*cmdpos*' --ids
+| .claude/hooks/lib/tests/test_cmdpos.sh | PASS | exit 0 | passed=285 failures=0 |
+PASS ID: HK-T05 HK-T12
+FAIL ID:
+重複 ID: なし
+OK: 1 本 / 2 件</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>テストは緩めず、実際の 3 段構造をそのまま固定した。<code>seg1</code> のデータ段も明示的に書いてある。<code>seg1</code> の <code>gitlike=1</code> が空のデータ段に立っているのは仕様どおりで、<code>CP_GITLIKE</code> は実行体が <code>_</code> のときにコマンド文字列<strong>全体</strong>に語としての <code>git</code> があるかで決まる（<code>cmdpos.sh</code> 349 行）。拒否側に倒すための保守的な判定である。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">テスト 25 本 165 ID が全通過 <span class="chip good">◎良</span> <span class="basis">根拠: run-tests.sh --ids</span></h3>
+      <p>検査 ID の集合は 0045 時点と変わっていない。件数も、今回追加した 4 件を除いて一致する。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>テスト</th><th>0045 時点</th><th>今回</th><th>差</th></tr></thead>
+        <tbody>
+          <tr><td><code>test_config_integrity.sh</code></td><td>95</td><td>95</td><td>変化なし</td></tr>
+          <tr><td><code>test_scope.sh</code></td><td>312</td><td>312</td><td>変化なし</td></tr>
+          <tr><td><code>test_workflow_guard.sh</code></td><td>147</td><td>147</td><td>変化なし</td></tr>
+          <tr><td><code>test_cmdpos.sh</code></td><td>281</td><td>285</td><td>+4（今回の追加分）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids --timeout 300
+（25 本すべて PASS。抜粋）
+| .claude/hooks/lib/tests/test_cmdpos.sh          | PASS | exit 0 | passed=285 failures=0 |
+| .claude/hooks/lib/tests/test_scope.sh           | PASS | exit 0 | passed=312 failures=0 |
+| .claude/hooks/tests/test_config_integrity.sh    | PASS | exit 0 | passed=95  failures=0 |
+| .claude/hooks/20-PreToolUse/tests/test_workflow_guard.sh | PASS | exit 0 | passed=147 failures=0 |
+
+FAIL ID:
+重複 ID:
+CP-T08 (.claude/skills/20-common-step-commit-push/scripts/tests/test_commit.sh,
+        .claude/skills/20-common-step-commit-push/scripts/tests/test_push.sh)
+
+OK: 25 本 / 165 件</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>受け入れ条件 5 の「同じ検査 ID・同じ結果で通る」を満たしている。<code>CP-T08</code> の重複は本 PR の変更と無関係の既存の状態で、テストは全通過している。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">参照更新は 0 件 <span class="chip good">◎良</span> <span class="basis">根拠: 4 つの検索</span></h3>
+      <p>名称・パスの変更が無いことを検索で確かめた。0 件検索は「検索した」ことの記録として残す。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象</th><th>検索語</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td><code>shlex</code> の言及</td><td><code>grep -rln "shlex" .claude/</code></td><td>3 件（i0015-01 / i0015-02 / フック共通仕様）。計画時と同じ</td></tr>
+          <tr><td>DDR の被参照</td><td><code>grep -rln "i0015" .claude/</code></td><td>3 件（同上）。計画時と同じ</td></tr>
+          <tr><td>テスト ID</td><td><code>grep -rln "HK-T05\|HK-T12" .claude/</code></td><td>5 件（<code>test_cmdpos.sh</code>、フック共通仕様、DDR 3 本）。ID の集合は不変</td></tr>
+          <tr><td>DDR 一覧</td><td><code>ls .claude/docs/20_ddr/</code></td><td>127 件。<code>i</code> で始まらないファイル（手書きの索引）は 0 件</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>更新すべき箇所は無かった。用語辞書への追加も無い。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>受け入れ条件 5: 決定した方針が実装されている</td><td><code>cmdpos.sh</code> の差分 0 行。据え置きが実装の結果</td></tr>
+      <tr><td>受け入れ条件 5: 既存の cmdpos テストが同じ検査 ID で通る</td><td><code>HK-T05</code> / <code>HK-T12</code> の 2 ID のまま。新規 ID なし</td></tr>
+      <tr><td>受け入れ条件 5: 同じ結果で通る</td><td>25 本 165 ID が PASS、失敗 0</td></tr>
+      <tr><td>プレースホルダ検査（テンプレート由来の二重波括弧 / <code>TODO</code> / <code>TBD</code>）</td><td>0 件（変更したファイルすべて）</td></tr>
+      <tr><td>frontmatter の必須項目</td><td>対象 0 件。変更したアセットはシェルスクリプト 1 本で frontmatter を持たない</td></tr>
+      <tr><td>参照更新（旧名の残存）</td><td>0 件。名称・パスの変更が無く、検索結果は計画時と同じ</td></tr>
+      <tr><td>許可範囲（<code>git diff --stat dd953c7</code>）</td><td>変更は <code>.claude/hooks/lib/tests/**</code> と <code>wip/**</code> のみ。範囲外なし</td></tr>
+      <tr><td>eval</td><td>定義した eval は無い（指示文の変更が無く対象が生じなかった）。既存の eval も実行していない</td></tr>
+      <tr><td>仕様からの逸脱</td><td>無し</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>作成・更新したアセットの一覧</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>アセット</th><th>区分</th><th>仕様書の節</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/hooks/lib/tests/test_cmdpos.sh</code></td><td>更新</td><td>フック共通仕様 §11 <code>HK-T05</code>（観点に「ヒアドキュメント」を含む）。振る舞いの正は §7</td></tr>
+      <tr><td><code>.claude/hooks/lib/cmdpos.sh</code></td><td>変更なし</td><td>§7。DDR <code>i0015-01</code> の決定どおり据え置き</td></tr>
+      <tr><td><code>.claude/hooks/config/scope-limits.json</code></td><td>変更なし</td><td>§8。0045 で足した 2 行は DDR <code>i0015-02</code> の決定どおり残す</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>新規作成したアセットは無い。</p>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>設計文書への差し戻しは無い。仕様書 §7 が主張する振る舞いはテストで確認でき、記述の訂正は要らなかった</li>
+    <li>0050（フィードバック計画）で <code>cmdpos.sh</code> の既知の制約（<code>git 'commit'</code>）を別 issue にするか決める</li>
+    <li>0050 で <code>CP-T08</code> の重複 ID の扱いを決める。本 PR の範囲外だが記録は残した</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td><code>allow.ops</code> は <code>read</code> と <code>hook-test</code> で足りる</td><td><code>run-tests.sh</code> は自分の中で <code>build-test</code> を無条件に要求する（TR006）。<code>hook-test</code> は「テスト対象に <code>.claude/hooks/**</code> を含むとき追加で要る」もので、代わりにならない</td><td>迂回せず計画書の許可範囲を訂正し、チケットを起こし直した（0049 取り消し）</td></tr>
+      <tr><td><code>ticket.sh</code> の <code>--allow-ops</code> は繰り返し指定できる</td><td>カンマ区切りの 1 引数を取る。繰り返すと最後の 1 件だけが残る</td><td>もう一度起こし直した（0051 取り消し → 0052）</td></tr>
+      <tr><td>ヒアドキュメント終端後の入力は 2 段になる</td><td>3 段（本文がデータ段として出る）</td><td>テストを緩めず 3 段構造をそのまま固定し、0046 の「2 段」との違いの理由を書いた</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong><code>cmdpos.sh</code> の既知の制約</strong>（<code>git 'commit'</code> のサブコマンドが <code>_</code> になる）。<code>shlex</code> に頼らず直せる見込みがあるが #15 の受け入れ条件に無い。0050 で別 issue にするか決める</li>
+    <li><strong>テスト ID の重複</strong>: <code>CP-T08</code> が <code>test_commit.sh</code> と <code>test_push.sh</code> の両方で使われている。本 PR の変更とは無関係の既存の状態で、テストは全通過している。0050 で扱いを決める</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

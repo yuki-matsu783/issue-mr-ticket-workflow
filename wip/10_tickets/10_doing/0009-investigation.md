@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "調査フェーズの敵対的レ�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "hook-test"]
-started_at: ""
+started_at: "2026-09-03T15:05:46+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b1b93dd"
 ---
 
 # 0009 敵対的レビュー 1 回目の指摘 14 件を調査レポートに反映する

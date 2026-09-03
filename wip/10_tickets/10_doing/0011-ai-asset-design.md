@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回は 00
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T16:01:41+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "aa5682a"
 ---
 
 # 0011 提供コマンド 2 本の置き場を仕様側に確定し、食い違い 5 件と release の段階順を解消する

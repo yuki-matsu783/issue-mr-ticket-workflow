@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装フェーズの 2 回は計
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T22:59:57+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3db87af"
 ---
 
 # 0017 AI アセット実装計画 — 作成物・参照更新・ロックアウト対策の割り付け

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0041 shlex 調査の計画</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査計画</p>
+  <h1 id="title" data-required>0041 shlex 調査の計画</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/shlex-hook-inspection-7t4sc1</code></dd></div>
+    <div><dt>チケット</dt><dd>0041</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead"><code>cmdpos.sh</code> を Python の <code>shlex</code> に寄せられるかを設計フェーズが判断できるよう、shlex の守備範囲・現行実装との差分・ホットパスの起動コストの 3 つを実測で確かめる段取りを決める。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li>観点は 5 つ（A-1 出力 10 項目の切り分け / A-2 扱えない構文 5 種 / A-3 現行との差分 / B-1 起動コストの実測 / B-2 実行環境の前提）</li>
+      <li>調査チケットは 2 枚（0042 が A 系、0043 が B 系）。互いに依存させず、同じ type なのでレビュー境界は 1 回</li>
+      <li>計測スクリプトと shlex 版の試作は <code>wip/tmp/</code> に置き、追跡ファイルには残さない</li>
+      <li>Windows / Git Bash での <code>python3</code> の可用性は測らない。この実行環境から測れないため、前提の列挙で代える</li>
+    </ul>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>観点</th><th>問い</th><th>効く判断点 / 根拠</th></tr></thead>
+    <tbody>
+      <tr><td>A-1</td><td><code>shlex</code> は <code>cmdpos.sh</code> の出力 10 項目のうちどれをそのまま供給できるか</td><td>shlex の置き場 / 受け入れ条件 1</td></tr>
+      <tr><td>A-2</td><td>扱えない構文はどれか（ヒアドキュメント本文・<code>$( )</code> とバッククォートの入れ子・<code>&amp;&gt;</code> と <code>2&gt;&amp;1</code>・コメント・PowerShell のヒアストリングと行継続）</td><td>shlex の置き場 / 受け入れ条件 1</td></tr>
+      <tr><td>A-3</td><td>shlex を通した結果と現行実装で差が出る入力はあるか。あるならどちらが bash の解釈に近いか</td><td>テスト照合役案の価値 / 受け入れ条件 1</td></tr>
+      <tr><td>B-1</td><td>ホットパス 5 本が同時起動する条件で、Python 実装にした場合の 1 ツール呼び出しあたりの増分は何ミリ秒か</td><td>DDR i0009-22 の上書き可否 / 受け入れ条件 2</td></tr>
+      <tr><td>B-2</td><td>Python 実装にする場合、<code>.claude/</code> に何が要るか。DDR i0001-14 を満たす前提は何か</td><td>uv 導入の要否 / 受け入れ条件 2</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>読む対象は <code>.claude/hooks/lib/cmdpos.sh</code>、<code>.claude/hooks/lib/tests/test_cmdpos.sh</code>、<code>.claude/docs/10_spec/フック共通仕様.md</code> §7、DDR <code>i0009-22</code> と <code>i0001-14</code>、ホットパス 5 本のフック本体。<code>.claude/</code> 配下は読むだけで変更しない。</p>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>出力 10 項目の対応表を作る（A-1）</h3>
+      <p><code>cmdpos.sh</code> ヘッダの公開 API の定義を表に起こし、<code>shlex.shlex(punctuation_chars=True)</code> の出力と 1 項目ずつ突き合わせる。「shlex が供給する / 追加実装が残る」の 2 値で埋める。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>扱えない構文の最小入力を作る（A-2）</h3>
+      <p>5 つの構文それぞれに最小入力を用意し、<code>shlex</code> に食わせて実際の出力を記録する。落ちるのか、黙って違う結果を返すのかを区別して書く。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>現行実装との差分を取る（A-3）</h3>
+      <p><code>test_cmdpos.sh</code> のテスト入力を流用し、<code>wip/tmp/</code> の差分スクリプトで現行 <code>cmdpos.sh</code> と shlex 版の試作の出力を比べる。試作は差分を取れる最小限に留める。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>起動コストを測る（B-1）</h3>
+      <p><code>wip/tmp/</code> の計測スクリプトで、bash の <code>cmdpos_parse</code> 1 回と <code>python3</code> 起動 1 回をそれぞれ 50 回測り中央値を取る。5 本同時起動は 1 本あたりの差 &times; 5 で見積もる。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">5</span>
+      <h3>実行環境の前提を列挙する（B-2）</h3>
+      <p>読み取りのみ。インタプリタの解決方法・起動オプション・import するモジュール・DDR i0001-14 を満たすために必要になる項目を並べる。</p>
+    </li>
+  </ol>
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>1・2・3（チケット 0042）</td><td><code>wip/**</code></td><td><code>read</code> / <code>build-test</code>（<code>python3</code> と <code>bash</code> の実行）</td></tr>
+      <tr><td>4・5（チケット 0043）</td><td><code>wip/**</code></td><td><code>read</code> / <code>build-test</code>（同上）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>外部への問い合わせ（<code>curl</code> / <code>wget</code> / Web 検索）は行わない。<code>shlex</code> は Python 標準ライブラリで、この環境の <code>python3</code> 3.11.15 に同梱されている。</p>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>成果物</th></tr></thead>
+    <tbody>
+      <tr><td>A-1 の切り分けに漏れが無い</td><td><code>cmdpos.sh</code> ヘッダが挙げる出力が 10 項目すべて表に現れているか数える</td><td><code>wip/30_reports/0042-investigation.md</code> の対応表</td></tr>
+      <tr><td>A-2 の構文が 5 つとも試されている</td><td>構文ごとに最小入力と実際の出力が対で載っているか</td><td>同上</td></tr>
+      <tr><td>A-3 の差分が再現できる</td><td>差が出た入力を一覧にし、再実行できる形（入力文字列と両者の出力）で残す</td><td>同上</td></tr>
+      <tr><td>B-1 の数字が揺れに埋もれていない</td><td>各 50 回の中央値を取り、bash 版との差が測定の揺れより大きいことを示す</td><td><code>wip/30_reports/0043-investigation.md</code></td></tr>
+      <tr><td>B-2 の前提が具体的である</td><td>「何が無いと動かないか」を項目ごとに書き、確認できていないものは残課題に落とす</td><td>同上</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>答えが出なかった問いは、理由付きで各レポートの「残課題」に残す。設計フェーズはこの 2 本を材料に、置き場を 3 案（本番置換 / テストの照合役 / 採用しない）から選ぶ。</p>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0042</td><td>investigation</td><td>ステップ 1〜3（観点 A-1・A-2・A-3）— shlex の守備範囲と現行実装との差分</td><td>0041</td></tr>
+      <tr><td>0043</td><td>investigation</td><td>ステップ 4〜5（観点 B-1・B-2）— 起動コストの実測と実行環境の前提</td><td>0041</td></tr>
+      <tr><td>0044</td><td>ai-asset-design-plan</td><td>次の計画チケット</td><td>0042, 0043</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>0042 と 0043 は同じ type なので 1 ワークとしてまとまり、レビュー境界は 1 回。互いに依存させない（B-1 の計測は A の切り分けを待たずにできる）。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li>提供コマンド層（<code>ticket.sh</code> / <code>commit.sh</code> ほか）の Python 化の効果測定。#15 の別の受け入れ条件</li>
+    <li><code>scope.sh</code> / <code>hook-common.sh</code> / <code>transcript.sh</code> の移行可否。全体計画書のスコープ外</li>
+    <li>本番実装そのもの。試作は差分を取れる最小限に留め、AI アセット実装フェーズに回す</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>Windows / Git Bash での <code>python3</code> の可用性の実測</td><td>本 PR では行わない。この実行環境（Linux コンテナ）から測れないため、B-2 の前提の列挙で代える。実測が要ると設計フェーズが判断したらフィードバック計画で別 issue にする</td></tr>
+      <tr><td>shlex 版の試作をどこまで作り込むか</td><td>0042 の中で判断する。A-3 の差分を取れる最小限に留める</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

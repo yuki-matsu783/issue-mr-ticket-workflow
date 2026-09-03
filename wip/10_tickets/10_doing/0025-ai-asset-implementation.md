@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "中核の提供コマンドで、�
 allow:
   write: [".claude/skills/00-workflow-issue-mr-driven/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T04:26:21+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "509240b"
 ---
 
 # 0025 S2 中核: boundary.sh とそのテスト（BD-T01〜13）

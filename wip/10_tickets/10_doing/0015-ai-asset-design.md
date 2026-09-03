@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回は 00
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T19:55:22+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "eec068e"
 ---
 
 # 0015 共通ステップ 2 本に申し送り 5 項目を反映し、テンプレートの置き場と 1 タスク 1 レポートを決める

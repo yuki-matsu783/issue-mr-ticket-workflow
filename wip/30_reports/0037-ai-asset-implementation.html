@@ -1,0 +1,436 @@
+<!--
+  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
+       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。
+
+  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
+  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
+  設計への反映 → 想定と異なった点 → 残課題
+
+  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
+  レビューの重みは色相を使わず ◆特に見てほしい / ◇承認が欲しい / ・細かいレビュー不要。
+  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
+
+  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0037 AI アセット実装結果</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装結果 / AI アセット実装</p>
+  <h1 id="title" data-required>0037 AI アセット実装結果 — ヒアドキュメント本文を実行位置として数えない</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 0</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 3</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk stop">✕</span> 1. <code>CP_DATA[i]</code> で <code>_</code> の多義性を解いた</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. 行頭の <code>#</code> がコメントとして畳まれていなかった</a></li>
+          <li><a href="#f3"><span class="mk warn">△</span> 3. 拒否理由を 2 通りに分けた</a></li>
+          <li><a href="#f4"><span class="mk stop">✕</span> 4. プレースホルダが既存の内部プレースホルダと衝突した</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. 補強のテストに最初は検出力が無かった</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#acceptance">受け入れ条件との対応</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0037-ai-asset-implementation</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">0028 で踏んだ過剰拒否を直した。<b>原因は 0036 で入れた判定軸そのものではなく、<code>cmdpos</code> の <code>_</code> が 3 つの別物（潰れたクォート・コメント・ヒアドキュメント本文）を指していたこと</b>だった。潰れたクォートだけが実行位置で、残り 2 つは bash が決して実行しない。<code>CP_DATA[i]</code> を足して呼び手が区別できるようにし、<code>block-chmod</code> がデータだけの段を実行体の判定から外す。<b>0036 で得た「未知の表記も同じ経路で捕まる」性質はそのまま残る</b>。実装中に<b>行頭の <code>#</code> がコメントとして畳まれていない</b>バグも見つけて直した。全件テストは <b>2 ロケールで 15 本 / 71 件・FAIL 0</b>、変異テスト <b>6 か所</b>すべてで落ちる。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>0</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>3</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+      <li><b>r1（△注意）<code>CP_DATA</code> の意味の切り方</b>。「段のトークンがすべてプレースホルダなら data=1」にした。<code>ls # コメント</code> は実行位置 <code>ls</code> を持つので data=0、コメントだけの行とヒアドキュメント本文は data=1。<b>この切り方で見落とす形が無いか</b>を見てほしい（<a href="#f1">1 章</a>）</li>
+      <li><b>r2（△注意）入力から生のプレースホルダを落とす補強を残すか</b>。現実に踏む経路は思いつかなかった（変異 M16 は最初 0 件）。「出力に現れるプレースホルダは正規化が置いたものだけ」という性質を後続のフック 10 本が前提にしてよい、という理由で残した（<a href="#f5">5 章</a>）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+      <li><b>r3</b>: <code>CP_DATA</code> を新しい配列にしたこと（<code>CP_OPAQUE</code> に相乗りしない。あちらは「中身が実行され得る」で意味が正反対。<a href="#f1">1 章</a>）</li>
+      <li><b>r4</b>: 行頭の <code>#</code> をコメントとして畳むようにしたこと。仕様 §7 に語の切れ目の定義が無く、実装が改行を含めていなかった（<a href="#f2">2 章</a>）</li>
+      <li><b>r5</b>: 拒否理由を 2 通りに分けたこと（<a href="#f3">3 章</a>）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+      <li>プレースホルダを <code>\x03</code> にしたこと（<code>\x01</code> は <code>_CP_DUP</code>、<code>\x02</code> は <code>_CP_AMPRED</code> が使用中。<a href="#f4">4 章</a>）</li>
+      <li><code>test_cmdpos.sh</code> の <code>dump</code> に <code>data=%s</code> を足したこと</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><b><code>_</code> を作る経路を網羅していない</b>。塞いだのはヒアドキュメント本文とコメントの 2 経路</li>
+      <li><b><code>CP_DATA</code> の呼び手は <code>block-chmod</code> 1 本だけ</b>。残り 10 本でどう使うかは決めていない</li>
+      <li><b><code>shellcheck</code> は 5 巡連続で未導入</b>。静的検査は実施できていない</li>
+      <li><b>PowerShell 側は測っていない</b>。ヒアストリング（<code>@'…'@</code>）は別経路で潰しており <code>CP_DATA</code> は付かない</li>
+      <li><b>bash 4.2 以下での実行は試していない</b>（0036 からの持ち越し）</li>
+      <li><b>過剰拒否が「これで無くなった」とは言えない</b>。0028 で踏んだ 1 経路と、0028 の切り分けで作った対照の範囲でしか確かめていない</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+      <li>チケット: <code>wip/10_tickets/20_done/0037-ai-asset-implementation.md</code>（DoD 10 件）</li>
+      <li>発端: 0028 の実測（登録から 3 回目の Bash 呼び出しが WF501 で止まった）</li>
+      <li>仕様: フック共通仕様 §7（cmdpos の正規化・分割）、<code>block-chmod.md</code></li>
+      <li>実体: <code>.claude/hooks/lib/cmdpos.sh</code>、<code>.claude/hooks/20-PreToolUse/block-chmod.sh</code>、各テスト</li>
+      <li>環境: Windows 10 Pro / Git Bash・<code>jq</code> あり・<code>shellcheck</code> <b>無し</b>・<code>block-chmod</code> は登録済み</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot stop">1</span>
+      <h3 id="f1"><code>CP_DATA[i]</code> で <code>_</code> の多義性を解いた <span class="chip stop">✕問題</span> <span class="basis">根拠: BC-T02 の 4 形が直す前は FAIL / 変異 M11・M12・M14 で落ちる</span></h3>
+      <p><code>cmdpos</code> の <code>_</code> は 3 つの別物を指していた。潰れたクォートは<b>実行位置</b>（bash はその語を実行する）だが、コメントとヒアドキュメント本文は違う。呼び手はどちらか一方に倒すしかなく、0036 は「実行位置」に倒したのでデータを難読化と誤読した。<code>CP_DATA[i]</code> を足し、正規化はデータだけの内容を内部プレースホルダで出して、段を組み立てる時点で <code>_</code> に戻しつつ「全トークンがプレースホルダなら data=1」を記録する。<b>呼び手から見える値（<code>CP_EXE</code> / <code>CP_ARGS</code> …）は 1 つも変わらない</b>。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>`_` の出どころ          実行位置か   例
+潰れたクォート          はい         "chmod" +x a  →  _ +x a
+コメント                いいえ       # do not use chmod
+ヒアドキュメント本文    いいえ       cat &lt;&lt;PY の後ろの行
+
+（直した後）
+cat &gt; o.py &lt;&lt;PY\nE = ["chmod --version"]\nPY
+  →  [0]exe=cat data=0   [1]exe=_ data=1   ← block-chmod は seg1 を実行位置から外す</code></pre>
+      </details>
+      <div class="box ng">
+        <p class="label">結論</p>
+        <p><code>block-chmod</code> は制御方式 5 のループ先頭で <code>CP_DATA=1</code> の段を飛ばす。<b>0036 で得た「未知の表記も同じ経路で捕まる」性質はそのまま残る</b>。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">行頭の <code>#</code> がコメントとして畳まれていなかった <span class="chip stop">✕問題</span> <span class="basis">根拠: 変異 M13 で cmdpos 2 件</span></h3>
+      <p><code>_cp_normalize_to_reply</code> の <code>'#'</code> の分岐は直前の文字が語の切れ目かを見るが、その一覧に改行（<code>$_CP_NL</code>）が入っていなかった。bash はコメント行を丸ごと無視するので、データとして畳むのが正しい。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>（直す前）
+ls\n# do not use chmod\necho b   →  [0]exe=ls [1]exe=#  [2]exe=echo
+                                              ^^^^^^^ コメントの中の語が引数として残る
+（直した後）
+ls\n# do not use chmod\necho b   →  [0]exe=ls [1]exe=_  [2]exe=echo   （seg1 は data=1）</code></pre>
+      </details>
+      <div class="box ng">
+        <p class="label">結論</p>
+        <p><code>block-chmod</code> では実害が出ていなかった（実行体 <code>#</code> は禁止語に一致しない）が、<code>workflow-guard</code> など「引数を見る」フックはコメントの中の語を引数として拾っていた。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">3</span>
+      <h3 id="f3">拒否理由を 2 通りに分けた <span class="chip warn">△注意</span> <span class="basis">根拠: 登録済みフックでの実測</span></h3>
+      <p>0028 で過剰拒否を踏んだとき、出た文面は「実行権限の変更は不要で、スクリプトは 'bash &lt;パス&gt;' で実行する」だけで、<b>文書に <code>chmod</code> と書いただけの読み手には何の案内にもならなかった</b>。実行体を特定できないために倒したときは、何が妨げたかと、実行するつもりが無い場合の道を書くようにした。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash -c "chmod --version"
+WF501: コマンドの中に禁止コマンド 'chmod' の語があり、実行体を特定できない箇所（変数展開・
+コード文字列など）があるため拒否側に倒した。実際に 'chmod' を実行するつもりなら、実行権限の
+変更は不要で、スクリプトは 'bash &lt;パス&gt;' で実行する。実行するつもりが無い（文書・コメント・
+検索語として書いただけ）なら、その語を含む部分を Write / Edit で書くか、シェルに渡さない形に
+変える。迂回（環境変数での無効化・語の分割・言い換え）はしないこと</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>実行体を特定できて拒否したときは従来の文面のまま（余計な情報を足さない）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">4</span>
+      <h3 id="f4">プレースホルダが既存の内部プレースホルダと衝突した <span class="chip stop">✕問題</span> <span class="basis">根拠: 既存テスト 1 件が拾った</span></h3>
+      <p><code>\x02</code> を選んだが、<code>cmdpos</code> は既に <code>_CP_AMPRED=$'\x02'</code>（<code>&amp;&gt;</code> の保護）で使っていた。入力から生のプレースホルダを落とす補強を入れた瞬間、<code>&amp;&gt;</code> のリダイレクトが壊れた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>FAIL HK-T05: 出力に 'redir=[all.log]' が無い
+  : count=1 degraded=0\nseg0: exe=cmd sub=_&gt; args=[_&gt; all.log] redir=[] ...
+
+_CP_DUP=$'\x01'      # `&gt;&amp;` `&lt;&amp;`（fd 複製）の保護
+_CP_AMPRED=$'\x02'   # `&amp;&gt;`（stdout+stderr のリダイレクト）の保護
+_CP_DATA_PH=$'\x03'  # ← ここに置いた（\x01 \x02 は使用中）</code></pre>
+      </details>
+      <div class="box ng">
+        <p class="label">結論</p>
+        <p><b>既存テストの 1 件が拾った</b>ので <code>\x03</code> に変えた。割り当て表が 1 か所にまとまっていないのが原因で、0032 へ送った。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5">補強のテストに最初は検出力が無かった <span class="chip warn">△注意</span> <span class="basis">根拠: 変異 M16 が 0 → 2 件</span></h3>
+      <p><code>\x03 +x a</code> のように他のトークンを伴う形は、補強が無くても <code>data=0</code> になる（段の全トークンがプレースホルダでないため）。<b>段がプレースホルダ 1 個だけになる形</b>に直して 2 件になった。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>（直す前のテスト）
+run_cmd dump $'\x03 +x a'        → data=0   ← 補強の有無で変わらない
+run_cmd dump $'\x03chmod +x a'   → data=0   ← 同上
+変異 M16（補強を外す）: cmdpos passed=275 failures=0
+
+（直した後のテスト）
+run_cmd dump $'ls\n\x03\necho b'  → seg1 は data=1 になってはいけない
+run_cmd dump $'\x03'              → data=1 になってはいけない
+変異 M16: cmdpos passed=275 failures=2</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>0036 の申し送り「変異が 0 件だったら『その行は要らない』と即断せず、重ならない条件を探す」がそのまま効いた。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>全件テスト（既定ロケール）</td><td><b>15 本 / 71 件・FAIL 0</b></td></tr>
+      <tr><td>全件テスト（<code>LC_ALL=C.UTF-8</code>）</td><td><b>15 本 / 71 件・FAIL 0</b></td></tr>
+      <tr><td><code>test_cmdpos.sh</code></td><td>passed=277 failures=0（0036 は 247）</td></tr>
+      <tr><td><code>test_block_chmod.sh</code></td><td>passed=88 failures=0（0036 は 75）</td></tr>
+      <tr><td><code>test_hook_common.sh</code> / <code>test_scope.sh</code></td><td>182 / 312（0036 から変化なし）</td></tr>
+      <tr><td>追加したケースが直す前に落ちる</td><td>BC-T02 のヒアドキュメント 4 形（<code>passed=81 failures=4</code>）</td></tr>
+      <tr><td>登録済みフックでの実測</td><td>0028 で踏んだ形が通る／<code>bash -c "chmod --version"</code> は新しい文面で拒否</td></tr>
+      <tr><td>変異テスト</td><td>M11 block_chmod 5 / M12 cmdpos 4・block_chmod 4 / M13 cmdpos 2 / M14 cmdpos 5・block_chmod 5 / M15 cmdpos 5 / M16 cmdpos 2（<b>最初は 0</b>）</td></tr>
+      <tr><td><code>shellcheck</code></td><td><b>未実施</b>（環境に未導入。5 巡連続）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="acceptance">
+  <h2>受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>issue #9 の受け入れ条件</th><th>このチケットでの状態</th></tr></thead>
+    <tbody>
+      <tr><td>フック本体 11 本を実装する</td><td>変わらず 1 本（<code>block-chmod.sh</code>）。残り 10 本は 0029 / 0030</td></tr>
+      <tr><td><code>settings.json</code> に登録する</td><td>⓪ 完了（0028）。① ② は 0031</td></tr>
+      <tr><td>TBD T1〜T4 を検証する</td><td>T6 完了（0028）。T1〜T4 は 0031 の 4c</td></tr>
+      <tr><td>機械テストが通る</td><td><b>2 ロケールで 15 本 / 71 件・FAIL 0</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+      <li><b>0029 / 0030 へ</b>: 10 本を書くとき、<code>CP_DATA[i]</code> が 1 の段は実行位置として扱わない。<b>過剰拒否が塞がったので、拒否側 4 本を足しても作業が止まる恐れは下がった</b></li>
+      <li><b>0031 へ</b>: ① ② の段階登録は計画どおり。手順から「新しいセッションを開く」を外す（0028 の実測）</li>
+      <li><b>0032 へ</b>: 仕様 §7 に <code>CP_DATA[i]</code> を足す／正規化の記述を「3 つを <code>_</code> に潰すが、データだけの段は <code>CP_DATA</code> で区別できる」に直す／語の切れ目に改行を含めることを明示／<b>内部プレースホルダの割り当て表を仕様に置く</b></li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>0028 の過剰拒否は判定軸そのものの問題</td><td><code>_</code> が 3 つの別物を指していたことが原因で、判定軸は戻さずに直せた</td><td><code>CP_DATA</code> を足して呼び手が区別できるようにした</td></tr>
+      <tr><td>コメントは既にコメントとして畳まれている</td><td><b>行頭のときだけ畳まれていなかった</b>（語の切れ目に改行が無い）</td><td>一覧に改行を足した。<code>block-chmod</code> では実害なし、<code>workflow-guard</code> では実害あり</td></tr>
+      <tr><td>プレースホルダに <code>\x02</code> を使える</td><td><code>_CP_AMPRED</code> が既に使用中で、<code>&amp;&gt;</code> のリダイレクトが壊れた</td><td>既存テスト 1 件が拾った。<code>\x03</code> に変え、割り当て表を 0032 へ送った</td></tr>
+      <tr><td>補強のテストは検出力がある</td><td>変異 M16 が 0 件。他のトークンを伴う形では補強の有無を区別できない</td><td>段がプレースホルダ 1 個だけになる形に直して 2 件になった</td></tr>
+      <tr><td>変異テストは前景で一括に回せる</td><td>5 件 ×（テスト 2 回 + 基準確認 2 回）が 10 分の上限を超えた</td><td>件数 × 所要時間を先に見積もり、1 回の呼び出しを 2〜3 件に割る</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+      <li><b><code>_</code> を作る経路の網羅</b>は確かめていない（塞いだのは 2 経路）</li>
+      <li><b>PowerShell のヒアストリング</b>には <code>CP_DATA</code> が付かない</li>
+      <li><b>内部プレースホルダの割り当て表</b>が 1 か所に無い（0032 で仕様に置く）</li>
+      <li><b><code>_bc_seg_unknown</code> はバッククォートを見ていない</b>（0036 から持ち越し）</li>
+      <li><b><code>shellcheck</code> の未導入</b>（環境の制約。5 巡連続）</li>
+      <li><b><code>check-html.sh</code> は md と HTML の内容一致を検査しない</b>（16 回連続の申し送り）</li>
+      <li><b>仕様からの逸脱</b>が持ち越し 14 件 + 今回 2 件（<code>CP_DATA</code> の追加・語の切れ目に改行）</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

@@ -1,11 +1,151 @@
 {
   "enabledPlugins": {
-    "skill-creator@claude-plugins-official": true,
-    "plugin-dev@claude-plugins-official": true
+    "plugin-dev@claude-plugins-official": true, 
+    "skill-creator@claude-plugins-official": true
   },
   "permissions": {
     "defaultMode": "plan"
   },
   "plansDirectory": "./wip/00_overall_plan",
-  "autoCompactWindow": 600000
+  "autoCompactWindow": 600000,
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh\"", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh\" --accumulate", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/workflow-diff-check.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-compact-prompt.sh\"", 
+            "type": "command"
+          }, 
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Bash|PowerShell"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/13-SubagentStop/subagent-stop-check.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Agent"
+      }
+    ], 
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/12-SubagentStart/subagent-start-check.sh\"", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh\"", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Skill"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF109: フック workflow-entry を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow|mcp__.*"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/workflow-state-guard.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF309: フック workflow-state-guard を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|mcp__.*"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-chmod.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF509: フック block-chmod を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
+            "type": "command"
+          }, 
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/block-direct-git.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF409: フック block-direct-git を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Bash|PowerShell"
+      }, 
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/20-PreToolUse/workflow-guard.sh\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"WF209: フック workflow-guard を実行できない（構文エラー・ファイル不在・異常終了）。.claude/hooks の状態を確認してユーザーに報告すること\"}}'", 
+            "type": "command"
+          }
+        ], 
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit|Bash|PowerShell|EnterPlanMode|Agent|Workflow"
+      }
+    ], 
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/13-SubagentStop/subagent-stop-check.sh\"", 
+            "type": "command"
+          }, 
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/22-PostToolUse/post-push-usage-report.sh\" --accumulate", 
+            "type": "command"
+          }
+        ]
+      }
+    ], 
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/00-SessionStart/session-start.sh\"", 
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
 }

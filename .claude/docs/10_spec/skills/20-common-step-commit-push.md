@@ -94,7 +94,7 @@ bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 | # | 項目 | 判定 |
 |---|------|------|
 | 1 | 未コミットの変更が無い | `git status --porcelain` が空 |
-| 2 | 作業中のチケットが無い | `wip/10_tickets/10_doing/` が空。ただし作業中チケットの「やってよいこと」に push が宣言されていれば通す |
+| 2 | 作業中のチケットが無い | `wip/10_tickets/10_doing/` が空。ただし作業中チケットの「やってよいこと」に push が宣言されていれば通す（複数枚あるときは**名前順の 1 枚目**の宣言だけを読む。件数では止めない — 「作業中は 1 枚」を前提に動き、2 枚以上の検知は `workflow-guard` の WF207 が担う。DDR i0009-18） |
 | 3 | レポート・計画書の対が揃っている | `wip/30_reports/`・`wip/20_plans/` の `.md` と `.html` が同じベース名で対になっている（内容の同期は HTML 検査とレビューが担う）。付録 `*-appendix-*.md`（`20-common-step-report-view` 仕様）は HTML を持たないので対の対象外 |
 | 4 | draft 解除後の作業領域が空 | `logs/` の記録が draft 解除済みを示すとき、`wip/` に `.gitkeep` 以外が無い |
 

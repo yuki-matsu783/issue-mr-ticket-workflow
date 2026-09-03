@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0022 AI アセット設計結果 — 根拠の是正と掃き残し</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ -->
+  <p class="kind">AI アセット設計結果レポート / issue #9 フェーズ 3（境界レビューの反映）</p>
+  <h1 id="title" data-required>0022 AI アセット設計結果 — 根拠の是正と掃き残し</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 4</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 1</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk warn">△</span> 1. <code>push.sh</code> の 1 枚目依存を #10 へ申し送る</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. <code>web</code> は <code>curl</code> / <code>wget</code> を分類として強制する</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 打ち切りに権限設定と事後ゲートを採らない</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 閉じられる TBD は閉じ、実測が要るものは残す</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. 非機能要件の是正と自制統制の明記</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 掃き残し 6 件</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-9-hook-bodies-settings</code></dd></div>
+    <div><dt>チケット</dt><dd>0022-ai-asset-design</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">境界レビュー 1 巡目の残り <strong>17 件（S2〜S12・R16・R17・R18・R24・R25・R26）</strong>を反映した。中心は<strong>「決定は妥当だが根拠が偽」という 4 件</strong>（S2・S3・S4・S5）で、いずれも<strong>実体または公式原本を読み直して</strong>正した。更新は要件 1 本・仕様 6 本・DDR 5 本の訂正・全体計画 1 本、新規の DDR は 6 件（<code>i0009-40</code>〜<code>45</code>）。確定したのは 6 つ: (1) <strong><code>push.sh</code> の 1 枚目依存は #10 へ申し送る</strong>（「リモート操作には及ばない」は偽）、(2) <strong><code>web</code> は <code>curl</code> / <code>wget</code> を実行分類として強制する</strong>（<code>curl</code> は「抜け道」ではなく既定拒否で、記録が残る側だけが塞がれる倒錯だった）、(3) <strong>打ち切りの fail-open に権限設定と事後ゲートを採らない</strong>（外側の多重防御が有効であることは書く）、(4) <strong>公式で閉じられる TBD は閉じ、受け入れ条件が実物を求めるものは実測を残す</strong>、(5) <strong>非機能要件からスコープ由来の恒久禁止を外す</strong>、(6) <strong>掃き残し 6 件</strong>。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>f2（✕問題）<code>web</code> を実行分類として強制すること</strong>。<code>i0009-12</code> の決定（<code>web</code> は強制しない）を<strong>コマンド側だけ覆す</strong>判断で、機構に新しい分類を 1 つ足す。倒錯（記録が残る <code>curl</code> が塞がれ、記録が残らない <code>WebFetch</code> が通る）を正す方向はこれしかないと考えたが、<strong>受け入れ条件 5 の「<code>web</code> の強制」に対して過不足がないか</strong>を見てほしい。とくに出力先を持つ形（<code>curl -o</code>）を WF205 に倒す線引きで穴が塞がっているか</li>
+        <li><strong>f1（△注意）<code>push.sh</code> の申し送り</strong>。この issue で直さない判断は変えていないが、<strong>申し送りが #10 に届く経路は「全体まとめの issue コメント」しかない</strong>（<code>wip/</code> は完了処理で消える）。全体計画に表を置いたが、読まれる保証は手順だけである</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><strong>f3</strong>: 打ち切りに対し <code>permissions.deny</code> と <code>PostToolBatch</code> を採らないこと（機構の持ち物の境界と「実行前に止める」を理由にした）</li>
+        <li><strong>f4</strong>: T7 を「文書上は解決 + 4c で実測」に戻すこと（文書での解決を実測の免除にしない）</li>
+        <li><strong>f5</strong>: 非機能要件から「自動実行の仕組みを外部のサービスに置かない」を外すこと</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><strong>f6</strong>: 掃き残し 6 件（<code>BG</code> の通番・<code>commit-tree</code> / <code>stash</code> の踏破・空テーブルの削除・「暫定」の残骸・<code>HK-T16</code> の割り当て）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong><code>curl</code> / <code>wget</code> の出力先オプションの列挙が網羅的か</strong>（<code>--output-dir</code> や <code>.curlrc</code> 経由は見ていない）</li>
+      <li><strong><code>web</code> の強制が調査タスクの実務を止めないか</strong>を実際に走らせて確かめていない</li>
+      <li><strong>申し送りが #10 に届いたか</strong>は、この issue の完了処理（承認⑥）まで確かめられない</li>
+      <li><code>permissions.deny</code> が実際に打ち切りの影響を受けないことを<strong>実測していない</strong>（公式の記述のみ）</li>
+      <li><code>BG-T10</code> に足した <code>git commit-tree abc123</code> が、実装の <code>cmdpos.sh</code> で第 1 サブコマンドとして正しく取れるか</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（読んだ対象）</h2>
+  <ul>
+    <li>実体: <code>.claude/skills/20-common-step-commit-push/scripts/push.sh:80-107</code>（項目 2 の判定）</li>
+    <li>公式原本: <code>wip/tmp/hooks.md</code>（0007 が <code>curl</code> で取得したもの）の <code>:774</code> <code>:778</code> <code>:824</code> <code>:867</code> <code>:1744</code> <code>:2346</code></li>
+    <li>更新対象: 要件 1 本、仕様 6 本（<code>フック共通仕様</code> / <code>workflow-guard</code> / <code>block-direct-git</code> / <code>session-start</code> / <code>workflow-entry</code> / <code>10-task-investigation-plan</code>）、全体計画 1 本</li>
+    <li>訂正した DDR: <code>i0009-08</code> / <code>i0009-11</code> / <code>i0009-12</code>（ファイル名も変更）/ <code>i0009-18</code> / <code>i0009-19</code></li>
+    <li>入力: <code>wip/30_reports/0015-ai-asset-design-appendix-A.md</code>（S2〜S12・R16〜R18・R24〜R26）</li>
+    <li>実行はしていない（テストは実装フェーズ）</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot warn">1</span>
+      <h3 id="f1"><code>push.sh</code> の 1 枚目依存を #10 へ申し送る <span class="chip warn">△注意</span> <span class="basis">根拠: 境界レビュー S2、<code>push.sh:98-100</code></span></h3>
+      <p><code>i0009-18</code> は G8 を「提供コマンドの実体は直さない / #10 への申し送りは出さない」で閉じ、その根拠に「残るリスクは <code>run-tests.sh</code> に閉じており、<strong>作業領域外への書き込みやリモート操作には及ばない</strong>」と書いていた。実体を読むとこれが偽だった。作業中が 2 枚のとき、<strong>push を宣言していない側で作業していても 1 枚目の宣言で push が通る</strong>。<strong>決定</strong>: 決定（実体を直さない）は保ち、根拠を訂正して <strong>#10（3/3）への申し送り</strong>に切り替えた。<code>run-tests.sh</code> と <code>ticket.sh next</code> は影響がローカルに閉じるので「修正不要」のまま。申し送りが届く経路として、全体計画に「#10（3/3）への申し送り」の表を新設し、全体まとめの承認⑥の issue コメントに含めることを段取りに書いた。</p>
+      <p class="basis">実測への依存: <strong>あり</strong>（申し送りが届いたかは完了処理まで分からない）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>push.sh:98   ticket="${doing[0]}"                                # 名前順の 1 枚目
+push.sh:99   ops="$(fm_list "$ticket" allow.ops 2>/dev/null || true)"
+push.sh:100  if grep -qx -- "remote-write:push" &lt;&lt;&lt;"$ops"; then  # → 項目 2 を通す
+
+WF207 は提供コマンドを通すので push.sh はここに到達する
+2 枚以上は ticket.sh start を通らない経路でしか作れない（git 復元・手動移動・破損）
+→ 確率は低いが、影響は「リモートへの取り消しにくい操作」
+DDR: i0009-40（i0009-18 の理由・決定・影響を訂正）</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>決定を保ったまま根拠を正せた。ただし<strong>申し送りが届く保証は手順だけ</strong>で、機構の強制は無い。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2"><code>web</code> は <code>curl</code> / <code>wget</code> を実行分類として強制する <span class="chip stop">✕問題</span> <span class="basis">根拠: 境界レビュー S3、<code>lib/scope.sh:29</code>・<code>workflow-guard.md:55</code></span></h3>
+      <p><code>i0009-12</code> は「<code>WebFetch</code> だけを止めても<strong>抜け道が残る</strong>（<code>Bash</code> の <code>curl</code> まで止めるのは過剰）」を理由の 1 つに挙げていた。実体はその逆で、<code>curl</code> / <code>wget</code> は <code>_SC_READ_ONLY_CMDS</code> に無く、制御方式 6 の末尾で<strong>既定拒否（WF204）</strong>になる。しかも <code>curl</code> は <code>decisions.jsonl</code> に残り、<code>WebFetch</code> は matcher 外で記録すら残らない。<strong>記録が残る側だけが塞がれ、記録が残らない側が素通りする</strong>倒錯だった。<strong>決定</strong>: <code>curl</code> / <code>wget</code> を <code>scope_classify</code> の <strong><code>web</code></strong> に分類し、<code>allow.ops</code> と <code>types[t].ops</code> の両方にあれば許可・無ければ WF204。ただし<strong>出力先を持つ形</strong>（<code>curl -o</code> / <code>-O</code> / <code>--output</code> / <code>--remote-name</code>、<code>wget</code> の既定と <code>-O &lt;file&gt;</code>）は<strong>先に</strong>書き込みとして判定し、出力先が <code>wip/tmp/**</code> / <code>logs/**</code> 以外なら WF205。<code>WebFetch</code> / <code>WebSearch</code> は <code>i0009-12</code> のとおり強制しない。</p>
+      <p class="basis">実測への依存: <strong>あり</strong>（オプションの列挙の網羅性・調査の実務を止めないか）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>lib/scope.sh:29   _SC_READ_ONLY_CMDS に curl / wget は無い
+workflow-guard.md:55  上記のいずれにも該当しない → deny WF204（既定拒否）
+→ curl は「抜け道」ではなく既に塞がれている
+
+食い違っていた記述 6 か所:
+  i0009-12 の理由（抜け道が残る）・却下した案
+  §8「web を宣言したときだけ通る」・§13 の緩和の行
+  要件 制約条件（自制の列挙）
+  i0009-19 D5 の理由（上限に足しても振る舞いは変わらない）
+
+決定後の判定順: 出力先の書き込み判定 → web の宣言判定
+  curl https://x            宣言あり → 許可 / 宣言なし → WF204
+  curl -o wip/tmp/a.md URL  許可
+  curl -o .claude/settings.json URL / curl -O URL  → WF205（宣言があっても）
+  wget URL（既定でカレントに作る）→ WF205 / wget -O - URL → 上記と同じ
+DDR: i0009-41</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>宣言が初めて効くようになり、受け入れ条件 5 の「<code>web</code> の強制」に実体で答えられる。ただし <code>i0009-12</code> の決定を<strong>コマンド側だけ覆す</strong>判断で、機構に分類を 1 つ増やす。線引き（とくに <code>curl -o</code> の扱い）に穴が無いかを見てほしい。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">打ち切りの fail-open に権限設定と事後ゲートを採らない <span class="chip good">◎良</span> <span class="basis">根拠: 境界レビュー S4、<code>hooks.md:1744</code>・<code>:867</code></span></h3>
+      <p><code>i0009-11</code> は打ち切りを「塞げない唯一の穴」として速さで守ると決めたが、<strong>却下した案が機構の外側の手段を検討していなかった</strong>。公式には <code>permissions.deny</code>（フックの結果に関係なく評価される）と <code>PostToolBatch</code> の終了 2（agentic loop を止める）がある。しかも要件の制約条件は既に「権限設定は多重防御として併用してよい」と書いており、例外フローの「この経路は<strong>塞げない</strong>ため」と整合していなかった。<strong>決定</strong>: どちらも<strong>機構の決定には含めない</strong>。<code>permissions.deny</code> は (1) <code>.claude/settings.json</code> がユーザーの持ち物で機構が書き換える対象でない、(2) 複合コマンドを止められないので「止まったつもりで止まっていない」を作る。<code>PostToolBatch</code> は<strong>取り返しがつかない操作は既に実行された後</strong>で「実行前に止める」を満たさない。例外フローを「<strong>機構の中に</strong>この経路を塞ぐ手段は無い」に直し、外側の多重防御は併用してよいと書いた。</p>
+      <p class="basis">実測への依存: 一部あり（<code>permissions.deny</code> が打ち切りの影響を受けないことは公式の記述のみ）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>hooks.md:1744 [Deny and ask rules] are still evaluated regardless of what
+              the hook returns
+hooks.md:867  | PostToolBatch | Yes | Stops the agentic loop before the next
+              model call |
+要件 :173（技術的制約）権限設定だけでは複合コマンドを止められない
+                       （権限設定は多重防御として併用してよい）
+要件 :152（例外フロー）この経路は塞げないため   ← ここが :173 と矛盾
+DDR: i0009-42（i0009-11 の却下した案に 2 件を追加）</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>「検討したうえで採らない」が残り、要件の内側と外側の書き分けができた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">公式で閉じられる TBD は閉じ、実測が要るものは残す <span class="chip good">◎良</span> <span class="basis">根拠: 境界レビュー S5・S6・S7、<code>hooks.md:2346</code>・<code>:774</code>・<code>:778</code>・<code>:824</code></span></h3>
+      <p>§12 の TBD に 3 つのずれがあった。<strong>T1</strong>: 取得済みの原本が既に答えている（「To inject context into the parent session after a subagent returns, use a <code>PostToolUse</code> hook on the <code>Agent</code> tool instead.」）のに実測待ち → <strong>閉じた</strong>。<strong>T6</strong>: 引用が <code>:824</code>、すなわち <strong><code>#### Other exit codes</code>（0 と 2 以外）の節</strong>からの転用で終了 0 の経路を支えていない → <code>:774</code> / <code>:778</code> に差し替え、従前の引用がどの節のものだったかも書き残した。<strong>T7</strong>: 文書の確認だけで打ち消し線を引き、4c で実物を見る動機が消えて全体計画と食い違った → <strong>打ち消し線を外した</strong>。<strong>一般則</strong>: 公式の記述だけで閉じられる TBD は閉じるが、<strong>受け入れ条件が「実物の確認」を明示しているものは、文書での解決を実測の免除にしない</strong>。T1 と T7 で扱いが違うのは、受け入れ条件 5 の列挙に T1 が含まれないため。</p>
+      <p class="basis">実測への依存: あり（T7 はフェーズ 4c で実測する）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>hooks.md:2346 (SubagentStop decision control)
+  To inject context into the parent session after a subagent returns,
+  use a PostToolUse hook on the Agent tool instead.
+hooks.md:774 (### Exit code output)
+  The exit code doesn't act alone. Claude Code reads JSON output fields from
+  stdout on every exit code, not just 0, …
+hooks.md:778 (#### Exit code 0)
+  Exit 0 means success, and is the intended exit code when you print JSON
+  for structured control.
+hooks.md:820 #### Other exit codes    ← :824 はこの節（0 と 2 以外）の説明
+受け入れ条件 5: tool_response / agent_type / web の強制 / defer が
+                「実物の確認に基づいて」仕様に書かれている
+DDR: i0009-43</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>条件 3 の充足度が理由なく下がっていた点と、条件 5 を文書で置き換えていた点の両方が解けた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">非機能要件の是正と自制統制の明記 <span class="chip good">◎良</span> <span class="basis">根拠: 境界レビュー S8・S9・S11、<code>i0009-19</code>・<code>i0009-11</code>・要件の制約条件</span></h3>
+      <p><strong>S8</strong>: 非機能（テスト容易性）の「（自動実行の仕組みを<strong>外部のサービスに置かない</strong>）」は <code>i0009-19</code> の D6 に由来するが、その却下した案は「必要になったら<strong>別 issue で扱う</strong>」と書いており、<strong>恒久の禁止ではなくスコープ由来の判断</strong>だった。括弧を削り、要求の本体（ローカルで行う・実施の有無を作業ログに残す・<strong>この記録は省略できない</strong>）だけを残した。<strong>S9</strong>: 可用性の「拒否側の仕組みは依存が壊れたとき拒否へ」に<strong>打ち切りの例外</strong>を書き足した（0014 は「偽」と名指ししながら例外フローに但し書きを足しただけで、この行自体を直していなかった）。<strong>S11</strong>: メインフロー D の「外部の情報が要るときは調査のタスクを起こす」は主語が機構でなく検証手段が無い。制約条件が自分で課した規約（自制に依存する統制は明記する）に従って但し書きを付け、あわせて自制の列挙から「チケットが宣言した外部への問い合わせの範囲」を外した（f2 で機構が強制するようになったため）。</p>
+      <p class="basis">実測への依存: 無し（要件の文言の是正）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>i0009-19 却下した案: GitHub Actions で shellcheck を回す: リポジトリ設定の
+                     変更に当たる。必要になったら別 issue で扱う
+要件 :204（旧）（自動実行の仕組みを外部のサービスに置かない）  ← 恒久禁止に化けていた
+要件 :202（旧）拒否側の仕組みは依存が壊れたとき拒否へ         ← 打ち切りの例外が無い
+要件 :176      自制に依存する統制は、該当する要件定義書にその旨を明記する
+要件 :92       …調査のタスクを起こして結論を持ち帰らなければならない ← 但し書きが無い
+DDR: i0009-44</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>要件が自分で課した規約に従い、同じ事実が矛盾する場所すべてで揃った。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">掃き残し 6 件 <span class="chip good">◎良</span> <span class="basis">根拠: 境界レビュー S10・R16・R17・R18・R24・R25・R26</span></h3>
+      <p><strong>S10・R18</strong>: <code>workflow-entry.md:29</code> の「<code>assets/entry-skills.txt</code> のパスの基準ディレクトリは 0014 で確定するまで暫定」を削除（同じ行の前半は確定形で自己矛盾していた）。<strong>R16</strong>: §1 の <code>scope.sh</code> の行に <code>HK-T16</code> を追加。<code>HK-T03</code> / <code>T04</code> の誤割り当ては <strong>0021 で <code>HK-T17</code> を足した際に既に解消済み</strong>だった（<code>git show 9e06ecb^</code> で確認）。<strong>R17</strong>: <code>BG-T09b</code> → <code>BG-T09</code>、もとの <code>BG-T09</code>（入力不正）→ <code>BG-T11</code> として表を <code>T01</code>〜<code>T11</code> の通番に。<strong>R26</strong>: <code>BG-T10</code> に <code>git commit-tree abc123</code>（WF401）と <code>git stash</code>（通る）を追加し、「制御方式 3 の語彙表の<strong>全要素</strong>」「明示的に対象外の 2 つ」と対応が分かる文言に。<strong>R24</strong>: <code>session-start.md:85-86</code> のヘッダだけの空テーブルを削除。<strong>R25</strong>: §12 T1 を f4 のとおり閉じた。</p>
+      <p class="basis">実測への依存: 一部あり（<code>git commit-tree abc123</code> が <code>cmdpos.sh</code> で取れるか）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>R16 の検証:
+  git show 9e06ecb^:…/フック共通仕様.md | sed -n 18p
+    → lib 単体のテスト観点は §11 HK-T03・T04・T06〜T08・T10   （0021 以前）
+  現在  → lib 単体のテスト観点は §11 HK-T06〜T08・T10・T17    （0021 で解消済み）
+  今回の追加は 20 行目（scope.sh）に HK-T16 を足すだけ
+
+R17 の結果: T01 … T08 / T09（PowerShell 正常系）/ T10 / T11（入力不正）
+R26 の結果: BG-T10 = revert / cherry-pick / rebase --continue / am /
+            commit-tree（すべて WF401）+ merge / stash（通る）
+  ※ git commit-tree $(git write-tree) にしないのは、コマンド置換が
+     BG-T04 の観点を呼び込んで混ざるため
+DDR: i0009-45（R17・R26）</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>6 件すべて片付いた。R16 の半分は 0021 の副産物として既に解消していた。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>更新した要件定義書</td><td>1 本（非機能 2 行・メインフロー D・制約条件・例外フロー）</td></tr>
+      <tr><td>更新した仕様書</td><td>6 本（<code>フック共通仕様</code> / <code>workflow-guard</code> / <code>block-direct-git</code> / <code>session-start</code> / <code>workflow-entry</code> / <code>10-task-investigation-plan</code>）</td></tr>
+      <tr><td>訂正した DDR</td><td>5 件（<code>i0009-08</code> / <code>i0009-11</code> / <code>i0009-12</code>（ファイル名も変更）/ <code>i0009-18</code> / <code>i0009-19</code>）。いずれも未マージのため本文の訂正で直した</td></tr>
+      <tr><td>新規の DDR</td><td>6 件（<code>i0009-40</code>〜<code>i0009-45</code>。<strong>割り当て帯 40〜45 に完全一致</strong>）</td></tr>
+      <tr><td>追加したテスト観点</td><td>1 件（<code>WG-T15</code> = <code>web</code> の分類と <code>curl -o</code> の書き込み判定）。<code>BG-T10</code> の期待値を拡張し、<code>BG-T09</code> / <code>BG-T11</code> を改番</td></tr>
+      <tr><td>対応した指摘</td><td>17 件（S2〜S12・R16・R17・R18・R24・R25・R26）。すべて反映済み</td></tr>
+      <tr><td>偽と分かった根拠</td><td>4 件（S2 リモートに及ばない / S3 抜け道が残る / S4 塞げない / S5 文書で解決）。<strong>すべて実体か公式原本で確認してから直した</strong></td></tr>
+      <tr><td>要件に内部構造が漏れていないか</td><td>漏れなし（<code>web</code> の強制は「宣言した分類の操作」という既存の受け入れ基準の内側で、要件に <code>curl</code> の名を書いていない）</td></tr>
+      <tr><td>ヘッドレス実行の帰結</td><td>変更なし（<code>web</code> の判定は deny / allow のみで ask を使わない）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>受け入れ条件との対応</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件（issue #9）</th><th>このチケットが満たす分</th><th>テスト ID（種別）</th></tr></thead>
+    <tbody>
+      <tr><td>3</td><td>公式リファレンスとの整合が取れている</td><td>T1 を <code>hooks.md:2346</code> で閉じ、T6 の引用を <code>:774</code> / <code>:778</code> に差し替え、T7 の実測を 4c に残した。<code>:1744</code> / <code>:867</code> を根拠に多重防御の 2 案を検討した</td><td>—</td></tr>
+      <tr><td>5</td><td><code>tool_response</code> / <code>agent_type</code> / <code>web</code> の強制 / <code>defer</code> の扱いが実物の確認に基づいて仕様に書かれている</td><td><strong><code>web</code> の強制</strong>をこのチケットで決めた（<code>curl</code> / <code>wget</code> は分類として強制、<code>WebFetch</code> / <code>WebSearch</code> は理由付きで「扱わない」）。<code>tool_response</code> は文書解決 + 4c の実測を復活させた</td><td>WG-T15（機械）</td></tr>
+      <tr><td>6</td><td>決定の経緯が DDR に残っている</td><td><code>i0009-40</code>〜<code>45</code>（6 件）+ 既存 5 件の訂正</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>全体まとめへ（最重要）</strong>: 承認⑥の issue コメントに「#10（3/3）への申し送り」の表 5 件を含める。<code>wip/</code> は <code>reset-wip</code> で消えるので、<strong>この経路しか #10 に届かない</strong></li>
+    <li><strong>0016 へ</strong>: <code>scope.sh</code> に <code>_SC_WEB_CMDS</code>（<code>curl</code> <code>wget</code>）と、送信側・出力先オプションの照合を足す作業項目（判定順は <code>i0009-56</code>）。<strong>訂正（0025）</strong>: ここで「<code>cmdpos_operands</code>（<code>i0009-39</code>）が使える」と書いたのは誤り。<code>cmdpos_operands</code> はオプション本体を落とすので URL と出力先を区別できない。正は <code>cmdpos_args</code> の走査（<code>i0009-57</code>）</li>
+    <li><strong>0016 へ</strong>: <code>tests/test_block-direct-git.sh</code> は 11 件（<code>BG-T01</code>〜<code>T11</code>）。<code>BG-T10</code> は語彙表の全要素 + 対象外 2 つ</li>
+    <li><strong>フェーズ 4c へ</strong>: T7 の実測（<code>post-push-*</code> が受け取る <code>tool_response</code> を <code>logs/</code> に落とす）。T1 は実測不要</li>
+    <li><strong>実装フェーズへ</strong>: <code>web</code> の判定は「出力先の書き込み判定 → <code>web</code> の宣言判定」の順。順序を逆にすると <code>curl -o</code> が宣言だけで通る</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>S3 は「§8 の 1 文を直す」程度</td><td><code>curl</code> が既定拒否である事実が 6 か所に波及し、しかも<strong>倒錯</strong>（記録が残る側だけ塞ぐ）という設計上の問題だった</td><td>f2 として <code>web</code> を実行分類にする決定に格上げし、✕問題として出した</td></tr>
+      <tr><td>S4 は「却下した案を 2 行足す」だけ</td><td>要件の制約条件（併用してよい）と例外フロー（塞げない）が<strong>元から矛盾</strong>していた</td><td>f3 で機構の内外を書き分けた</td></tr>
+      <tr><td>R16 は 2 か所の直し</td><td><code>HK-T03</code> / <code>T04</code> の側は <strong>0021 で既に解消していた</strong>（<code>HK-T17</code> を足したときに書き換えた行に含まれていた）</td><td><code>git show</code> で確認し、残る <code>HK-T16</code> の追加だけを行った</td></tr>
+      <tr><td><code>i0009-12</code> はタイトルを変えずに済む</td><td>決定の範囲が <code>WebFetch</code> / <code>WebSearch</code> に狭まり、タイトル（<code>web</code> は機構が強制せず）が偽になった</td><td>ファイル名ごと <code>git mv</code> で改名した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>申し送りが #10 に届く保証が手順だけ</strong>（f1）。全体まとめが表を読み落とすと消える。機械で担保する手段は無い</li>
+    <li><strong><code>curl</code> / <code>wget</code> の出力先オプションの列挙</strong>が網羅的か（<code>--output-dir</code>・<code>.curlrc</code> は見ていない）。実装フェーズで確かめる</li>
+    <li><strong><code>web</code> の強制が調査の実務を止めないか</strong>を走らせて確かめていない</li>
+    <li><code>permissions.deny</code> が打ち切りの影響を受けないことは<strong>公式の記述のみ</strong>で、実測していない</li>
+    <li><code>git commit-tree abc123</code> が <code>cmdpos.sh</code> で第 1 サブコマンドとして取れるか（<code>BG-T10</code>）</li>
+    <li><strong>訂正した DDR 5 件はいずれも未マージ</strong>だから本文を直せた。マージ後に同種の誤りが見つかったら、新しい DDR で置き換える形になる（<code>ai-asset-design-docs</code> の堅牢性）</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

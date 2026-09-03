@@ -26,15 +26,17 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 
 ## 入出力
 
-- 入力: `tool_input.command`、`tool_response`（終了コード・出力）。参照: `git remote get-url origin`、`git rev-parse HEAD` / `@{upstream}`、`git diff --name-only <前回>..HEAD`、`logs/mr.json`、`logs/push-state.json`
+- 入力: `tool_input.command`。参照: `git remote get-url origin`、`git rev-parse HEAD` / `@{upstream}`、`git diff --name-only <前回>..HEAD`、`logs/mr.json`、`logs/push-state.json`
 - 出力: additionalContext（WF901）と `logs/push-state.json` の更新
 
 ## 制御方式
 
 ### push 検知（`lib/push-detect.sh`。正）
 
+`push_detect <起点 sha>` は**状態ファイルを読まず書かない**。「前回どこまで push したか」は**呼び手が自分の状態から渡す**（このフックは `push-state.json[b].sha`、`post-push-usage-report` は `usage/<branch>.json` の `last_push_sha`）。共有ライブラリが特定の状態ファイルを持つと、先に走ったフックの状態更新が後のフックの検知を偽にしてしまう（フックは並列に走るのでレースにもなる。DDR i0009-24）。
+
 1. コマンド列（`cmdpos.sh`）に提供コマンド `push.sh` があるか、または実行位置に `git push`（緊急停止時の直接実行）がある
-2. かつ成功: `tool_response` の終了コードが 0（フィールド名は `exit_code` / `exitCode` / `returnCode` / `code` の順に読み、どれも無ければ 0、`interrupted: true` は失敗とみなす — 実物の形はフック共通仕様 §12 T7）、かつ HEAD がリモートに反映された — `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致。`@{upstream}` が解決できないとき（初回 push で上流が未設定など）は `origin/<b>` と比較し、それも無ければ `tool_response` の終了コード 0 をもって反映されたとみなす（縮退）、かつ `push-state.json[b].sha` が HEAD と異なる（前回 push 時点から進んでいる。記録が無ければ初回として真。push するものが無かった成功は検知しない）
+2. かつ成功: **PostToolUse に届いた時点で成功とみなす**（公式は「`PostToolUse` hooks fire after a tool has already executed successfully.」と明記し、失敗は別イベント `PostToolUseFailure` に流れる。`tool_response` に終了コードのフィールドは存在しない — `Bash` が返すのは `stdout` / `stderr` / `interrupted` / `isImage`。DDR i0009-07）、かつ HEAD がリモートに反映された — `git rev-parse HEAD` と `git rev-parse @{upstream}` が一致。`@{upstream}` が解決できないとき（初回 push で上流が未設定など）は `origin/<b>` と比較し、それも無ければ PostToolUse に届いたこと自体をもって反映されたとみなす（縮退）、かつ**呼び手が渡した起点 sha が HEAD と異なる**（前回 push 時点から進んでいる。起点が空なら初回として真。push するものが無かった成功は検知しない）
 3. 満たさなければ何もしない（前回 push 時点も更新しない）
 
 ### 本体
@@ -57,7 +59,7 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
    - 変更ファイルは `git diff --name-only <prev>..<head>`（初回は `origin/<default>..<head>`）。上限 15 件。超過分は件数だけ
    - MR 未記録（`logs/mr.json` 無し）→ MR に依存するリンクを省き **WF903** の注記
    - 初回（`prev` 無し）→ 前回 push からの差分とコメント一覧を省き **WF902** の注記
-5. `push-state.json[b]` を `{sha: head, at, count+1}` に更新する（`logs/` はコミット対象外・片付け対象外なので、片付け後の最終 push でも前回が残る）
+5. `push-state.json[b]` を `{sha: head, at, count+1}` に更新する（**このフック専用の状態**。`post-push-usage-report` はこれを読まない — DDR i0009-24）。書き換えは §5 の規則に従い一時ファイル + `mv` で行う（`logs/` はコミット対象外・片付け対象外なので、片付け後の最終 push でも前回が残る）
 6. additionalContext（WF901）: リンク一覧（日本語の見出し + URL）に続けて「レビュー依頼メッセージ（`boundary.sh request` の本文）にこれらを含めること」「タスクの切れ目の処理（MR 本文更新・レビュー依頼）を終えたら、ユーザーに `/compact` の実行を促すこと。`AskUserQuestion` で待たない」
 7. origin・差分・記録の取得に失敗 → 取得できた分だけ伝える（何も取れなければ無出力）
 
@@ -85,13 +87,13 @@ keywords: [PostToolUse, push 検知, push.sh, 参照リンク, MR リンク, com
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
 | PP-T01 | 正常系 | `push.sh` 成功（HEAD == upstream）で WF901 が出て `push-state.json` が更新される |
-| PP-T02 | 正常系 | push 失敗・`git status` などでは何も出ず記録も変わらない。`grep "git push"` でも働かない |
+| PP-T02 | 正常系 | `git status` などでは何も出ず記録も変わらない。`grep "git push"` でも働かない。**push の失敗はこのフックに届かない**（失敗は `PostToolUseFailure` に流れる — §12 T7）ので、失敗ケースは lib 単体（HK-T13）でも本体でも検査しない |
 | PP-T03 | 正常系 | 直接 `git push` が成功したときも働く |
 | PP-T04 | 正常系 | GitHub / GitLab の origin（https / ssh）でリンク形式が表どおり |
 | PP-T05 | 境界 | 初回で WF902、MR 未記録で WF903、変更 20 件で 15 件 + 「他 5 件」 |
 | PP-T06 | 正常系 | ブランチごとに `push-state.json` が独立 |
 | PP-T07 | 異常系 | origin 取得失敗で変更ファイル一覧だけ伝える。全滅で無出力 |
-| PP-T08 | 境界 | 上流未設定の初回 push（`@{upstream}` 不在）でも `origin/<b>` または終了コード 0 で検知され、`push-state.json` が作られる |
+| PP-T08 | 境界 | 機械テスト。上流未設定の初回 push（`@{upstream}` 不在）でも `origin/<b>`、それも無ければ PostToolUse に届いたこと自体で検知され、`push-state.json` が作られる |
 
 ## 要件との対応
 

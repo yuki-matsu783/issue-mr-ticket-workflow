@@ -3,7 +3,7 @@ type: spec
 title: workflow-guard フック 仕様
 description: 作業中チケットの宣言とタスクの種類ごとの上限設定だけを材料に、書き込み・コマンド・プランモード・リモート操作を許可 / 確認 / 拒否するフックの内部仕様。scope-limits.json の形式（正）、判定順、コマンドの分類、チケット自身の改変の拒否、WF20x、記録を定める
 tags: [spec, hook, workflow-guard]
-keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁止範囲, 毎回確認, 未記載パス, ask, deny, コマンド分類, 読み取り系, 提供コマンド, リモート書き込み, WIP 1枚, 自己改変, プランモード, WF201, WF208, WF210]
+keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁止範囲, 毎回確認, 未記載パス, ask, deny, コマンド分類, 読み取り系, 提供コマンド, リモート書き込み, WIP 1枚, 自己改変, プランモード, パスの正規化, 作業ツリー外, WF201, WF208, WF209, WF210]
 ---
 
 # workflow-guard フック 仕様
@@ -24,7 +24,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 
 ## 呼出条件（イベント・matcher・登録）
 
-- PreToolUse、matcher: 書き込み / 実行 / プランモード / 起動（共通仕様 §1 の表。entry → state-guard → block-* の後、最後に実行）
+- PreToolUse、matcher: 書き込み / 実行 / プランモード / 起動（共通仕様 §1 の表の PreToolUse 6 行目。**位置であって実行順ではない** — フックは並列に走る（§1）。他の拒否側フックと同時に deny を返し得るので、拒否理由は単独で読んで成立する文面にする）
 - 前提: `wip/10_tickets/10_doing/` に `.md` が 1 枚。0 枚なら即座に許可。2 枚以上は異常（WF207）
 
 ## 入出力
@@ -37,10 +37,12 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 判定順:
 
 1. 停止中 → `disabled` を記録して許可。作業中チケット 0 枚 → 許可（記録しない）
-2. 作業中チケットが 2 枚以上 → 提供コマンド（`ticket.sh` 等）以外の書き込み・実行を **deny WF207**（1 枚を残して他を `ticket.sh` で戻す対処を案内）
-3. `scope-limits.json` が無い・解釈できない → **deny WF210**。復旧経路として許可するのは: 提供コマンドの実行、`wip/10_tickets/**` への書き込み、`scope-limits.json` 自身への **ask（WF203）付きの**書き込み（設定が読めない間も上限設定の書き換えを AI の裁量にしない。ヘッドレスでは deny になり人間が直す）
+2. 作業中チケットが 2 枚以上 → 提供コマンド（`ticket.sh` 等）以外の書き込み・実行・**プランモード**（`EnterPlanMode`）を **deny WF207**（1 枚を残して他を `ticket.sh` で戻す対処を案内）。プランモードを含めるのは、どちらのチケットの `plan_mode` を見ればよいかが決まらないため（起動と読み取りは通す）。`ask` にはしない（ヘッドレス実行では確認の応答が得られず、確認が拒否に化けるため。共通仕様 §10）
+   - **提供コマンド側は 2 枚以上を検知しない**（非対称）: `run-tests.sh` と `push.sh` は `10_doing/*.md` の 1 枚目だけを読んで `allow.ops` を判定し、`ticket.sh next` も 1 枚目だけを返す。件数で止めるのは `ticket.sh start`（2 枚目の着手を TK002 で拒否）だけで、完了検査は番号引数を取るので非対称ではない。したがって **2 枚以上の状態を「機構の異常」として止めるのはこのフックの役割**であり、提供コマンドの側は 1 枚である前提で動く（issue #9 G8。DDR i0009-02）
+3. `scope-limits.json` が無い・解釈できない（`HC_LIMITS_STATE` が `missing` / `broken`。副入力の破損は `hook_read_input` を落とさない — §1・DDR i0009-47）→ **deny WF210**。復旧経路として許可するのは: 提供コマンドの実行、`wip/10_tickets/**` への書き込み、`scope-limits.json` 自身への **ask（WF203）付きの**書き込み（設定が読めない間も上限設定の書き換えを AI の裁量にしない。ヘッドレスでは deny になり人間が直す）
 4. チケットの frontmatter が読めない・`ticket_type` が `types` に無い → **deny WF211**。復旧経路: 提供コマンドの実行、そのチケットファイル自身の編集
-5. **書き込みツール**: 対象パス `p` を正規化（リポジトリルート相対）し、
+5. **書き込みツール**: 対象パス `p` を正規化（リポジトリルート相対。**`.` と `..` を畳んでから判定する** — 畳まないと `wip/../.claude/settings.json` のような書き方が保護範囲の glob に一致せず、未記載パス（WF202）に落ちる）し、
+   - 畳んだ結果が**作業ツリーの外**に出る（`..` でルートより上、または作業ツリー外の絶対パス）→ **deny WF209**。承認単位にもしない（どの範囲にも属さないため判定できない）。**帰結として Claude Code のメモリ（`~/.claude/projects/<プロジェクト>/memory/`）にも書けない** — 作業ツリーの外にあるため。このプロジェクトはメモリを使わない前提を採り、どうしても要るときだけ `WORKFLOW_GUARD_ENFORCE=0` の新しいセッションで書く。設定に「作業ツリー外でも書いてよい場所」を足す案は採らない（設定の構造が増えるわりに作業ツリー外への書き込みは本来まれなため）
    - `p` が作業中チケット自身で、変更範囲が frontmatter の `ticket_type` / `allow` / `executor` / `human_review` / `adversarial_review` / `predecessors` に及ぶ（Edit の `old_string` / `new_string` または Write の内容と現在値の差で判定）→ **deny WF208**。本文（DoD・作業ログ）だけなら許可
    - それ以外は `scope.sh` の判定順（共通仕様 §8）で allow / ask WF202 / ask WF203 / deny WF201
 6. **実行ツール**: `cmdpos.sh` で実行位置のコマンド列を得て、セグメントごとに:
@@ -51,6 +53,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
    - `remote-read`（`gh` / `glab` の参照系）→ 許可
    - `remote-write:<種別>` → チケットの `allow.ops` にその種別があり、かつ `types[t].ops` にもある → 許可、無ければ **deny WF206**
    - `build-test` / `hook-test` / `merge-base` → 同様に `allow.ops` と `types[t].ops` の両方にあれば許可、無ければ **deny WF204**
+   - `web`（`curl` / `wget`）→ 共通仕様 §8 の**判定順**（送信側 → 出力先 → `web`）で扱う。(1) 送信側の形（`-T` / `--upload-file` / `-d` / `--data*` / `-F` / `--form` / `-X` の GET・HEAD 以外、`wget` の `--post-*` / `--body-*` / `--method` の GET・HEAD 以外）は**宣言の有無によらず deny WF206**。(2) 出力先を持つ形（`curl` の `-o` / `--output` / `-O` / `--remote-name` / `--output-dir`、`wget` の既定と `-O <file>`）は書き込みとして扱い、出力先パスに 5 と同じ判定を当てる（`wip/tmp/**` / `logs/**` なら許可、それ以外は **deny WF205**）。(3) 残りは `allow.ops` と `types[t].ops` の両方に `web` があれば許可、無ければ **deny WF204**。宣言があっても (1)(2) は免除しない（DDR i0009-41・i0009-56・i0009-57）
    - 上記のいずれにも該当しない → **deny WF204**（既定拒否。読み取り系の一覧に足すか、分類を宣言するかを案内）
 7. **プランモード**（`EnterPlanMode`）: `types[t].plan_mode` が true でなければ **deny WF212**
 8. **起動**（`Agent` / `Workflow`）: 許可（実行者の不一致は `subagent-start-check` が伝える）
@@ -72,7 +75,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WF206 | deny | 宣言に無いリモート書き込み | 操作の種別 / リモート書き込みは切れ目の処理か宣言内のみ |
 | WF207 | deny | 作業中が 2 枚以上 | チケット番号の一覧 / `ticket.sh` で 1 枚に戻す |
 | WF208 | deny | 作業中チケット自身の種類・宣言・実行者・レビュー要否（人間・敵対的）の改変 | 変えようとした項目 / 見直しは未着手チケットか計画で |
-| WF209 | deny | 判定不能（opaque・縮退・入力不正） | 判定できなかった理由 / 言い換え（`ai-command-style`）またはユーザーへの報告 |
+| WF209 | deny | 判定不能（opaque・縮退・入力不正・**作業ツリーの外のパス**） | 判定できなかった理由 / 言い換え（`ai-command-style`）またはユーザーへの報告 |
 | WF210 | deny | 上限設定なし・不正 | 設定パス / 復旧経路（設定とチケットの修正・提供コマンド） |
 | WF211 | deny | チケットの記載不正・種類が設定に無い | チケット / 復旧経路（記載の修正・`ticket.sh cancel`） |
 | WF212 | deny | プランモード不可の種類 | 種類 / プランモードは全体計画のみ |
@@ -96,18 +99,21 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 |-----------|------|----------------|
 | WG-T01 | 正常系 | 作業中 0 枚ですべて通り記録されない |
 | WG-T02 | 正常系 | `common.allow` と（宣言が無ければ）`types[t].allow` への Write が通る。宣言 `allow.write` が `types[t].allow` より狭いとき、宣言外だが上限内のパスは WF202（ask）になり通らない。宣言が上限の外を含んでも無視される。`wip/10_tickets/10_doing/` の作業ログ追記は宣言によらず通る |
-| WG-T03 | 異常系 | `.claude/**` へ implementation チケットから Write → WF201。ai-asset-design から `.claude/docs/**` は通り `.claude/hooks/**` は WF201 |
+| WG-T03 | 異常系 | `.claude/**` へ implementation チケットから Write → WF201。ai-asset-design から `.claude/docs/**` は通り `.claude/hooks/**` は WF201。**`.` / `..` を挟んだ書き方（`wip/../.claude/settings.json`）でも同じ判定になる**（畳んでから判定するので保護範囲の glob をすり抜けない） |
 | WG-T04 | 正常系 | 未記載パスが WF202（ask）、`approvals.json` に親ディレクトリがあれば通る。`file_granular` のファイルはファイル単位 |
-| WG-T05 | 正常系 | `confirm` 範囲は承認済みでも毎回 WF203 |
+| WG-T05 | 正常系 | `confirm` 範囲は承認済みでも毎回 WF203: `types.confirm` の `package.json`（implementation）と、`ai-asset-implementation` からの `.claude/hooks/config/**` / `.claude/settings.json`。**共通の保護範囲が先に効く場合は WF203 に届かない** — 同じ `.claude/hooks/config/**` でも implementation からは判定 2（共通の保護範囲）で WF201 になる（`common.confirm` が効くのはその種類の `allow` に明示されている `.claude/**` の中だけ） |
 | WG-T06 | 正常系 | 読み取り系・提供コマンド・`remote-read` が通り、`echo x > src/a` が WF205、`npm test` は `build-test` を宣言したときだけ通る（無ければ WF204） |
 | WG-T07 | 異常系 | `gh issue create` が宣言無しで WF206、overall-plan の宣言ありで通る |
-| WG-T08 | 異常系 | 2 枚目の doing で提供コマンド以外が WF207 |
+| WG-T08 | 異常系 | 2 枚目の doing で提供コマンド以外（実行・書き込み・**プランモード**）が WF207 になり、チケット番号の一覧が出る。提供コマンド（`ticket.sh cancel`）は通る |
 | WG-T09 | 異常系 | 作業中チケットの `ticket_type` や `adversarial_review.required` を Edit → WF208、作業ログの追記は通る |
-| WG-T10 | 異常系 | `eval "..."`・4096 文字超が WF209 |
+| WG-T10 | 異常系 | `eval "..."`・4096 文字超が WF209。**作業ツリーの外に出るパス**（`../outside.txt`・`wip/../../outside.txt`）も WF209 で、承認単位にならない |
 | WG-T11 | 異常系 | 設定なしで WF210 かつ設定ファイル自身の Write は ask（WF203）になる。設定ありのとき `.claude/hooks/config/**` と `.claude/settings.json` は ai-asset-implementation でも毎回 WF203。種類が設定に無いチケットで WF211 |
 | WG-T12 | 正常系 | EnterPlanMode が overall-plan で通り implementation で WF212 |
 | WG-T13 | 境界 | `WORKFLOW_HEADLESS=1` で WF202 が WF213（deny） |
 | WG-T14 | 正常系 | `commit.sh -m .. <禁止範囲のファイル>` が WF201 |
+| WG-T16 | 異常系 | `scope-limits.json` を壊した状態でも `tool_name` と対象パスがメッセージに載った **WF210** が返る（stdout が空にならない）。同じ状態で `commit.sh` の実行・`wip/10_tickets/**` への Write・`scope-limits.json` 自身への Write（WF203）が**通る**（復旧経路が生きている）。`approvals.json` を壊した状態では WF202 の承認済み判定だけが効かなくなり、他の判定は動く |
+| WG-T15 | 正常系 | `curl https://example.com/x` は `web` を宣言した investigation で通り、宣言の無い design では WF204。`curl -o wip/tmp/x.md <url>` は通り、`curl -o .claude/settings.json <url>` と `curl -O <url>`（カレントに作る）は宣言があっても WF205。`wget <url>` は `-O -` でなければ WF205。`WebFetch` は matcher 外なのでこのフックに届かない（届かないことを登録表 HK-T01 で固定する） |
+| WG-T17 | 異常系 | **送信側は `web` を宣言しても通らない**: `curl -T a.md <url>`、`curl -d @a.md <url>`、`curl -F file=@a.md <url>`、`curl -X POST <url>`、`wget --post-file=a.md <url>`、`wget --method=PUT <url>` がすべて **WF206**。送信側でない `curl -X GET <url>` は（`web` の宣言があれば）通る。`wget --method=GET <url>` は **WF205** — `wget` は既定で URL の basename にファイルを作るので出力先ありの書き込みとして判定され（判定順は送信側 → 出力先 → `web`）、通るのは `-O -` を付けた形だけ（WG-T15 の「`wget <url>` は `-O -` でなければ WF205」と同じ扱い）。**出力先と URL の取り違えをしない**: `curl <url> -o wip/tmp/a`（URL が先）と `curl -o wip/tmp/a <url>`（出力先が先）がどちらも通り、`curl <url>`（出力先なし）が WF205 にならない |
 
 ## 要件との対応
 
@@ -130,7 +136,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | メイン: 提供コマンドの引数パスに同じ判定 | 制御方式 6、WG-T14 |
 | メイン: リモート読み取りは許可 / 書き込みは宣言内のみ | 制御方式 6、WF206 |
 | メイン: コマンド位置の判定を共有 | `cmdpos.sh` |
-| メイン: 判定不能は拒否側 | WF209 |
+| メイン: 判定不能は拒否側 | WF209（コマンドの分類不能・作業ツリーの外に出るパス） |
 | メイン: 2 枚目の着手拒否 / 複数作業中の異常 | WF207（着手の直接操作は state-guard、`ticket.sh` は TK002） |
 | メイン: チケット自身の改変拒否・他欄は許可 | WF208 |
 | メイン: プランモードは許可された種類のみ | WF212 |

@@ -6,7 +6,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 LIB="$LOGGER_ROOT/.claude/hooks/lib/hook-common.sh"
@@ -222,7 +222,7 @@ case_misc() {
   run_cmd bash "$TMP_REPO/drv.sh" x guide class Skill 00-workflow-quick-request
   assert_eq "HK-T07" "declare" "$R_OUT"
   run_cmd bash "$TMP_REPO/drv.sh" x guide class Skill 20-common-step-ticket
-  assert_eq "HK-T07" "read" "$R_OUT"
+  assert_eq "HK-T07" "declare" "$R_OUT"   # skill の値を見ずに常に declare（DDR i0009-03）
   run_cmd bash "$TMP_REPO/drv.sh" x guide class Agent
   assert_eq "HK-T07" "spawn" "$R_OUT"
   # §2 の分類表を全行踏む
@@ -246,4 +246,258 @@ case_hk_t07
 case_hk_t08
 case_hk_t10
 case_misc
+# ---- HK-T17 / HK-T18 / HK-T19 / HK-T20: 副入力・記録ヘルパ・ロック ----
+# 直接 source して関数を試す（フックの起動を挟まない lib 単体の観点）
+# shellcheck disable=SC1090
+. "$LIB"
+export HOOK_ROOT="$TMP_REPO"; HOOK_WORKTREE="$TMP_REPO"
+
+# HK-T18: 副入力が壊れていても不在でも、stdin の解析が巻き添えにならない（DDR i0009-47）
+case_side_input() {
+  local cfg="$TMP_REPO/.claude/hooks/config/scope-limits.json"
+  mkdir -p "${cfg%/*}"
+  local IN='{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"ls"}}'
+  rm -f "$cfg"
+  hook_read_input limits <<<"$IN"
+  assert_eq "HK-T18" "Bash" "$HOOK_TOOL"
+  assert_eq "HK-T18" "missing" "$HC_LIMITS_STATE"
+  printf '%s' '{ not json' > "$cfg"
+  hook_read_input limits <<<"$IN"
+  assert_eq "HK-T18" "Bash" "$HOOK_TOOL"
+  assert_eq "HK-T18" "broken" "$HC_LIMITS_STATE"
+  printf '%s' '{"common":{"allow":[]},"types":{}}' > "$cfg"
+  hook_read_input limits <<<"$IN"
+  assert_eq "HK-T18" "Bash" "$HOOK_TOOL"
+  assert_eq "HK-T18" "broken" "$HC_LIMITS_STATE"
+  [[ "$HC_LIMITS_ERROR" == *"common missing keys"* ]] && pass "HK-T18" || fail "HK-T18" "検証の理由が残らない: $HC_LIMITS_ERROR"
+  printf '%s' '{"common":{"allow":["a/**"],"protected":[],"confirm":[],"file_granular":[],"state_files":[]},"types":{"design":{"ops":["read"]}},"commands":{"build-test":[]}}' > "$cfg"
+  hook_read_input limits <<<"$IN"
+  assert_eq "HK-T18" "ok" "$HC_LIMITS_STATE"
+  rm -f "$cfg"
+
+  # 要求した副入力だけを名前で渡しても、要求したものが ok になる（要求しなかったものは missing）。
+  # jq のプログラムは 4 つの変数をすべて参照するため、渡し漏れがあるとコンパイルに失敗し、
+  # 出力が空になって**全部が missing に化ける**（実測で見つけた退行。DDR i0009-47 の縮退と紛らわしい）
+  mkdir -p "$TMP_REPO/logs/sessions/s1"
+  printf '%s' '{"prompt_seq":3,"declared_skill":"00-workflow-quick-request"}' > "$TMP_REPO/logs/sessions/s1/entry.json"
+  printf '%s' '{"state":"requested"}' > "$TMP_REPO/logs/review-state.json"
+  rm -f "$TMP_REPO/logs/merge-state.json" "$TMP_REPO/logs/sessions/s1/approvals.json"
+  hook_read_input <<<"$IN"
+  hook_read_state entry
+  assert_eq "HK-T18" "ok" "$HC_ENTRY_STATE"
+  [[ "$HC_ENTRY" == *"prompt_seq"* ]] && pass "HK-T18" || fail "HK-T18" "entry の本体が空: [$HC_ENTRY]"
+  hook_read_input <<<"$IN"
+  hook_read_state review merge
+  assert_eq "HK-T18" "ok" "$HC_REVIEW_STATE"
+  assert_eq "HK-T18" "missing" "$HC_MERGE_STATE"
+  hook_read_input <<<"$IN"
+  hook_read_state approvals
+  assert_eq "HK-T18" "missing" "$HC_APPROVALS_STATE"
+  rm -f "$TMP_REPO/logs/review-state.json" "$TMP_REPO/logs/sessions/s1/entry.json"
+}
+
+# HK-T19: 副入力を要求しても jq の呼び出しは 1 回（要求しなければ 1 回）
+case_jq_count() {
+  local cfg="$TMP_REPO/.claude/hooks/config/scope-limits.json" n
+  mkdir -p "${cfg%/*}"
+  printf '%s' '{"common":{"allow":[],"protected":[],"confirm":[],"file_granular":[],"state_files":[]},"types":{},"commands":{"build-test":[]}}' > "$cfg"
+  make_counting_path jq
+  ( PATH="$COUNTING_PATH:$PATH"; hash -r; hook_read_input limits <<<'{"session_id":"s1","tool_name":"Bash"}' )
+  n="$(counted_calls jq)"
+  assert_eq "HK-T19" "1" "$n"
+  make_counting_path jq
+  ( PATH="$COUNTING_PATH:$PATH"; hash -r; hook_read_input <<<'{"session_id":"s1","tool_name":"Bash"}' )
+  n="$(counted_calls jq)"
+  assert_eq "HK-T19" "1" "$n"
+  # 2 回目（hook_read_state）を足しても合計 2 回
+  make_counting_path jq
+  ( PATH="$COUNTING_PATH:$PATH"; hash -r
+    hook_read_input limits <<<'{"session_id":"s1","tool_name":"Bash"}'
+    hook_read_state approvals entry )
+  n="$(counted_calls jq)"
+  assert_eq "HK-T19" "2" "$n"
+  rm -f "$cfg"
+}
+
+# HK-T17: hc_append_jsonl / hc_json_write（切り詰めと原子的置換は関数が持つ）
+case_write_helpers() {
+  local f="$TMP_REPO/logs/hooks/t.jsonl" long line
+  rm -f "$f"
+  hc_append_jsonl "$f" '{"a":"1"}'
+  hc_append_jsonl "$f" '{"a":"2"}'
+  assert_eq "HK-T17" "2" "$(wc -l < "$f" | tr -d ' ')"
+  # 秘密は redact を通る（呼び手が通していなくても）
+  hc_append_jsonl "$f" '{"note":"token=abcdefgh"}'
+  [[ "$(tail -1 "$f")" == *'token=***'* ]] && pass "HK-T17" || fail "HK-T17" "redact を通っていない: $(tail -1 "$f")"
+  # 長い行はこの関数が切り詰める（呼び手は切り詰めない）
+  long="$(printf 'x%.0s' $(seq 1 6000))"
+  hc_append_jsonl "$f" "{\"target\":\"$long\",\"note\":\"$long\"}"
+  line="$(tail -1 "$f")"
+  [[ "${#line}" -lt 4096 ]] && pass "HK-T17" || fail "HK-T17" "4 KB 未満に切り詰まっていない: ${#line}"
+  [[ "$line" == *"…"* ]] && pass "HK-T17" || fail "HK-T17" "切り詰めの印が無い"
+  # target / note を持たない長い行（最後の砦の経路）でも、書かれた行は妥当な JSON で上限を超えない。
+  # 素朴に切って `…"}` を足す実装だと、構造の途中で切れたときや末尾が `\` のときに壊れた行になる
+  local n b
+  for n in 0 1 2 3 4 5; do
+    long="$(printf 'x%.0s' $(seq 1 $(( 4082 - n ))))"
+    rm -f "$f"
+    hc_append_jsonl "$f" "{\"k\":\"${long}\\\\\\\\\",\"z\":\"$(printf 'y%.0s' $(seq 1 200))\"}"
+    b=$(( $(wc -c < "$f") - 1 ))
+    if jq -e . < "$f" >/dev/null 2>&1; then pass "HK-T17"; else fail "HK-T17" "切り詰めた行が妥当な JSON でない（n=$n）: $(cut -c1-60 < "$f")…$(tail -c 20 "$f")"; fi
+    (( b <= 4096 )) && pass "HK-T17" || fail "HK-T17" "上限 4096 バイトを超えた（n=$n）: $b"
+  done
+  # 多バイト文字だけの長い行でも上限（バイト）を超えない
+  rm -f "$f"
+  hc_append_jsonl "$f" "{\"k\":\"$(printf '日%.0s' $(seq 1 2000))\"}"
+  b=$(( $(wc -c < "$f") - 1 ))
+  (( b <= 4096 )) && pass "HK-T17" || fail "HK-T17" "多バイトで上限を超えた: $b"
+  if jq -e . < "$f" >/dev/null 2>&1; then pass "HK-T17"; else fail "HK-T17" "多バイトの切り詰めが妥当な JSON でない"; fi
+  # __hc_cap_json_field 単体: 切り詰めた値は上限（バイト）を超えない。
+  # 末尾に足す `…` も上限の内側で、これを予約し忘れると 3 バイトだけ超える
+  # （行全体の上限 4096 のほうが緩いので、hc_append_jsonl 経由では現れない）
+  local cf cv m
+  for m in 16 64 512; do
+    for cv in "$(printf 'x%.0s' $(seq 1 900))" "$(printf '日%.0s' $(seq 1 400))"               "$(printf 'あ%.0s' $(seq 1 $(( m + 5 ))))"; do
+      __hc_cap_json_field "{\"target\":\"$cv\"}" target "$m"
+      cf="${REPLY#*\"target\":\"}"; cf="${cf%\"\}}"
+      __hc_bytelen "$cf"
+      (( REPLY <= m )) && pass "HK-T17" || fail "HK-T17" "上限 $m バイトを超えた: $REPLY バイト"
+    done
+  done
+  # 上限が `…` より小さいときは印を付けずに収める（超えないことを優先する）
+  __hc_cap_json_field '{"target":"abcdefgh"}' target 2
+  cf="${REPLY#*\"target\":\"}"; cf="${cf%\"\}}"
+  __hc_bytelen "$cf"
+  (( REPLY <= 2 )) && pass "HK-T17" || fail "HK-T17" "上限 2 バイトを超えた: $REPLY バイト"
+
+  # hc_json_write は一時ファイルを残さない
+  hc_json_write "$TMP_REPO/logs/x.json" '{"k":1}'
+  assert_eq "HK-T17" '{"k":1}' "$(cat "$TMP_REPO/logs/x.json")"
+  assert_eq "HK-T17" "0" "$(find "$TMP_REPO/logs" -name 'x.json.tmp.*' | wc -l | tr -d ' ')"
+}
+
+# HK-T20: 陳腐化したロックからの回復（打ち切りで残置しても次の実行が回復する。DDR i0009-60）
+case_lock() {
+  local d="$TMP_REPO/logs/locks/t.lock"
+  rm -rf "$TMP_REPO/logs/locks"
+  hc_lock t && pass "HK-T20" || fail "HK-T20" "ロックを取れない"
+  # 取得中は 2 回目が取れない（2 秒で諦める）
+  ( hc_lock t ) && fail "HK-T20" "保持中のロックを二重に取れてしまう" || pass "HK-T20"
+  hc_unlock t
+  assert_eq "HK-T20" "no" "$([[ -d "$d" ]] && echo yes || echo no)"
+  # hc_unlock は取っていなくても失敗しない（冪等）
+  hc_unlock t && pass "HK-T20" || fail "HK-T20" "hc_unlock が冪等でない"
+  # 陳腐化したロック（打ち切りの残置を模す）は強制解放して取り直せる
+  mkdir -p "$d"
+  touch -d '2 hours ago' "$d" 2>/dev/null || touch -t 200001010000 "$d"
+  hc_lock t && pass "HK-T20" || fail "HK-T20" "陳腐化したロックから回復できない"
+  hc_unlock t
+  # 新しいロックは奪わない
+  mkdir -p "$d"
+  ( hc_lock t ) && fail "HK-T20" "生きているロックを奪ってしまう" || pass "HK-T20"
+  rmdir "$d"
+}
+
+case_side_input
+case_jq_count
+case_write_helpers
+case_lock
+
+# ---- 付随: 作業ツリーの解決（§2・DDR i0009-55）。専用の ID は無いので HK-T18 に付ける ----
+case_worktree() {
+  local root="$TMP_REPO/wtroot" wt="$TMP_REPO/wtside" fake="$TMP_REPO/fakeclaude"
+  local forged="$TMP_REPO/forged" inside="$TMP_REPO/wtroot/参考"
+  mkdir -p "$root/.claude" "$root/.git/worktrees/side" "$wt/.claude" "$fake/.claude" \
+           "$forged/.claude" "$inside/.claude"
+  printf 'gitdir: %s\n' "$root/.git/worktrees/side" > "$wt/.git"
+  printf '%s\n' "$wt/.git" > "$root/.git/worktrees/side/gitdir"
+  resolve_wt() { # $1=cwd → 解決した作業ツリー
+    HOOK_ROOT="$root" HOOK_CWD="$1" __hc_resolve_worktree; printf '%s\n' "$HOOK_WORKTREE"
+  }
+  local save_root="$HOOK_ROOT"
+  HOOK_ROOT="$root"
+  # cwd がルート自身・その配下 → ルート
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$root")"
+  mkdir -p "$root/sub"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$root/sub")"
+  # cwd が本流の worktree（相互参照が成立）→ worktree 側
+  assert_eq "HK-T18" "$wt" "$(resolve_wt "$wt")"
+  mkdir -p "$wt/sub"
+  assert_eq "HK-T18" "$wt" "$(resolve_wt "$wt/sub")"
+  # cwd が .claude を持つだけの別ディレクトリ（参考実装など）→ 拾わずルートに留まる
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$fake")"
+  # .git が worktree でない実体（普通の別クローン）でも拾わない
+  mkdir -p "$fake/.git"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$fake")"
+  # 偽の .git ファイル（gitdir: の指す先が実在しない）だけでは拾わない。
+  # このファイルは wip/tmp/** に承認なしで書けるので、prefix 一致だけの判定は 1 本置くだけで破れる
+  printf 'gitdir: %s/.git/worktrees/zzz\n' "$root" > "$forged/.git"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$forged")"
+  # 指す先のディレクトリはあるが gitdir が無い（相互参照が片方向）→ 拾わない
+  mkdir -p "$root/.git/worktrees/zzz"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$forged")"
+  # 指す先の gitdir が別の作業ツリーを指す（なりすまし）→ 拾わない
+  printf '%s\n' "$wt/.git" > "$root/.git/worktrees/zzz/gitdir"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$forged")"
+  # 相互参照が揃えば拾う（上の 3 つが「相互参照が無いから拾わない」ことの対照）
+  printf '%s\n' "$forged/.git" > "$root/.git/worktrees/zzz/gitdir"
+  assert_eq "HK-T18" "$forged" "$(resolve_wt "$forged")"
+  # 本流の配下に .claude があるだけでは拾わない（参考ディレクトリ/*/.claude の経路）
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$inside")"
+  # ただし相互参照が完全に成立する内側の worktree（`git worktree add ./sub-wt`）は拾う。
+  # 配下を一律で弾くと、その中で機構が本流の wip/ logs/ を見てしまう（DDR i0009-55 が防ぐ状態）
+  mkdir -p "$root/.git/worktrees/inside"
+  printf 'gitdir: %s/.git/worktrees/inside\n' "$root" > "$inside/.git"
+  printf '%s\n' "$inside/.git" > "$root/.git/worktrees/inside/gitdir"
+  assert_eq "HK-T18" "$inside" "$(resolve_wt "$inside")"
+  # 相互参照を片方向に崩すと配下でも拾わない（上の行が「配下だから拾った」のでないことの対照）
+  printf '%s\n' "$wt/.git" > "$root/.git/worktrees/inside/gitdir"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$inside")"
+  printf '%s\n' "$inside/.git" > "$root/.git/worktrees/inside/gitdir"
+  # gitdir: が `..` で worktrees/ の外を指す偽装は拾わない。
+  # 前方一致だけの判定は `<root>/.git/worktrees/../../<書ける場所>` で破れる
+  local trav="$TMP_REPO/traversal"
+  mkdir -p "$trav/.claude" "$root/outside"
+  printf 'gitdir: %s/.git/worktrees/../../outside\n' "$root" > "$trav/.git"
+  printf '%s\n' "$trav/.git" > "$root/outside/gitdir"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$trav")"
+  # `.` や余分な / を含むだけの正当な指し先は畳んで受け入れる
+  printf 'gitdir: %s/.git/./worktrees//inside\n' "$root" > "$inside/.git"
+  assert_eq "HK-T18" "$inside" "$(resolve_wt "$inside")"
+  printf 'gitdir: %s/.git/worktrees/inside\n' "$root" > "$inside/.git"
+  # 負の対照: 本物の worktree でも worktrees/*/gitdir を消し、.git ファイルも消すと拾わない
+  rm -f "$root/.git/worktrees/side/gitdir" "$wt/.git"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$wt")"
+  # 登録だけが残った stale な worktree（候補側の .git が無い）→ 拾わない。
+  # `git worktree add` の後に作業ツリーを消しても `<root>/.git/worktrees/*/gitdir` の登録は残る。
+  # 登録側からの片方向の照合だけで信用すると、そのパスに後から .claude を置くだけで
+  # 作業ツリーが移り、機構が本流の wip/ を見なくなる
+  local stale="$TMP_REPO/stale"
+  mkdir -p "$stale/.claude" "$root/.git/worktrees/stale"
+  printf '%s
+' "$stale/.git" > "$root/.git/worktrees/stale/gitdir"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$stale")"
+  # 候補側の .git が普通のディレクトリ（別クローンを後から置いた）でも拾わない
+  mkdir -p "$stale/.git"
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$stale")"
+  # 候補側に正しい .git ファイルを置けば拾う（上の 2 つが「登録があるから拾った」のでないことの対照）
+  rmdir "$stale/.git"
+  printf 'gitdir: %s/.git/worktrees/stale
+' "$root" > "$stale/.git"
+  assert_eq "HK-T18" "$stale" "$(resolve_wt "$stale")"
+  # パスの正規化は実在ディレクトリに依らず __hc_winpath 単体で固定する
+  # （mktemp が返すのは /tmp/... なので、root を使う形だと条件が常に偽になり 1 件も検査されない）
+  __hc_winpath '/c/a/b';                                  assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath 'C:\a\b';                                 assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath 'C:/a/b/';                                 assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath '/c/a/./b';                                assert_eq "HK-T18" "C:/a/b" "$REPLY"
+  __hc_winpath '/c/a/b/../c';                             assert_eq "HK-T18" "C:/a/c" "$REPLY"
+  __hc_winpath '/c/a/.git/worktrees/../../wip/tmp/x';     assert_eq "HK-T18" "C:/a/wip/tmp/x" "$REPLY"
+  __hc_winpath 'a/b/../c';                                assert_eq "HK-T18" "a/c" "$REPLY"
+  # 存在しない cwd → ルート
+  assert_eq "HK-T18" "$root" "$(resolve_wt "$TMP_REPO/nope/x")"
+  HOOK_ROOT="$save_root"
+}
+case_worktree
+
 finish

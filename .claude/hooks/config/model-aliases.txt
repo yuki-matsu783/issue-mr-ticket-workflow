@@ -1,0 +1,9 @@
+# モデル名の正規化表（subagent-start-check が executor と tool_input.model を族名で比較するために読む）
+# 1 行 = <族名><TAB><前方一致させる別名>。`#` から行末はコメント。空行は無視。比較は小文字で行う。
+# チケットの executor は「main」か族名（opus / sonnet / haiku）で書く（work-defaults.md）。
+opus	opus
+opus	claude-opus
+sonnet	sonnet
+sonnet	claude-sonnet
+haiku	haiku
+haiku	claude-haiku

@@ -22,7 +22,7 @@ keywords: [chmod, 禁止コマンド, 一覧, blocked-commands.txt, cmdpos.sh, �
 
 ## 呼出条件（イベント・matcher・登録）
 
-- PreToolUse、matcher: `Bash|PowerShell`（state-guard の後、block-direct-git の前）。常時
+- PreToolUse、matcher: `Bash|PowerShell`（共通仕様 §1 の PreToolUse 4 行目。**位置であって実行順ではない**（フックは並列に走る — §1））。常時
 
 ## 入出力
 

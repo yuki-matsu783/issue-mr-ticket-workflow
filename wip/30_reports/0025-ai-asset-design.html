@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0025 AI アセット設計結果 — worktree の作業ツリーと web の送信側・出力先</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ -->
+  <p class="kind">AI アセット設計結果レポート / issue #9 フェーズ 3（境界レビュー 2 巡目の反映）</p>
+  <h1 id="title" data-required>0025 AI アセット設計結果 — worktree の作業ツリーと web の送信側・出力先</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 1</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk stop">✕</span> 1. worktree では <code>cwd</code> 側の作業ツリーを採る</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. <code>web</code> の判定順は送信側を先に見る</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 出力先の取り出しは <code>cmdpos_args</code> の走査</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. 横断で決めた規則を個別まで降ろす</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-9-hook-bodies-settings</code></dd></div>
+    <div><dt>チケット</dt><dd>0025-ai-asset-design</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">境界レビュー 2 巡目の <strong>A3・A4・A5・B7・B8</strong> を反映した。中心は <strong>worktree に入ると機構が丸ごと無効になる</strong>（ロックアウトではなく<strong>静かな無効化</strong>）という発見と、<strong><code>web</code> を実行分類にした 0022 の決定が <code>curl</code> の送信側を勘定していなかった</strong>という穴である。更新は要件 2 本・仕様 5 本・DDR 1 本の訂正・全体計画 1 本、新規の DDR は 4 件（<code>i0009-55</code>〜<code>58</code>）。確定したのは 4 つ: (1) <strong>worktree では <code>cwd</code> 側の作業ツリーを採る</strong>、(2) <strong><code>web</code> の判定順は「送信側 → 出力先 → <code>web</code>」</strong>（<code>curl -T</code> / <code>-d @</code> / <code>-X POST</code> は宣言の有無によらず WF206）、(3) <strong>出力先の取り出しは <code>cmdpos_args</code> の走査</strong>、(4) <strong>横断で決めた規則は個別の要件・仕様・再掲表まで降ろす</strong>。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>f1（✕問題）worktree での無効化</strong>。これは<strong>ロックアウトより悪い</strong>種類の失敗で、機構が静かに全部通す。しかも <strong>0019 の改定（<code>git rev-parse</code> の禁止）で悪化していた</strong>（旧仕様なら <code>cwd</code> で解決していた）。<code>cwd</code> からの <code>.claude</code> の上向き探索で塞いだが、<strong><code>cwd</code> を信頼してよいか</strong>と、<strong><code>logs/</code> と <code>wip/</code> を worktree 側に置く</strong>という帰結が正しいかを見てほしい</li>
+        <li><strong>f4（△注意）横断→個別の降ろし方を規約にしたこと</strong>。DDR の「影響」に降ろす先を 4 種類列挙し切る、と決めたが、<strong>これは手順であって機械で確かめられない</strong>。同じ型が 3 巡目に出ないという保証は無い</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><strong>f2</strong>: <code>curl</code> / <code>wget</code> の送信側を <code>web</code> として通さず WF206 にすること（<code>-X GET</code> は通す）</li>
+        <li><strong>f3</strong>: 出力先の取り出しを <code>cmdpos_args</code> の走査にし、<code>://</code> を含む語を URL として除くこと</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><code>10-task-investigation-exec</code> の要件・仕様の是正、<code>20-common-step-shell-script</code> の分類表への <code>web</code> の追加</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong>worktree の実挙動を試していない</strong>（フックが未登録のため）。公式の記述に基づく設計で、フェーズ 4c の実測項目として登録した</li>
+      <li><strong><code>cwd</code> からの上向き探索が、worktree 以外の場面で誤らないか</strong>（<code>.claude</code> を持つサブプロジェクトがネストしている場合）。ネストは想定していない</li>
+      <li><strong>送信側オプションの列挙が網羅的か</strong>（<code>curl</code> は 200 以上のオプションを持つ）。<code>.curlrc</code> 経由の指定も見ていない</li>
+      <li><strong><code>-X GET</code> を通す判断</strong>が他の組み合わせで破れないか（<code>curl -X GET -d @a.md</code> は <code>-d</code> があるので拒否されるが、網羅していない）</li>
+      <li><code>i0009-58</code> の規約が実際に取りこぼしを減らすか</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（読んだ対象）</h2>
+  <ul>
+    <li>公式原本: <code>wip/tmp/hooks.md:594-602</code>（<code>Worktrees are different.</code> の Note）</li>
+    <li>更新対象: 要件 <code>10-task-investigation-exec</code>・<code>自己改善ワークフロー機構</code>の制約条件、仕様 <code>フック共通仕様</code>（§2・§8）・<code>workflow-guard</code>・<code>10-task-investigation-exec</code>・<code>20-common-step-shell-script</code>、全体計画のフェーズ 4c</li>
+    <li>訂正した DDR: <code>i0009-41</code>／訂正した報告: <code>0022-ai-asset-design</code> の md と html</li>
+    <li>入力: <code>wip/30_reports/0022-ai-asset-design-appendix-A.md</code>（A3・A4・A5・B7・B8）</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot stop">1</span>
+      <h3 id="f1">worktree では <code>cwd</code> 側の作業ツリーを採る <span class="chip stop">✕問題</span> <span class="basis">根拠: 境界レビュー A3、<code>hooks.md:594-602</code></span></h3>
+      <p><code>i0009-20</code> が登録を <code>${CLAUDE_PROJECT_DIR}</code> 基準にし、<code>i0009-22</code> が <code>git rev-parse --show-toplevel</code> を禁じた結果、<code>HOOK_ROOT</code> は<strong>本流のチェックアウト</strong>を指し続ける。公式は「Claude が worktree に入ると <strong><code>${CLAUDE_PROJECT_DIR}</code> はセッション開始時のプロジェクトルートに留まる</strong>」「<strong><code>cwd</code> が Claude に追随する</strong>」と明記している。すると <code>workflow-guard</code> は本流の空の <code>wip/10_tickets/10_doing/</code> を見て「<strong>0 枚 → 即座に許可</strong>」となり、<strong>すべての書き込みと実行が素通りする</strong>。<strong>旧仕様（<code>cwd</code> で <code>git rev-parse</code>）なら worktree 側に解決していたので、0019 の改定で悪化していた</strong>。<strong>決定</strong>: (1) <code>cwd</code> が <code>HOOK_ROOT</code> と異なり、<code>cwd</code> から上向きに <code>.claude</code> を持つディレクトリが見つかるならそれを作業ツリーとする、(2) そうでなければ <code>HOOK_ROOT</code>。上向き探索は <code>[ -d ]</code> の繰り返しで <strong><code>git</code> を呼ばない</strong>。<strong>スクリプトの置き場は常に <code>HOOK_ROOT</code></strong>、<strong><code>logs/</code> と <code>wip/</code> は作業ツリー側</strong>。</p>
+      <p class="basis">実測への依存: <strong>あり</strong>（フェーズ 4c で worktree に入って確かめる）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>hooks.md:594-602（&lt;Note&gt; Worktrees are different.）
+  * ${CLAUDE_PROJECT_DIR} stays put: it still points at the project root where
+    the session started, so a command such as
+    ${CLAUDE_PROJECT_DIR}/.claude/hooks/check-style.sh still runs the script in
+    the main checkout.
+  * cwd follows Claude: the cwd field in the hook's input JSON is the worktree
+    root after Claude enters a worktree, and the new directory after Claude runs
+    cd. Read it when a hook needs to know which directory Claude is working in.
+
+帰結（現行仕様のまま worktree に入ると）:
+  workflow-guard  本流の 10_doing/ が空 → 制御方式 1「0 枚 → 許可」→ 全部通る
+  workflow-entry  継続条件を本流の状態で判定
+  workflow-state-guard  置き場の保護が worktree 側に効かない
+
+要件 :163  並行して作業する場合は git worktree または別の clone を使う
+  → この経路は例外ではなく想定内
+DDR: i0009-55 / 4c に実測項目を追加</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p><strong>ロックアウトより悪い「静かな無効化」</strong>を塞いだ。0019 の結果報告が「確かめられなかったこと」に挙げていたが、<strong>答えは取得済みの原本の中にあった</strong>（2 巡目で 2 回目のパターン）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2"><code>web</code> の判定順は送信側を先に見る <span class="chip good">◎良</span> <span class="basis">根拠: 境界レビュー A4、<code>i0009-41</code> の理由</span></h3>
+      <p><code>i0009-41</code> は「書き込みの穴を新たに開けない」の根拠に<strong>出力先オプション</strong>だけを挙げ、<strong>送信側</strong>を勘定していなかった。<code>curl -T a.md &lt;url&gt;</code>（アップロード）、<code>curl -d @a.md &lt;url&gt;</code>（ファイルの中身を本文に）、<code>curl -F file=@a.md</code>（multipart）、<code>curl -X POST https://api.github.com/repos/…/issues</code>（<strong>issue の起票そのもの</strong>）、<code>wget --post-file=</code> / <code>--method=PUT</code> — これらは <code>remote-write:&lt;種別&gt;</code>（WF206）が統制している対象で、改定前は既定拒否で閉じていた。<strong>決定</strong>: 判定を順序つきにする。(1) <strong>送信側は宣言の有無によらず deny WF206</strong>（<code>-X GET</code> / <code>--method=GET</code> は通す）、(2) 出力先を持つ形は書き込みとして WF205 の判定、(3) 残りが <code>web</code>。宣言があっても (1)(2) は免除しない。</p>
+      <p class="basis">実測への依存: 無し（オプションの意味論）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>送信側として拒否する形（deny WF206。宣言の有無によらず）
+  curl:  -T / --upload-file / -d / --data / --data-raw / --data-binary /
+         --data-urlencode / -F / --form / -X（--request）の値が GET・HEAD 以外
+  wget:  --post-file / --post-data / --body-file / --body-data /
+         --method の値が GET・HEAD 以外
+
+順序でしか表せない理由:
+  「送信側かつ出力先あり」（curl -T a.md -o out <url>）の形があるので
+  独立した条件ではなく判定順として書く。最も強い拒否（WF206）を先に置く
+
+-X GET を通す理由: curl は既定で GET。-X GET は意味を変えないので、
+  ここで拒否すると冗長に書いた取得が止まるだけ
+
+識別子は WF206 を再利用（「宣言していないリモートへの書き込み」がそのまま当てはまる）
+DDR: i0009-56 / テスト: WG-T17</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p>「<code>web</code> の宣言は外部を<strong>見て</strong>よいの許可であって、外部に<strong>書いて</strong>よいの許可ではない」を判定順に落とした。分類を足すときは「今まで塞がっていたもののうち何が通るようになるか」を数える必要がある。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">出力先の取り出しは <code>cmdpos_args</code> の走査 <span class="chip good">◎良</span> <span class="basis">根拠: 境界レビュー A5、<code>cmdpos_operands</code> の定義</span></h3>
+      <p><code>i0009-41</code> の影響と 0022 の申し送りは、出力先オプションの照合に <code>cmdpos_operands</code>（<code>i0009-39</code>）が使えると書いていた。実際には使えない — <strong>オプション本体（<code>-o</code>）が落ちるので、どれが URL でどれが出力先かを区別できない</strong>。この結果に §8 の判定を当てると、出力先を持たない <code>curl &lt;url&gt;</code> でも URL がパスとして判定され、<code>WG-T15</code> が固定した「通る」と食い違う。<strong>決定</strong>: <code>cmdpos_args</code> の引数列を<strong>先頭から走査</strong>し、<code>-o</code> / <code>--output</code> / <code>--output-dir</code>（<code>wget</code> は <code>-O</code>）を見つけたら<strong>その次の語</strong>を出力先とする（等号形は前方一致）。<code>curl -O</code> / <code>--remote-name</code> と <code>wget</code> の既定は出力先の語を取らず、<strong>URL の basename を作業ツリー基準のカレントに作る</strong>ものとして扱う。<strong><code>://</code> を含む語は URL とみなし出力先として扱わない</strong>。</p>
+      <p class="basis">実測への依存: 無し（関数の定義と当てる先の対応）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>cmdpos_operands の定義（§7-9）
+  CP_ARGS[i] から `-` で始まる語と `--` 以降を除いた位置引数
+
+curl https://x/y -o wip/tmp/a   → REPLY_OPERANDS = [https://x/y, wip/tmp/a]
+curl -o wip/tmp/a https://x/y   → REPLY_OPERANDS = [wip/tmp/a, https://x/y]
+curl https://x/y                → REPLY_OPERANDS = [https://x/y]   ← 出力先なし
+  → どれが URL でどれが出力先か区別できない
+
+cmdpos_operands が悪いのではなく、当てる先を間違えていた
+  （rm / git rm のように「位置引数だけが意味を持つ」コマンド向けの関数）
+
+却下: cmdpos.sh に cmdpos_option_value を足す（等号形・結合形に踏み込む。i0009-39 の範囲外）
+      web では常に書き込みの判定を当てる（curl <url> が WG-T15 と矛盾）
+      REPLY_OPERANDS の最後の語を出力先とみなす（curl -o out <url> で破れる）
+DDR: i0009-57 / 0022 の申し送りも訂正</code></pre>
+      </details>
+      <div class="box good">
+        <p class="label">結論</p>
+        <p><code>i0009-39</code> の線引き（ライブラリは整形まで / 意味論は呼び手）は守られた。0022 の申し送りも訂正した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">横断で決めた規則を個別の要件・仕様まで降ろす <span class="chip warn">△注意</span> <span class="basis">根拠: 境界レビュー B7・B8、1 巡目 7 件 / 2 巡目 5 件の型</span></h3>
+      <p><code>i0009-41</code> の決定と矛盾する記述が 3 文書に残っていた — <code>10-task-investigation-exec</code> の要件（「この禁止は<strong>機構では強制されず</strong>…自制による」）と仕様、<code>20-common-step-shell-script</code> の分類表（<code>web</code> が無い）。2 巡目のレビューは「1 巡目 38 件のうち閉じきれなかった 7 件が<strong>すべて同じ型</strong>（横断では閉じたが個別で閉じていない）」と報告している。<strong><code>i0009-41</code> はその 7 件を直すためのチケットで作られた決定なのに、同じ型を新たに作っていた</strong>。<strong>決定</strong>: 3 文書を是正したうえで、規約として「横断文書で決めた規則は、DDR の『影響』に降ろす先を列挙し切る」と定めた。対象は 4 種類 — 個別のフック・スキルの仕様書 / 対応する要件書 / 同じ事実を再掲している表・一覧 / その規則を根拠にしている既存の DDR。<strong>再掲する表には「正は横断文書の §X」と書く</strong>。</p>
+      <p class="basis">実測への依存: 無し（手順の規約）</p>
+      <details>
+        <summary>根拠を見る（読んだ箇所と出力）</summary>
+        <pre><code>残っていた記述
+  00_requirement/skills/10-task-investigation-exec.md:97
+    「この禁止は機構では強制されず — 読み取り操作は種類を問わず許可される — 自制による」
+  10_spec/skills/10-task-investigation-exec.md:19   同じ禁止（強制の有無に触れない）
+  10_spec/skills/20-common-step-shell-script.md:126  分類一覧に web が無い
+
+同じ型の指摘（2 巡目 B の報告）
+  1 巡目 38 件のうち閉じきれなかった 7 件 = R20 / R21 / R22 / S1 / S3 / R6 / R1
+  2 巡目でも B3・B5・B6・B7・B8 が同じ型
+
+却下: 再掲を全面的に禁じる（個別の仕様書が読み物として成立しない）
+      機械的な検査（正当な再掲と取りこぼしを区別できない）
+      横断文書を廃止（11 か所に散る。i0009-13 の逆行）
+      チェックリスト文書を作る（ai-asset-design-docs が禁じている）
+DDR: i0009-58</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>個別の是正だけを続けても再発するので、型に対して手を打った。ただし<strong>手順であって機械で確かめられない</strong>のが弱点。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>更新した要件定義書</td><td>2 本（<code>10-task-investigation-exec</code>・<code>自己改善ワークフロー機構</code> の制約条件）</td></tr>
+      <tr><td>更新した仕様書</td><td>5 本（<code>フック共通仕様</code>（§2・§8）・<code>workflow-guard</code>・<code>10-task-investigation-exec</code>・<code>20-common-step-shell-script</code>）+ 全体計画のフェーズ 4c</td></tr>
+      <tr><td>訂正した DDR</td><td>1 件（<code>i0009-41</code>。送信側の未検討と影響の追加）</td></tr>
+      <tr><td>新規の DDR</td><td>4 件（<code>i0009-55</code>〜<code>58</code>。<strong>割り当て帯 55〜58 に完全一致</strong>）</td></tr>
+      <tr><td>訂正した過去の報告</td><td>1 件（<code>0022-ai-asset-design</code> の md と html。<code>cmdpos_operands</code> の申し送り）</td></tr>
+      <tr><td>追加したテスト観点</td><td>1 件（<code>WG-T17</code> 送信側の拒否と、出力先・URL の取り違えの防止）</td></tr>
+      <tr><td>対応した指摘</td><td>5 件（A3・A4・A5・B7・B8）。すべて反映済み</td></tr>
+      <tr><td>塞いだ経路</td><td>1 つ（worktree での<strong>静かな無効化</strong>）+ 1 つ（<code>web</code> の宣言によるリモート書き込み）</td></tr>
+      <tr><td>ヘッドレス実行の帰結</td><td>変更なし</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>受け入れ条件との対応</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件（issue #9）</th><th>このチケットが満たす分</th><th>テスト ID（種別）</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>フック本体 11 本が仕様どおり動きテストが通る</td><td>作業ツリーの決め方が worktree でも成立する形になり、<code>web</code> の判定順と出力先の取り出し方が実装できる粒度まで決まった</td><td>WG-T17（機械）</td></tr>
+      <tr><td>3</td><td>公式リファレンスとの整合が取れている</td><td>worktree の Note（<code>:594-602</code>）を §2 に反映した</td><td>—</td></tr>
+      <tr><td>5</td><td><code>web</code> の強制が実物の確認に基づいて仕様に書かれている</td><td>0022 で決めた <code>web</code> の強制の<strong>穴</strong>（送信側）を塞ぎ、判定順として書き切った</td><td>WG-T17（機械）</td></tr>
+      <tr><td>6</td><td>決定の経緯が DDR に残っている</td><td><code>i0009-55</code>〜<code>58</code>（4 件）+ <code>i0009-41</code> の訂正</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>0016 へ</strong>: フェーズ 4c に <strong>worktree の実測</strong>（<code>git worktree add</code> して Claude を移し、worktree 側のチケットを <code>workflow-guard</code> が見るか）を含める</li>
+    <li><strong>0016 へ</strong>: <code>scope.sh</code> の実装項目に「作業ツリーの解決（<code>cwd</code> からの <code>.claude</code> の上向き探索）」と「送信側・出力先オプションの照合（<code>cmdpos_args</code> の走査）」を立てる</li>
+    <li><strong>実装フェーズへ</strong>: 上向き探索は <code>[ -d "$d/.claude" ]</code> の繰り返し。ルートまで見つからなければ <code>HOOK_ROOT</code> に倒す</li>
+    <li><strong>実装フェーズへ</strong>: <code>web</code> の判定順は <strong>送信側 → 出力先 → <code>web</code></strong>。順序を逆にすると <code>curl -T</code> が宣言だけで通る</li>
+    <li><strong>0026 へ</strong>: <code>i0009-58</code> の規約に従い、0026 が触る DDR の「影響」も 4 種類を列挙し切る</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>A3 は §2 に 1 行足す</td><td><strong>0019 の改定で悪化していた</strong>（旧仕様なら <code>cwd</code> で解決していた）ことが分かり、解決の順序まで決める必要があった</td><td><code>i0009-55</code> で 2 段の解決順と、スクリプトの置き場・<code>logs/</code> / <code>wip/</code> の置き場を書き分けた</td></tr>
+      <tr><td>A4 は送信側オプションを列挙するだけ</td><td>「送信側かつ出力先あり」の形があるので、独立した条件ではなく<strong>判定順</strong>として書く必要があった</td><td><code>i0009-56</code> で順序つきの 3 段にした</td></tr>
+      <tr><td>A5 は <code>cmdpos_operands</code> を <code>cmdpos_args</code> に置き換えるだけ</td><td><code>-O</code> と <code>wget</code> の既定（出力先の語を取らない形）の扱いを決めないと、実装が推測になる</td><td>「URL の basename を作業ツリー基準のカレントに作る」と明記した</td></tr>
+      <tr><td>B7・B8 は 3 文書の是正</td><td>1 巡目 7 件と 2 巡目 5 件が<strong>すべて同じ型</strong>だと分かり、型への対策が本体だった</td><td><code>i0009-58</code> を規約として立てた</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>worktree の実挙動を試していない</strong>（フック未登録）。4c の実測に依存する</li>
+    <li><strong><code>cwd</code> からの上向き探索がネストした <code>.claude</code> で誤らないか</strong>（想定していない構成）</li>
+    <li><strong>送信側オプションの列挙が網羅的か</strong>（<code>curl</code> は 200 以上のオプションを持つ。<code>.curlrc</code> も見ていない）</li>
+    <li><strong><code>i0009-58</code> の規約は機械で確かめられない</strong>（f4）。3 巡目に同じ型が出ないという保証は無い</li>
+    <li><code>logs/</code> と <code>wip/</code> を worktree 側に置く帰結（本流と worktree で進行状態が分かれる）が運用上正しいか</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12（draft）</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

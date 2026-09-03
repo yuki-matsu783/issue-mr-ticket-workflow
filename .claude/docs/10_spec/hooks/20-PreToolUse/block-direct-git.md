@@ -23,7 +23,7 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 
 ## 呼出条件（イベント・matcher・登録）
 
-- PreToolUse、matcher: `Bash|PowerShell`（state-guard・block-chmod の後、guard の前）
+- PreToolUse、matcher: `Bash|PowerShell`（共通仕様 §1 の PreToolUse 5 行目。**位置であって実行順ではない**（フックは並列に走る — §1））
 - 作業中チケット・レビュー状態を問わず常時
 
 ## 入出力
@@ -38,6 +38,7 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 3. 各セグメントについて:
    - 提供コマンド（§7-8）→ 対象外
    - 実行体 `git` かつ第 1 サブコマンド（`-C <dir>` / `-c k=v` / `--git-dir` 等のグローバルオプションを飛ばした後）が `commit` → **deny WF401**、`push` → **deny WF402**。**コミットを生成する他のサブコマンド**（`revert`、`cherry-pick`、`am`、`rebase`（`--continue` 含む）、`commit-tree`、`stash` は対象外、`merge` は例外として許可 — `workflow-guard` の `merge-base` 分類で統制し、マージコミットのメッセージは git 生成を受容する。DDR i0004-07）も `commit.sh` の規約検査を迂回するため **deny WF401**（メッセージに「コミットを生成するサブコマンド」と明記）
+   - 実行体が `git` 系（`CP_GITLIKE` を含む）で、**第 1 サブコマンドが特定できない**（`CP_SUBCMD[i]` が `_`。`git 'commit'` のようにクォートで語が割れた場合）→ **deny WF403**。Bash 経路も PowerShell 経路も同じ扱いにする（共通仕様 §7-9 の「呼び出し側は『特定できない』として扱う」の実装。DDR i0009-01）
    - PowerShell の入力で実行位置のトークンが `git` を含む場合は、第 1 サブコマンドが上記の対象か特定できないときだけ拒否側に倒す（`git status` 等は通す — 共通仕様 §7-6）
    - ダブルクォート内の `$(git commit ...)` も実行位置として同じ判定
    - `opaque` かつ文字列に `commit` または `push` を含む → **deny WF403**（判定不能で拒否側）
@@ -54,7 +55,7 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 |----|------|----------------------|
 | WF401 | `git commit` の直接実行 | `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "<件名>" <files>` と `20-common-step-commit-push` / 提供コマンド経由でやり直す |
 | WF402 | `git push` の直接実行 | `push.sh` と同スキル / push 前チェックを飛ばすなら `wip/push-check-skip.md`（緊急停止は不可） |
-| WF403 | opaque / 縮退での拒否 | 縮退した判定で拒否した可能性 / 言い換え（`ai-command-style`）/ 実行が目的なら提供コマンド |
+| WF403 | opaque / **第 1 サブコマンドが特定できない `git`** / 縮退での拒否 | 縮退した判定で拒否した可能性 / サブコマンドをクォートで割らずに書く（`git 'commit'` → `git commit`。ただし実行が目的なら提供コマンド）/ 言い換え（`ai-command-style`） |
 | WF409 | 入力不正 | 機構の不調 / ユーザーへの報告 |
 
 ## 回復手順
@@ -71,7 +72,7 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
-| BG-T01 | 異常系 | `git commit -m x`、`cd a && git commit`、`x; git push`、`a \| git push`、`sudo git push`、`if true; then git commit; fi`、`/usr/bin/git commit`、`./git push`、`git.exe commit`、`git -C . commit`、`git push --force` がすべて拒否 |
+| BG-T01 | 異常系 | 機械テスト。`git commit -m x`、`cd a && git commit`、`x; git push`、`a \| git push`、`sudo git push`、`if true; then git commit; fi`、`/usr/bin/git commit`、`./git push`、`git.exe commit`、`git -C . commit`、`git push --force` がすべて拒否。**`git 'commit'` と `git "push"`（クォートで語が割れてサブコマンドが `_` になる形）は WF403 で拒否**（他は WF401 / WF402） |
 | BG-T02 | 正常系 | ヒアドキュメント本文・シングル / ダブルクォート内・`#` コメント・`grep "git commit"`・日本語の地の文に `commit` / `push` があるだけでは通る |
 | BG-T03 | 正常系 | `git status` / `log` / `diff` / `add` / `merge` / `fetch` が通る |
 | BG-T04 | 異常系 | `echo "$(git commit -m x)"` が WF401 |
@@ -79,9 +80,9 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 | BG-T06 | 正常系 | `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "docs: x" a.md` と `push.sh` が通る |
 | BG-T07 | 境界 | 4097 文字のコマンドで `git` と `commit` を含めば WF403、含まなければ通る |
 | BG-T08 | 異常系 | PowerShell: `& git commit`、`git push; ls`、`.\git.exe commit` が拒否 |
-| BG-T09b | 正常系 | PowerShell: ヒアストリング内の `git commit`、`git status`、`git diff` は通る |
-| BG-T10 | 異常系 | `git revert HEAD`、`git cherry-pick abc`、`git rebase --continue`、`git am x.patch` が WF401。`git merge origin/main` は通る |
-| BG-T09 | 異常系 | 入力 JSON 不正で WF409 |
+| BG-T09 | 正常系 | PowerShell: ヒアストリング内の `git commit`、`git status`、`git diff` は通る |
+| BG-T10 | 異常系 | 制御方式 3 の「コミットを生成するサブコマンド」の**全要素**（`git revert HEAD`、`git cherry-pick abc`、`git rebase --continue`、`git am x.patch`、`git commit-tree abc123`）が WF401。**明示的に対象外の 2 つ**（`git merge origin/main`、`git stash`）は通る |
+| BG-T11 | 異常系 | 入力 JSON 不正で WF409 |
 
 ## 要件との対応
 
@@ -97,6 +98,7 @@ keywords: [git commit, git push, 直接実行, 拒否, commit.sh, push.sh, cmdpo
 | メイン: 他のサブコマンドは拒否しない | 制御方式 3、BG-T03 |
 | メイン: `$( )` 内は実行として扱う | §7-1、BG-T04 |
 | メイン: opaque は拒否側 | WF403 |
+| メイン: サブコマンドが特定できない `git` は拒否側 | 制御方式 3、WF403、BG-T01（DDR i0009-01） |
 | メイン: 依存不足は縮退して継続・明示 | 制御方式 4 |
 | メイン: 長さ超過は縮退 | 制御方式 4、BG-T07 |
 | メイン: 記録・識別子（commit / push を区別）・縮退の案内 | 記録、エラー識別子 |

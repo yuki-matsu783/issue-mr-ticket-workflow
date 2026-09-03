@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0039 AI アセット実装結果 — フックの段階登録（16 行）とフェーズ 4c の実測</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装結果 / 実装</p>
+  <h1 id="title" data-required>0039 AI アセット実装結果 — フックの段階登録（16 行）とフェーズ 4c の実測</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 2</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. フェーズ 4c の実測（プローブ経由）</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. T9 の縮退（17 行 → 16 行）</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 4c プローブの撤去</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 段階登録（6 段）</a></li>
+          <li><a href="#f5"><span class="mk stop">✕</span> 5. worktree での挙動</a></li>
+          <li><a href="#f6"><span class="mk stop">✕</span> 6. 敵対的レビュー</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0031-ai-asset-implementation</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">フックを本番の <code>settings.json</code> に登録し、機構が自分自身の上で動く状態にした。登録は人間の操作で、AI は貼る JSON と手順を用意し、各段の後に軽い操作を通してコミットした。<strong>ロックアウトは一度も起きなかった。</strong>登録の前に、フェーズ 4c の実測で T9 が外れたため、登録表を 17 行から <strong>16 行へ縮退</strong>させている。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>2</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><a href="#f2">r1</a>: T9 の縮退で <code>PreToolUse</code> / matcher <code>Agent</code> の登録を外したこと。起動<strong>前</strong>に止める機会を機構として持たない判断でよいか</li>
+        <li><a href="#f5">r2</a>: <code>workflow-diff-check</code>（WF601）が worktree の中を見ない穴。拒否側が縮退しているときに開く</li>
+        <li><a href="#f6">r6</a>: 敵対的レビューで出た <strong>adv1</strong> — <code>workflow-guard</code> の matcher に <code>mcp__.*</code> が無く、MCP 経由の書き込みが許可範囲の判定を受けない</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><a href="#f4">r3</a>: <code>cd</code> と一時スクリプトの <code>bash</code> 実行が既定拒否になったこと（<code>allow.ops</code> に <code>tmp-script</code> を設ける案を 0032 へ）</li>
+        <li><a href="#f3">r4</a>: 4c プローブを跡形なく撤去したこと（<code>grep</code> 0 件）</li>
+        <li><a href="#verified">r5</a>: DoD の「boundary.sh 依存で実施できない 10 件」を実測に合わせて訂正すること</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>段階ファイルの生成器（<code>stages.py</code> / <code>fixture.py</code>）を 16 行に直して再生成したこと</li>
+        <li>各段のコミットを段ごとに分けたこと（戻す単位を段に揃えるため）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong>T9 の観測は VSCode 拡張の 1 面だけ</strong>。CLI のターミナルでは見ていない。ヘッドレスでは <code>system/informational</code> として出ているので「破棄」ではなく「対話 UI が見せていない」（<a href="#f1">f1</a>）</li>
+      <li><strong>実登録に対する破壊試験はしていない</strong>。HK-T09 は一時コピーに対する機械テストで、実登録の <code>workflow-guard</code> を壊すと自分自身をロックアウトする（<a href="#f4">f4</a>）</li>
+      <li><strong>worktree でどちらのチケットを見ているかは断定できていない</strong>。本体と worktree の両方に同じ 0031 があったため（<a href="#f5">f5</a>）</li>
+      <li><strong>T1 と T8 は実測していない</strong>（仕様 §12 が解決済みとしている。T8 の実ファイル <code>mv</code> は自分自身をロックアウトする）</li>
+      <li><strong><code>shellcheck</code> は 8 巡連続で未導入</strong>。<code>bash -n</code> だけで確かめた</li>
+      <li><strong>性能は前のセッションの実測値</strong>（ホットパス 5 本とも 1 回 1 秒以内）。登録後の実環境で測り直してはいない</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>チケット: <code>wip/10_tickets/10_doing/0031-ai-asset-implementation.md</code>（DoD 15 件）</li>
+    <li>計画: <code>wip/20_plans/0016-ai-asset-implementation-plan.md</code> のステップ 5</li>
+    <li>正: <code>.claude/docs/10_spec/フック共通仕様.md</code> §1（登録表）・§2（入力）・§12（TBD）</li>
+    <li>手引き: <code>wip/tmp/0031-handoff.md</code>（段階ごとの貼り替えとロックアウトの復旧）</li>
+    <li>環境: Windows 10 Pro / Git Bash・<code>jq</code> あり・<code>shellcheck</code> <strong>無し</strong>・VSCode 拡張</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">フェーズ 4c の実測（プローブ経由） <span class="chip good">◎良</span> <span class="basis">根拠: logs/hooks/probe-4c.jsonl・wip/tmp/p4c-headless.jsonl</span></h3>
+      <p><code>WORKFLOW_PROBE_4C=1</code> を <code>settings.json</code> の <code>env</code> に置いた専用セッションで、<strong>登録済みの本物のフック</strong>が受け取る stdin を記録した。値を落とすのは 7 フィールドだけで、それ以外はキーの名前と型のみ。TBD 6 件のうち 5 件は仕様どおりで、T9 だけが外れた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>ID</th><th>実測</th><th>対比</th></tr></thead>
+        <tbody>
+          <tr><td>T2</td><td>親子の <code>session_id</code> は<strong>同じ</strong>。子には <code>agent_id</code> / <code>agent_type</code> が付く</td><td>一致（親子対応表は不要）</td></tr>
+          <tr><td>T3</td><td>ヘッドレスを示す入力フィールドは<strong>無い</strong>。<code>source</code> は対話と同じ <code>startup</code></td><td>一致</td></tr>
+          <tr><td>T4</td><td><code>agent_id</code> / <code>agent_type</code> は実在、<strong><code>model</code> は来ない</strong>。<code>PreToolUse:Agent</code> の <code>tool_input.model</code> も指定時のみ</td><td>一致（補足 1 件）</td></tr>
+          <tr><td>T5</td><td><code>PowerShell</code> の共通フィールドは <strong>Bash と同形</strong></td><td>一致</td></tr>
+          <tr><td>T7</td><td>終了コードのフィールドは<strong>存在しない</strong>。さらに exit≠0 では PostToolUse が 1 本も起動しない</td><td>一致（「届いた = 成功」を裏付け）</td></tr>
+          <tr><td>T9</td><td><strong>外れた</strong>。人間に通知は来ない（SDK メッセージには載る）</td><td>不一致 → 16 行へ縮退</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（ヘッドレスのストリームに出た systemMessage）</summary>
+        <pre><code>{"type":"system","subtype":"informational",
+ "content":"PreToolUse:Agent says: [プローブ] WORKFLOW_PROBE_4C=1 のため …",
+ "level":"notice","session_id":"c59ef0ce-…"}</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>T7 は負のコントロール（<code>exit 3</code> / <code>exit 7</code>）で確かめた。<code>tool_response.status</code> は両分岐を観測（対話で省略 → <code>async_launched</code> で WF814 が発火 / ヘッドレスの <code>false</code> 明示 → <code>completed</code>）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">T9 の縮退（17 行 → 16 行） <span class="chip warn">△注意</span> <span class="basis">根拠: 仕様 §12 の分岐・DDR i0009-54</span></h3>
+      <p><code>PreToolUse</code> / matcher <code>Agent</code> の <code>subagent-start-check</code> を登録から<strong>外した</strong>。フック本体は消していない（<code>SubagentStart</code> の WF802 = 要点注入はそのまま生きる）。生成器 2 本（<code>fixture.py</code> / <code>stages.py</code>）を直して期待値 TSV と段階ファイル 6 本を再生成し、<code>test_config_integrity.sh</code> のハードコード 2 か所（総行数 <code>17</code>→<code>16</code>、実体と登録先が一致しない行 <code>6</code>→<code>5</code>）も合わせた。</p>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>失うのは起動<strong>前</strong>の WF801（実行者の不一致）と WF803（background 起動）。受け皿は <code>subagent-stop-check</code> の縮退判定と WF814 で、<strong>WF814 は実測で実際に起動直後へ届いた</strong>。この行が無いとセッション内の印が常に書かれないので、縮退の側が必ず動く（DDR i0009-52 の設計どおり）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">4c プローブの撤去 <span class="chip good">◎良</span> <span class="basis">根拠: grep 0 件・テスト 251 件通過</span></h3>
+      <p><code>lib/probe-4c.sh</code> の削除、6 フックの読み込み行と <code>probe_4c</code> 呼び出し、<code>subagent-start-check.sh</code> の <code>probe_4c_enabled</code> ブロック 2 か所、テスト 6 本の <code>cp</code> とプローブ用 assertion を取り除いた。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>撤去の途中で <strong>SE-T06 の前半（<code>source=compact</code> でも同じ内容）の検査がプローブの assertion に寄生していた</strong>ことが分かり、本来の検査を <code>case_compact</code> として書き直した。一時の仕組みに本来の検査をぶら下げる作りの危うさが出た例。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">段階登録（6 段） <span class="chip good">◎良</span> <span class="basis">根拠: 各段のコミットと軽い操作の通過</span></h3>
+      <p>各段で人間が全文を貼り替え、AI が軽い操作（Bash → Read → Edit → <code>commit.sh</code>）を通してコミットした。<strong>想定外の deny は 0 件</strong>。仕様どおりの拒否は 4 件出た。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>識別子</th><th>何が止まったか</th><th>どうしたか</th></tr></thead>
+        <tbody>
+          <tr><td><code>WF204</code></td><td><code>cd "&lt;ルート&gt;" &amp;&amp; …</code> の前置</td><td>cwd は元からルートなので <code>cd</code> を書かない形に修正</td></tr>
+          <tr><td><code>WF204</code></td><td><code>bash wip/tmp/p31-full.sh</code>（一時スクリプト経由の全件テスト）</td><td>提供コマンド <code>run-tests.sh</code> を直接呼ぶ形に修正</td></tr>
+          <tr><td><code>WF204</code></td><td><code>git worktree list</code></td><td><code>EnterWorktree</code> ツールに切り替え（DoD が予告していた挙動）</td></tr>
+          <tr><td><code>WF205</code></td><td>worktree 内の後始末の <code>rm</code></td><td>後始末を人間に依頼（<code>git worktree remove --force</code>）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>段は ①（案内側 11 行 + プローブ撤去）→ ②-1 <code>workflow-entry</code> → ②-2 <code>workflow-state-guard</code> → ②-3 <code>block-direct-git</code> → ②-4 <code>workflow-guard</code> → ②-5 <code>block-chmod</code> のラッパー。コミットは段ごとに分けた（<code>a41167e</code> / <code>e26cfbe</code> / <code>9875270</code> / <code>d42e630</code> / <code>691b7a5</code> / <code>7827d2a</code>）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">5</span>
+      <h3 id="f5">worktree での挙動 <span class="chip stop">✕問題</span> <span class="basis">根拠: EnterWorktree での 4 つの試行</span></h3>
+      <p><code>EnterWorktree</code> で worktree に移って 4 つ試した。<strong>拒否側フックは worktree の中でも生きている</strong>: <code>.claude/hooks/**</code> への Write は通り、<code>.claude/docs/**</code> は <code>WF201</code>、チケットの <code>allow.write</code> を広げる Edit は <code>WF208</code>、<code>rm</code> は <code>WF205</code>。つまり <strong>worktree に逃げても許可範囲は広げられない</strong>。</p>
+      <details>
+        <summary>根拠を見る（WF601 が本体だけを見ている 2 つの証拠）</summary>
+        <pre><code>worktree の settings.json のフック数: 13   ← 分岐時点（無変更のはず）
+本体の settings.json のフック数:     16
+それでも WF601 は「.claude/settings.json（変更 / WF203）」を挙げ続けた
+
+worktree に作った未追跡ファイル .claude/hooks/p31-worktree-probe.txt は
+WF601 の一覧に現れなかった</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p><strong><code>workflow-diff-check</code>（WF601）は本体の作業ツリーだけを見る。</strong>worktree の中で許可範囲外の書き込みが起きても事後の差分検査は気づかない。事前の許可判定で止まるので実害は小さいと判断して 0032 へ送ったが、<strong>拒否側が縮退している（<code>WORKFLOW_GUARD_ENFORCE=0</code>）ときに穴が開く</strong>。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">6</span>
+      <h3 id="f6">敵対的レビュー（登録した 16 行そのものを叩く） <span class="chip stop">✕問題</span> <span class="basis">根拠: matcher の突き合わせとラッパーの実行</span></h3>
+      <p>観点は「登録の網から漏れるツールはないか」「fail-closed ラッパーは本当に閉じるか」。読むだけでなく実際に流して観測した。</p>
+      <ul>
+        <li><strong>adv1（✕問題）<code>workflow-guard</code> の matcher に <code>mcp__.*</code> が無い</strong>。隣の 2 行（<code>workflow-entry</code> の拒否側・<code>workflow-state-guard</code>）には入っているのに、<strong>許可範囲の本体だけ入っていない</strong>。MCP のツールは「宣言していないと deny」と「状態の守り」は通るが、<strong>許可範囲・作業ツリー外・コマンド分類の判定を受けない</strong>。書き込み系のツールを持つ MCP サーバを繋ぐと <code>allow.write</code> を無視して書ける。登録は仕様 §1 の 50 行目どおりなので<strong>登録ミスではなく仕様の穴</strong></li>
+        <li><strong>adv2（△注意）<code>EnterWorktree</code> / <code>ExitWorktree</code> がどの matcher にも無い</strong>。worktree へ移ること自体が無検査で、<a href="#f5">f5</a> の「WF601 が worktree を見ない」と重なると「worktree に移って書けば事後の差分検査を素通りできる」</li>
+        <li><strong>adv3（◎良・空振り）fail-closed ラッパーの二重出力・部分出力は起きない</strong>。実フックの出力は printf 1 回で完結し、<code>hook_deny</code> は <code>trap - ERR</code> → 記録 → printf → <code>exit 0</code> の順なので、記録で落ちれば deny は出ずラッパーの WFx09 に倒れる（正しく閉じる）</li>
+        <li><strong>副産物</strong>: <code>python -c</code> は <code>WF209</code>（文字列をコードとして受け取る実行系）で拒否されるのに <code>jq -r</code> の式は通る。<strong>判定の一貫性が無い</strong>（jq からファイルは書けないので実害は小さい）</li>
+      </ul>
+      <details>
+        <summary>根拠を見る（壊れた JSON になる形と、実フックがそうならない理由）</summary>
+        <pre><code>$ { printf '{"systemMessage":"途中まで出た"'; grep -q zzzz /dev/null; } \
+    || printf '%s' '{"hookSpecificOutput":{"permissionDecision":"deny"}}'
+{"systemMessage":"途中まで出た"{"hookSpecificOutput":{"permissionDecision":"deny"}}   ← 不正な JSON
+
+hook-common.sh:670  hook_deny() { trap - ERR; hook_record …; __hc_emit_decision deny …; exit 0; }
+                    ↑ printf は 1 回。その後は exit 0 だけなので二重出力・部分出力が起きない</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>ラッパーは設計どおり閉じている。穴は<strong>登録の網の側</strong>にあり、いちばん重いのは adv1（MCP が許可範囲の判定を受けない）。どちらも仕様の変更が要るので 0032 へ送る。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>HK-T01（16 行の逐語照合）</td><td><strong>通過</strong>。イベント・matcher・配列上の位置・command の 4 列すべて一致</td></tr>
+      <tr><td>HK-T09（fail-closed ラッパー）</td><td><strong>通過</strong>（8 件）</td></tr>
+      <tr><td><code>test_config_integrity.sh</code> 全体</td><td><strong>27 件通過・失敗 0</strong></td></tr>
+      <tr><td>プローブ撤去で触った 6 本</td><td><strong>251 件通過・失敗 0</strong>（16 / 57 / 56 / 36 / 38 / 48）</td></tr>
+      <tr><td>全件テスト <code>run-tests.sh --ids</code></td><td><strong>25 本 / 163 ID すべて PASS・失敗 0</strong>（assertion 合計 1999 件、TIMEOUT なし）</td></tr>
+      <tr><td><code>bash -n</code></td><td>触った 12 本すべて通過</td></tr>
+      <tr><td><code>shellcheck</code></td><td><strong>未実施</strong>（環境に無い）</td></tr>
+      <tr><td>未実行の ID</td><td><strong>27 件</strong>: <code>BD-T01</code>〜<code>T13</code>（13。<code>boundary.sh</code> 未実装）/ <code>SE-T01</code>〜<code>T04</code>・<code>T07</code>〜<code>T09</code>（7。<code>boundary.sh</code> 依存）/ <code>FN-T01</code>〜<code>T05</code>（5。release 未実装）/ <code>WE-T10</code>（1）/ <code>TR-T06</code>（1）。<code>AUTH-T01</code> / <code>AUTH-T03</code> / <code>WD-T06</code> はスキル仕様の記入例で実在しない</td></tr>
+      <tr><td>DoD の「実施できない 10 件」</td><td><strong>実測と合わない</strong>（依存は 8 件）。数え方の訂正を 0032 へ</td></tr>
+      <tr><td>重複 ID</td><td>1 件（<code>CP-T08</code> が <code>test_commit.sh</code> と <code>test_push.sh</code> の両方にある）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>§1 の登録表を 16 行にする</strong>（<code>PreToolUse</code> <code>Agent</code> の <code>subagent-start-check</code> を削除）。§12 の T9 を「実測で外れた」に書き換え、縮退の発動を確定させる</li>
+    <li><strong><code>subagent-start-check</code> 仕様から <code>PreToolUse</code> <code>Agent</code> の経路（WF801 / WF803 の起動前通知）を落とす</strong>。あわせて <code>tool_response.resolvedModel</code> で実際に使われたモデルを比較できることを §2 と <code>subagent-stop-check</code> 仕様に書く</li>
+    <li><strong>§2 に「<code>PreToolUse:Agent</code> の <code>tool_input.model</code> は呼び出し側が明示したときだけ来る」を追記</strong>する（未指定＝既定モデル。値が無いことを「一致」と読まない）</li>
+    <li><strong>§2 に「exit≠0 のツール呼び出しでは PostToolUse フックが起動しない」を追記</strong>し、<code>workflow-diff-check</code> 仕様に「失敗した呼び出しの後の差分は次の成功した呼び出しまで検知が遅れる」を §13（意図的な緩和）として書く</li>
+    <li><strong>§12 の T2 / T3 / T4 / T5 / T7 を「実測で確認済み」に更新</strong>する。T2 の縮退（親子対応表）は不要と確定。副産物として「サブエージェント内のツール呼び出しには <code>agent_id</code> / <code>agent_type</code> が付く」を §2 に明記できる</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td><code>systemMessage</code> はユーザーに表示される（公式の「Warning message shown to the user」）</td><td>対話 UI では<strong>通知が来ない</strong>。ヘッドレスの SDK メッセージには <code>level: notice</code> で載っている</td><td>「破棄される」ではなく「対話 UI が見せない」と記録し、§12 の縮退を発動（16 行）</td></tr>
+      <tr><td>実行者の比較は <code>PreToolUse</code> の <code>tool_input.model</code> で行える</td><td>呼び出し側が<strong>指定しない限り来ない</strong></td><td>実装は既に「model が特定できない」へ倒していたので振る舞いの誤りは無い。仕様に追記（設計への反映 3）</td></tr>
+      <tr><td>失敗したツール呼び出しでも PostToolUse は動く</td><td><strong>1 本も起動しない</strong>（exit 3 / exit 7 で確認）</td><td>「届いた = 成功」の正しさが裏づいた一方、WF601 が失敗時に効かない含意を仕様へ（設計への反映 4）</td></tr>
+      <tr><td><code>cd</code> や一時スクリプトの実行は通る</td><td>どちらも<strong>既定拒否（WF204）</strong></td><td>書き方を宣言の範囲に合わせて続行。<code>tmp-script</code> 分類の案を 0032 へ</td></tr>
+      <tr><td>HTML ビューはテンプレートを <code>cp</code> して作る（スキルの手順）</td><td><code>cp</code> が <strong>WF205</strong> で止まる</td><td>Read → Write で同じ内容を作った。<strong>スキルの手順とフックの規則の衝突</strong>として 0032 へ</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>0032（feedback-plan）へ送るもの 9 件</strong>: (1) WF601 が登録作業のチケットで <code>settings.json</code> を毎回挙げるノイズ、(2) 作業ツリー外の書き込みを WF209 で拒否する判断とメモリ機構の衝突、(3) <code>cd</code> を読み取り系に足すか、(4) <code>allow.ops</code> に <code>tmp-script</code> を設けるか、(5) WF601 が worktree を見ない穴、(6) <code>20-common-step-report-view</code> の手順が <code>cp</code> を指示していて WF205 と衝突すること、(7) <strong><code>workflow-guard</code> の matcher に <code>mcp__.*</code> を足すか（adv1。重い）</strong>、(8) <code>EnterWorktree</code> / <code>ExitWorktree</code> を matcher に入れるか（adv2）、(9) eval 系の判定に <code>jq</code> の式が入っていない一貫性の穴</li>
+    <li><strong>複数行のコミットメッセージが使えない</strong>。<code>commit.sh</code> に改行入りの <code>-m</code> を渡すとコマンド位置の判定が崩れて <code>WF204</code> になる。あわせて <code>commit.sh</code> は規約（CP002）でフッターとモデル名を禁じているので <code>Co-Authored-By</code> の類は付けられない</li>
+    <li><strong>PR #12 の本文の更新</strong>がこのチケットの <code>allow.ops</code> に無い（<code>remote-write:mr-edit</code> を宣言していない）ため、ワークの切れ目で行う</li>
+    <li><strong><code>shellcheck</code> の導入</strong>が 8 巡続けて未了</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

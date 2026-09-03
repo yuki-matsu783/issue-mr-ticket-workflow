@@ -1,0 +1,509 @@
+<!--
+  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
+       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。
+
+  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
+  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
+  設計への反映 → 想定と異なった点 → 残課題
+
+  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
+  レビューの重みは色相を使わず ◆特に見てほしい / ◇承認が欲しい / ・細かいレビュー不要。
+  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
+
+  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0033 AI アセット実装結果 — レビュー 1 巡目の是正 1/2: 回帰 1 件と塞げていなかった穴 4 件</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
+  <p class="kind">AI アセット実装結果レポート / AI アセット実装</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>0033 AI アセット実装結果 — レビュー 1 巡目の是正 1/2: 回帰 1 件と塞げていなかった穴 4 件</h1>
+
+  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 3</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk stop">✕</span> 1. 読み込み行の <code>|| true</code> を戻し、抜けていた経路を SS-T04 に足す</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. worktree 偽装を塞ぐ</a></li>
+          <li><a href="#f3"><span class="mk stop">✕</span> 3. <code>curl</code> の分類の 2 つの穴</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. <code>redact</code> の退行</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. <code>hc_append_jsonl</code> の切り詰めが不正な JSON を書く</a></li>
+          <li><a href="#f6"><span class="mk warn">△</span> 6. <code>block-chmod</code> のクォート回避と過剰拒否</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. テストの検出力</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0033（ai-asset-implementation）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
+<section id="overview" data-required>
+  <p class="lead">0027 に対する敵対的レビュー 1 巡目（opus 2 本並行）の <strong>29 件</strong>のうち、コードとテストに関わる <strong>19 項目</strong>を直した。<strong>高の 3 件はいずれも「直したと報告した箇所が直っていない」型</strong>だった — 読み込み行の回帰（<a href="#f1">f1</a>）、worktree 偽装が塞げていない（<a href="#f2">f2</a>）、BC-T05 が空振り（<a href="#f7">f7</a>）。さらに <code>curl</code> の分類に 2 つの穴（<a href="#f3">f3</a>）、<code>redact</code> の現実入力での退行（<a href="#f4">f4</a>）、<code>hc_append_jsonl</code> の切り詰めが不正な JSON を書く問題（<a href="#f5">f5</a>）を直した。<strong>今回は 6 か所で「壊すと落ちる・戻すと通る」を確認してから先に進んだ</strong>。全件テストは <strong>15 本 / 71 件・FAIL 0</strong>。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>3</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>r1（△注意）<code>hc_append_jsonl</code> の切り詰めが行の形を変える</strong>。上限を超えた行は <code>{"truncated":true,"bytes":N,"head":"…"}</code> に置き換わり、<code>decisions.jsonl</code> の 10 キー固定の形ではなくなる。「壊れた 10 キーの行」より「妥当な別の形の行」を選んだが、<strong>0031 の集計がこの行をどう扱うか</strong>を決めていない（<a href="#f5">f5</a>）</li>
+        <li><strong>r2（△注意）<code>_sc_classify_web</code> が分類を 1 つに絞れない場合がある</strong>。送信側と出力先が同時に成り立つとき（<code>curl -d @a.json -o out.json URL</code>）は <code>SC_CLASS=remote-write:upload</code> のまま <code>SC_TARGETS</code> も埋めている。<strong>呼び手（0030 の workflow-guard）が両方を見る</strong>必要があり、片方だけ見ると素通りする。仕様 §8 は分類 1 つの前提（<a href="#f3">f3</a>）</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><strong>r3</strong>: <code>block-chmod</code> の制御方式 4 を (a) opaque な段の引数を見る /(b) 中身が見えない形だけコマンド全体を見る に分けたこと（<code>bash -c "chmod"</code> の拒否を保ったまま過剰拒否を落とす唯一の割り方だった。<a href="#f6">f6</a>）</li>
+        <li><strong>r4</strong>: <code>cmdpos.sh</code> が <code>$</code> 始まりの実行体を opaque にするようにしたこと（仕様 §7 の opaque の定義には無い）</li>
+        <li><strong>r5</strong>: チケットの <code>allow</code> を作業中に書き換えたこと（<code>ticket.sh create</code> がフラグの繰り返しを取りこぼしていた分の復元。範囲の拡大ではない）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>読み込み行 22 本の再置換（SS-T05 が機械で固定している。<a href="#f1">f1</a>）</li>
+        <li><code>scope.sh</code> 冒頭の自己文書と <code>hook_record</code> の <code>HOOK_EVENT</code> エスケープ</li>
+        <li><code>__hc_winpath</code> の切り出し（<a href="#f2">f2</a>）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong><code>shellcheck</code> は引き続き未導入</strong>で、静的検査は実施できていない</li>
+      <li><strong>フックとして登録した状態の振る舞いは測っていない</strong>。確認はすべて <code>bash &lt;script&gt; &lt; 入力 JSON</code> の単体実行</li>
+      <li><strong><code>_sc_classify_web</code> の curl オプション列挙が網羅的かは依然として確かめられない</strong>。今回 7 種の抜けを塞いだが、curl は 200 以上のオプションを持ち <code>.curlrc</code> も見ていない。<strong>「7 種塞いだ」は「網羅した」ではない</strong>（<a href="#f3">f3</a>）</li>
+      <li><strong><code>redact</code> の計測は Git Bash（Windows）</strong>。Linux での値は測っていない（<a href="#f4">f4</a>）</li>
+      <li><strong><code>hc_append_jsonl</code> の並行書き込み（2 プロセスから同時に追記して行が割れない）は検査していない</strong>。HK-T17 の仕様の観点のうち単一プロセスの分だけを固定している（<a href="#f5">f5</a>）</li>
+      <li><strong><code>__hc_is_worktree_of</code> を突破する別経路</strong>は探索していない。塞いだのは「指す先が実在しない偽の <code>.git</code>」「相互参照が片方向」「なりすまし」「本流の配下」の 4 つ（<a href="#f2">f2</a>）</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>レビュー: 敵対的レビュー 1 巡目 2 本（実装の正しさ / 仕様との整合）の 29 件</li>
+    <li>チケット: <code>0033-ai-asset-implementation.md</code>（DoD 20 件）</li>
+    <li>仕様: フック共通仕様（§2 の入力と作業ツリー・§3 の redact・§5 の記録・§7 の cmdpos・§8 の分類と読み込み関数・§11 のテスト観点）、<code>20-common-step-shell-script.md</code>（読み込み行・SS-T04・SS-T05）、<code>block-chmod.md</code></li>
+    <li>実体: <code>.claude/hooks/lib/{hook-common,cmdpos,scope}.sh</code>、<code>block-chmod.sh</code>、雛形 2 本と読み込み行を持つ実体 22 本、各テスト</li>
+    <li>環境: Windows 10 Pro / Git Bash・<code>jq</code> あり・<code>shellcheck</code> <strong>無し</strong>・既定ロケールは byte 指向</li>
+  </ul>
+</section>
+
+<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot stop">1</span>
+      <h3 id="f1">1. 読み込み行の <code>|| true</code> を戻し、抜けていた経路を SS-T04 に足す <span class="chip stop">✕問題</span> <span class="basis">根拠: リポジトリ外・git あり で exit 128 → exit 0 / SS-T04 の検出力 3 件</span></h3>
+      <p><strong>0027 が入れた回帰</strong>。仕様 <code>20-common-step-shell-script.md:116</code> は「<code>git rev-parse</code> だけに頼らないのは …… git 不在・リポジトリ外で <code>set -e</code> により即死することを避けるため」と明記しており、その <code>|| true</code> が落ちていた。雛形 2 本と実体 22 本すべてに配られていた。<strong>SS-T04 がこれを拾えなかった理由</strong>も分かった — 既存の <code>nogit</code> ヘルパは <code>make_restricted_path</code> で PATH から git を外すので <code>command -v git</code> が偽になり、読み込み行の 3 段目に入らない。仕様が挙げる 3 条件のうち「リポジトリ外（git はある）」だけが未カバーだった。<code>withgit</code> を足し、前提が満たせない環境は <code>pass</code> で流さず <code>fail</code> にした（検査できなかったことが緑で隠れるのは同じ型の穴）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 0027 後（リポジトリ外・git あり・CLAUDE_PROJECT_DIR 無し）
+$ env -u CLAUDE_PROJECT_DIR bash new.sh
+exit=128                      ← nop フォールバックに到達しない
+
+# 0033 後
+$ env -u CLAUDE_PROJECT_DIR bash new.sh
+REACHED root=/c/Users/taniyama/AppData/Local/Temp/norepo
+exit=0
+
+# 検出力: 雛形から || true を外す
+FAIL SS-T04: exit 128 (expected 0)
+FAIL SS-T04: expected &#39;OK: z 実行&#39; actual &#39;&#39;
+passed=40 failures=3</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>読み込み行を持つ実体 22 本すべてが雛形と再びバイト一致し（SS-T05 が機械で固定）、仕様が要求する 3 条件すべてで nop フォールバックに到達する。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">2. worktree 偽装を塞ぐ <span class="chip stop">✕問題</span> <span class="basis">根拠: HK-T18 の検出力 変異 2 種で 3 件 / 1 件</span></h3>
+      <p>0027 は「<code>cd</code> だけでガードがバイパスされる穴を塞いだ」と報告したが、判定は「<code>gitdir:</code> が <code>worktrees/</code> を指す」の prefix 一致だけで、<strong>指す先が実在するかを見ていなかった</strong>。<code>.git</code> ファイルを 1 本置くだけで <code>HOOK_WORKTREE</code> が移り、しかもその置き場（<code>wip/tmp/**</code>）は無承認で書ける。<strong>指す先の実在と相互参照</strong>まで要求する形に変え、「本流の配下は worktree ではない」を先に弾くようにした（<code>参考ディレクトリ/*/.claude</code> の経路）。<code>__hc_winpath</code> を切り出して <code>HOOK_ROOT</code> と候補の両方に掛けたので、<code>/c/…</code> と <code>C:/…</code> の混在で判定が外れる経路も閉じた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 0027 後: gitdir: だけ置いた偽装が通る
+偽装あり → HOOK_WORKTREE=.../wt/evil     ← ガードが全面バイパス
+
+# 0033 後
+  evil（指す先が実在しない）        → root
+  real（相互参照が成立）            → real
+  real/sub                          → real
+  root/参考（本流の配下）           → root
+  root                              → root</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>「穴を塞ぐ決定が別の穴を開ける」型は<strong>通算 6 回目</strong>。今回は 0027 の対策が不十分だったという形で、報告に「塞いだ」と書いたことが実際より強かった。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">3</span>
+      <h3 id="f3">3. <code>curl</code> の分類の 2 つの穴 <span class="chip stop">✕問題</span> <span class="basis">根拠: HK-T15 の検出力 13 件</span></h3>
+      <p>(1) <strong>リダイレクト先を落としていた</strong> — <code>CP_REDIRECTS</code> に宛先が入っているのに web 分岐が先にあり <code>SC_TARGETS</code> が空。<code>curl &lt;url&gt; &gt; .claude/hooks/lib/hook-common.sh</code> が <code>web</code> に落ち、WF205 の判定が一切当たらない。(2) <strong>束ねた短オプションを見ていなかった</strong> — <code>-d</code> は捕捉するのに <code>-sd</code> は素通り。<code>web</code> を宣言しただけのチケットからローカルファイルを送出でき（<code>-sd @secret</code>）、作業ツリーへ任意のファイルを落とせた（<code>-sO</code>）。値を取る短オプションの表を持ち、<code>-</code> で始まる語を 1 文字ずつ走査する形にした（curl の「値を取る文字が末尾なら次の語、途中なら残りが値」の規則）。長オプションは前方一致に変えた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>                                          0027 後   0033 後
+curl URL &gt; .claude/hooks/lib/hook-common.sh   web      write [.claude/hooks/lib/hook-common.sh]
+curl -sd @secret.txt URL                      web      remote-write:upload
+curl --json {} URL                            web      remote-write:upload
+curl -sO URL                                  web      write [_]
+curl -D headers.txt URL                       web      write [headers.txt]
+curl -sXGET URL                               web      web     ← GET は送信側でない
+curl -o - URL                                 web      web     ← 標準出力は書き込みでない</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>§8 (1) が「改定前は curl が既定拒否で閉じていた経路。web を通す決定はこれを開けてはならない」と明記している経路が、開いたままだった。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">4. <code>redact</code> の退行 <span class="chip good">◎良</span> <span class="basis">根拠: 新旧の直接比較（繰り返し平均）</span></h3>
+      <p>0027 は病的ケース（1 語 4000 字・58 秒）を直したが、区切りの多い現実の入力で超線形になっていた。原因は <code>${s:pos:1}</code> の位置指定と、<code>out+=</code> の繰り返し（毎回 realloc して O(n²)）。<strong>40 字以上の候補が無ければ規則 5 を丸ごと飛ばす短絡</strong>を入れ、ループ内は <code>$w</code> をそのまま使い、連結を配列 + <code>printf -v</code> の 1 回にした。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>                    0027 後      0033 後（新）   0027 前（旧）
+decisions の 1 行     —            0.81 ms        0.96 ms
+多語 3090 字          101 ms       6.62 ms        6.68 ms
+多語 16890 字        1084 ms      28.92 ms       34.45 ms
+1 語 4000 字           66 ms      54.90 ms    66424.03 ms
+
+同値性: 代表 15 ケース + ランダム 400 回 → 差分 0 件</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>退行は解消し、<strong>0027 前より全ケースで速い</strong>。<code>redact</code> は 1 判定あたり 3〜4 回・ホットパスのフック 5 本が同時に走る場所なので、ここの定数は効く。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5">5. <code>hc_append_jsonl</code> の切り詰めが不正な JSON を書く <span class="chip warn">△注意</span> <span class="basis">根拠: 切断位置 8 通り + 多バイトで全件妥当・4096 バイト以下</span></h3>
+      <p>レビューの指摘は「末尾のバックスラッシュ」だったが、実際にはもっと広い。<strong>切断点が JSON の構造の途中（<code>{"k":"a","</code> の後ろ）に落ちると <code>…"}</code> を足しても閉じない</strong>。つまり入力次第で壊れるかどうかが変わる。内容を 1 つの文字列フィールドに入れ直し、<strong>エスケープを「切ってから」掛ける</strong>形にした。どこで切っても妥当になる。バイト長は <code>local LC_ALL=C</code> のヘルパで測るので、ロケールに依らず上限を守る。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 0027 後（切断位置を 1 文字ずつずらす）
+off=0 bytes=4097 妥当
+off=1 bytes=4097 ★JSON 不正★  末尾=[\\\\&quot;…&quot;}]
+off=3 bytes=4097 ★JSON 不正★  ← 上限 4096 も超えている
+
+# 0033 後
+off=0..7 すべて 妥当 / bytes=2072
+多バイト 2000 文字      妥当 / bytes=2072
+
+# 検出力: 切り詰めを 0027 の形に戻す → FAIL HK-T17 が 12 件</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>上限を超えた行は <code>{"truncated":true,"bytes":N,"head":"…"}</code> に置き換わるので、<code>decisions.jsonl</code> の 10 キー固定の形ではなくなる。<strong>0031 の集計がこの行をどう扱うかは決めていない</strong>（r1）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">6</span>
+      <h3 id="f6">6. <code>block-chmod</code> のクォート回避と過剰拒否 <span class="chip warn">△注意</span> <span class="basis">根拠: 拒否すべき 14 件すべて DENY / 通すべき 7 件すべて ALLOW</span></h3>
+      <p>前置判定を生の文字列と「<code>\</code> <code>"</code> <code>'</code> を落とした複製」の両方に当て、<code>$</code> 始まりの実行体を opaque にし、<strong>制御方式 5</strong>（取り除いた文字列を別に解析して実行位置だけ照合）を足した。制御方式 4 は (a) opaque な段の引数を見る /(b) 中身が見えない形だけコマンド全体を見る に分けた — <strong>per-segment だけにすると <code>bash -c "chmod +x a"</code> を見逃す</strong>（引数が <code>_</code> に潰れるため）ので、この割り方が唯一両立する。あわせて <code>. cmdpos.sh</code> を前置判定の<strong>後ろ</strong>へ動かし、仕様 BC-T05 の「一覧の語を含まなければ <code>cmdpos.sh</code> を呼ばずに通る」が実際に成立する形にした。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 0027 後 → 0033 後
+c\hmod +x a.sh              ALLOW → DENY
+ch&quot;&quot;mod +x a.sh             ALLOW → DENY
+ch&#39;&#39;mod +x a.sh             ALLOW → DENY
+CMD=chmod; $CMD +x a.sh     ALLOW → DENY
+grep chmod f | xargs echo   DENY  → ALLOW   ← 過剰拒否を解消
+cat notes.md | grep chmod   DENY  → ALLOW
+bash -c &quot;chmod +x a&quot;        DENY  → DENY    ← 保つ
+ls | xargs chmod +x         DENY  → DENY</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>クォートによる回避は 3 通り、変数実行は 1 通り塞いだ。<strong>網羅を主張はできない</strong>（シェルの表記は他にもある）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">7. テストの検出力 <span class="chip good">◎良</span> <span class="basis">根拠: 6 か所で「壊すと落ちる・戻すと通る」を確認</span></h3>
+      <p><strong>BC-T05 の空振りは、テストの補助関数 <code>judge</code> が終了コードを見ていないことが原因でもあった</strong>。無出力 + exit 2（PreToolUse では拒否）を <code>allow</code> と読むので、前置判定を消しても落ちない。<code>judge</code> を直して初めて検出力が出た。存在しなかった <strong>HK-T16</strong>（読み込み系 3 関数の戻り値 0/1/2 の区別、<code>FM_AVAILABLE=0</code> での無出力、述語・判定関数が 3 状態の規約に巻き込まれないこと）を実装した — <code>scope_load_ticket</code> の戻り値 2 の経路は、これまで 1 件もテストされていなかった。<strong>SS-T05</strong> は <code>__ss_load</code> を含むのに行頭一致しないファイルを「対象外」で静かに落としていたので、それも不一致として数えるようにした。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 変異テストの結果（壊す → 落ちる / 戻す → 通る）
+SS-T04   雛形から || true を外す              → 3 件 FAIL
+HK-T18   相互参照の確認を外す                  → 3 件 FAIL
+HK-T18   本流配下の除外を外す                  → 1 件 FAIL
+HK-T15   scope.sh を 0027 の版に戻す           → 13 件 FAIL
+HK-T17   切り詰めを 0027 の形に戻す            → 12 件 FAIL
+BC-T05   前置判定の行を消す                    → 3 件 FAIL
+SS-T05   読み込み行を 1 文字インデント         → 1 件 FAIL</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>「直した」と「直ったことがテストで固定された」は別物で、0027 はその差で空振りしていた。今回は先に進む前に 1 件ずつ確かめている。</p>
+      </div>
+    </li>
+    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+  </ol>
+</section>
+
+<!-- 任意: 検証の結果を一覧で示す場合。各章で示しているなら削除 -->
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>全件テスト（<code>run-tests.sh</code>）</td><td><strong>15 本 / 71 件・FAIL 0</strong>（0027 の 70 件 + HK-T16）</td></tr>
+      <tr><td><code>test_hook_common.sh</code></td><td>passed=159 failures=0（0027 は 138）</td></tr>
+      <tr><td><code>test_scope.sh</code></td><td>passed=296 failures=0（0027 は 258）</td></tr>
+      <tr><td><code>test_templates.sh</code></td><td>passed=43 failures=0（0027 は 39）</td></tr>
+      <tr><td><code>test_block_chmod.sh</code></td><td>passed=39 failures=0（0027 は 29）</td></tr>
+      <tr><td>読み込み行の回帰</td><td>リポジトリ外・git あり で exit 128 → exit 0</td></tr>
+      <tr><td>SS-T04 の検出力</td><td>雛形から <code>|| true</code> を外すと 3 件 FAIL</td></tr>
+      <tr><td>HK-T18 の検出力</td><td>相互参照の確認を外すと 3 件、本流配下の除外を外すと 1 件 FAIL</td></tr>
+      <tr><td>HK-T15（web）の検出力</td><td><code>scope.sh</code> を 0027 の版に戻すと 13 件 FAIL</td></tr>
+      <tr><td>HK-T17 の検出力</td><td>切り詰めを 0027 の形に戻すと 12 件 FAIL</td></tr>
+      <tr><td>BC-T05 の検出力</td><td>前置判定の行を消すと 3 件 FAIL</td></tr>
+      <tr><td>SS-T05 の検出力</td><td>読み込み行を 1 文字インデントすると 1 件 FAIL</td></tr>
+      <tr><td><code>redact</code> の新旧比較</td><td>decisions 1 行 0.81ms / 旧 0.96、16890 字 28.9 / 旧 34.5、1 語 4000 字 54.9 / 旧 66424</td></tr>
+      <tr><td><code>redact</code> の同値性</td><td>代表 15 ケース + ランダム 400 回で差分 0</td></tr>
+      <tr><td>切り詰めの妥当性</td><td>切断位置 8 通り + 多バイトで全件 <code>jq -e .</code> を通り 4096 バイト以下（実測 2072 バイト）</td></tr>
+      <tr><td><code>block-chmod</code> の判定（手動確認セット）</td><td>拒否すべき 14 件すべて DENY、通すべき 7 件すべて ALLOW（テストの assert 件数ではなく、手で流した確認セットの件数）</td></tr>
+      <tr><td><code>shellcheck</code></td><td><strong>未実施</strong>（環境に未導入）</td></tr>
+    </tbody>
+  </div>
+  <h3>受け入れ条件との対応</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>issue #9 の受け入れ条件</th><th>このチケットでの状態</th></tr></thead>
+    <tbody>
+      <tr><td>フック本体 11 本を実装する</td><td>1 本（<code>block-chmod.sh</code>）のまま。残り 10 本は 0029 / 0030</td></tr>
+      <tr><td><code>settings.json</code> に登録する</td><td><strong>未着手</strong>（0028 の ⓪ / 0031 の ①②。人間の操作）</td></tr>
+      <tr><td>TBD T1〜T4 を検証する</td><td>未着手（0031 の 4c で実測）</td></tr>
+      <tr><td>機械テストが通る</td><td>全件 15 本 / 71 件・FAIL 0</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>0034 へ</strong>: 0027 のチケット・報告・HTML の記述の是正 16 項目（レビュー 1 巡目の残り）</li>
+    <li><strong>0029 / 0030 へ</strong>: 読み込み行と BC-T05 の型が直ったので、10 本に複製しても壊れた形は伝播しない。<code>_sc_classify_web</code> が分類 1 つに絞れない場合（r2）の呼び手側の扱いをここで決める</li>
+    <li><strong>0031 へ</strong>: <code>hc_append_jsonl</code> の切り詰めが行の形を変える（r1）。集計がこの行をどう扱うかを決める</li>
+    <li><strong>0032 へ</strong>: 仕様の書き戻しが 0027 からの持ち越し 4 件 + 今回の 3 件（切り詰めの形 / <code>_sc_classify_web</code> の複数分類 / <code>$</code> 実行体の opaque）。DDR 候補 3 件（テストの補助関数が検出力を殺す / 切り詰めの作り方 / bash の関数は <code>return 0</code> で締める）。<code>ticket.sh --help</code> のカンマ区切りの明示</li>
+  </ol>
+</section>
+
+<!-- 必須: 想定と異なった点。無ければ「無し」 -->
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>レビューの「末尾のバックスラッシュ」を直せば <code>hc_append_jsonl</code> は妥当になる</td><td>切断点が構造の途中に落ちる方がずっと広い。入力次第で壊れるかが変わる</td><td>切って足す形をやめ、内容を 1 フィールドに入れ直す形にした（<a href="#f5">f5</a>）</td></tr>
+      <tr><td><code>block-chmod</code> の制御方式 4 を per-segment にすれば過剰拒否が直る</td><td><code>bash -c "chmod +x a"</code> は引数が <code>_</code> に潰れるので per-segment だと<strong>見逃す</strong>（高の穴を開ける）</td><td>(a) 引数を見る /(b) 中身が見えない形だけ全体を見る に分けた（<a href="#f6">f6</a>）</td></tr>
+      <tr><td><code>ticket.sh create</code> はフラグの繰り返しで配列になる</td><td>カンマ区切りの 1 値で、最後の 1 個しか残らない。0033 の宣言が実際の作業範囲より狭くなっていた</td><td>作成時に宣言したはずの範囲に直し、<code>--help</code> の是正を 0032 へ送った。気付いたのは <code>run-tests.sh</code> の TR006</td></tr>
+      <tr><td>関数に切り出しても <code>set -e</code> の挙動は変わらない</td><td>関数の最後がマッチしない <code>for</code> だと戻り値 1 で呼び出し元が落ちる</td><td><code>return 0</code> で締めた。DDR 候補へ</td></tr>
+      <tr><td><code>judge</code>（テストの補助関数）は判定を正しく畳んでいる</td><td>無出力 + exit 2 を <code>allow</code> と読んでいた。<strong>テストの補助関数が検出力を殺していた</strong></td><td><code>judge</code> を直してから検出力を確認した（<a href="#f7">f7</a>）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 残課題。無ければ「無し」 -->
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong><code>shellcheck</code> の未導入</strong>（環境の制約）</li>
+    <li><strong><code>_sc_classify_web</code> の網羅性</strong>は依然として確かめられない（7 種塞いだが網羅ではない）</li>
+    <li><strong><code>hc_append_jsonl</code> の並行書き込み</strong>は未検査（HK-T17 の仕様の観点の一部）</li>
+    <li><strong>仕様からの逸脱</strong>が 0027 からの持ち越し 4 件 + 今回 3 件（0032 で解消）</li>
+    <li><strong><code>check-html.sh</code> は md と HTML の内容一致を検査しない</strong>（13 回連続の申し送り）</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

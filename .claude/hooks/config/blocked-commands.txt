@@ -1,0 +1,4 @@
+# 実行位置にあれば拒否するコマンドの一覧（block-chmod が読む。仕様: 10_spec/hooks/20-PreToolUse/block-chmod.md）
+# 1 行 1 コマンド。`#` から行末はコメント。空行は無視。実行体の basename（.exe を除く）と小文字で比較する。
+# 追加・削除は AI アセット実装のチケットで行う（config/ は common.confirm なので WF203 の確認が入る）。
+chmod

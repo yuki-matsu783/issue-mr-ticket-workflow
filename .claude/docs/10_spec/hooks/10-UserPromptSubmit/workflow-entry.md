@@ -26,8 +26,8 @@ keywords: [振り分け, 宣言, UserPromptSubmit, Skill, 拒否, 継続条件, 
 | 登録 | matcher | 役割 |
 |---|---|---|
 | UserPromptSubmit | — | `prompt_seq` を +1 し `declared_skill` を空にする。プロンプト 1 行目が `/00-workflow-issue-mr-driven` または `/00-workflow-quick-request`（引数付き可）なら宣言として記録する |
-| PreToolUse | `Skill` | `tool_input.skill` が振り分けスキル名（`assets/entry-skills.txt`: `00-workflow-issue-mr-driven` / `00-workflow-quick-request`。`CLAUDE.md`「作業の振り分け」の表と同一 — テスト WE-T07 で照合）なら `declared_skill` に記録する。Skill ツール自体は常に許可 |
-| PreToolUse | 書き込み / 実行 / プランモード / 起動（共通仕様 §2 の分類） | 宣言と継続条件を判定し、未宣言なら拒否 |
+| PreToolUse | `Skill` | `tool_input.skill` が振り分けスキル名（`.claude/hooks/config/entry-skills.txt`: `00-workflow-issue-mr-driven` / `00-workflow-quick-request`。`CLAUDE.md`「作業の振り分け」の表と同一 — テスト WE-T07 で照合）なら `declared_skill` に記録する。Skill ツール自体は常に許可。**振り分けスキル名の正はこのファイルで、照合を行うのはこのフック**。`hook-common.sh` の `tool_class` は「ツールの種類の分類」までを返す関数であり、スキル名の照合には使わない（`00-workflow-` の接頭辞判定を分類の根拠にすると、将来 `00-workflow-` で始まる別のスキルが増えたときにファイルとコードで判定が食い違う。DDR i0009-03） |
+| PreToolUse | 書き込み / 実行 / プランモード / 起動（共通仕様 §2 の分類）+ **`mcp__.*`** | 宣言と継続条件を判定し、未宣言なら拒否。**MCP ツールを含めるのは、宣言の有無の判定にツールの種類が要らないから**（何をする MCP ツールかを分類できなくても「振り分けを宣言したか」は判定できる）。MCP 経由のリモート書き込みの**種別**の強制は行わない（`workflow-guard` の責務外。共通仕様 §13・DDR i0009-27） |
 
 ## 入出力
 
@@ -44,7 +44,7 @@ PreToolUse（書き込み / 実行 / プランモード / 起動）での判定�
    - チケットが無く `logs/review-state.json` の `state` が `requested` → 許可（`review`）
    - チケットが無く `logs/merge-state.json` の `state` が `started` / `cleaned` / `pushed` → **宣言が無くても**許可するのは、提供コマンド `finalize.sh`（release の再実行）と `boundary.sh`（`status` による現在地の確認）の実行だけ（共通仕様 §7-8 の識別）。それ以外の操作はこの分岐では決めず 3〜4 の宣言の判定に進む（宣言があれば通常どおり許可、無ければ WF101 で「再宣言するか、`finalize.sh release` を再実行する」を案内）。継続条件は緩和であって、宣言済みより厳しくはしない
    - 上記のどれにも当たらないが `20_done/` にだけチケットがある状態も `tickets` として通す（要件どおり。無宣言の窓になることは共通仕様 §13 の意図的な緩和）
-3. `entry.json` を読む。無い・壊れている → 未宣言として扱う（WF102。継続条件は 2 で評価済み）
+3. `entry.json` を読む（`hook_read_state`。`session_id` に依存するパスなので **`jq` の 2 回目**になる — §1・DDR i0009-46）。無い・壊れている（`HC_ENTRY_STATE` が `missing` / `broken`）→ 未宣言として扱う（WF102。継続条件は 2 で評価済み）
 4. `declared_skill` が空 → **deny WF101**。理由: 「このプロンプトでは振り分けが宣言されていない。Skill ツールで `00-workflow-issue-mr-driven` または `00-workflow-quick-request` を読み込んでから、元の操作をやり直すこと」
 5. 宣言あり → 許可（他の判定は行わない）
 6. 入力が解釈できない・`jq` が無い → **deny WF109**（機構の不調を明記）
@@ -81,10 +81,11 @@ PreToolUse（書き込み / 実行 / プランモード / 起動）での判定�
 | WE-T04 | 正常系 | プロンプト 1 行目のスラッシュ起動が宣言として扱われる |
 | WE-T05 | 正常系 | チケットが 1 枚でも（未追跡でも）あれば未宣言でも通り、`note` に `tickets` が残る |
 | WE-T06 | 境界 | チケット無し + `review-state.state=requested` で通る。`merge-state.state=cleaned` で `finalize.sh release` だけ通り、Write は WF101 |
-| WE-T07 | 正常系 | `assets/entry-skills.txt` と `CLAUDE.md` の表のスキル名が一致する |
+| WE-T07 | 正常系 | `.claude/hooks/config/entry-skills.txt` と `CLAUDE.md` の表のスキル名が一致する |
+| WE-T11 | 異常系 | 未宣言のセッションで MCP ツール（`mcp__github__add_issue_comment`）が WF101 で拒否される。宣言後は通る（種別の判定は行わない） |
 | WE-T08 | 異常系 | `entry.json` 破損で WF102、`jq` 不在で WF109 |
 | WE-T09 | 正常系 | 別の `session_id` の宣言が効かない |
-| WE-T10 | 正常系 | 継続条件の判定が、同じ作業領域・`logs/` に対する `boundary.sh status --offline` の `position` と食い違わない |
+| WE-T10 | 正常系 | 継続条件の判定が、同じ作業領域・`logs/` に対する `boundary.sh status --offline` の `position` と食い違わない。**`boundary.sh` は 3/3 で実装するため、この観点は 3/3 に送る**（両方が無出力になる空同士の比較では意味が無く、偽実装で代えると「本物と一致するか」という観点そのものが失われる。issue #9 の受け入れ条件 1 の「テストが通る」は、この issue で実装するフックのテストを指す。DDR i0009-04） |
 | WE-T11 | 正常系 | `merge-state.state=cleaned` で宣言済みなら Write も通り、未宣言でも `boundary.sh status` は通る |
 
 ## 要件との対応

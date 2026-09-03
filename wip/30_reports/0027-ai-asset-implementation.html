@@ -1,0 +1,508 @@
+<!--
+  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
+
+  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
+    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
+    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
+       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
+    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
+       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
+    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
+    5. 冒頭のこのコメントは削除してよい。
+
+  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
+  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
+  設計への反映 → 想定と異なった点 → 残課題
+
+  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
+  レビューの重みは色相を使わず ◆特に見てほしい / ◇承認が欲しい / ・細かいレビュー不要。
+  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
+
+  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
+-->
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0027 AI アセット実装結果 — 共通ライブラリ 3 本の改修・config 3 本・読み込み行の一斉置換・block-chmod</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
+  <p class="kind">AI アセット実装結果レポート / AI アセット実装</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>0027 AI アセット実装結果 — 共通ライブラリ 3 本の改修・config 3 本・読み込み行の一斉置換・block-chmod</h1>
+
+  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 5</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. <code>hook-common.sh</code> — 副入力・イベント固有フィールド・作業ツリー・記録ヘルパ</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. 上向き探索の候補が本流の worktree であることを確かめる</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. <code>scope.sh</code> — パス引数を消し、<code>web</code> の 3 段判定を足す</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. <code>cmdpos.sh</code> — <code>cmdpos_operands</code></a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. 読み込み行の一斉置換と <code>SS-T05</code> の新設</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. <code>block-chmod.sh</code> と config 3 ファイル</a></li>
+          <li><a href="#f7"><span class="mk warn">△</span> 7. <code>__hc_redact_to_reply</code> の性能バグ</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#acceptance">受け入れ条件との対応</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a></dd></div>
+    <div><dt>ブランチ</dt><dd>feature-9-hook-bodies-settings</dd></div>
+    <div><dt>チケット</dt><dd>0027（ai-asset-implementation）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-02</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
+<section id="overview" data-required>
+  <p class="lead">実装 2/3 の 1 枚目。<strong>フック本体を 1 本も書く前に、設計が前提にしていた lib の穴を埋めた</strong>。設計は「lib は #6 で既に正しい」という前提で書かれていたが、実体には <code>hook_read_state</code> / <code>hc_append_jsonl</code> / <code>hc_json_write</code> / <code>hc_lock</code> / <code>hc_unlock</code> の 5 関数も、<code>cmdpos_operands</code> も、拒否側 4 本が要るイベント固有フィールドも無かった。あわせて読み込み行 22 本を雛形にバイト一致させ（<code>SS-T05</code> を新設）、⓪ の段階登録で T6 を測るための <code>block-chmod.sh</code> を 1 本だけ実装した。全件テストは <strong>15 本 / 70 件・FAIL 0</strong>。<strong>性能のバグを 1 件見つけて直した</strong> — <code>__hc_redact_to_reply</code> が 4000 文字の入力で <strong>58 秒</strong>かかっており、このまま登録していたら機構ごと使い物にならなかった。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>5</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>r1（△注意）仕様からの逸脱が 6 件出た</strong>（§1 の表・§8 の <code>SC_TARGETS</code>・§2 の worktree 判定・区切りバイトの割り当て・<code>scope_load</code> 系の戻り値・<code>scope_match</code> の引数順）。いずれも「実装してみて初めて分かった」もので、0032 の棚卸しへ送るつもりでいる。<strong>実装フェーズは <code>.claude/docs/**</code> が deny なので、この巡では直せない</strong>。逸脱を作業ログに書いて先送りする、というやり方でよいか</li>
+        <li><strong>r2（△注意）<code>_sc_classify_web</code> の curl オプションの列挙が網羅的か確かめられない</strong>。curl は 200 以上のオプションを持ち、<code>.curlrc</code> 経由の指定も見ていない。送信側を取りこぼすと <code>remote-write</code> の統制が迂回されるので、<strong>列挙で足りるのか、別の判定軸（宣言の無い <code>curl</code> は一律拒否など）に変えるべきか</strong>を見てほしい</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><strong>r3</strong>: <code>hc_lock</code> の陳腐化判定に <code>stat -c %W</code>（birth）ではなく <code>find -mmin</code> を使ったこと（移植性を取った）</li>
+        <li><strong>r4</strong>: <code>SC_TARGETS</code> を仕様の <code>SC_TARGETS[]</code>（配列）ではなく既存実装に合わせて US 区切りのスカラで統一したこと</li>
+        <li><strong>r5</strong>: <code>SS-T05</code> の走査範囲を <code>.claude/hooks/**</code> と <code>.claude/skills/*/scripts/**</code> に限り、<code>assets/*.template.sh</code> を範囲外にしたこと</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>config 3 ファイル（<code>blocked-commands.txt</code> / <code>entry-skills.txt</code> / <code>model-aliases.txt</code>）の中身</li>
+        <li><code>cmdpos_operands</code> の実装と 10 ケース（<a href="#f4">f4</a>）</li>
+        <li>読み込み行 22 本の置換そのもの（<code>SS-T05</code> が機械で固定している。<a href="#f5">f5</a>）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong><code>shellcheck</code> を通していない</strong>。この環境に未導入（<code>command -v shellcheck</code> が空）で、導入はソースコード修正の枠外。代わりに <code>bash -n</code> と BC-T01〜T06 の実行で確かめている（<a href="#f6">f6</a>）</li>
+      <li><strong>フックとして登録した状態での振る舞いは測っていない</strong>。<code>settings.json</code> は無改変で、確認はすべて <code>bash &lt;script&gt; &lt; 入力 JSON</code> の単体実行。T6 は 0028 の ⓪ 登録で測る（<a href="#f6">f6</a>）</li>
+      <li><strong>ホットパス 5 本の jq 回数（HK-T19）は lib 単体の範囲だけ</strong>。対象フック 5 本のうち 4 本は 0030 でしか存在しない（<a href="#f1">f1</a>）</li>
+      <li><strong><code>_sc_classify_web</code> は実際の curl / wget を起動していない</strong>。オプション列の解析だけを 13 ケースで確かめており、curl の実挙動との一致は確かめられていない（<a href="#f3">f3</a>）</li>
+      <li><strong><code>__hc_redact_to_reply</code> の 101ms は Git Bash（Windows）での実測</strong>。Linux での値は測っていない（<a href="#f7">f7</a>）</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>計画: <code>wip/20_plans/0016-ai-asset-implementation-plan.md</code> ステップ 1</li>
+    <li>仕様: <code>.claude/docs/10_spec/フック共通仕様.md</code>（§1 の置き場と登録・§2 の入力と作業ツリー・§3 の制御方式・§7 の cmdpos・§8 の分類）、<code>block-chmod.md</code>、<code>20-common-step-shell-script.md</code></code>（読み込み行・SS-T05）</li>
+    <li>DDR: i0009-03 / -16 / -35 / -36 / -39 / -47 / -48 / -55 / -60</li>
+    <li>環境: Windows 10 Pro / Git Bash（<code>bash</code> 5.x）・<code>jq</code> あり・<code>shellcheck</code> <strong>無し</strong></li>
+    <li>実体: <code>.claude/hooks/lib/{hook-common,cmdpos,scope}.sh</code> とそのテスト、雛形 2 本、読み込み行を持つ .sh 22 本</li>
+  </ul>
+</section>
+
+<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">1. <code>hook-common.sh</code> — 副入力・イベント固有フィールド・作業ツリー・記録ヘルパ <span class="chip good">◎良</span> <span class="basis">根拠: test_hook_common.sh passed=138 failures=0</span></h3>
+      <p>副入力（limits / review / merge / approvals / entry）を、存在するものだけ <code>--rawfile &lt;名前&gt; &lt;パス&gt;</code>、無いものは <code>--argjson &lt;名前&gt; null</code> で渡す。jq 内は <code>fromjson? // "__broken"</code>。検証エラーは <code>error()</code> を投げず <code>__error</code> レコードで返し、<code>HC_&lt;名前&gt;_STATE</code>（ok / missing / broken）と <code>HC_&lt;名前&gt;_ERROR</code> に落とす。1 回目の jq は 22 フィールド + 末尾の番兵 1 個（<code>end</code>）の計 23 個を出し、<code>prompt</code> は 1 行目だけ、<code>old_string</code> / <code>new_string</code> / <code>content</code> / <code>edits</code> は frontmatter の 6 キーに触れたかの真偽 1 個に畳む。<code>HOOK_ROOT</code>（スクリプトの置き場）と <code>HOOK_WORKTREE</code>（作業ツリー）を分け、記録ヘルパ 5 関数（<code>hook_read_state</code> / <code>hc_append_jsonl</code> / <code>hc_json_write</code> / <code>hc_lock</code> / <code>hc_unlock</code>）を足した。<code>tool_class</code> の <code>00-workflow-*</code> 接頭辞判定を除き、<code>Skill</code> は値によらず常に <code>declare</code>（DDR i0009-03）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ grep -c slurpfile .claude/hooks/lib/hook-common.sh
+1          # 1 件は「使わない」と書いたコメント行（:271）
+
+$ grep -nE &#39;^(hook_read_state|hc_append_jsonl|hc_json_write|hc_lock|hc_unlock)\(\)&#39; .claude/hooks/lib/hook-common.sh
+333:hook_read_state() {
+452:hc_append_jsonl() {
+468:hc_json_write() {
+483:hc_lock() {
+502:hc_unlock() {
+
+$ grep -n &#39;00-workflow&#39; .claude/hooks/lib/hook-common.sh
+（0 件）
+
+$ bash .claude/hooks/lib/tests/test_hook_common.sh
+passed=138 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>設計が前提にしていた 5 関数・22 フィールド（+ 末尾の番兵 1 個）・作業ツリーの分離が揃った。フック本体は <code>hook_field</code> を追加で呼ばずに書ける（ホットパスの「jq 最大 2 回」を守れる）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">2. 上向き探索の候補が本流の worktree であることを確かめる <span class="chip warn">△注意</span> <span class="basis">根拠: probe_wt.sh の実測 5 ケース + HK-T18 の case_worktree</span></h3>
+      <p>0025 で入れた worktree 対策が、そのままだと新しい穴になっていた。<code>cd</code> だけで cwd は動く。このリポジトリには <code>参考ディレクトリ/agent-workflow/.claude</code> と <code>参考ディレクトリ/MR-driven-workflow/.claude</code> が実在し、どちらも<strong>空の</strong> <code>wip/10_tickets/10_doing/</code> を持つ。確かめずに上向き探索の結果を採ると、<code>cd 参考ディレクトリ/agent-workflow</code> するだけで <code>hook_doing_ticket</code> が 0 枚を返し、<code>workflow-guard</code> が全面バイパスされる。判定は fork ゼロで済む 2 経路にした — (a) 候補直下の <code>.git</code> がファイルで <code>gitdir:</code> が <code>$HOOK_ROOT/.git/worktrees/</code> を指す、(b) <code>$HOOK_ROOT/.git/worktrees/*/gitdir</code> が候補の <code>.git</code> を指す。<strong>「穴を塞ぐ決定が別の穴を開ける」型はこれで通算 5 回目</strong>。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash wip/tmp/probe_wt.sh
+HOOK_ROOT=/c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow
+  cwd=&lt;repo&gt;                                   → issue-mr-ticket-workflow
+  cwd=&lt;repo&gt;/wip/tmp                           → issue-mr-ticket-workflow
+  cwd=&lt;repo&gt;/参考ディレクトリ/agent-workflow      → issue-mr-ticket-workflow
+  cwd=&lt;repo&gt;/参考ディレクトリ/MR-driven-workflow  → issue-mr-ticket-workflow
+  cwd=/c/nonexistent/x                         → issue-mr-ticket-workflow</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>参考実装の <code>.claude</code> を拾わないことを実測で確認した。テストは <code>case_worktree</code>（HK-T18）として固定し、偽の worktree（<code>.git</code> ファイルと <code>gitdir</code> の相互参照）では worktree 側に、<code>.claude</code> を持つだけの別ディレクトリではルートに解決することも押さえた。<strong>仕様 §2 にこの判定は無いので 0032 で書き戻す。</strong></p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">3. <code>scope.sh</code> — パス引数を消し、<code>web</code> の 3 段判定を足す <span class="chip good">◎良</span> <span class="basis">根拠: test_scope.sh passed=258 failures=0（web の分類 13 ケース）</span></h3>
+      <p><code>scope_load</code> / <code>scope_load_approvals</code> からパス引数が消え、<code>HC_LIMITS</code> / <code>HC_APPROVALS</code> から詰め替えるだけになった（DDR i0009-48）。<code>scope_load_ticket</code> は 0（成功）/ 1（チケットが無い・<code>ticket_type</code> が無い）/ 2（frontmatter.sh の破損）の 3 状態。<code>fm_*</code> の呼び出しから <code>|| true</code> が消え <code>|| rc=$?</code> になった（DDR i0009-35）。<code>web</code> の 3 段判定（DDR i0009-56/57）は、(1) 送信側 → <code>remote-write:upload</code>（宣言によらず deny WF206）、(2) 出力先を持つ形 → <code>write</code> + <code>SC_TARGETS</code>（WF205 の判定へ）、(3) 残りが <code>web</code>。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ grep -n &#39;^scope_load|^scope_load_ticket|^scope_load_approvals&#39; .claude/hooks/lib/scope.sh
+38:scope_load() {          # local t=&quot;${1:-}&quot; — 第 1 引数は type だけ
+80:scope_load_ticket() {   # 戻り 0 / 1 / 2
+99:scope_load_approvals() {  # 引数なし
+
+$ grep -n &#39;fm_.*|| true&#39; .claude/hooks/lib/scope.sh
+（0 件）
+
+$ bash .claude/hooks/lib/tests/test_scope.sh
+passed=258 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>設定の読み込みが jq 1 か所に閉じ、source する 4 本のフックが「自分が何回 jq を呼ぶか」を数えられるようになった。<code>SC_TARGETS</code> は既存実装に合わせて US（0x1E）区切りのスカラで統一した（仕様 §8 の <code>SC_TARGETS[]</code> とのずれは 0032 へ）。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">4. <code>cmdpos.sh</code> — <code>cmdpos_operands</code> <span class="chip good">◎良</span> <span class="basis">根拠: test_cmdpos.sh passed=247 failures=0（case_operands 10 ケース）</span></h3>
+      <p><code>CP_ARGS[i]</code> から <code>-</code> 始まりの語と <code>--</code> 以降を除いた位置引数を <code>REPLY_OPERANDS</code> に展開する。git はサブコマンド 1 語も落とす。解釈（何を消そうとしているか）は呼び手が行う（フック共通仕様 §7-9・DDR i0009-39）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>rm -rf a b               → a b
+mv -v src dst            → src dst
+rm -- -weird             → -weird
+rm -rf wip/10_tickets    → wip/10_tickets
+git rm -r --cached x y   → x y
+git mv a b               → a b
+rm / rm -rf              → （空）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>WF302（置き場の削除）の判定に必要な位置引数が取れるようになった。実際の判定は 0030 の <code>block-direct-git</code> / <code>workflow-guard</code> で使う。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">5. 読み込み行の一斉置換と <code>SS-T05</code> の新設 <span class="chip good">◎良</span> <span class="basis">根拠: test_templates.sh passed=39 failures=0 / 走査 22 件・不一致 0 件</span></h3>
+      <p>雛形（<code>script.template.sh</code> / <code>test.template.sh</code>）の <code>__ss_load</code> を仕様どおりに作り直し（<code>FM_AVAILABLE=1/0</code> を設定、<code>fm_*</code> スタブは戻り値 2、<code>git rev-parse</code> は 3 段目に残す）、実体 22 本を揃えた。<strong><code>SS-T05</code> は DDR i0009-36 で決めながら実装されていなかった</strong>ので、ここで新設した。走査範囲は仕様どおり <code>.claude/hooks/**</code> と <code>.claude/skills/*/scripts/**</code>（雛形自身は範囲外）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 検出力の確認: 1 本だけわざとずらす
+$ perl -i -pe &#39;s/^__ss_load\(\) \{/__ss_load() {  /&#39; .claude/hooks/lib/tests/test_transcript.sh
+$ bash .claude/skills/20-common-step-shell-script/scripts/tests/test_templates.sh
+FAIL SS-T05: 雛形と一致しない読み込み行 1 件 / 走査 22 件: .claude/hooks/lib/tests/test_transcript.sh
+passed=38 failures=1
+
+# 戻す
+$ bash .claude/skills/20-common-step-shell-script/scripts/tests/test_templates.sh
+PASS SS-T05
+passed=39 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>読み込み行のドリフトが機械で止まるようになった。「常に通るだけのテスト」になっていないことも、1 本ずらして確かめている。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">6. <code>block-chmod.sh</code> と config 3 ファイル <span class="chip good">◎良</span> <span class="basis">根拠: test_block_chmod.sh passed=29 failures=0（BC-T01〜T06）</span></h3>
+      <p><code>.claude/hooks/config/</code> に <code>blocked-commands.txt</code>（<code>chmod</code> 1 行）・<code>entry-skills.txt</code>・<code>model-aliases.txt</code> を新設した。3 ファイルとも <code>settings.json</code> 無改変の状態で作ったので、⓪ の登録より前にある。<code>block-chmod.sh</code> は制御方式 1〜6 をこの順で持ち、<strong>高速前置判定</strong>（外部プロセスなし）で一覧の語を含まないコマンドを即許可し、含むときだけ <code>cmdpos.sh</code> を使う。一覧はコードに埋めていない。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ printf &#39;{&quot;session_id&quot;:&quot;s&quot;,&quot;tool_name&quot;:&quot;Bash&quot;,&quot;tool_input&quot;:{&quot;command&quot;:&quot;chmod +x a.sh&quot;}}&#39; | bash .claude/hooks/20-PreToolUse/block-chmod.sh
+{&quot;hookSpecificOutput&quot;:{...&quot;permissionDecision&quot;:&quot;deny&quot;,&quot;permissionDecisionReason&quot;:&quot;WF501: 禁止コマンド &#39;chmod&#39; の実行...&quot;}}
+
+$ printf &#39;not json&#39; | bash .claude/hooks/20-PreToolUse/block-chmod.sh
+{&quot;hookSpecificOutput&quot;:{...&quot;permissionDecision&quot;:&quot;deny&quot;,&quot;permissionDecisionReason&quot;:&quot;WF509: ...&quot;}}
+
+# BC-T05: 0027 時点のテストは cmdpos.sh を cp で退避して戻すだけで、実際には壊していなかった
+#         （何も検査していない）。0033（c0a8309）で実際に構文エラーを仕込む形に直した
+$ bash .claude/hooks/20-PreToolUse/tests/test_block_chmod.sh
+passed=29 failures=0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>⓪ の段階登録（0028）で T6（<code>chmod</code> が実際に止まるか）を測る準備が整った。<strong>shellcheck はこの環境に未導入で実施できていない</strong>。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">7</span>
+      <h3 id="f7">7. <code>__hc_redact_to_reply</code> の性能バグ <span class="chip warn">△注意</span> <span class="basis">根拠: 規則ごとの実測: 58442ms → 101ms</span></h3>
+      <p>4000 文字の入力で <strong>58 秒</strong>かかっていた。規則ごとに計測すると正規表現の 4 規則は各 70ms 程度で、真犯人は規則 5 の <code>pre=&quot;${s%%&quot;$m&quot;*}&quot;</code> だった（<code>$m</code> が 4000 文字のリテラルパターンのとき、bash のパターン照合が壊滅的に遅くなる）。位置ベースの O(n) ループに書き直して <strong>101ms</strong> になった。<code>__hc_cap_json_field</code> の文字単位ループも O(n^2) で、パラメータ展開だけの O(n) に書き直した。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code># 規則ごとの計測（4000 文字の入力）
+規則 1〜4（正規表現）  : 各 70ms 程度
+規則 5（${s%%&quot;$m&quot;*}）  : 58442ms   ← 真犯人
+
+# 書き直し後
+__hc_redact_to_reply 全体 : 101ms</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>フックはツール呼び出しごとに走るので、この形のまま登録していたら機構ごと使い物にならなかった。<strong>「bash のパターン照合はパターンが長いと壊滅的に遅い」は DDR 候補として 0032 へ送る。</strong></p>
+      </div>
+    </li>
+    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+  </ol>
+</section>
+
+<!-- 任意: 検証の結果を一覧で示す場合。各章で示しているなら削除 -->
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>全件テスト（<code>run-tests.sh</code>）</td><td><strong>15 本 / 70 件・FAIL 0</strong></td></tr>
+      <tr><td><code>test_hook_common.sh</code></td><td>passed=138 failures=0（HK-T02〜T08・T10〜T14・T17〜T20）</td></tr>
+      <tr><td><code>test_scope.sh</code></td><td>passed=258 failures=0（HK-T15 ほか・web の分類 13 ケース）</td></tr>
+      <tr><td><code>test_cmdpos.sh</code></td><td>passed=247 failures=0（<strong>HK-T05 / HK-T12</strong>・<code>case_operands</code> 10 ケース。<code>CP-T01〜T08</code> は <code>test_commit.sh</code> / <code>test_push.sh</code> が持つ別の ID）</td></tr>
+      <tr><td><code>test_templates.sh</code></td><td>passed=39 failures=0（SS-T01〜T05。<code>SS-T00</code> は雛形検査の中で使うダミー ID で <code>--ids</code> には現れない）</td></tr>
+      <tr><td><code>test_block_chmod.sh</code></td><td>passed=29 failures=0（BC-T01〜T06）</td></tr>
+      <tr><td><code>bash -n</code>（新規 2 本）</td><td>0</td></tr>
+      <tr><td><code>shellcheck</code></td><td><strong>未実施</strong>（環境に未導入）</td></tr>
+      <tr><td>SS-T05 の検出力</td><td>1 本ずらすと FAIL、戻すと PASS</td></tr>
+      <tr><td>worktree の解決</td><td>参考実装 2 本・存在しないパスのいずれも本流に解決</td></tr>
+      <tr><td><code>redact</code> の性能</td><td>4000 文字で 58442ms → 101ms</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="acceptance">
+  <h2>受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>issue #9 の受け入れ条件</th><th>このチケットでの状態</th></tr></thead>
+    <tbody>
+      <tr><td>フック本体 11 本を実装する</td><td>1 本（<code>block-chmod.sh</code>）。残り 10 本は 0029（案内側 6）・0030（拒否側 4）</td></tr>
+      <tr><td><code>settings.json</code> に登録する</td><td><strong>未着手</strong>（0028 の ⓪ / 0031 の ①②。いずれも人間の操作）</td></tr>
+      <tr><td>TBD T1〜T4 を検証する</td><td>未着手（0031 の 4c で実測）</td></tr>
+      <tr><td>機械テストが通る</td><td>全件 15 本 / 70 件・FAIL 0（この時点の範囲で）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>0028 へ</strong>: <code>blocked-commands.txt</code> は作ってあるので、⓪ の登録（<code>block-chmod</code> 単独・ラッパー無し）だけで T6 を測れる</li>
+    <li><strong>0029 / 0030 へ</strong>: lib の 5 関数・<code>cmdpos_operands</code>・22 フィールド（+ 番兵 1 個）は揃った。本体は <code>hook_field</code> を追加で呼ばずに書ける</li>
+    <li><strong>0030 へ</strong>: HK-T19（ホットパス 5 本の jq 回数）は本体が揃ってから</li>
+    <li><strong>0032 へ</strong>: 仕様の書き戻し <strong>6 件</strong>（§1 の表（review-state / merge-state を jq の 2 回目へ）/ §2 の worktree 判定 / §8 の <code>SC_TARGETS</code> と <code>SC_CLASS</code> / 区切りバイトの割り当て（セクション 0x1D・レコード 0x1E・key-value 0x1F）/ <code>scope_load</code> 系が副入力の不在・破損で 1 を返す（§8 は 2）/ <code>scope_match</code> の引数順と <code>SC_BUILD_TEST[]</code> の名前）と、DDR 候補 2 件（worktree の確認 / bash のパターン照合の遅さ）</li>
+  </ol>
+</section>
+
+<!-- 必須: 想定と異なった点。無ければ「無し」 -->
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>Git Bash では作成時刻（birth）が取れないと思っていた</td><td><code>stat -c %W</code> が <code>1788323071</code> を返し、<code>%Y</code>（mtime）と一致した</td><td>それでも移植性（Linux の古い coreutils では 0 を返す）を取り <code>find -mmin</code> を選んだ。ロックディレクトリは中身を書かないので mtime = 作成時刻として扱える</td></tr>
+      <tr><td><code>make_counting_path</code> を呼べば PATH が差し替わる</td><td><code>COUNTING_PATH</code> を設定するだけで PATH は変わらない。HK-T19 が 0 回を返した</td><td>呼び手側で <code>( PATH=&quot;$COUNTING_PATH:$PATH&quot;; hash -r; ... )</code> の部分シェルに包んだ。雛形のコメント改善候補として作業ログへ</td></tr>
+      <tr><td><code>io.open(p, &quot;wb&quot;)</code> は書き込みが成功してから内容を差し替える</td><td>例外の発生前にファイルを truncate する。<code>scope.sh</code> が 0 バイトになった</td><td><code>git checkout --</code> で復旧し、以後の一括編集はすべて一時ファイル + rename で書いている。<code>find . -size 0 -name &#39;*.sh&#39;</code> で他に 0 バイトが無いことも確認</td></tr>
+      <tr><td><code>redact</code> は正規表現が重いだろう</td><td>正規表現 4 規則は各 70ms、真犯人は規則 5 の <code>${s%%&quot;$m&quot;*}</code>（58442ms）</td><td>位置ベースの O(n) に書き直して 101ms（<a href=&quot;#f7&quot;&gt;f7</a>）</td></tr>
+      <tr><td>テスト ID は一意に振られている</td><td><code>CP-T08</code> が <code>test_commit.sh</code> と <code>test_push.sh</code> の両方にある</td><td><code>git show HEAD:</code> の版でも両方に存在する既存の重複。ID の付け替えは 0032 の棚卸しへ</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 残課題。無ければ「無し」 -->
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong><code>shellcheck</code> の未導入</strong>（環境の制約。導入はソースコード修正の枠外）。静的検査が当面かからない</li>
+    <li><strong><code>_sc_classify_web</code> の curl オプション列挙の網羅性</strong>が確かめられない（<a href="#f3">f3</a>）</li>
+    <li><strong>仕様からの逸脱 6 件</strong>が実体と文書のずれとして残る（0032 で解消）</li>
+    <li><strong><code>.claude/rules/markdown-docs.md</code> と <code>ai-asset-authoring.md</code> が存在しない</strong>。要件書が <code>.claude/docs/**</code> に無く、実装フェーズは deny なので 1:1:1 を作れない（0032 の棚卸しへ）</li>
+    <li><strong><code>check-html.sh</code> は md と HTML の内容一致を検査しない</strong>（12 回連続の申し送り。0034 の時点で 15 回連続）。生成のたびに目視している</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/9">#9</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/12">#12</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

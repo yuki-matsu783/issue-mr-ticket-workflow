@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # push-detect.sh — push の検知（source 専用）
 # 仕様: .claude/docs/10_spec/hooks/22-PostToolUse/post-push-compact-prompt.md「push 検知」1〜3（正）、フック共通仕様 §11 HK-T13
-# 提供: push_detect <コマンド文字列> [tool_response の JSON] [bash|powershell] [リポジトリルート]
-#   戻り 0 = push が成功し HEAD が進んだ（PD_BRANCH / PD_HEAD / PD_PREV_SHA / PD_COUNT を置く）、1 = 対象外（PD_REASON に理由）
+# 提供: push_detect <コマンド文字列> <起点 sha> [tool_response の JSON] [bash|powershell] [リポジトリルート]
+#   戻り 0 = push が成功し HEAD が進んだ（PD_BRANCH / PD_HEAD / PD_PREV_SHA を置く）、1 = 対象外（PD_REASON に理由）
+#   **状態ファイルを読まず書かない**（DDR i0009-24）。「前回どこまで push したか」は呼び手が渡す —
+#   post-push-compact-prompt は push-state.json[b].sha、post-push-usage-report は usage/<branch>.json の
+#   last_push_sha。共有ライブラリが特定の状態ファイルを持つと、先に走ったフックの状態更新が
+#   後のフックの検知を偽にする（フックは並列に走るのでレースにもなる）
 # 判定: (1) fork ゼロの前置フィルタ（文字列に push を含まなければ外部コマンドを 1 つも起動せずに偽）
 #       (2) コマンド列に提供コマンド push.sh か実行位置の git push（cmdpos.sh。縮退時は部分一致）
 #       (3) tool_response の終了コードが 0（無ければ 0 とみなす。interrupted は失敗）
 #       (4) HEAD == @{upstream}。無ければ origin/<b>、それも無ければ終了コード 0 で反映されたとみなす（縮退）
-#       (5) push-state.json[b].sha != HEAD（前回 push 時点から進んでいる。記録が無ければ初回として真）
-# 依存: cmdpos.sh（同じディレクトリ。未読み込みなら読む）、jq（tool_response と push-state.json の読み取り。無ければ縮退）
+#       (5) 呼び手が渡した起点 sha != HEAD（前回 push 時点から進んでいる。起点が空なら初回として真）
+# 依存: cmdpos.sh（同じディレクトリ。未読み込みなら読む）、jq（tool_response の読み取り。無ければ縮退）
 
 # 直接実行されたら何もしない
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then exit 0; fi
@@ -19,12 +23,12 @@ if ! declare -F cmdpos_parse >/dev/null 2>&1; then
 fi
 
 PD_PUSH_SH=".claude/skills/20-common-step-commit-push/scripts/push.sh"
-PD_BRANCH=""; PD_HEAD=""; PD_PREV_SHA=""; PD_COUNT=0; PD_REASON=""
+PD_BRANCH=""; PD_HEAD=""; PD_PREV_SHA=""; PD_REASON=""
 
 push_detect() {
-  local cmd="${1:-}" resp="${2:-}" shell="${3:-bash}" root="${4:-${HOOK_ROOT:-$PWD}}" lc="${1,,}"
-  local code="0" head branch up state prev count
-  PD_BRANCH=""; PD_HEAD=""; PD_PREV_SHA=""; PD_COUNT=0; PD_REASON=""
+  local cmd="${1:-}" prev="${2:-}" resp="${3:-}" shell="${4:-bash}" root="${5:-${HOOK_ROOT:-$PWD}}" lc="${1,,}"
+  local code="0" head branch up
+  PD_BRANCH=""; PD_HEAD=""; PD_PREV_SHA=""; PD_REASON=""
   # (1) 前置フィルタ（fork ゼロ）
   [[ "$lc" == *push* ]] || { PD_REASON="no-push-word"; return 1; }
   # (2) コマンド位置
@@ -56,16 +60,9 @@ push_detect() {
   else
     PD_REASON="degraded-exit-code"   # 上流も origin/<b> も無い: 終了コード 0 で反映されたとみなす（縮退）
   fi
-  # (5) 前回 push 時点から進んでいるか
-  state="$root/logs/push-state.json"; prev=""; count=0
-  if [[ -f "$state" ]] && command -v jq >/dev/null 2>&1; then
-    local -a pc=()
-    mapfile -t pc < <(jq -r --arg b "$branch" '(.[$b].sha // ""), ((.[$b].count // 0) | tostring)' "$state" 2>/dev/null | tr -d '\r' || true)
-    prev="${pc[0]:-}"; count="${pc[1]:-0}"
-    [[ "$count" =~ ^[0-9]+$ ]] || count=0
-  fi
+  # (5) 呼び手が渡した起点から進んでいるか（状態ファイルは読まない）
   [[ -n "$prev" && "$prev" == "$head" ]] && { PD_REASON="not-advanced"; return 1; }
-  PD_BRANCH="$branch"; PD_HEAD="$head"; PD_PREV_SHA="$prev"; PD_COUNT="$count"
+  PD_BRANCH="$branch"; PD_HEAD="$head"; PD_PREV_SHA="$prev"
   [[ -z "$PD_REASON" ]] && PD_REASON="pushed"
   return 0
 }

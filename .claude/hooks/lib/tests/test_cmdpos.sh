@@ -6,7 +6,7 @@ set -uo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
 # shellcheck disable=SC1090,SC2317
-__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; . "$f"; return 0; fi; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 1; }; fm_get() { return 1; }; fm_list() { return 1; }; fm_has() { return 1; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
+__ss_load() { local lib="$1" pol="$2" d="${BASH_SOURCE[1]%/*}" r="" f=""; [ "$d" = "${BASH_SOURCE[1]}" ] && d="."; case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac; while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done; r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ ! -f "$f" ] && command -v git >/dev/null 2>&1; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/$lib.sh"; fi; if [ -n "$r" ] && [ -f "$f" ]; then LOGGER_ROOT="$r"; export LOGGER_ROOT; [ "$lib" = frontmatter ] && FM_AVAILABLE=1; . "$f"; return 0; fi; [ "$lib" = frontmatter ] && FM_AVAILABLE=0; case "$pol" in nop) LOGGER_ROOT="${r:-$PWD}"; export LOGGER_ROOT; log_debug() { :; }; log_info() { :; }; log_warn() { :; }; log_error() { :; }; fm_extract() { FM_BLOCK=""; return 2; }; fm_get() { return 2; }; fm_list() { return 2; }; fm_has() { return 2; } ;; deny) printf '%s\n' "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"${HOOK_DENY_ID:-WF009}: 機構の不調 — 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）\"}}"; exit 0 ;; *) printf '%s\n' "FATAL: 共通ライブラリ $lib を読み込めない（リポジトリルート未解決）"; exit 2 ;; esac; }
 __ss_load test-lib fatal
 
 # shellcheck disable=SC1091
@@ -18,9 +18,9 @@ dump() { # $1=コマンド [$2=shell]
   cmdpos_parse "$1" "${2:-bash}"
   printf 'count=%s degraded=%s\n' "$CP_COUNT" "$CP_DEGRADED"
   for ((i = 0; i < CP_COUNT; i++)); do
-    printf 'seg%s: exe=%s sub=%s args=[%s] redir=[%s] write=[%s] opaque=%s provided=%s gitlike=%s\n' \
+    printf 'seg%s: exe=%s sub=%s args=[%s] redir=[%s] write=[%s] opaque=%s provided=%s gitlike=%s data=%s\n' \
       "$i" "${CP_EXE[i]}" "${CP_SUBCMD[i]}" "${CP_ARGS[i]//$us/ }" "${CP_REDIRECTS[i]//$us/ }" "${CP_WRITE_TARGETS[i]//$us/ }" \
-      "${CP_OPAQUE[i]}" "${CP_PROVIDED[i]}" "${CP_GITLIKE[i]}"
+      "${CP_OPAQUE[i]}" "${CP_PROVIDED[i]}" "${CP_GITLIKE[i]}" "${CP_DATA[i]}"
   done
 }
 has_git() { # $1=sub → yes/no
@@ -258,7 +258,56 @@ case_hk_t12() {
   done
 }
 
+# ---- HK-T05: データだけの段（ヒアドキュメント本文・コメント行）を実行位置と区別する ----
+# `cmdpos` は「クォート・コメント・ヒアドキュメント本文」を同じ `_` に潰すので、
+# 呼び手は「潰れたクォート由来の `_`（実行位置）」と「データ由来の `_`（実行位置ではない）」を
+# 区別できなかった。bash はヒアドキュメント本文もコメントも決して実行しない
+case_hk_t05_data() {
+  local c
+  # ヒアドキュメント 4 形。本文の段は data=1、開いた段は data=0
+  for c in $'cat > o.py <<\'PY\'\nE = ["x"]\nPY' \
+           $'cat > o.py <<PY\nE = ["x"]\nPY' \
+           $'cat > o.py <<-PY\n\tE = ["x"]\n\tPY' \
+           $'cat > o.py << PY\nE = ["x"]\nPY'; do
+    run_cmd dump "$c"
+    assert_contains "HK-T05" "seg0: exe=cat"
+    assert_contains "HK-T05" "data=0"
+    assert_contains "HK-T05" "seg1: exe=_"
+    assert_contains "HK-T05" "data=1"
+  done
+  # コメントだけの行も data=1
+  run_cmd dump $'ls\n# git commit\necho b'
+  assert_contains "HK-T05" "seg1: exe=_"
+  assert_contains "HK-T05" "data=1"
+  # 行末のコメントは段そのものをデータにしない（実行位置は ls のまま）
+  run_cmd dump 'ls # git commit'
+  assert_contains "HK-T05" "seg0: exe=ls"
+  assert_contains "HK-T05" "data=0"
+  # 潰れたクォート由来の `_` は実行位置なので data=0（上の data=1 との対照）
+  run_cmd dump "'git' commit"
+  assert_contains "HK-T05" "exe=_"
+  assert_contains "HK-T05" "data=0"
+  run_cmd dump '"chmod" +x a'
+  assert_contains "HK-T05" "exe=_"
+  assert_contains "HK-T05" "data=0"
+  # 生のプレースホルダ（\x03）を混ぜても段はデータにならない。
+  # ここが破れると、実行位置を「実行位置ではない」と言い張れてしまう。
+  # 段がプレースホルダ 1 個だけになる形でないと、補強の有無を区別できない（変異で確かめた）
+  run_cmd dump $'ls\n\x03\necho b'
+  assert_contains "HK-T05" "seg1: exe=_"
+  assert_not_contains "HK-T05" "data=1"
+  run_cmd dump $'\x03'
+  assert_not_contains "HK-T05" "data=1"
+  run_cmd dump $'\x03chmod +x a'
+  assert_contains "HK-T05" "data=0"
+  # ヒアドキュメントの後ろに続く実行位置は data=0（本文と混ざらない）
+  run_cmd dump $'cat > o.py <<PY\nx\nPY\nls -la'
+  assert_contains "HK-T05" "seg2: exe=ls"
+  assert_contains "HK-T05" "data=0"
+}
+
 case_hk_t05_compound
+case_hk_t05_data
 case_hk_t05_negative
 case_hk_t05_opaque
 case_hk_t05_redirect_write
@@ -266,4 +315,22 @@ case_hk_t05_powershell
 case_hk_t05_degraded
 case_hk_t05_vocab
 case_hk_t12
+# ---- HK-T05: cmdpos_operands（位置引数の取り出し。DDR i0009-39）----
+case_operands() {
+  ops() { cmdpos_parse "$1"; cmdpos_operands 0; printf '%s\n' "${REPLY_OPERANDS[*]-}"; }
+  assert_eq "HK-T05" "a b"                 "$(ops 'rm -rf a b')"
+  assert_eq "HK-T05" "src dst"             "$(ops 'mv -v src dst')"
+  assert_eq "HK-T05" "-weird"              "$(ops 'rm -- -weird')"
+  assert_eq "HK-T05" "wip"                 "$(ops 'rm -rf wip')"
+  assert_eq "HK-T05" "wip/10_tickets"      "$(ops 'rm -rf wip/10_tickets')"
+  assert_eq "HK-T05" "wip/10_tickets/20_done" "$(ops 'rm -rf wip/10_tickets/20_done')"
+  # git はサブコマンド自身を落とす
+  assert_eq "HK-T05" "x y"                 "$(ops 'git rm -r --cached x y')"
+  assert_eq "HK-T05" "a b"                 "$(ops 'git mv a b')"
+  # 位置引数が無い
+  assert_eq "HK-T05" ""                    "$(ops 'rm')"
+  assert_eq "HK-T05" ""                    "$(ops 'rm -rf')"
+}
+case_operands
+
 finish

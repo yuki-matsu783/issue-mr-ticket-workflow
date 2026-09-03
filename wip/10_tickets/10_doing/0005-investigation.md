@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "調査フェーズの切れ目で 
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T14:22:35+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "5ef87b4"
 ---
 
 # 0005 観点 C: 旧名 5 種の残存箇所と置換後の期待値

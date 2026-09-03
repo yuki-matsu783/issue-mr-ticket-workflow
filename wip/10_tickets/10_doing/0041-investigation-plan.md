@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-03T08:29:10+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b1b8222"
 ---
 
 # 0041 shlex 調査の計画

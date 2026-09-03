@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回は 00
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T18:14:28+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "32fab67"
 ---
 
 # 0013 計画系タスクスキル 3 本に申し送り 13 項目を反映する（feedback-plan は書き換え）

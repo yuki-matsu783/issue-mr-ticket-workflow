@@ -73,20 +73,31 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 ## Script 処理
 
-`scripts/finalize.sh <subcommand>`。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "started" | "cleaned" | "pushed" | "ready", "pre_cleanup_sha": ..., "started_at": ..., "cleaned_at": ..., "pushed_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
+`scripts/finalize.sh <subcommand>`。**実体の置き場は `.claude/skills/10-task-overall-summary/scripts/finalize.sh`**（このスキルが所有する提供コマンド。既存の 5 本と同じく、使うスキルの `scripts/` に置く）。起動は常にリポジトリルート相対表記で行う（`フック共通仕様` §8）。実装済みのフックが `.claude/hooks/finalize.sh` を案内している 3 行（`workflow-state-guard.sh:40, 43` とテスト 2 行）は実装フェーズで直す（一覧は `00-workflow-issue-mr-driven` 仕様「現行アセットとの差分」）。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "started" | "linked" | "cleaned" | "pushed" | "ready", "via": "cli" | "external", "pre_cleanup_sha": ..., "started_at": ..., "linked_at": ..., "cleaned_at": ..., "pushed_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
 
-`logs/merge-state.json` が無い・壊れている場合、release は状態を実態から再導出して書き戻してから続ける: `wip/` に成果物がある → 未実施（`started` の記録があっても前提検査からやり直す）/ `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
+`logs/merge-state.json` が無い・壊れている場合、release は状態を実態から再導出して書き戻してから続ける: `wip/` に成果物があり本文にリンク一覧の表が無い → 未実施（`started` の記録があっても前提検査からやり直す）/ `wip/` に成果物があり本文にリンク一覧の表がある → `linked` / `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
 
 ### release
 
-片付けから draft 解除までを段階（stage）として順に実行する。各段階の完了を `logs/merge-state.json` の `state`（`started` → `cleaned` → `pushed` → `ready`）に記録し、再実行時は記録済みの段階を飛ばして続きから行う（冪等）。
+本文のリンク一覧の更新から draft 解除までを段階（stage）として順に実行する。各段階の完了を `logs/merge-state.json` の `state`（`started` → `linked` → `cleaned` → `pushed` → `ready`）に記録し、再実行時は記録済みの段階を飛ばして続きから行う（冪等）。
 
 1. **前提検査**（初回のみ）: 未充足を全件列挙して FN001 で拒否する: 全体まとめチケットが作業中 / それ以外に未着手・作業中のチケットが無い / 統括レポートの md + HTML が存在する / MR 本文の最終化が済んでいる（本文に見出し `## 統括` がある — 手順 5 の見出し文字列と一致で判定）/ 統括レポートを含む HEAD が push 済み（片付けで消える前に履歴に載っている）/ 全体まとめチケットが人間レビュー要なら `logs/review-state.json` の最終レビューが `completed`、不要なら `skipped`（`boundary.sh` の記録。`00-workflow-issue-mr-driven` 仕様）
-2. **完了検査**（初回のみ）: 全体まとめチケットの完了検査（DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する。検査ロジックは `ticket.sh` の完了検査を共通関数として source して使い、二重実装しない
-3. **片付け**: 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`state` を `cleaned` にする
-4. **push**: `push.sh` を内部から実行し（前チェック込み）、`state` を `pushed` にする
-5. **最終ゲートと draft 解除**: `git fetch` して origin/<default> に対する遅れ・衝突が無いことを検査し、`gh pr ready <M>` / `glab mr update <M> --ready` を実行して `state` を `ready` にする。検査で止まったら（FN003）取り込み（処理フロー 3 の要領で承認を得て merge）を行い、release を再実行する。統括レポート・添付・本文はやり直さない（取り込みが成果物の内容に影響した場合のみ、該当箇所を更新して push してから再実行する）
-6. **出力**: 解除した MR の番号と URL、削除した件数、`pre_cleanup_sha` から組み立てた作業領域リンク（GitLab: `https://<ホスト>/<プロジェクト>/-/tree/<SHA>/wip/30_reports`、GitHub: `https://github.com/<owner>/<repo>/tree/<SHA>/wip/30_reports`。コミット固定のため片付け後も辿れる）を出力する
+2. **完了検査**（初回のみ）: 全体まとめチケットの完了検査（DoD・作業ログ・根拠欄）を行い、未充足は FN002 で拒否する。検査ロジックは `ticket.sh` の完了検査を共通関数として source して使い、二重実装しない。**検査の結果（DoD 1 件ごとの合否と根拠欄の内容）は統括レポートの「完了検査」節へ書き出す**。全体まとめチケット自身は `ticket.sh complete` を通れない（TK005 が必ず拒否する — `20-common-step-ticket` 仕様）ため、チケットに残る形の完了記録が存在しない。片付けでチケットごと消える前に、検査の通過を統括レポートという残る場所へ写すのがこの段階の役目である（issue #10 追記 4 の受け入れ条件 B4）
+3. **片付け直前の SHA の確定と本文のリンク一覧の更新**: 片付け直前の HEAD の SHA を `pre_cleanup_sha` として記録し、その SHA に固定した成果物リンクの一覧（`https://<ホスト>/<owner>/<repo>/blob/<SHA>/wip/30_reports/<ファイル>`）を組み立てて、MR 本文の見出し `## 統括` 配下に**表として**書き込む。`state` を `linked` にする。本文の他の節（処理フロー 5 で書いた要約）は書き換えない。**この段階を片付けより前に置くのは、リンクが `pre_cleanup_sha` に依存するためである**。処理フロー 5（本文の最終化）の時点では片付けがまだ行われておらず SHA が確定しないので、リンク一覧だけをここへ分けている（issue #10 追記 3）
+4. **片付け**: 完了時刻を記録して、作業領域（`wip/` 配下の全成果物: 全体計画書・チケット・計画書・レポート・ブランチ内の進行状態・`wip/tmp/` の中身。`.gitkeep` は残す）を削除して 1 コミットにまとめ、`state` を `cleaned` にする
+5. **push**: `push.sh` を内部から実行し（前チェック込み）、`state` を `pushed` にする
+6. **最終ゲートと draft 解除**: `git fetch` して origin/<default> に対する遅れ・衝突が無いことを検査し、`gh pr ready <M>` / `glab mr update <M> --ready` を実行して `state` を `ready` にする。検査で止まったら（FN003）取り込み（処理フロー 3 の要領で承認を得て merge）を行い、release を再実行する。統括レポート・添付・本文はやり直さない（取り込みが成果物の内容に影響した場合のみ、該当箇所を更新して push してから再実行する）
+7. **出力**: 解除した MR の番号と URL、削除した件数、`pre_cleanup_sha` から組み立てた作業領域リンク（GitLab: `https://<ホスト>/<プロジェクト>/-/tree/<SHA>/wip/30_reports`、GitHub: `https://github.com/<owner>/<repo>/tree/<SHA>/wip/30_reports`。コミット固定のため片付け後も辿れる）を出力する
+
+段階と `state` の対応: 前提検査・完了検査 → `started` / リンク一覧の更新 → `linked` / 片付け → `cleaned` / push → `pushed` / draft 解除 → `ready`。
+
+### CLI が使えない環境での release
+
+`gh` / `glab` のどちらも使えない環境では、段階 3（本文のリンク一覧の更新）と段階 6（draft 解除）がリモートに書けない。この 2 段階だけを呼び出し元に代行させる:
+
+- 段階 3: `release --external --pr <M> --body-file <path>` を渡すと、スクリプトはリンク一覧を組み立てて `<path>` に書き出し、`state` を `linked` にせずに終了 0 で戻る。呼び出し元が MCP ツール（`mcp__github__update_pull_request` 等）で本文を更新したあと、`release --external --pr <M> --linked` で再開する
+- 段階 6: 呼び出し元が MCP ツールで draft を解除したうえで `release --external --pr <M>` を実行すると、最終ゲートの検査だけを行って `state` を `ready` にする
+- `--external` は `logs/merge-state.json` に `via: "external"` を残す。`gh` 自身が確認する強度より劣ることを統括レポートに明記する。`curl` / `WebFetch` へ落とすことはしない（旧 SKILL.md が `merge-prep.sh --external` として書いていた経路をここへ移した）
 
 ### エラー識別子
 
@@ -100,11 +111,13 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 | テスト ID | 種別 | 固定する振る舞い |
 |-----------|------|----------------|
-| FN-T01 | 正常系 | release が完了検査 → 片付け → push → 解除を 1 回で行い、状態が ready になる |
+| FN-T01 | 正常系 | release が完了検査 → リンク一覧の更新 → 片付け → push → 解除を 1 回で行い、状態が ready になる |
 | FN-T02 | 異常系 | 他のチケットが残っている release が FN001、DoD 未充足が FN002 |
 | FN-T03 | 異常系 | base が進んでいる release が FN003 で止まり、片付けは巻き戻らない |
 | FN-T04 | 正常系 | push で失敗した後の再実行が片付けをやり直さず push から続く |
 | FN-T05 | 正常系 | ready 後の再実行が何もせず成功する（冪等） |
+| FN-T06 | 正常系 | 本文に書き込むリンク一覧が `pre_cleanup_sha` に固定されており、片付けコミットの後もそのリンクから成果物が辿れる（段階 3 が段階 4 より前に走ることを固定する。issue #10 追記 3） |
+| FN-T07 | 正常系 | 完了検査の結果（DoD 1 件ごとの合否と根拠）が統括レポートの「完了検査」節に書き出されてから片付けが走る（issue #10 追記 4） |
 
 ## 要件との対応
 

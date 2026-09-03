@@ -416,16 +416,16 @@
   <p><strong>8 行の内訳</strong>（敵対的レビュー 2 回目の指摘 5 による補足）: サマリが言う「仕様と実装の食い違い 4 件」は #1・#2・#3・#6。残る 4 行は種類が違う — #4 は仕様の内部矛盾（実装がまだ無い）、#5 は仕様と issue の追記の食い違い、#7 は仕様と旧 SKILL.md の食い違い、#8 は仕様と運用の食い違い。列は 4 列で揃えているが「実装の言い分」の欄が実装以外を指す行がある。</p>
   <div class="tablewrap">
   <table>
-    <thead><tr><th>#</th><th>項目</th><th>仕様の言い分</th><th>実装の言い分</th><th>実測に依存するか</th></tr></thead>
+    <thead><tr><th>#</th><th>項目</th><th>仕様の言い分</th><th>実装の言い分</th><th>実測に依存するか</th><th>決着先（0011 で追記）</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td><code>boundary.sh</code> の置き場</td><td><code>skills/00-workflow-issue-mr-driven/scripts/</code></td><td><code>.claude/hooks/</code>（<code>session-start.sh:64</code>・案内文・テスト 2 行）</td><td>依存しない</td></tr>
-      <tr><td>2</td><td><code>finalize.sh</code> の置き場</td><td><code>skills/10-task-overall-summary/scripts/</code></td><td><code>.claude/hooks/</code>（案内文・テスト 2 行）</td><td>依存しない</td></tr>
-      <tr><td>3</td><td><code>session-start</code> の注入</td><td>6 行の注入形式・<code>position</code> ごとの文言・WF702 / WF703</td><td>62〜86 行で呼ぶところまで。<code>注入の整形は 3/3 で実装</code></td><td>依存しない</td></tr>
-      <tr><td>4</td><td>本文のリンク一覧を書く時点</td><td>処理フロー 6 で追記。<code>pre_cleanup_sha</code> は release 段階 3 で確定</td><td>実装なし（<code>finalize.sh</code> 未作成）</td><td>依存しない（仕様内の矛盾）</td></tr>
-      <tr><td>5</td><td>HTML の添付手段</td><td>処理フロー 6 が <code>uploads.github.com</code> への <code>curl</code> を前提</td><td>実装なし。issue の追記 2 が API では通らないことを実測済み</td><td><strong>依存する</strong>（実測済みで再実測は不要）</td></tr>
-      <tr><td>6</td><td>全体まとめの完了検査の出力先</td><td>release 段階 2 で検査するとだけ書く</td><td><code>ticket.sh:254</code> が TK005 で必ず拒否する</td><td>依存しない</td></tr>
-      <tr><td>7</td><td><code>finalize.sh</code> の CLI 不在時の経路</td><td>記述なし</td><td>旧 SKILL.md 261 行が <code>merge-prep.sh --external</code></td><td>依存しない</td></tr>
-      <tr><td>8</td><td>1 タスク 1 レポート</td><td><code>investigation-exec</code> 共通手順 4 が「追記」</td><td>#9 と本 issue の運用が 1 チケット 1 レポート</td><td>依存しない</td></tr>
+      <tr><td>1</td><td><code>boundary.sh</code> の置き場</td><td><code>skills/00-workflow-issue-mr-driven/scripts/</code></td><td><code>.claude/hooks/</code>（<code>session-start.sh:64</code>・案内文・テスト 2 行）</td><td>依存しない</td><td><strong>仕様を正</strong>。DDR <code>i0010-01</code> と「現行アセットとの差分」</td></tr>
+      <tr><td>2</td><td><code>finalize.sh</code> の置き場</td><td><code>skills/10-task-overall-summary/scripts/</code></td><td><code>.claude/hooks/</code>（案内文・テスト 2 行）</td><td>依存しない</td><td><strong>仕様を正</strong>。同上 + <code>10-task-overall-summary</code> 仕様「Script 処理」</td></tr>
+      <tr><td>3</td><td><code>session-start</code> の注入</td><td>6 行の注入形式・<code>position</code> ごとの文言・WF702 / WF703</td><td>62〜86 行で呼ぶところまで。<code>注入の整形は 3/3 で実装</code></td><td>依存しない</td><td><strong>仕様を正</strong>（実装が未完なだけ）。処理フロー 3 に参照するパスを明記</td></tr>
+      <tr><td>4</td><td>本文のリンク一覧を書く時点</td><td>処理フロー 6 で追記。<code>pre_cleanup_sha</code> は release 段階 3 で確定</td><td>実装なし（<code>finalize.sh</code> 未作成）</td><td>依存しない（仕様内の矛盾）</td><td><strong>仕様を書き換え</strong>。release に段階 3「SHA の確定とリンク一覧の更新」を新設し片付けを段階 4 に</td></tr>
+      <tr><td>5</td><td>HTML の添付手段</td><td>処理フロー 6 が <code>uploads.github.com</code> への <code>curl</code> を前提</td><td>実装なし。issue の追記 2 が API では通らないことを実測済み</td><td><strong>依存する</strong>（実測済みで再実測は不要）</td><td>0012 が担当（追記 2 を正として書き換え、実測を DDR へ）</td></tr>
+      <tr><td>6</td><td>全体まとめの完了検査の出力先</td><td>release 段階 2 で検査するとだけ書く</td><td><code>ticket.sh:254</code> が TK005 で必ず拒否する</td><td>依存しない</td><td><strong>両方を正</strong>。出力先を統括レポートの「完了検査」節と定め、検査は <code>ticket_check_completion</code> を共有</td></tr>
+      <tr><td>7</td><td><code>finalize.sh</code> の CLI 不在時の経路</td><td>記述なし</td><td>旧 SKILL.md 261 行が <code>merge-prep.sh --external</code></td><td>依存しない</td><td><strong>仕様に追加</strong>。「CLI が使えない環境での release」に段階 3 と 6 の代行手順</td></tr>
+      <tr><td>8</td><td>1 タスク 1 レポート</td><td><code>investigation-exec</code> 共通手順 4 が「追記」</td><td>#9 と本 issue の運用が 1 チケット 1 レポート</td><td>依存しない</td><td>0015 が担当（運用実績を正として共通手順 4 を直す）</td></tr>
     </tbody>
   </table>
   </div>

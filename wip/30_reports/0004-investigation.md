@@ -187,16 +187,18 @@ issue #10 の追記 3 は「リンク一覧を本文に書くなら、**片付�
 
 **8 行の内訳**（敵対的レビュー 2 回目の指摘 5 による補足）: サマリが言う「仕様と実装の食い違い 4 件」は #1・#2・#3・#6。残る 4 行は種類が違う — #4 は**仕様の内部矛盾**（実装がまだ無い）、#5 は**仕様と issue の追記の食い違い**、#7 は**仕様と旧 SKILL.md の食い違い**、#8 は**仕様と運用の食い違い**。列は 4 列で揃えているが、「実装の言い分」の欄が実装以外を指す行がある。
 
-| # | 項目 | 仕様の言い分 | 実装の言い分 | 実測に依存するか |
-|---|---|---|---|---|
-| 1 | `boundary.sh` の置き場 | `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`（サンプル 3 行 + Script 処理） | `.claude/hooks/boundary.sh`（`session-start.sh:64` のハードコード、`workflow-state-guard.sh:40` の案内文、テスト 2 行） | 依存しない（読み取りで確定） |
-| 2 | `finalize.sh` の置き場 | `.claude/skills/10-task-overall-summary/scripts/finalize.sh`（サンプル 1 行 + Script 処理） | `.claude/hooks/finalize.sh`（`workflow-state-guard.sh:40, 43` の案内文、テスト 2 行） | 依存しない |
-| 3 | `session-start` の注入 | 6 行の注入形式・`position` ごとの文言・WF702 / WF703 を定める | 62〜86 行で `boundary.sh` を呼ぶところまで。`注入の整形は 3/3 で実装` として何も出さない | 依存しない（コードのコメントに明記） |
-| 4 | 本文のリンク一覧を書く時点 | 処理フロー 6 で `## 統括` に追記。`pre_cleanup_sha` は release 段階 3 で確定 | 実装なし（`finalize.sh` 自体が未作成） | 依存しない（仕様内で閉じた矛盾） |
-| 5 | HTML の添付手段 | 処理フロー 6 が `uploads.github.com` への `curl` を前提にする | 実装なし。issue #10 の追記 2 が API では通らないことを実測済み | **依存する**（実測は issue の追記に記録済み。再実測は不要） |
-| 6 | 全体まとめの完了検査の出力先 | release 段階 2 で検査するとだけ書き、結果の置き場が無い | `ticket.sh:254` が `overall-summary` の `complete` を TK005 で必ず拒否する | 依存しない |
-| 7 | `finalize.sh` の CLI 不在時の経路 | 記述なし | 旧 SKILL.md（261 行）が `merge-prep.sh --external` を書いていた | 依存しない |
-| 8 | 1 タスク 1 レポート | `investigation-exec` 共通手順 4 が「最初のチケットのレポートに追記」 | #9 の実績と本 issue の運用が 1 チケット 1 レポート | 依存しない |
+**決着先の列は設計フェーズ（チケット 0011）で追加した**。「決着」はどちらを正としたかと、それを書いた文書を指す。
+
+| # | 項目 | 仕様の言い分 | 実装の言い分 | 実測に依存するか | 決着先（0011 で追記） |
+|---|---|---|---|---|---|
+| 1 | `boundary.sh` の置き場 | `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`（サンプル 3 行 + Script 処理） | `.claude/hooks/boundary.sh`（`session-start.sh:64` のハードコード、`workflow-state-guard.sh:40` の案内文、テスト 2 行） | 依存しない（読み取りで確定） | **仕様を正**。DDR `i0010-01` と `00-workflow-issue-mr-driven` 仕様「現行アセットとの差分」 |
+| 2 | `finalize.sh` の置き場 | `.claude/skills/10-task-overall-summary/scripts/finalize.sh`（サンプル 1 行 + Script 処理） | `.claude/hooks/finalize.sh`（`workflow-state-guard.sh:40, 43` の案内文、テスト 2 行） | 依存しない | **仕様を正**。同上 + `10-task-overall-summary` 仕様「Script 処理」 |
+| 3 | `session-start` の注入 | 6 行の注入形式・`position` ごとの文言・WF702 / WF703 を定める | 62〜86 行で `boundary.sh` を呼ぶところまで。`注入の整形は 3/3 で実装` として何も出さない | 依存しない（コードのコメントに明記） | **仕様を正**（実装が未完なだけ）。`session-start` 仕様 処理フロー 3 に参照するパスを明記 |
+| 4 | 本文のリンク一覧を書く時点 | 処理フロー 6 で `## 統括` に追記。`pre_cleanup_sha` は release 段階 3 で確定 | 実装なし（`finalize.sh` 自体が未作成） | 依存しない（仕様内で閉じた矛盾） | **仕様を書き換え**。release に段階 3「片付け直前の SHA の確定と本文のリンク一覧の更新」を新設し、片付けを段階 4 に下げた |
+| 5 | HTML の添付手段 | 処理フロー 6 が `uploads.github.com` への `curl` を前提にする | 実装なし。issue #10 の追記 2 が API では通らないことを実測済み | **依存する**（実測は issue の追記に記録済み。再実測は不要） | 0012 が担当（issue の追記 2 を正として仕様を書き換え、実測を DDR に残す） |
+| 6 | 全体まとめの完了検査の出力先 | release 段階 2 で検査するとだけ書き、結果の置き場が無い | `ticket.sh:254` が `overall-summary` の `complete` を TK005 で必ず拒否する | 依存しない | **両方を正**（TK005 は設計どおり）。検査結果の出力先を統括レポートの「完了検査」節と定め、検査は `ticket_check_completion` を source して共有 |
+| 7 | `finalize.sh` の CLI 不在時の経路 | 記述なし | 旧 SKILL.md（261 行）が `merge-prep.sh --external` を書いていた | 依存しない | **仕様に追加**。`10-task-overall-summary` 仕様「CLI が使えない環境での release」に段階 3 と 6 の代行手順を書いた |
+| 8 | 1 タスク 1 レポート | `investigation-exec` 共通手順 4 が「最初のチケットのレポートに追記」 | #9 の実績と本 issue の運用が 1 チケット 1 レポート | 依存しない | 0015 が担当（運用実績を正として共通手順 4 を直す） |
 
 ## 検証の結果
 

@@ -36,7 +36,7 @@ keywords: [SessionStart, 現在地, 注入, boundary.sh status, offline, ブラ�
 
 1. 停止中 → 「機構は停止中（WORKFLOW_ENFORCE=0 / WORKFLOW_SESSION_START_ENFORCE=0）」の 1 行だけ出し、`disabled` を記録
 2. `logs/sessions/` の 7 日より古いディレクトリを削除する（失敗は無視）。frontmatter 索引の機構があれば非侵襲的に最新化する（導入前は何もしない）
-3. `boundary.sh status --offline` を実行する。失敗（`jq` / `git` 不在・スクリプト不在）→ 何も出さずに終了 0
+3. `boundary.sh status --offline` を実行する。**参照するパスは `$HOOK_WORKTREE/.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`**（提供コマンドはそれを使うスキルの `scripts/` に置く — `00-workflow-issue-mr-driven` 仕様「Script 処理」）。失敗（`jq` / `git` 不在・スクリプト不在）→ 何も出さずに終了 0。不在で無出力に倒れる経路は「壊れても気づきにくい」ので、`hook_record skip` に不在の事実を残す（現行実装の 64 行はこのパスが `.claude/hooks/boundary.sh` になっており、実装フェーズで直す — `00-workflow-issue-mr-driven` 仕様「現行アセットとの差分」の 1 行目）
 4. 注入テキストを組み立てる（各行 `- <項目>: <値>`。値が無い項目は「無し」）:
 
 ```

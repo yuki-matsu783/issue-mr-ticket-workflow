@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0011-0016 AI アセット設計結果 — 正史の改訂</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット設計結果 / フェーズ 3</p>
+  <h1 id="title" data-required>0011-0016 AI アセット設計結果 — 正史の改訂</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 4</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 置き場を仕様側に確定</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. release に段階を新設</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. TK005 は設計・検査は共有</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. テスト観点を 2 件追加</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. CLI 不在時の release</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
+    <div><dt>チケット</dt><dd>0011〜0016</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><a href="#f2">e2</a>: release に段階を 1 つ増やしたため <code>logs/merge-state.json</code> の <code>state</code> に <code>linked</code> が加わり、記録が壊れたときの再導出も 1 段増えた。判定材料を「本文にリンク一覧の表があるか」にしたが、表の有無を機械的に見分ける方法は実装フェーズで確かめる必要がある</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><a href="#f1">e1</a>: 置き場は<strong>仕様側に寄せた</strong>。変更行数は実装 7 行 対 仕様 8 行でほぼ引き分けで、決め手は既存 5 本との一貫性と所有関係の明示。却下案 4 件と一緒に DDR <code>i0010-01</code> に残した</li>
+        <li><a href="#f4">e4</a>: テスト観点に <strong>FN-T06・FN-T07 を追加</strong>した。順序と副作用は仕様の文言だけでは実装が守ったか確かめられない。テスト ID の総数は <strong>191 → 193</strong> になる</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><a href="#f3">e3</a>: TK005 は例外ではなく設計。完了検査そのものは <code>ticket_check_completion</code> を共有して release の段階 2 が行う</li>
+        <li><a href="#f5">e5</a>: CLI 不在時の release を「段階 3 と 6 だけを呼び出し元に代行させる」形で仕様に追加した</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong>実装が仕様どおりに書けるか</strong>。<code>ticket_check_completion</code> を関数として切り出せるか、<code>finalize.sh</code> から source できるかは <code>ticket.sh</code> の現行の構造を読んだうえでの見込みで、実装して確かめてはいない</li>
+      <li><strong>本文のリンク一覧の表を機械的に見分けられるか</strong>（<a href="#f2">e2</a>）。再導出の判定材料として仕様に書いたが、判定の実現方法は実装フェーズに残る</li>
+      <li>仕様の改訂が <strong>SKILL.md の手順に落とせるか</strong>。SKILL.md はまだ存在せず、実装フェーズで書く</li>
+      <li><strong>旧名の残存</strong>。この節までの改訂で旧名を新たに書いていないことは確認したが、A3 の 0 件判定は 0016 と実装フェーズが行う</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（読んだ対象）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>読んだ節</th></tr></thead>
+    <tbody>
+      <tr><td><code>10_spec/skills/00-workflow-issue-mr-driven.md</code></td><td>Script 処理、切れ目の判定、進行状態と記録</td></tr>
+      <tr><td><code>10_spec/skills/10-task-overall-summary.md</code></td><td>処理フロー、Script 処理、release の段階、テスト観点</td></tr>
+      <tr><td><code>10_spec/skills/20-common-step-ticket.md</code></td><td>complete、エラー識別子、next</td></tr>
+      <tr><td><code>10_spec/hooks/00-SessionStart/session-start.md</code></td><td>処理フロー、エラー識別子、テスト観点</td></tr>
+      <tr><td><code>10_spec/フック共通仕様.md</code></td><td>§8（提供コマンドの識別）、§9</td></tr>
+      <tr><td><code>.claude/hooks/00-SessionStart/session-start.sh</code></td><td>58〜70 行</td></tr>
+      <tr><td><code>.claude/hooks/20-PreToolUse/workflow-state-guard.sh</code></td><td>36〜46 行</td></tr>
+      <tr><td>テスト 2 本</td><td><code>test_workflow_entry.sh</code> 141〜146 行 / <code>test_workflow_state_guard.sh</code> 115〜120 行</td></tr>
+      <tr><td><code>wip/30_reports/0004-investigation.md</code></td><td>食い違いの一覧 8 行</td></tr>
+      <tr><td>issue #10 の追記（2026-09-02）</td><td>3・4 と受け入れ条件 B1〜B4</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">提供コマンドの置き場を仕様側に確定した <span class="chip good">◎良</span> <span class="basis">根拠: 実装 7 行の grep と既存 5 本の置き場</span></h3>
+      <p><code>boundary.sh</code> は <code>.claude/skills/00-workflow-issue-mr-driven/scripts/</code>、<code>finalize.sh</code> は <code>.claude/skills/10-task-overall-summary/scripts/</code> に置く。<strong>2 本だけの措置ではなく機構全体の原則</strong>として、要件書（自己改善ワークフロー機構）と用語辞書（提供コマンド）にも書いた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>論点</th><th>仕様側に寄せる</th><th>実装側に寄せる</th></tr></thead>
+        <tbody>
+          <tr><td>変更行数</td><td>実装 7 行</td><td>仕様 8 行</td></tr>
+          <tr><td>既存 5 本との一貫性</td><td>揃う</td><td>崩れる</td></tr>
+          <tr><td>所有関係</td><td>置き場で分かる</td><td>分からない</td></tr>
+          <tr><td>中核（<code>session-start.sh</code>）を触るか</td><td><strong>触る</strong></td><td>触らない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（実装側で追従が要る 7 行）</summary>
+        <pre><code>hooks/00-SessionStart/session-start.sh:64:__se_boundary="$HOOK_WORKTREE/.claude/hooks/boundary.sh"
+hooks/20-PreToolUse/workflow-state-guard.sh:40:__SG_HOWTO_STATE="… bash .claude/hooks/boundary.sh … / bash .claude/hooks/finalize.sh … "
+hooks/20-PreToolUse/workflow-state-guard.sh:43:__SG_HOWTO_READY="draft の解除は bash .claude/hooks/finalize.sh release 経由でのみ行う …"
+hooks/10-UserPromptSubmit/tests/test_workflow_entry.sh:143  WE-T06 の入力
+hooks/10-UserPromptSubmit/tests/test_workflow_entry.sh:144  WE-T11 の入力
+hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:117  SG-T05 の入力
+hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>決め手は一貫性と所有関係。中核を触るリスクは実装計画のロックアウト対策で引き受ける。却下案 4 件（<code>.claude/hooks/</code> に寄せる / 専用ディレクトリの新設 / 両方に置く / 決めずに送る）は DDR <code>i0010-01</code> に残した。7 行の一覧は <code>00-workflow-issue-mr-driven</code> 仕様の新設節「現行アセットとの差分」に置き、1 行目は中核、4〜7 行目は<strong>期待値が置き場に依存するテスト</strong>として同じチケットの許可範囲に入れることを明記した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">release に段階を 1 つ増やして B3 の順序を成立させた <span class="chip good">◎良</span> <span class="basis">根拠: issue #10 追記 3 と現行の処理フロー 5〜9</span></h3>
+      <p>issue 追記 3 は「片付け直前の SHA が確定してから本文を更新する」を求める。現行の仕様は処理フロー 5（本文の最終化）→ 9（release で片付け）の順で、本文更新の時点で <code>pre_cleanup_sha</code> が未定義だった。解決は<strong>リンク一覧だけを release の中へ移す</strong>こと。処理フロー 5 は要約だけを書き、SHA に依存するリンク一覧は release の段階 3 で書く。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>段階</th><th>内容</th><th><code>state</code></th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>前提検査</td><td><code>started</code></td></tr>
+          <tr><td>2</td><td>完了検査（結果を統括レポートへ）</td><td><code>started</code></td></tr>
+          <tr><td><strong>3（新設）</strong></td><td><strong>片付け直前の SHA の確定と本文のリンク一覧の更新</strong></td><td><strong><code>linked</code></strong></td></tr>
+          <tr><td>4</td><td>片付け</td><td><code>cleaned</code></td></tr>
+          <tr><td>5</td><td>push</td><td><code>pushed</code></td></tr>
+          <tr><td>6</td><td>最終ゲートと draft 解除</td><td><code>ready</code></td></tr>
+          <tr><td>7</td><td>出力</td><td>—</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>段階が増えたので、記録が壊れたときの再導出も 1 段増えた。<code>wip/</code> に成果物があるときの分岐を「本文にリンク一覧の表が無い → 未実施」「ある → <code>linked</code>」に分けている。<strong>表の有無を機械的に見分ける方法は実装フェーズの課題</strong>として残る。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">TK005 は例外ではなく設計だと明示し、完了検査を共有関数にした <span class="chip good">◎良</span> <span class="basis">根拠: <code>20-common-step-ticket</code> 仕様 complete 2 と issue 追記 4</span></h3>
+      <p><code>ticket.sh complete</code> が全体まとめを必ず拒否するのは、完了が <code>finalize.sh release</code> に内包されているためで、抜け道を作る話ではない。ただし拒否だけでは検査の結果がどこにも残らないので、<strong>検査そのものは release の段階 2 が同じ関数で行い、結果を統括レポートの「完了検査」節に書き出す</strong>と定めた（B4）。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>検査を <code>ticket_check_completion &lt;チケットのパス&gt;</code> として定義し、<code>finalize.sh</code> が source して使う（二重実装しない）。全体まとめチケットも「<code>complete</code> を通らないだけで同じ検査は受ける」。統括レポートは片付けで消えないコミットに載るので、チケットが消えた後も検査の通過を辿れる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">テスト観点を 2 件追加した <span class="chip warn">△注意</span> <span class="basis">根拠: B3・B4 が「順序」と「副作用」であること</span></h3>
+      <p>段階順（B3）と完了検査の出力先（B4）は、仕様の文言を読んだだけでは実装が守ったか確かめられない性質のものなので、テスト ID を足した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>テスト ID</th><th>種別</th><th>固定する振る舞い</th></tr></thead>
+        <tbody>
+          <tr><td>FN-T06</td><td>正常系</td><td>本文のリンク一覧が <code>pre_cleanup_sha</code> に固定され、片付けコミットの後も辿れる</td></tr>
+          <tr><td>FN-T07</td><td>正常系</td><td>完了検査の結果が統括レポートの「完了検査」節に書き出されてから片付けが走る</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>0008 が数えたテスト ID の総数（完成時 <strong>191</strong>）は <strong>193</strong> になる。実装計画（0017）の割付表はこの数を使う。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">CLI 不在時の release を仕様に追加した <span class="chip good">◎良</span> <span class="basis">根拠: 旧 SKILL.md 261 行の <code>merge-prep.sh --external</code></span></h3>
+      <p>食い違い #7（旧 SKILL.md が外部委任の経路を書いていたが、新仕様に記述が無い）を、<code>10-task-overall-summary</code> 仕様の新設節「CLI が使えない環境での release」で埋めた。リモートに書く段階は 3（本文のリンク一覧）と 6（draft 解除）の 2 つだけなので、その 2 つだけを呼び出し元に代行させる。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>段階 3 は <code>release --external --pr &lt;M&gt; --body-file &lt;path&gt;</code> がリンク一覧をファイルに書き出して戻り、呼び出し元が MCP ツールで本文を更新してから <code>--linked</code> で再開する。段階 6 は呼び出し元が draft を解除してから最終ゲートだけを通す。<code>via: "external"</code> を記録し、<code>gh</code> 自身が確認する強度より劣ることを統括レポートに書く。<code>curl</code> / <code>WebFetch</code> へは落とさない。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>実装側で追従が要る行</td><td>7 行。<code>grep -n "hooks/boundary.sh\|hooks/finalize.sh"</code> の出力と一致</td></tr>
+      <tr><td><code>scope.sh</code> の提供コマンド識別</td><td>両方の形を受け付ける。置き場をどちらにしても機構は止まらない</td></tr>
+      <tr><td>食い違い 8 行のうち 0011 で決着した数</td><td>5 行（#1・#2・#3・#6・#7）。#4 は仕様を書き換えて解消、#5 は 0012、#8 は 0015</td></tr>
+      <tr><td>0004 の食い違い一覧</td><td>「決着先」の列を追加し、8 行すべてに行き先を書いた（md と HTML の両方）</td></tr>
+      <tr><td><code>check-html.sh</code></td><td>0004 の HTML が 7 項目通過</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>実装フェーズで決めること</th><th>効く受け入れ条件・保留</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>session-start.sh:64</code> を直すチケットのロックアウト対策（変更前後で SE-T05 後半を通す、<code>hook_record skip</code> のログを確認する）</td><td>保留 P1'、A2</td></tr>
+      <tr><td>2</td><td>テスト 4 行を、パスを変えるチケットと同じ許可範囲に入れる</td><td>申し送り 0038、A2</td></tr>
+      <tr><td>3</td><td>本文のリンク一覧の表を機械的に見分ける方法（再導出の判定材料）</td><td>A2、e2</td></tr>
+      <tr><td>4</td><td><code>ticket_check_completion</code> の切り出しと <code>finalize.sh</code> からの source</td><td>A2、B4</td></tr>
+      <tr><td>5</td><td>FN-T06・FN-T07 を含めたテスト ID 総数 193 での割付</td><td>A1、A2</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>置き場の確定は仕様の 8 行を直すだけ</td><td>原則として要件書と用語辞書にも書く必要があった（2 本だけの措置にすると次の提供コマンドで同じ議論が起きる）</td><td>横断文書と用語辞書に書き、DDR に格上げの理由を残した</td></tr>
+      <tr><td>B3 は段階の入れ替えで済む</td><td>入れ替えでは足りず、処理フロー 5 から「リンク一覧」だけを切り出して release の新しい段階にする必要があった</td><td>段階を 6 から 7 に増やし、<code>state</code> に <code>linked</code> を足した</td></tr>
+      <tr><td>食い違い #6 は「出力先を決める」だけ</td><td>検査の実装の共有まで書かないと、release と <code>ticket.sh</code> で検査が二重になる</td><td><code>ticket_check_completion</code> を共有関数として仕様に定義した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>残課題</th><th>引き取り先</th></tr></thead>
+    <tbody>
+      <tr><td>R1</td><td>本文のリンク一覧の表を機械的に見分ける方法が未定</td><td>実装フェーズ（0017 の計画）</td></tr>
+      <tr><td>R2</td><td><code>ticket_check_completion</code> の切り出しが現行の <code>ticket.sh</code> の構造で成立するか未確認</td><td>実装フェーズ</td></tr>
+      <tr><td>R3</td><td>テスト ID 総数が 191 から 193 に変わったことを実装計画の割付表に反映する</td><td>0017</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

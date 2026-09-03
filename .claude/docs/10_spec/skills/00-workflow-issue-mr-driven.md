@@ -184,7 +184,7 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 
 ## Script 処理
 
-`scripts/boundary.sh <subcommand> [options]`。終了コード: 成功 0 / 前提・状態の未充足 1 / 引数・環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `BDxxx:`）。`status` と `complete` の本体出力は JSON。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`）。ホスト判定は issue 仕様の手順と同じ。リモート操作は `gh` / `glab` だけを使い、フックの判定材料にはならない（フックはリモートに問い合わせない — DDR i0001-14。フックが読むのは `logs/` の記録だけ）。
+`scripts/boundary.sh <subcommand> [options]`。**実体の置き場は `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`**（このスキルが所有する提供コマンド。既存の 5 本（`ticket.sh` / `commit.sh` / `push.sh` / `check-html.sh` / `run-tests.sh`）と同じく、使うスキルの `scripts/` に置く）。起動は常にリポジトリルート相対表記で行う（`フック共通仕様` §8 の提供コマンドの識別はこの表記だけを認める）。終了コード: 成功 0 / 前提・状態の未充足 1 / 引数・環境の誤り 2。出力の最終行は AI が読む結果（`OK:` または `BDxxx:`）。`status` と `complete` の本体出力は JSON。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`）。ホスト判定は issue 仕様の手順と同じ。リモート操作は `gh` / `glab` だけを使い、フックの判定材料にはならない（フックはリモートに問い合わせない — DDR i0001-14。フックが読むのは `logs/` の記録だけ）。
 
 ### 進行状態と記録
 
@@ -192,6 +192,20 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 - `logs/review-state.json`: `{"mr": M, "boundary": {"task_type": ..., "tickets": [...], "last_done": "0004"}, "state": "none"|"requested"|"completed"|"skipped", "via": "cli"|"external"|"chat", "base_sha": ..., "head_sha": ..., "request_comment_url": ..., "requested_at": ..., "completed_at": ..., "accepted_unresolved": [...], "findings": [...], "skip_reason": ...}`。切れ目ごとに上書きし、直前の内容は `logs/review-history.jsonl` に 1 行追記する（振り返りの材料）
 - 直接編集は `workflow-state-guard` が拒否する。`boundary.sh` 内部の書き換えだけが経路
 - 記録が無い・壊れている場合: `status` は作業領域と MR の実態から再導出して書き戻す（チケットの配置 → 切れ目、依頼コメントの有無 → `requested`。依頼コメントは本文先頭の固定マーカー `<!-- boundary:request <task_type>:<last_done> -->` で識別する）。再導出できない項目は `none` に倒す（拒否側）。再導出の途中で**矛盾**（同じ `<task_type>:<last_done>` のマーカーを持つ依頼コメントが 2 件以上、`merge-state.json` が `cleaned` 以降なのに `wip/` に成果物がある 等）を見つけたら `status` は BD005 で終了コード 1 を返し、人間が確認すべき点を列挙する（他のサブコマンドは `status` を内部で呼ぶため同じく止まる）
+
+### 現行アセットとの差分（実装時に追従が要る箇所）
+
+実装済みのフックは `boundary.sh` / `finalize.sh` が `.claude/hooks/` にある前提で書かれている。置き場を上記のとおり各スキルの `scripts/` に確定したので、実装フェーズで次の **7 行**を直す。`scope.sh` の提供コマンドの識別は両方の形を受け付けるため（`フック共通仕様` §8）機構の動作は変わらないが、案内文が存在しないパスを指したままになる。
+
+| # | ファイル:行 | 現行 | 直す形 |
+|---|---|---|---|
+| 1 | `.claude/hooks/00-SessionStart/session-start.sh:64` | `__se_boundary="$HOOK_WORKTREE/.claude/hooks/boundary.sh"` | `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh` |
+| 2 | `.claude/hooks/20-PreToolUse/workflow-state-guard.sh:40` | 案内文 `__SG_HOWTO_STATE` の `bash .claude/hooks/boundary.sh …` / `bash .claude/hooks/finalize.sh …` | 各スキルの `scripts/` のパス |
+| 3 | `.claude/hooks/20-PreToolUse/workflow-state-guard.sh:43` | 案内文 `__SG_HOWTO_READY` の `bash .claude/hooks/finalize.sh release` | `bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release` |
+| 4・5 | `.claude/hooks/10-UserPromptSubmit/tests/test_workflow_entry.sh:143, 144` | WE-T06 / WE-T11 の入力 `bash .claude/hooks/finalize.sh release` / `bash .claude/hooks/boundary.sh status` | 同上（テストの入力を新しいパスに） |
+| 6・7 | `.claude/hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:117, 118` | SG-T05 の入力 2 行 | 同上 |
+
+**1 行目は中核**である。`session-start.sh` はセッション開始時の注入そのものを行うフックで、パスを取り違えると現在地が一切注入されなくなる（不在時は無出力で終了 0 に倒れるため、壊れたことに気づきにくい）。実装計画はこの 1 行にロックアウト対策（変更前後で SE-T05 後半を通す、`hook_record skip` のログを確認する）を付ける。4〜7 行目は**期待値が置き場に依存するテスト**なので、パスを変えるチケットと同じ許可範囲に入れる（申し送り 0038）。
 
 ### 切れ目の判定（正）
 

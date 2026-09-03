@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0046 shlex の守備範囲と現行 cmdpos.sh との差分</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査結果レポート</p>
+  <h1 id="title" data-required>0046 shlex の守備範囲と現行 cmdpos.sh との差分</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 0</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 2</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk warn">△</span> 1. A-1 出力 10 項目の切り分け</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. A-2 扱えない構文 5 種</a></li>
+          <li><a href="#f3"><span class="mk stop">✕</span> 3. A-3 現行実装との差分</a></li>
+        </ol>
+      </li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/shlex-hook-inspection-7t4sc1</code></dd></div>
+    <div><dt>チケット</dt><dd>0046</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead"><strong><code>shlex</code> は <code>cmdpos.sh</code> の代わりにならない。</strong>供給できるのは語割りとクォート除去だけで、出力 10 項目のうち 7 項目は自前実装が丸ごと残る。50 件のコーパスで突き合わせると <code>shlex</code> 側に<strong>実行位置の見落としが 6 件、実行されない語の誤検知が 1 件</strong>出た。見落としは検査をすり抜ける方向の誤りで、フックの用途では致命的になる。一方 <code>shlex</code> は現行実装の既知の弱点を 6 件で正しく解いており、<strong>照合役として使えばバグを機械的に見つけられる</strong>筋は残る。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>0</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>2</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>見落とし 6 件のうち 3 件（<code>$(( ))</code> 由来）は、<code>punctuation_chars</code> を切れば直るかもしれない。切ると区切り記号の語割りを自前でやることになるが、その道を試すべきか</li>
+        <li>照合役案の価値を、差分 23 件のうち「<code>shlex</code> の方が正確」6 件だけで測ってよいか。表現差 10 件を除く設計が要る</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>本番置換は勧めない。置き換わるのは 429 行のうち正規化部 120 行程度で、代償に 7 件の判定誤りが入る</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>リダイレクト演算子がサブコマンドに漏れる 4 件は試作の粗さで、<code>shlex</code> の欠陥ではない</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><code>shlex</code> を本番に置いた場合の総合的な正しさ。試作は「段分割 + 実行体 + サブコマンド」に絞っており、<code>CP_WRITE_TARGETS</code> や <code>CP_OPAQUE</code> の再実装は行っていない</li>
+      <li>PowerShell 経路の網羅。最小入力 2 件を見ただけで、コーパスによる突き合わせは bash 経路のみ</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>Python 3.11.15（Linux コンテナ）。<code>shlex</code> は標準ライブラリ</li>
+    <li>現行実装は <code>.claude/hooks/lib/cmdpos.sh</code>（429 行、コミット 6c87efb 時点）</li>
+    <li>コーパスは <code>wip/tmp/corpus.json</code> の 50 件。<code>test_cmdpos.sh</code> のテスト入力を土台に、ヒアドキュメントと算術展開の境界例を追加</li>
+    <li>突き合わせの署名は「段の数 + 各段の実行体とサブコマンド」。<code>bash wip/tmp/bench.sh dump-corpus</code> と <code>python3 wip/tmp/probe.py a3</code></li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot warn">1</span>
+      <h3 id="f1">A-1 出力 10 項目の切り分け <span class="chip warn">△注意</span> <span class="basis">根拠: cmdpos.sh:8-27 の公開 API 定義</span></h3>
+      <p><code>shlex</code> が供給するのは <code>CP_ARGS</code>（全面）と <code>CP_EXE</code>・<code>CP_REDIRECTS</code>（部分）の 3 項目。残る 7 項目は外側に自前で書く。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>出力</th><th>shlex が供給するか</th><th>残る自前実装</th></tr></thead>
+        <tbody>
+          <tr><td><code>CP_EXE</code></td><td>部分的</td><td>basename 化・<code>.exe</code> 除去・小文字化・ラッパー 20 語の読み飛ばし・変数代入の読み飛ばし</td></tr>
+          <tr><td><code>CP_ARGS</code></td><td>供給する</td><td>区切りバイトへの詰め直しのみ</td></tr>
+          <tr><td><code>CP_SUBCMD</code></td><td>供給しない</td><td><code>git</code> のグローバルオプション表を持った走査</td></tr>
+          <tr><td><code>CP_REDIRECTS</code></td><td>部分的</td><td>fd 番号（<code>2&gt;</code>）の結合、fd 複製と <code>&amp;&gt;</code> の区別、<code>/dev/null</code> の除外</td></tr>
+          <tr><td><code>CP_WRITE_TARGETS</code></td><td>供給しない</td><td>10 コマンドのオプション表と位置引数の解釈</td></tr>
+          <tr><td><code>CP_OPAQUE</code></td><td>供給しない</td><td>実行系の語彙表と <code>-c</code> 併用の判定</td></tr>
+          <tr><td><code>CP_PROVIDED</code></td><td>供給しない</td><td>提供コマンドのパス形の照合</td></tr>
+          <tr><td><code>CP_DATA</code></td><td>供給しない（むしろ壊す）</td><td>ヒアドキュメントの追跡が無く、本文を実行位置の語として出す</td></tr>
+          <tr><td><code>CP_GITLIKE</code></td><td>供給しない</td><td>縮退時の代替判定で <code>shlex</code> とは無関係</td></tr>
+          <tr><td><code>CP_DEGRADED</code></td><td>供給しない</td><td>bash の版数と 4096 文字の縮退条件を Python 用に定義し直す</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>429 行のうち <code>shlex</code> に置き換わるのは正規化部（<code>_cp_normalize_to_reply</code> とその補助、おおよそ 120 行）に留まる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">A-2 扱えない構文 5 種 <span class="chip stop">✕問題</span> <span class="basis">根拠: python3 wip/tmp/probe.py a2</span></h3>
+      <p>5 種のうち<strong>ヒアドキュメント・コマンド置換 / バッククォート・算術展開の 3 種が判定を壊す</strong>。fd 複製と PowerShell は「自前実装が要る」で済む。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ python3 wip/tmp/probe.py a2
+=== ヒアドキュメント本文 ===
+  入力  : 'cat &lt;&lt;EOF\ngit commit\nEOF'
+  語    : ['cat', '&lt;&lt;', 'EOF', 'git', 'commit', 'EOF']
+=== サブシェル展開 $( ) ===
+  入力  : 'echo "$(git commit -m x)"'
+  語    : ['echo', '$(git commit -m x)']
+=== バッククォート ===
+  入力  : 'echo `git commit`'
+  語    : ['echo', '`git', 'commit`']
+=== fd 複製 2&gt;&amp;1 ===
+  入力  : 'git push 2&gt;&amp;1 &gt;/dev/null'
+  語    : ['git', 'push', '2', '&gt;&amp;', '1', '&gt;', '/dev/null']
+=== 算術展開の &lt;&lt; ===
+  入力  : 'echo $((1&lt;&lt;2)); ls'
+  語    : ['echo', '$', '((', '1', '&lt;&lt;', '2', '));', 'ls']
+=== PowerShell 行継続 ===
+  入力  : 'git `\n  push'
+  語    : ['git', '`', 'push']</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>算術展開では <code>));</code> が 1 語になり、<strong>その中の <code>;</code> が区切りとして働かない</strong>。後続の段が丸ごと消える。コメントには逆向きの罠もある。<code>shlex</code> の <code>commenters</code> は文字単位で語頭を見ないため、<code>foo#bar git status</code> を <code>['foo']</code> に切り詰め、<code>git status</code> を落とす。<code>cmdpos.sh</code> は直前の文字が語の切れ目かを見ている（<code>cmdpos.sh:107-114</code>）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">3</span>
+      <h3 id="f3">A-3 現行実装との差分（コーパス 50 件） <span class="chip stop">✕問題</span> <span class="basis">根拠: python3 wip/tmp/probe.py a3</span></h3>
+      <p>一致 27 件 / 差分 23 件。差分の性質は 4 つに分かれる。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>性質</th><th>件数</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td>見落とし</td><td>6</td><td>実在するコマンドが <code>shlex</code> 側で見えない。<strong>検査をすり抜ける方向</strong></td></tr>
+          <tr><td>誤検知</td><td>1</td><td>bash が実行しないヒアドキュメント本文の語を実行位置として出す</td></tr>
+          <tr><td><code>shlex</code> の方が正確</td><td>6</td><td>現行実装が <code>_</code> を返す入力で正しい値を復元する</td></tr>
+          <tr><td>表現差・試作の粗さ</td><td>10</td><td>判定結果は変わらない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（見落とし 6 件と誤検知 1 件）</summary>
+        <pre><code>--- c19 'echo "$(git commit -m x)"'
+    cmdpos: n=2|echo:_;git:commit      shlex : n=1|echo:$(git commit -m x)
+--- c20 'echo `git commit`'
+    cmdpos: n=2|echo:;git:commit       shlex : n=1|echo:`git
+--- c27 'echo $((1&lt;&lt;2)); ls'
+    cmdpos: n=2|echo:_;ls:             shlex : n=1|echo:$
+--- c28 'foo#bar git status'
+    cmdpos: n=1|foo#bar:git            shlex : n=1|foo:
+--- c45 'echo $((1&lt;&lt;2)); git commit'
+    cmdpos: n=2|echo:_;git:commit      shlex : n=1|echo:$
+--- c50 'cat &lt;&lt;EOF\nEOF\ngit push'
+    cmdpos: n=2|cat:_;git:push         shlex : n=1|cat:&lt;&lt;
+--- c46 'cat &lt;&lt;EOF\nfoo; git push\nEOF'   ← 誤検知
+    cmdpos: n=1|cat:_                  shlex : n=2|cat:&lt;&lt;;git:push
+
+一致 27 件 / 差分 23 件 / 合計 50 件</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>c46 と c50 は同じ原因（ヒアドキュメントの追跡が無い）から<strong>誤検知と見落としの両方</strong>を生んでいる。一方 c31 <code>git 'commit'</code> は <code>test_cmdpos.sh</code> が「判定できない既知の制約」とコメント付きで固定している入力で、<code>shlex</code> は <code>git commit</code> と正しく復元した。照合役案の価値はここにある。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>本番置換は勧められない</strong>。置き換えられるのは 429 行のうち正規化部 120 行程度で、代償に 7 件の判定誤りが入る。うち 6 件は検査をすり抜ける方向。同等の正しさを保つにはヒアドキュメント追跡・コマンド置換の再帰・算術展開の読み飛ばし・語頭を見るコメント判定を Python 側で書き直すことになり、<code>shlex</code> を使う利点がほとんど残らない</li>
+    <li><strong>照合役としては筋がある</strong>。現行実装が <code>_</code> を返す入力で <code>shlex</code> は正しい答えを出す。差を機械的に取れば取りこぼしを継続的に見つけられる。ただし差分の 10 件は判定に影響しない表現差なので、比較する項目を絞る設計が要る</li>
+    <li>照合役案を採るかどうかは <strong>0043 の起動コスト</strong>（テスト実行時間への影響）を見てから決める</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>コメントは <code>shlex</code> が扱えない構文</td><td><code>commenters</code> で扱える。ただし語頭を見ないため <code>foo#bar</code> を切り詰める</td><td>想定と逆向きの見落としとして A-2 と A-3（c28）に記録した</td></tr>
+      <tr><td>ヒアドキュメントは本文を語として出す（誤検知）だけ</td><td>区切り語の後に続く本物のコマンドを吸い込む見落とし（c50）も起きた</td><td>両方向の誤りとして A-3 に分けて記録した</td></tr>
+      <tr><td>算術展開は観点に挙げていなかった</td><td><code>punctuation_chars=True</code> が <code>));</code> を 1 語にし、後続の段が消える</td><td><code>test_cmdpos.sh</code> の負のコントロールから拾い、コーパスに c45・c47 を足した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>試作の網羅範囲</strong>。<code>CP_WRITE_TARGETS</code> と <code>CP_OPAQUE</code> を <code>shlex</code> 版で再実装したときの差分は取っていない。本番置換を選ばないなら不要</li>
+    <li><strong>PowerShell 経路のコーパス</strong>。bash 経路 50 件に対し PowerShell は最小入力 2 件のみ。照合役案を採る場合、対象にするかは設計で決める</li>
+    <li><strong><code>shlex</code> の版差</strong>。この環境は Python 3.11.15。<code>punctuation_chars</code> の挙動が古い版で異なるかは確認していない</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

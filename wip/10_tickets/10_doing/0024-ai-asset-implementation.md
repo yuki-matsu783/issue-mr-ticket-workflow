@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装フェーズの敵対的レ
 allow:
   write: [".claude/skills/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T04:13:32+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9ec55d0"
 ---
 
 # 0024 S1 設定・定義: テンプレート実体 15 件

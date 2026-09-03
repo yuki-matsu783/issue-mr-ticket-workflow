@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0048 AI アセット実装・テストの計画</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装・テスト計画</p>
+  <h1 id="title" data-required>0048 AI アセット実装・テストの計画</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/shlex-hook-inspection-7t4sc1</code></dd></div>
+    <div><dt>チケット</dt><dd>0048</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">設計 0047 の決定は「外部の字句解析器を使わず <code>cmdpos.sh</code> を純 bash のまま据え置く」だった。したがって本番コードの変更は無い。実装フェーズでやるのは、据え置きであることを差分で示すことと、決定の根拠になった振る舞いのうち唯一テストで固定されていない 1 件を足して、既存のテストが同じ検査 ID・同じ結果で通ることを確かめることである。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li><code>.claude/hooks/lib/cmdpos.sh</code> は変更しない。書き込み先にも入れない</li>
+      <li><code>test_cmdpos.sh</code> の HK-T05 に <code>cat &lt;&lt;EOF⏎EOF⏎git push</code> を 1 件足す。新しいテスト ID は作らない</li>
+      <li><code>scope-limits.json</code> の <code>commands.build-test</code> の 2 行は DDR i0015-02 の決定どおり残す</li>
+      <li>実装チケットは 0049 の 1 枚。次の計画チケットとしてフィードバック計画 0050 を起こす</li>
+    </ul>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td><code>.claude/hooks/lib/cmdpos.sh</code></td><td>変更しない。据え置きが決定</td><td>DDR i0015-01「決定」／同「影響」（変更先は仕様書 §1・§7 のみ）</td></tr>
+      <tr><td><code>.claude/hooks/lib/tests/test_cmdpos.sh</code></td><td>更新。ヒアドキュメント終端の後に続くコマンドを検出することを HK-T05 に足す</td><td>フック共通仕様 §11 HK-T05（観点に「ヒアドキュメント」を含む）／§7（追記した具体例）</td></tr>
+      <tr><td><code>.claude/hooks/config/scope-limits.json</code></td><td>変更しない。0045 で足した 2 行は残す</td><td>DDR i0015-02「決定」「残る弱点」</td></tr>
+      <tr><td><code>.claude/docs/**</code></td><td>変更しない。0047 で反映済み</td><td><code>ai-asset-implementation</code> の型が deny</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>テストを 1 件足す理由</h3>
+  <p>0046 の A-3 が見つけた「<code>shlex</code> が誤る 7 件」のうち、テストで固定されていないのは 1 件だけである。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>入力</th><th>現行実装</th><th><code>shlex</code> 版</th><th>既存テスト</th></tr></thead>
+    <tbody>
+      <tr><td><code>echo "$(git commit -m x)"</code></td><td>検出</td><td>見落とし</td><td>HK-T05 複合</td></tr>
+      <tr><td><code>echo `git commit`</code></td><td>検出</td><td>見落とし</td><td>HK-T05 複合</td></tr>
+      <tr><td><code>echo $((1&lt;&lt;2)); git commit</code></td><td>検出</td><td>見落とし</td><td>HK-T05 負のケース</td></tr>
+      <tr><td><code>foo#bar git status</code></td><td><code>exe=foo#bar</code></td><td>切り詰め</td><td>HK-T05 負のケース</td></tr>
+      <tr><td><code>cat &lt;&lt;EOF⏎foo; git push⏎EOF</code></td><td>本文はデータ</td><td>誤検知</td><td>HK-T05 負のケース</td></tr>
+      <tr><td><code>git 'commit'</code></td><td><code>sub=_</code>（既知の制約）</td><td>正しく解く</td><td>HK-T05 opaque</td></tr>
+      <tr><td><strong><code>cat &lt;&lt;EOF⏎EOF⏎git push</code></strong></td><td><strong>検出（2 段）</strong></td><td><strong>見落とし</strong></td><td><strong>無し</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>仕様書 §7 は今回の追記で「ヒアドキュメントの終わりの後に続くコマンドが吸い込まれる」を、外部の字句解析器では代替できない働きの具体例として名指しした。仕様が振る舞いを主張している以上、それを固定するテストが要る。HK-T05 の観点には「ヒアドキュメント」が既に含まれるので、仕様の変更は不要で、観点の中の入力が 1 件増えるだけになる。</p>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <p>固定順（設定・定義 → 中核 → 中核の機械テスト → スキル・ルール → 参照更新）に当てはめると、設定・定義とスキル・ルールは対象なし、中核は「変更しない」の確認になる。</p>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>中核が据え置きであることを示す</h3>
+      <p><code>git diff origin/main -- .claude/hooks/lib/cmdpos.sh</code> が空であることを確認する。決定が「据え置き」なので、差分が無いこと自体が実装の結果になる。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>テストを 1 件足す</h3>
+      <p><code>test_cmdpos.sh</code> の HK-T05 に <code>cat &lt;&lt;EOF⏎EOF⏎git push</code> を足す。期待は 2 段・<code>exe=git sub=push</code>。<code>cat</code> の段が消えていないことも併せて見る。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>テストを実行して ID の集合を突き合わせる</h3>
+      <p><code>run-tests.sh --ids</code> を全体とフィルタ別に実行し、ID の集合と PASS 件数を 0045 時点の記録と突き合わせる。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>参照更新の検索を記録する</h3>
+      <p>名称・パスの変更は無い。下の一覧の検索を実施し、更新箇所が無いことを 0 件検索の記録として残す。</p>
+    </li>
+  </ol>
+
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>1〜4（チケット 0049）</td><td><code>.claude/hooks/lib/tests/**</code>, <code>wip/**</code></td><td><code>read</code>, <code>hook-test</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li><code>build-test</code> は宣言しない。npm も <code>wip/tmp/</code> の計測スクリプトも今回は使わない</li>
+    <li><code>cmdpos.sh</code> を書き込み先に入れない。据え置きが決定なので、書けないほうが決定に沿う</li>
+    <li><code>scope-limits.json</code> の型の既定（<code>.claude/hooks/**</code> 全体）より狭く取る</li>
+  </ul>
+
+  <h3>参照更新一覧</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>検索語</th><th>現時点のヒット</th><th>実装後の期待</th></tr></thead>
+    <tbody>
+      <tr><td><code>shlex</code> の言及</td><td><code>grep -rln "shlex" .claude/</code></td><td>3 件（i0015-01 / i0015-02 / フック共通仕様）</td><td>同じ 3 件</td></tr>
+      <tr><td>DDR の被参照</td><td><code>grep -rln "i0015" .claude/</code></td><td>3 件（同上）</td><td>同じ 3 件</td></tr>
+      <tr><td>テスト ID</td><td><code>grep -rn "HK-T05\|HK-T12" .claude/</code></td><td>仕様書 §11 の定義行と <code>test_cmdpos.sh</code> の assert</td><td>ID の集合が変わらない</td></tr>
+      <tr><td>DDR 一覧</td><td><code>ls .claude/docs/20_ddr/</code></td><td>127 件。手書きの索引ファイルは存在しない</td><td>索引の更新作業は不要</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>除外はいずれも該当なし（DDR・用語辞書の別名に触れる名称変更が無いため）。用語辞書への追加も無い。「外部の字句解析器」は一般語で、機構が導入した概念ではない。</p>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>ヒアドキュメント終端後のコマンドを検出する</td><td><code>run-tests.sh --filter '*cmdpos*' --ids</code>。追加した入力を含めて PASS</td><td>HK-T05</td></tr>
+      <tr><td>提供コマンドの識別が変わらない</td><td>同上</td><td>HK-T12</td></tr>
+      <tr><td><code>commands.build-test</code> の 2 行追加が形式検査を壊していない</td><td><code>--filter '*config_integrity*'</code></td><td>HK-T02</td></tr>
+      <tr><td>コマンドの分類の振る舞い</td><td><code>--filter '*scope*'</code></td><td>HK-T15・HK-T16</td></tr>
+      <tr><td>検査 ID の集合と件数が 0045 時点と同じ</td><td><code>run-tests.sh --ids</code>（フィルタ無し）を 0045 の記録と突き合わせる</td><td>成果物: 実装結果レポート <code>wip/30_reports/0049-ai-asset-implementation.md</code> と対の HTML</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>0045 時点の記録: <code>test_config_integrity.sh</code> 95 / <code>test_scope.sh</code> 312 / <code>test_workflow_guard.sh</code> 147 / <code>test_cmdpos.sh</code> 281、いずれも失敗 0。<code>test_cmdpos.sh</code> だけは今回の追加分だけ件数が増える。</p>
+  <p>eval の定義は無い。今回の変更は機械テストで全量が見られる範囲に収まる。</p>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0049</td><td><code>ai-asset-implementation</code></td><td>ステップ 1〜4。据え置きの確認・テスト 1 件の追加・全テストの実行と ID の突き合わせ・参照更新の検索記録・実装結果レポート</td><td>0048</td></tr>
+      <tr><td>0050</td><td><code>feedback-plan</code></td><td>後続フェーズの要否を決める。<code>git 'commit'</code> の制約と <code>scope.sh</code> / <code>hook-common.sh</code> の扱いを別 issue にするか</td><td>0049</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>ステップ 1〜4 を 1 チケットに収めた理由: 中核の変更が無く、テストの追加が 1 件だけで、分割すると確認の単位が細かくなりすぎるため。</p>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td>追加したテストが落ちる（現行実装がヒアドキュメント終端後を検出していない）</td><td>0046 A-3 の c50 の観測と食い違う</td><td>ステップ 2 の実行時点で分かる。落ちたら<strong>テストを緩めず</strong>、観測と実装のどちらが誤りかを切り分けて結果報告に書く。仕様 §7 の記述の訂正が要るなら設計への差し戻しになる</td></tr>
+      <tr><td>ID の集合が 0045 時点と変わる</td><td>受け入れ条件 5 の「同じ検査 ID」を満たせない</td><td>ステップ 3 の <code>--ids</code> の突き合わせで検出。追加は既存 ID の中に置くので、変われば書き方の誤り</td></tr>
+      <tr><td><code>scope-limits.json</code> の 2 行が残ることへの異論</td><td><code>wip/tmp/</code> は追跡外なので、実質は任意の Python / bash 実行を通す</td><td>DDR i0015-02「残る弱点」に明記済みで、決定として残す。異論はフィードバック計画（フェーズ 8）で扱う</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>ロックアウト対策</h3>
+  <p>中核（フック・<code>settings.json</code>・入口ガード）を変更しないので、変更後の最初の操作で自分が止まる経路は原理的に無い。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>変えるもの</th><th>ホットパスへの影響</th><th>復旧手順</th></tr></thead>
+    <tbody>
+      <tr><td><code>test_cmdpos.sh</code>（テストファイル）</td><td>無し。<code>settings.json</code> から起動されず、フックの実行経路に入らない</td><td><code>git checkout &lt;0049 の base_sha&gt; -- .claude/hooks/lib/tests/test_cmdpos.sh</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>WORKFLOW_ENTRY_ENFORCE=0</code> は使わない（ユーザーの明示が無い）。</p>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li><code>cmdpos.sh</code> の既知の制約（<code>git 'commit'</code> のサブコマンドが <code>_</code> になる）の修正。#15 の受け入れ条件に無い</li>
+    <li><code>scope.sh</code> / <code>hook-common.sh</code> の移行判断。#15 の別の受け入れ条件として残る</li>
+    <li>uv の導入と Python のバージョン固定。置き場が「採用しない」に決まったので本 PR では扱わない</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>設定・定義のステップ</td><td>対象なし。<code>settings.json</code>・frontmatter・テンプレートのいずれも変えない</td></tr>
+      <tr><td>スキル・ルール・エージェントのステップ</td><td>対象なし。決定は本番コードの据え置きで、手順書に反映すべき変更が無い</td></tr>
+      <tr><td><code>git 'commit'</code> の制約を別 issue にするか</td><td>フェーズ 8 フィードバック計画</td></tr>
+      <tr><td><code>wip/10_tickets/20_done</code> に残る #9 のチケット 39 枚の削除</td><td>フェーズ 9。WF303 のため人間の手が要る</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

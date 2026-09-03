@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0006 調査結果 — 申し送りの反映先の割り付けと fm_get / TICKET-T05 の現状</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査結果レポート / 調査</p>
+  <h1 id="title" data-required>0006 調査結果 — 申し送りの反映先の割り付けと fm_get / TICKET-T05 の現状</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 3</span>
+    <span class="chip stop">✕問題 2</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 申し送りは 24 項目</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. 反映済みは実質 1 項目</a></li>
+          <li><a href="#f3"><span class="mk stop">✕</span> 3. feedback-plan の仕様が正反対</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. fm_get は実装もテストも済み</a></li>
+          <li><a href="#f5"><span class="mk warn">△</span> 5. CP-T08 が 2 ファイルに重複</a></li>
+          <li><a href="#f6"><span class="mk warn">△</span> 6. 前提が変わった申し送りが 2 件</a></li>
+          <li><a href="#f7"><span class="mk warn">△</span> 7. 許可範囲の不足でテストを実行できず</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd>#10</dd></div>
+    <div><dt>PR</dt><dd>#35（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd>feature-10-task-skills-agents-finalize</dd></div>
+    <div><dt>チケット</dt><dd>0006-investigation</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">申し送りは <strong>24 項目</strong>に分解でき、反映先は 8 本の仕様書に散る。<strong>反映済みは 1 項目だけ</strong>で、残る 23 項目は設計フェーズで書く。しかも 1 項目は現行の仕様が申し送りと正反対のことを書いており、追記ではなく書き換えになる。<code>fm_get</code> / <code>TICKET-T05</code> については、申し送りが想定していた修正はすでに終わっており、残るのは仕様の 2 行だけ。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>3</b><span>△注意</span></li>
+    <li class="kpi stop"><b>2</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><a href="#f2">d2</a>: 24 項目のうち反映済みは 1 項目。設計フェーズの作業量が全体計画の見込みより大きい。設計チケットの分け方を 0007 で決める必要がある</li>
+        <li><a href="#f3">d3</a>: <code>10-task-feedback-plan</code> の現行仕様は「ヘッドレスでは止まる」、申し送りは「起票まで進む」。正反対なのでどちらを採るか決めないと書けない</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><a href="#f5">d5</a>: <code>CP-T08</code> の重複はどちらかの ID を振り直す（「1 つのテスト ID を 2 ファイルに置いてよいか」への答えは「置かない」）</li>
+        <li><a href="#f6">d6</a>: テンプレート実体は設計では置き場の決定だけ。要件書の <code>####</code> 小節は「反映済み」の主張が確認できないので再確認が要る</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><a href="#f1">d1</a>: 申し送り 24 項目 × 反映先の対応表</li>
+        <li><a href="#f4">d4</a>: <code>fm_get</code> のエスケープ解除は実装もテストも済み</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong><code>run-tests.sh</code> の実行結果</strong>。<code>hook-test</code> が未宣言で TR006 に拒否された。代わりに <code>frontmatter.sh</code> とテストの該当行を読んで判断し、実行での確認は追加チケット 0008 に回した（<a href="#f7">d7</a>）</li>
+      <li>各項目をどう書くか（文言）。この報告は反映先の仕様書と節まで</li>
+      <li>「この issue で扱う / 扱わない」の決定。判断材料までを渡す</li>
+      <li>申し送りの出どころ（#6 のチケット 0022・0026・0028 ほか）の元の文脈。issue #10 本文の要約だけを読んでいる</li>
+      <li>要件書の <code>####</code> 小節の件が本当に未反映か（#8 で進行中の変更に含まれている可能性がある）</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>issue #10 の本文「#6 からの申し送り」の全項目</li>
+    <li>反映先候補の仕様 8 本（<code>10-task-feedback-plan</code> / <code>10-task-ai-asset-implementation-plan</code> / <code>10-task-ai-asset-design-plan</code> / <code>10-task-ai-asset-design-exec</code> / <code>10-task-overall-summary</code> / <code>agents/adversarial-reviewer</code> / <code>20-common-step-shell-script</code> / <code>20-common-step-report-view</code>）</li>
+    <li>実装: <code>frontmatter.sh</code> 38〜130 行、<code>test_frontmatter.sh</code> 73〜94 行、<code>test_ticket.sh</code> 109〜119 行、<code>test_commit.sh</code> / <code>test_push.sh</code> の <code>CP-T08</code>、<code>requirements.template.md</code></li>
+    <li><code>run-tests.sh</code> は許可範囲外のため実行していない</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">申し送りは 24 項目。反映先は 8 本の仕様書に散る <span class="chip good">◎良</span> <span class="basis">根拠: issue #10 本文と各仕様の grep</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>申し送り（要約）</th><th>反映先</th><th>節</th><th>反映済み</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>自律運用・ヘッドレスでは「対応先を決めて起票まで行い note で報告」</td><td>10-task-feedback-plan</td><td>処理フロー 4</td><td>未（正反対。d3）</td></tr>
+          <tr><td>2</td><td>テスト ID の抜き出し grep で割付表を機械的に作る</td><td>ai-asset-implementation-plan</td><td>テスト方針</td><td>未</td></tr>
+          <tr><td>3</td><td>テストを実行するチケットは build-test と hook-test を両方宣言</td><td>同上</td><td>許可範囲案</td><td>未</td></tr>
+          <tr><td>4</td><td>実装結果レポートは最初の実装チケットの DoD に</td><td>同上</td><td>DoD の型</td><td>未</td></tr>
+          <tr><td>5</td><td>計画の記述順と next の実行順を揃える</td><td>同上</td><td>ステップ</td><td>未</td></tr>
+          <tr><td>6</td><td>提供コマンド自身を変えるステップには、変更後の自分のコマンドで自分をコミット・完了させる最初の操作を書く</td><td>同上</td><td>ステップ</td><td>未</td></tr>
+          <tr><td>7</td><td>参照更新一覧は行末に依存しない検索語で書き、期待値は「残るもの」で</td><td>同上</td><td>参照更新一覧</td><td>未</td></tr>
+          <tr><td>8</td><td>期待値が変更対象に依存するテストを grep で洗い出し同じチケットの許可範囲に</td><td>同上</td><td>許可範囲案</td><td>未</td></tr>
+          <tr><td>9</td><td>値の往復が要る修正は両側の許可範囲を同じチケットに</td><td>同上</td><td>許可範囲案</td><td>未</td></tr>
+          <tr><td>10</td><td>実装を伴う候補があれば次の計画チケットは ai-asset-implementation-plan</td><td>ai-asset-design-plan</td><td>次の計画チケット</td><td>未</td></tr>
+          <tr><td>11</td><td>実装と仕様が食い違う候補はどちらを正にするかまで決める</td><td>同上</td><td>処理フロー</td><td>未</td></tr>
+          <tr><td>12</td><td>台帳を確定するチケットは識別子が 1 番号 1 原因かを確認する</td><td>同上</td><td>DoD の型</td><td>未</td></tr>
+          <tr><td>13</td><td>次の計画チケットの目的文に件数を固定で書かない</td><td>同上</td><td>処理フロー</td><td>未</td></tr>
+          <tr><td>14</td><td>実装を正として仕様に写すときは実装の該当行を作業ログに残す</td><td>ai-asset-design-exec</td><td>固有手順</td><td>未</td></tr>
+          <tr><td>15</td><td>設計チケットを分割したら各 DoD に「参照先の再読」</td><td>同上</td><td>DoD の型</td><td>未</td></tr>
+          <tr><td>16</td><td>全体まとめチケットの型（DoD の型）を仕様に置く</td><td>overall-summary</td><td>新設の節</td><td>未</td></tr>
+          <tr><td>17</td><td>手順の穴（HTML 添付）</td><td>同上</td><td>処理フロー 6</td><td>未（0004 の b7）</td></tr>
+          <tr><td>18</td><td>手順の穴（別 issue 起票の承認の取り方）</td><td>同上</td><td>処理フロー 2</td><td>未</td></tr>
+          <tr><td>19</td><td>敵対的レビューのプロンプト構成をテンプレートに</td><td>agents/adversarial-reviewer</td><td>定義ひな形</td><td>一部</td></tr>
+          <tr><td>20</td><td>計画書・レポートのテンプレート実体を assets として作る</td><td>各タスクスキル</td><td>assets</td><td>未（d6）</td></tr>
+          <tr><td>21</td><td>fm_get / fm_list の「クォートは外す」にエスケープ解除を含める</td><td>20-common-step-shell-script</td><td>142・143 行</td><td>未（実装済み。d4）</td></tr>
+          <tr><td>22</td><td>1 つのテスト ID を 2 ファイルに置いてよいか</td><td>同上</td><td>テストの作法</td><td>未（d5）</td></tr>
+          <tr><td>23</td><td>run-tests.sh の対象本数の数え方</td><td>同上</td><td>run-tests.sh の節</td><td>未</td></tr>
+          <tr><td>24</td><td>check-html.sh は awk を使う前提</td><td>20-common-step-report-view</td><td>前提コマンド</td><td>未（実装は awk を 3 か所で使用）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>反映先が確定していない項目は無い。設計は「どこに書くか」ではなく「何と書くか」から始められる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">反映済みは実質 1 項目。設計フェーズの分量が見込みより大きい <span class="chip stop">✕問題</span> <span class="basis">根拠: d1 の対応表の「反映済み」列</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>反映先</th><th>件数</th></tr></thead>
+        <tbody>
+          <tr><td><code>10-task-ai-asset-implementation-plan</code></td><td>8</td></tr>
+          <tr><td><code>10-task-ai-asset-design-plan</code></td><td>4</td></tr>
+          <tr><td><code>10-task-overall-summary</code></td><td>3</td></tr>
+          <tr><td><code>20-common-step-shell-script</code></td><td>3</td></tr>
+          <tr><td><code>10-task-ai-asset-design-exec</code></td><td>2</td></tr>
+          <tr><td><code>10-task-feedback-plan</code></td><td>1</td></tr>
+          <tr><td><code>agents/adversarial-reviewer</code></td><td>1</td></tr>
+          <tr><td><code>20-common-step-report-view</code></td><td>1</td></tr>
+          <tr><td>各タスクスキルの assets</td><td>1</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>フェーズ 3 は受け入れ条件 B1〜B4 の 4 件に加えてこの 23 件を書くことになる。設計チケットの分け方（仕様書ごとに 8 枚 / 影響の大きいものを先に / 出どころごと）は 0007 で決める。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">3</span>
+      <h3 id="f3"><code>10-task-feedback-plan</code> の現行仕様は申し送りと正反対 <span class="chip stop">✕問題</span> <span class="basis">根拠: 同仕様 処理フロー 4（49 行）</span></h3>
+      <p>現行は「ヘッドレスでは一覧と提案を<strong>コミットせずに報告してセッションを終える</strong>」。申し送りは「ヘッドレスでは<strong>対応先を決めて起票まで行い note で報告</strong>」。止まるか進むかが逆で、追記では済まない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>観点</th><th>現行（止まる）</th><th>申し送り（進む）</th></tr></thead>
+        <tbody>
+          <tr><td>取り消せない副作用</td><td>起票しないので無い</td><td>別 issue の起票は取り消せない</td></tr>
+          <tr><td>自律運用の連続性</td><td>セッションが切れて再開が要る</td><td>フェーズが閉じて次へ進める</td></tr>
+          <tr><td>人間の関与</td><td>対応先の決定を人間が行う</td><td>決定を AI が行い note で事後に見せる</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>この issue の運用（敵対的レビューで人間レビューを代替）は進む側に寄っているが、issue の起票は外部への副作用なので同列に扱えない。決定は 0007。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4"><code>fm_get</code> のエスケープ解除は実装もテストも済んでいる <span class="chip good">◎良</span> <span class="basis">根拠: frontmatter.sh 89〜106 行 / test_frontmatter.sh 83〜93 行</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象</th><th>現状</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td><code>frontmatter.sh</code> の実装</td><td>済み。<code>__fm_unquote</code> が <code>\"</code> → <code>"</code> / <code>\\</code> → <code>\</code> を戻す</td><td>90 行のコメントと 97〜106 行</td></tr>
+          <tr><td>読み取り側のテスト</td><td>済み。FR-T03（追記）が <code>fm_get</code>・<code>fm_list</code> の戻り値を非エスケープの形で検証</td><td>83〜93 行</td></tr>
+          <tr><td><code>TICKET-T05</code> の期待値</td><td>直す必要が無い。書き出したファイルの中身の照合で、エスケープ済みの形が正しい</td><td>114 行の <code>grep -qF</code></td></tr>
+          <tr><td>仕様の文言</td><td><strong>未反映</strong>。142・143 行にエスケープ解除の記述が無い</td><td>20-common-step-shell-script.md</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>#21 で残っているのは仕様の 2 行だけ。「実装とテストを同じチケットで直す」という申し送りの前提は既に成立していない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">5</span>
+      <h3 id="f5"><code>CP-T08</code> が 2 ファイルに重複している <span class="chip warn">△注意</span> <span class="basis">根拠: test_commit.sh と test_push.sh の grep</span></h3>
+      <p><code>test_commit.sh</code> は冒頭の担当 ID 宣言と 108・109・118・121 行ほかで、<code>test_push.sh</code> は 12 件。<code>run-tests.sh</code> は重複 ID を報告する仕様なので、このままでは全件実行時に警告が出続ける。</p>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>申し送り #22 の問い「1 つのテスト ID を 2 ファイルに置いてよいか」への答えは「置かない」。どちらを振り直すかは、仕様の該当テスト観点がどちらのコマンドを主題にしているかで決める（設計の判断）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">6</span>
+      <h3 id="f6">申し送りのうち 2 項目は前提が変わっている <span class="chip warn">△注意</span> <span class="basis">根拠: 0003 の a2・a7 / requirements.template.md の grep</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>項目</th><th>前提の変化</th></tr></thead>
+        <tbody>
+          <tr><td>#20 テンプレート実体を作る</td><td>0003 の a2 で 13 件が確定し、a7 でレポート md テンプレートの不在が問題として上がっている。設計では置き場の決定だけでよく、作ること自体は実装フェーズ</td></tr>
+          <tr><td>要件書の <code>####</code> 小節（「反映済み」とされている）</td><td>テンプレートにも仕様にも該当の記述が見つからない。「反映済み」の主張が確認できない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>後者は issue 本文が「反映済み」として扱っている項目なので、そのまま信じると抜ける。#8（要件定義書の型の改訂）に含まれている可能性があり、0007 で #8 の状態を確認してから扱いを決める。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">7</span>
+      <h3 id="f7">許可範囲の宣言不足で <code>run-tests.sh</code> を実行できなかった <span class="chip warn">△注意</span> <span class="basis">根拠: TR006 の出力</span></h3>
+      <pre><code>$ bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids
+TR006: 作業中チケット 0006-investigation.md の allow.ops に無い分類: hook-test（宣言は read remote-read build-test）。計画で宣言してから実行する</code></pre>
+      <p>理由は <code>scope.sh</code> の分類にある。<code>.claude/hooks/**/tests/*.sh</code> と <code>.claude/skills/*/scripts/tests/*.sh</code> の両方が <code>hook-test</code> に分類されるため、提供コマンドのテストを走らせるだけでも <code>hook-test</code> が要る。<code>build-test</code> に該当するのは <code>commands.build-test</code> の npm 系 6 コマンドだけで、このリポジトリのシェルスクリプトのテストは 1 つも当たらない。</p>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>申し送り #3（テストを実行するチケットは両方宣言）が言っているのがまさにこの落とし穴で、調査計画がそれを踏んだ。迂回せず、実行での確認を追加チケット 0008（<code>hook-test</code> 宣言つき）に回した。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>申し送りの項目数</td><td>24</td></tr>
+      <tr><td>反映済み</td><td>1 項目（#19 の一部）。#21 は実装・テストのみ済み</td></tr>
+      <tr><td><code>10-task-feedback-plan</code> の現行記述</td><td>申し送りと正反対（止まる vs 進む）</td></tr>
+      <tr><td><code>frontmatter.sh</code> のエスケープ解除</td><td>実装済み（<code>__fm_unquote</code> 89〜106 行）</td></tr>
+      <tr><td>読み取り側のテスト</td><td>済み（FR-T03 追記、83〜93 行）</td></tr>
+      <tr><td><code>TICKET-T05</code> の期待値</td><td>書き出したファイルの照合。直す必要なし</td></tr>
+      <tr><td>仕様 142・143 行</td><td>エスケープ解除の記述なし（未反映）</td></tr>
+      <tr><td><code>CP-T08</code> の重複</td><td>2 ファイル（<code>test_commit.sh</code> / <code>test_push.sh</code>）</td></tr>
+      <tr><td><code>run-tests.sh</code> の実行</td><td>不可（TR006。<code>hook-test</code> 未宣言）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>23 項目を設計チケットにどう分けるか（仕様書ごと 8 枚 / 影響の大きさ順 / 出どころごと）— 効く先: A4、保留 P5・P6</li>
+    <li><code>10-task-feedback-plan</code> のヘッドレス時の挙動（止まる / 進む）— 効く先: A4</li>
+    <li><code>CP-T08</code> の重複をどちらのファイルで振り直すか — 効く先: A4</li>
+    <li><code>20-common-step-shell-script</code> 仕様 142・143 行の文言 — 効く先: A4</li>
+    <li>要件書の <code>####</code> 小節が本当に反映済みか、#8 の状態を確認して扱いを決める — 効く先: A4</li>
+    <li><code>agents/adversarial-reviewer</code> に「問題なしと判断した点」と抜き取り検証の一覧を足す — 効く先: A4</li>
+    <li>この issue で扱わない項目の線引きと、DDR に残す理由 — 効く先: 保留 P5</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>申し送りの多くは既に反映されている</td><td>反映済みは 1 項目だけ</td><td>d2 として「✕問題」に上げ、設計チケットの分け方を 0007 に回した</td></tr>
+      <tr><td><code>fm_get</code> は実装が未修正</td><td>実装もテストも済み。残るのは仕様の 2 行</td><td>d4 に整理し、申し送りの前提が古いことを明記した</td></tr>
+      <tr><td><code>TICKET-T05</code> の期待値を直す必要がある</td><td>直す必要が無い（書き出したファイルの照合）</td><td>d4 の表に根拠付きで書いた</td></tr>
+      <tr><td><code>build-test</code> の宣言でテストを実行できる</td><td><code>hook-test</code> が要る（TR006）</td><td>迂回せず追加チケット 0008 に回し、d7 として記録した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li>R1: <code>run-tests.sh --ids</code> の実行による確認（<code>hook-test</code> 宣言つき）→ 追加チケット 0008</li>
+    <li>R2: 要件書の <code>####</code> 小節が反映済みかの確認（#8 の状態を見る）→ 設計計画 0007</li>
+    <li>R3: 申し送りの元の文脈（#6 のチケット群）は読んでいない。文面を書く段で元の記述が要るかもしれない → 設計（0007 が必要性を判断）</li>
+    <li>R4: <code>10-task-ai-asset-implementation-plan</code> に 8 項目が集中しており、1 つの仕様書への追記としては大きい。節の構成ごと見直すかは設計の判断 → 設計（0007）</li>
+  </ul>
+</section>
+
+<footer>#10 / #35 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

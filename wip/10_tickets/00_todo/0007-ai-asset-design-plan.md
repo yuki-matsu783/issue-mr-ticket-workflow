@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-design-plan
-predecessors: ["0003", "0004", "0005", "0006", "0008"]
+predecessors: ["0003", "0004", "0005", "0006", "0008", "0009"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは fable の敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "設計フェーズの 2 回は実施タスクの切れ目で使う（全体計画「敵対的レビューの回し方」）"}

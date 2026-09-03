@@ -56,6 +56,12 @@ case_hk_t05_negative() {
   assert_contains "HK-T05" "exe=git sub=commit"
   run_cmd dump 'foo#bar git status'
   assert_contains "HK-T05" "exe=foo#bar"
+  # ヒアドキュメントは区切り語で終わる。本文はデータ段（data=1）になり、区切り語の後に続くコマンドは本文に吸い込まれず実行位置として見える
+  run_cmd dump $'cat <<EOF\nEOF\ngit push'
+  assert_contains "HK-T05" "count=3"
+  assert_contains "HK-T05" "seg0: exe=cat"
+  assert_contains "HK-T05" "seg1: exe=_ sub= args=[] redir=[] write=[] opaque=0 provided= gitlike=1 data=1"
+  assert_contains "HK-T05" "seg2: exe=git sub=push args=[push] redir=[] write=[] opaque=0 provided= gitlike=0 data=0"
 }
 
 case_hk_t05_opaque() {

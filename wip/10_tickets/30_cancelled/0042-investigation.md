@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-03T08:33:21+00:00"
 completed_at: ""
 base_sha: "f2ea5e8"
+cancelled_at: "2026-09-03T08:56:28+00:00"
+cancel_reason: "python3 の実行が WF204（分類外のコマンドは既定拒否）で止まり、調査を進められない。scope-limits.json の commands.build-test に計測コマンドを足す ai-asset-implementation チケットを先に差し込む合意を得たため取り消す。同内容は 0046 として起こし直す"
 ---
 
 # 0042 shlex の守備範囲と現行 cmdpos.sh との差分

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-03T11:06:50+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "6c87efb"
 ---
 
 # 0046 shlex の守備範囲と現行 cmdpos.sh との差分（0042 の起こし直し）

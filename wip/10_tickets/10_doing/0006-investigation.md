@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "調査フェーズの切れ目で 
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "build-test"]
-started_at: ""
+started_at: "2026-09-03T14:31:18+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "ae2ef79"
 ---
 
 # 0006 観点 D: 申し送りの反映先の割り付けと fm_get / TICKET-T05 の現状

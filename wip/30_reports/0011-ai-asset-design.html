@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0011-0016 AI アセット設計結果 — 正史の改訂</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 15</span>
+    <span class="chip good">◎良 20</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -160,6 +160,10 @@
           <li><a href="#f14"><span class="mk good">◎</span> 14. エージェントのモデルと tools</a></li>
           <li><a href="#f15"><span class="mk good">◎</span> 15. 起動時にブランチ名を渡す</a></li>
           <li><a href="#f16"><span class="mk good">◎</span> 16. 設計実施スキルへの反映</a></li>
+          <li><a href="#f17"><span class="mk good">◎</span> 17. 共通ステップに申し送り 5 項目</a></li>
+          <li><a href="#f18"><span class="mk good">◎</span> 18. テンプレートの置き場</a></li>
+          <li><a href="#f19"><span class="mk good">◎</span> 19. 1 タスク 1 レポート</a></li>
+          <li><a href="#f20"><span class="mk good">◎</span> 20. 保留 P7・P8 の判断</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -182,9 +186,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。</p>
+  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を段階 3 に挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。<strong>0015 まで</strong>: 共通ステップ 2 本に申し送り <strong>#20〜#24</strong> を反映し、保留 <strong>P3・P7・P8</strong> を決着させた。<strong>これで食い違い 8 行がすべて決着した</strong>。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>15</b><span>◎良</span></li>
+    <li class="kpi good"><b>20</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -211,6 +215,7 @@
         <li><a href="#f3">e3</a>: TK005 は例外ではなく設計。完了検査そのものは <code>ticket_check_completion</code> を共有して release の段階 2 が行う</li>
         <li><a href="#f10">e10</a>・<a href="#f11">e11</a>: 実装計画スキルに申し送り 8 項目、設計計画スキルに 4 項目を反映した。許可範囲の方針に「3 項目は最小より優先」を足した</li>
         <li><a href="#f13">e13</a>・<a href="#f15">e15</a>・<a href="#f16">e16</a>: 敵対的レビューの出力に 2 つの一覧を追加、起動プロンプトにブランチ名を必須化、設計実施スキルに申し送り 2 項目と自分の反省 2 件を反映した</li>
+        <li><a href="#f17">e17</a>〜<a href="#f20">e20</a>: 共通ステップ 2 本に申し送り 5 項目、テンプレートの置き場（P3）、1 タスク 1 レポート（食い違い #8）、保留 P7・P8 の判断</li>
         <li><a href="#f5">e5</a>: CLI 不在時の release を「段階 3 と 6 だけを呼び出し元に代行させる」形で仕様に追加した</li>
         <li><a href="#f6">e6</a>〜<a href="#f9">e9</a>: B1（所在を本文へ）・B2（添付は人間）・B4（DoD の型）と申し送り #16・#17・#18 を <code>10-task-overall-summary</code> 仕様に反映した</li>
         <li><a href="#f12">e12</a>: <code>10-task-feedback-plan</code> のヘッドレス方針を「止まる」から「既定で進む」へ<strong>反転</strong>させた。別 issue の起票だけは例外として残した</li>
@@ -499,6 +504,71 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       </div>
     </li>
 
+
+    <li class="tl-item">
+      <span class="tl-dot good">17</span>
+      <h3 id="f17">共通ステップ 2 本に申し送り 5 項目を反映した <span class="chip good">◎良</span> <span class="basis">根拠: 0006 の d1 対応表 #20〜#24</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>申し送り</th><th>反映先</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>#21</td><td><code>shell-script</code> の <code>fm_get</code> / <code>fm_list</code></td><td>「クォートは外す」にエスケープの解除を足した。<strong>実装とテストは既に済んでいる</strong>ので仕様の文言だけが未反映だった</td></tr>
+          <tr><td>#22</td><td>同 <code>run-tests.sh</code> と <code>commit-push</code></td><td>「1 つのテスト ID を 2 つのファイルに置かない」を規則にし、既存の重複（CP-T08）の解消方針を決めた</td></tr>
+          <tr><td>#23</td><td>同 <code>run-tests.sh</code> の手順 2</td><td><code>.claude/hooks/tests/</code>（直下）を別パターンとして<strong>明示的に列挙する</strong></td></tr>
+          <tr><td>#24</td><td><code>report-view</code> の Script 処理</td><td>前提コマンドに <code>awk</code> を明記し、不在時は縮退させず RV008 で止める</td></tr>
+          <tr><td>#20</td><td>同 OUT ひな形</td><td>テンプレートの置き場を決めた（<a href="#f18">e18</a>）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>#23 は <code>**</code> の解釈に依存させない形にした。0 段に一致するかは <code>globstar</code> の有無や実装で変わり、拾い漏れると「全件通った」と報告しながらテストが走っていない状態になる。#22 の CP-T08 は「後から足したほうを振り直す」とし、<code>test_push.sh</code> 側を CP-T11 にする（仕様の表に行を足した）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">18</span>
+      <h3 id="f18">テンプレートの置き場を決めた（保留 P3・申し送り #20） <span class="chip good">◎良</span> <span class="basis">根拠: 0003 の a7（md テンプレートの不在）</span></h3>
+      <p><strong>共通の型は <code>20-common-step-report-view</code> の <code>assets/</code> に集約し、種類ごとの差分だけを各タスクスキルが持つ</strong>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>テンプレート</th><th>置き場</th></tr></thead>
+        <tbody>
+          <tr><td>HTML ビュー 2 本</td><td><code>20-common-step-report-view/assets/</code>（現状どおり）</td></tr>
+          <tr><td>md の共通の型（<code>report.template.md</code> / <code>plan.template.md</code>）</td><td>同上。<strong>この issue で新規に作る</strong></td></tr>
+          <tr><td>md の種類ごとの型</td><td>各タスクスキルの <code>assets/</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>決め手は<strong>節構成が HTML ビューと 1 対 1 で対応する</strong>こと。別々の場所に置くと片方だけが更新される。15 本のタスクスキルが同じ節構成を逐語で持つと、節を 1 つ足すのに 15 か所を直すことになる。md の共通の型が無い状態は「md が正文」という原則と噛み合わないので、ここで解消する。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">19</span>
+      <h3 id="f19">1 タスク 1 レポートを仕様の側に確定した（食い違い #8） <span class="chip good">◎良</span> <span class="basis">根拠: <code>investigation-exec</code> 共通手順 4 の現行の文言</span></h3>
+      <p><code>10-task-investigation-exec</code> の共通手順 4 は既に「最初のチケットでレポートを作り、以降のチケットは同じレポートに節を追記する」と書いており、<strong>仕様と運用は元から一致していた</strong>。0004 が食い違いとして挙げたのは、調査フェーズで 1 チケット 1 レポートに分けた<strong>運用側の逸脱</strong>である。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>仕様を変えるのではなく規則として読み取りやすくする追記をした（分けない理由 / 追記する節はどのチケットで書いたかが分かる形にする / 差し戻しの追加チケットも同じレポートに追記する）。設計フェーズ（0011〜0016）はこの形で運用しており、このレポートがその実例である。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">20</span>
+      <h3 id="f20">保留 P7・P8 を判断した <span class="chip good">◎良</span> <span class="basis">根拠: <code>20-common-step-requirement</code> 仕様 処理フロー 4 とテンプレート</span></h3>
+      <ul>
+        <li><strong>P7</strong>（#23 の答えが実測に依存するか）: <strong>依存しない</strong>。列挙のパターンを仕様で明示したので、実装が仕様どおりなら拾える。実測は実装フェーズの「列挙した本数と期待する本数の突き合わせ」で行う</li>
+        <li><strong>P8</strong>（<code>20-common-step-requirement</code> の小節の件）: <strong>既に反映済み</strong>。仕様の処理フロー 4 が小節を定め、セルフレビュー 14 が行数の一致を検査し、テンプレートにも節がある</li>
+      </ul>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>0006 の d6 が見つけられなかったのは、申し送りの文言が <code>####</code>（4 階層）と書いていたのに対し実体が <code>###</code>（3 階層）だったため。<strong>扱う項目は無い</strong>。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -519,6 +589,9 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>要件と仕様の順序</td><td>3 本とも要件定義書に受け入れ基準を足してから仕様を書いた（<code>ai-asset-design-docs</code> ルール「仕様書は対応する要件書より先に変えない」）</td></tr>
       <tr><td>申し送り #14・#15・#19 の反映</td><td>3 件すべてに反映先の節がある（#14・#15 = <code>ai-asset-design-exec</code> 処理フロー / #19 = <code>adversarial-reviewer</code> の出力スキーマと進め方 5 段階）</td></tr>
       <tr><td>保留 P4（モデルと <code>tools</code>）</td><td>2 本とも確定。<code>adversarial-reviewer</code> は定義で固定、<code>task-executor</code> は起動時指定。理由を両方の仕様に書いた</td></tr>
+      <tr><td>申し送り #20〜#24 の反映</td><td>5 件すべてに反映先の節がある（#20 = <code>report-view</code> の「テンプレートの置き場（正）」/ #21 = <code>shell-script</code> の <code>fm_get</code> / <code>fm_list</code> / #22 = <code>run-tests.sh</code> と <code>commit-push</code> の CP-T11 / #23 = <code>run-tests.sh</code> の手順 2 / #24 = <code>report-view</code> の前提コマンド）</td></tr>
+      <tr><td>食い違い #8 の決着</td><td>仕様は元から「1 タスク 1 レポート」。逸脱していたのは運用側。仕様に読み取りやすくする追記をした</td></tr>
+      <tr><td>保留 P3・P7・P8</td><td>3 件とも決着（P3 = 共通は集約・種類ごとは各スキル / P7 = 実測に依存しない / P8 = 既に反映済みで扱う項目なし）</td></tr>
     </tbody>
   </table>
   </div>
@@ -565,6 +638,9 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>R3</td><td>テスト ID 総数が 191 から 193 に変わったことを実装計画の割付表に反映する</td><td>0017</td></tr>
       <tr><td>R4</td><td><code>assets/summary-section.template.md</code> が作成物に加わった。0003 の 55 件には <code>attachment-comment.template.md</code> として数えられているので置き換えであり増減は無い</td><td>0016・実装フェーズ</td></tr>
       <tr><td>R5</td><td>人間が添付した URL を AI に渡す経路（チャットで貼る / 本文に人間が直接書く）が未定</td><td>実装フェーズ（SKILL.md の手順）</td></tr>
+      <tr><td>R6</td><td>md の共通の型 2 本が作成物に加わった。0003 の 55 件には無いので <strong>55 → 57</strong> になる</td><td>0016・実装フェーズ</td></tr>
+      <tr><td>R7</td><td><code>rules/work-defaults.md</code> に敵対的レビュアーのモデルを書く列が無い</td><td>0016</td></tr>
+      <tr><td>R8</td><td>CP-T11 の追加でテスト ID の総数が <strong>193 → 194</strong> になる（CP-T08 の重複解消は振り直しなので純増 1）</td><td>0016・0017</td></tr>
     </tbody>
   </table>
   </div>

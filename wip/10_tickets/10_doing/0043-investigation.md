@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "build-test"]
-started_at: ""
+started_at: "2026-09-03T11:14:57+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b54553b"
 ---
 
 # 0043 ホットパスの起動コストの実測と実行環境の前提

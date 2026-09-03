@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-design-plan
-predecessors: ["0042", "0043"]
+predecessors: ["0043", "0046"]
 executor: main
 human_review: {required: false, reason: "計画書は設計結果と一緒に見れば足りる（work-defaults 基準どおり）"}
 adversarial_review: {required: false, reason: "基準どおり"}

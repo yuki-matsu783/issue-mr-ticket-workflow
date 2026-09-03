@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: investigation
-predecessors: ["0041"]
+predecessors: ["0045"]
 executor: main
 human_review: {required: true, reason: "結論が DDR i0009-22 の上書き可否を左右する（work-defaults 基準どおり）"}
 adversarial_review: {required: false, reason: "基準どおり"}

@@ -52,12 +52,19 @@ A-3 は「shlex をテストの照合役として置く」案の価値を測る�
 
 | 番号 | 種類 | 担う観点 | 先行 | やってよいこと |
 |---|---|---|---|---|
-| 0042 | investigation | A-1・A-2・A-3 | 0041 | `read` / `build-test`（`python3` と `bash` の実行。書き込みは `wip/` のみ） |
-| 0043 | investigation | B-1・B-2 | 0041 | `read` / `build-test`（同上） |
+| 0045 | ai-asset-implementation | （観点なし。計測の前提を整える） | 0041 | `read` / `build-test` / `hook-test`。書き込みは `.claude/hooks/config/**` と `.claude/docs/20_ddr/**` と `wip/**` |
+| 0046 | investigation | A-1・A-2・A-3 | 0045 | `read` / `build-test`（`python3` と `bash` の実行。書き込みは `wip/` のみ） |
+| 0043 | investigation | B-1・B-2 | 0045 | `read` / `build-test`（同上） |
 
-2 枚は同じ type なので 1 ワークとして 1 回のレビュー境界にまとまる。0042 と 0043 に依存関係は置かない（B-1 の計測は A の切り分け結果を待たずにできる）。
+0046 と 0043 は同じ type なので 1 ワークとして 1 回のレビュー境界にまとまる。互いに依存関係は置かない（B-1 の計測は A の切り分け結果を待たずにできる）。
 
-次の計画チケット 0044（`ai-asset-design-plan`）の `predecessors` に 0042・0043 の両方を入れる。
+次の計画チケット 0044（`ai-asset-design-plan`）の `predecessors` に 0043・0046 の両方を入れる。
+
+### 0045 を差し込んだ経緯
+
+当初は 0042（A 系）と 0043（B 系）の 2 枚だけを置き、どちらも `allow.ops` に `build-test` を宣言していた。0042 に着手して `python3 wip/tmp/a2_syntax.py` を実行したところ、フックが WF204（分類外のコマンドは既定拒否）で拒否した。`scope-limits.json` の `commands.build-test` は npm の 6 コマンドしか列挙しておらず、`scope.sh` の分類は列挙されたコマンドとの前方一致で決まるため、チケット側で `build-test` を宣言しても `python3` は分類外のままになる。
+
+迂回せず、許可範囲を広げる実装チケット 0045 を先に差し込むことをユーザーと合意した（2026-09-03）。0042 は取り消し（`wip/10_tickets/30_cancelled/`）、同内容を 0046 として起こし直した。フェーズ順（設計 → 実装）から外れるが、調査を進めるための前提整備であり、変更の理由は 0045 の DDR に残す。
 
 ## 成果物の形
 

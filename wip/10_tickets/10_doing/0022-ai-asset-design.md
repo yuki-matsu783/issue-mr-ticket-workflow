@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの敵対的レ
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T22:52:11+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "cc0a09a"
 ---
 
 # 0022 敵対的レビュー 2 回目: 段階の再採番と参照の残留 4 件を直す

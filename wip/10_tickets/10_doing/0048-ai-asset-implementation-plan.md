@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read"]
-started_at: ""
+started_at: "2026-09-03T11:32:48+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9aaab23"
 ---
 
 # 0048 AI アセット実装の計画

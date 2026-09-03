@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "全体計画の方針どおり、
 allow:
   write: [".claude/hooks/config/**", ".claude/docs/20_ddr/**", "wip/**"]
   ops: ["read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-03T08:57:41+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "5a3e67f"
 ---
 
 # 0045 scope-limits.json の commands.build-test に計測コマンドを足す

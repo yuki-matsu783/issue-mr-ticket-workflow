@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0024- AI アセット実装・テスト結果 — 機構の実体を作る</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 1</span>
+    <span class="chip good">◎良 2</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -144,6 +144,7 @@
         <a href="#findings">実施した内容と結果</a>
         <ol class="toc-sub">
           <li><a href="#f1"><span class="mk good">◎</span> 1. テンプレート実体 15 件</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. boundary.sh とテスト 13 件</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -166,9 +167,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>1</b><span>◎良</span></li>
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -177,7 +178,7 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li>無し</li>
+        <li><a href="#f2">e2</a>: <code>boundary.sh</code> の<strong>引数・環境の誤り</strong>に専用の識別子が無い。仕様の表は <code>BD001</code>〜<code>BD005</code> しか定義しておらず、他の提供コマンドが持つ <code>TK008</code> / <code>CP007</code> / <code>RV008</code> に相当する番号が欠けている。暫定で <code>BD001</code> を終了コード 2 で使った（残課題 R3）</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -203,6 +204,8 @@
     <ul>
       <li><strong>テンプレートが実際に使えるか</strong>（埋めた結果が仕様の OUT を満たすか）。このチケットで作ったのはひな形だけで、使う側の SKILL.md は S6（0029）で作る</li>
       <li><strong><code>markdown-docs</code> ルールとの整合</strong>。ルール自体が存在しない（<code>.claude/rules/</code> に無い）。2 つの設計文書ルールが参照しているが未作成（残課題 R1）</li>
+      <li><strong><code>boundary.sh</code> の GitLab 経路</strong>。テストは <code>gh</code> のスタブで GitHub 経路だけを通している。<code>glab</code> の応答の形は実機でも fixture でも確かめていない（残課題 R4）</li>
+      <li><strong><code>boundary.sh</code> の実運用</strong>。保留 P2 の判断どおり、この issue の切れ目では使わない。実運用は次の issue から</li>
     </ul>
   </div>
 </section>
@@ -271,6 +274,41 @@
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2"><code>boundary.sh</code> とテスト 13 件を作った（S2・中核） <span class="chip good">◎良</span> <span class="basis">根拠: <code>run-tests.sh --filter '*test_boundary*'</code> が <code>OK: 1 本 / 13 件</code></span></h3>
+      <p>タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。<code>logs/review-state.json</code> を書き換える唯一の経路になる。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>サブコマンド</th><th>役割</th></tr></thead>
+        <tbody>
+          <tr><td><code>status [--offline]</code></td><td>切れ目の判定を JSON で返す。<code>--offline</code> は CLI を呼ばず <code>logs/</code> と作業領域だけで導出する（フックが使う）</td></tr>
+          <tr><td><code>note --body-file</code></td><td>通常コメントを投稿する。レビュー状態は変えない</td></tr>
+          <tr><td><code>request --body-file</code></td><td>前提を検査してレビューを依頼し <code>requested</code> にする</td></tr>
+          <tr><td><code>skip --reason</code></td><td>レビュー不要の切れ目を <code>skipped</code> にする</td></tr>
+          <tr><td><code>complete</code></td><td>指摘を取得して <code>completed</code> にする</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><strong>判定の中身</strong></p>
+      <ul>
+        <li><code>at_boundary</code> は「作業中が空 かつ（次が無い、または次の種類が最後のタスクと違う）」。<code>next</code> / <code>current</code> / <code>type</code> / <code>skill</code> は <code>ticket.sh next</code> の出力をそのまま載せる（種類からスキル名を引く処理を二重に持たない — <code>BD-T02</code>）</li>
+        <li><code>last_task</code> は完了群の末尾から<strong>同じ種類が続く範囲</strong>。レビュー要否はその中に 1 枚でも「要」があれば要</li>
+        <li><code>review.state</code> は記録の <code>boundary.last_done</code> が今の <code>last_task</code> の最大連番と一致するときだけ有効。追加チケットが完了すると自動的に <code>none</code> に戻る（<code>BD-T07</code>）</li>
+        <li>全体まとめは <code>--final</code> で扱う。作業中が全体まとめ 1 枚のとき、切れ目の鍵をそのチケット番号に差し替える（<code>BD-T11</code>）</li>
+      </ul>
+      <p><strong>再導出と矛盾の検出</strong>: 記録が無い・壊れているときは実態から導出する。依頼コメントは本文先頭の固定マーカーで見分ける（<code>BD-T08</code>）。同じ鍵のマーカーが 2 件あると一意に決められないので <code>BD005</code> で止める（<code>BD-T12</code>）。片付け以降なのに作業領域に成果物が残っている矛盾も同じ扱いにした。</p>
+      <p><strong>指摘の選別</strong>: 機構が投稿したコメントは<strong>マーカーの有無</strong>だけで除く。ログイン名では除かない（AI はユーザーのトークンで投稿するので、レビュアーが同じアカウントだと人間の指摘まで消える）。未解決スレッドは <code>BD003</code> で止め、<code>--accept-unresolved</code> で受け入れられる。<strong>変更要求は <code>--accept-unresolved</code> でも通さない</strong>（<code>BD-T05</code>）。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><code>BD-T01</code>〜<code>BD-T13</code> の 13 件、アサーション 74 件が通る。<code>gh</code> はスタブに差し替え、GraphQL とコメント API の応答を fixture で与えた。差分の取得も正規化のスキーマも実物と同じ経路を通る。</p>
+      </div>
+      <div class="box warn">
+        <p class="label">実行時間で 1 度落ちた</p>
+        <p>初版は 116 秒かかり、全件実行でテストランナーの既定タイムアウト（120 秒）に当たって <code>TR003</code> になった。原因は 2 つで、テストがケースごとに <code>git commit</code> していたことと、<code>boundary.sh</code> が 1 回の <code>status</code> で <code>jq</code> を 10 回以上起動していたこと。テスト用リポジトリで作業領域を追跡外にしてコミットを消し、<code>boundary.sh</code> は複数の値を 1 回の <code>jq</code> でまとめて読むように直して <strong>64 秒</strong>にした。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -283,6 +321,8 @@
       <tr><td>仕様が参照する <code>assets/*.template.md</code></td><td>20 種すべてに実体がある（<code>10_spec/</code> から抽出した名前を <code>find</code> と突合して MISSING 0 件）</td></tr>
       <tr><td>今回作った件数</td><td>15 件（種類ごと 9・ワークフロー 4・共通の型 2）</td></tr>
       <tr><td>名前の食い違い</td><td>0 件。<code>attachment-comment.template.md</code> は現行仕様に無く、<code>summary-section.template.md</code> として作った</td></tr>
+      <tr><td><code>boundary.sh</code> の機械テスト</td><td><code>BD-T01</code>〜<code>BD-T13</code> の 13 件・アサーション 74 件が PASS（<code>run-tests.sh --filter '*test_boundary*'</code> → <code>OK: 1 本 / 13 件</code>）</td></tr>
+      <tr><td><code>boundary.sh</code> の終了コード</td><td>成功 0 / 前提未充足 1（BD001〜BD005）/ 引数・環境の誤り 2。最終行は <code>OK:</code> または <code>BDxxx:</code></td></tr>
     </tbody>
   </table>
   </div>
@@ -313,6 +353,8 @@
   <ul>
     <li><strong>R1</strong>: <code>markdown-docs</code> ルールが存在しない。<code>design-docs</code> と <code>ai-asset-design-docs</code> の 2 本が frontmatter の規約の正として参照しているが <code>.claude/rules/</code> に無い。今回のテンプレートは既存文書の慣行に合わせた。引き取り先: フィードバック計画（0033）</li>
     <li><strong>R2</strong>: 旧ワークフロー由来の <code>00-workflow-issue-mr-driven/assets/issue-addendum.template.md</code> と <code>issue-notify.template.md</code> が残っている。引き取り先: S8（0031）</li>
+    <li><strong>R3</strong>: <code>boundary.sh</code> の引数・環境の誤りに専用の識別子が無い（<code>BD001</code>〜<code>BD005</code> に該当なし）。他の提供コマンドは <code>TK008</code> / <code>CP007</code> / <code>RV008</code> を持つ。暫定で <code>BD001</code> を終了コード 2 で使っている。引き取り先: フィードバック計画（0033）→ 設計反映</li>
+    <li><strong>R4</strong>: <code>boundary.sh</code> の GitLab 経路（<code>glab api discussions</code> / <code>approval_state</code>）は fixture でも実機でも未検証。テストは GitHub 経路だけを通っている。引き取り先: フィードバック計画（0033）</li>
   </ul>
 </section>
 

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-03T12:22:15+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2a2206f"
 ---
 
 # 0050 issue #15 の残りと本 PR で見つけた課題の扱いを決める

@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-03T20:33:15+09:00"
 completed_at: ""
 base_sha: "6690796"
+cancelled_at: "2026-09-03T20:33:45+09:00"
+cancel_reason: "やってよいことの宣言を誤って作った（allow.write に .claude/docs/** が入らず wip/** だけになっていた）。ticket.sh create は --allow-write を繰り返すと最後の 1 つだけを採り、カンマ区切りで渡す必要がある。着手後は allow を直せない（WF208）ため、正しい宣言で 0021 として作り直す"
 ---
 
 # 0018 敵対的レビュー 1 回目: 10-task-overall-summary の要件と仕様の矛盾 8 件を直す

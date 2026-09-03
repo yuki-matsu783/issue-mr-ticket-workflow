@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回目は
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T20:56:10+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "87571ee"
 ---
 
 # 0019 敵対的レビュー 1 回目: feedback-plan の内部矛盾と、要件書 6 本の規約違反を直す

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "調査フェーズの切れ目で 
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "hook-test", "build-test"]
-started_at: ""
+started_at: "2026-09-03T14:40:01+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "54e6e32"
 ---
 
 # 0008 観点 D 補足: run-tests.sh の実行による fm_get / TICKET-T05 / CP-T08 の確認

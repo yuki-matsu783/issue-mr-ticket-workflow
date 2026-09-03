@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "中核の提供コマンドで、t
 allow:
   write: [".claude/skills/10-task-overall-summary/**", ".claude/skills/20-common-step-ticket/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T05:26:29+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "fb8b80a"
 ---
 
 # 0026 S3 中核: finalize.sh とそのテスト（FN-T01〜09）・完了検査の共有

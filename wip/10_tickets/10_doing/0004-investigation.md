@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "調査フェーズの切れ目で 
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T14:13:42+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b20e7a4"
 ---
 
 # 0004 観点 B: boundary.sh / finalize.sh の仕様の洗い出しと実装済みフックとの食い違い

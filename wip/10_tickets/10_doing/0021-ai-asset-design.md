@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回目は
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T20:35:10+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9b1cc2d"
 ---
 
 # 0021 敵対的レビュー 1 回目: 10-task-overall-summary の要件と仕様の矛盾 8 件を直す

@@ -1,7 +1,7 @@
 ---
 type: report
 title: 0004 調査結果 — boundary.sh / finalize.sh の仕様の洗い出しと実装済みフックとの食い違い
-description: 提供コマンド 2 本（boundary.sh 5 サブコマンド・finalize.sh release 5 段階）の判定順・入出力・logs のスキーマを仕様から書き出し、置き場のハードコード・段階順の内部矛盾・注入整形の未実装・全体まとめの完了検査の出力先という 4 件の食い違いを列挙した調査結果
+description: 提供コマンド 2 本（boundary.sh 5 サブコマンド・finalize.sh release 6 段階）の判定順・入出力・logs のスキーマを仕様から書き出し、置き場のハードコード・段階順の内部矛盾・注入整形の未実装・全体まとめの完了検査の出力先という 4 件の食い違いを列挙した調査結果
 tags: [report, investigation, issue-10]
 keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review-state, merge-state, mr.json, 置き場, session-start, 段階順, pre_cleanup_sha, BD001, FN001]
 ---
@@ -10,7 +10,7 @@ keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review
 
 ## サマリ
 
-提供コマンド 2 本の仕様は**そのまま実装に落とせる粒度**にある。`boundary.sh` は 5 サブコマンド（`status` / `note` / `request` / `skip` / `complete`）で、前提検査・エラー識別子 BD001〜005・テスト ID BD-T01〜13 まで書かれている。`finalize.sh` は `release` 1 本で、5 段階（前提検査 → 完了検査 → 片付け → push → 最終ゲートと draft 解除）と冪等の規則、FN001〜003・FN-T01〜05 が揃っている。`logs/` の 4 ファイルは**書く側（仕様）と読む側（実装済みフック）でキー名が一致**しており、そのまま結線できる。
+提供コマンド 2 本の仕様は**そのまま実装に落とせる粒度**にある。`boundary.sh` は 5 サブコマンド（`status` / `note` / `request` / `skip` / `complete`）で、前提検査・エラー識別子 BD001〜005・テスト ID BD-T01〜13 まで書かれている。`finalize.sh` は `release` 1 本で、6 段階（前提検査 → 完了検査 → 片付け → push → 最終ゲートと draft 解除 → 出力）と冪等の規則、FN001〜003・FN-T01〜05 が揃っている。`logs/` の 4 ファイルは**書く側（仕様）と読む側（実装済みフック）でキー名が一致**しており、そのまま結線できる。
 
 食い違いは **4 件**。うち 2 件は設計で先に決めないと実装できない。最も重いのは `finalize.sh release` の段階順が **issue #10 の追記 3 の要求と仕様内で矛盾している**こと（本文のリンク一覧を書く時点で `pre_cleanup_sha` が未確定）。次に、置き場が仕様（`skills/*/scripts/`）と実装（`session-start.sh` のハードコード `.claude/hooks/boundary.sh`）で割れている。
 
@@ -28,7 +28,7 @@ keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review
 
 ### ・細かいレビューは不要（ほぼ確実）
 
-- **b1**〜**b3**: サブコマンドの判定順・入出力、release の 5 段階、`logs/` 4 ファイルのスキーマ一致（いずれも仕様と実装の転記）
+- **b1**〜**b3**: サブコマンドの判定順・入出力、release の 6 段階、`logs/` 4 ファイルのスキーマ一致（いずれも仕様と実装の転記）
 - **b9**: `gh` CLI 不在時のフォールバック（`--external` / `--standalone`）は 2 本とも仕様に揃っている
 
 ## 確かめられなかったこと（この結果が言っていないこと）
@@ -71,7 +71,9 @@ keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review
 
 **切れ目の判定（正）**も仕様側にある: `at_boundary` = `10_doing/` が空 かつ（`next` が null または `next.type` ≠ `20_done/` 最大連番の type）。`position` は上から順に `requested` → `in_task` → `before_request` → `completed` → `merge_prep` → `none`。
 
-### b2. `finalize.sh` は `release` 1 本。5 段階と冪等の規則が書かれている ◎良
+### b2. `finalize.sh` は `release` 1 本。6 段階と冪等の規則が書かれている ◎良
+
+（段階 6 は「出力」で状態遷移を伴わないが、仕様の番号付きリストは 1〜6 で、b6 も「段階 6」と呼ぶ。初版は状態遷移の数に引きずられて「5 段階」と書いていた — 敵対的レビュー 1 回目の指摘 11 による訂正）
 
 | 段階 | 内容 | 記録 |
 |---|---|---|
@@ -80,6 +82,7 @@ keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review
 | 3 片付け | `pre_cleanup_sha` を記録し、`wip/` 配下の全成果物を削除して 1 コミット（`.gitkeep` は残す） | `state: cleaned` |
 | 4 push | `push.sh` を内部実行 | `state: pushed` |
 | 5 最終ゲートと draft 解除 | `git fetch` して遅れ・衝突が無いことを検査し、`gh pr ready` / `glab mr update --ready` | `state: ready`。検査で止まれば FN003 |
+| 6 出力 | 解除した MR の番号と URL、削除した件数、`pre_cleanup_sha` から組み立てた作業領域リンク | 状態遷移なし |
 
 `logs/merge-state.json` が壊れた場合の**実態からの再導出**も規定済み（`wip/` に成果物 → 未実施 / `wip/` 空で未 push → `cleaned` / push 済みで draft → `pushed` / draft でない → `ready`）。`pre_cleanup_sha` を失った場合は片付けコミットの親から再構成する。
 
@@ -102,12 +105,16 @@ keywords: [boundary.sh, finalize.sh, 判定順, サブコマンド, logs, review
 | `10_spec/skills/10-task-overall-summary.md`（サンプル 1 行、Script 処理） | `.claude/skills/10-task-overall-summary/scripts/finalize.sh` |
 | `.claude/hooks/00-SessionStart/session-start.sh:64`（実装。ハードコード） | `$HOOK_WORKTREE/.claude/hooks/boundary.sh` |
 | `.claude/hooks/20-PreToolUse/workflow-state-guard.sh:40, 43`（案内文） | `.claude/hooks/boundary.sh` / `.claude/hooks/finalize.sh` |
+| `.claude/hooks/10-UserPromptSubmit/tests/test_workflow_entry.sh:143, 144`（テストの入力。WE-T06 / WE-T11） | `bash .claude/hooks/finalize.sh release` / `bash .claude/hooks/boundary.sh status` |
+| `.claude/hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:117, 118`（テストの入力。SG-T05） | `bash .claude/hooks/finalize.sh release` / `bash .claude/hooks/boundary.sh request --body-file x.md` |
 
 **分類の側は両方に対応済み**なので、どちらに置いても機構は壊れない: `cmdpos.sh:317` が提供コマンドと認めるのは `.claude/skills/<名前>/scripts/<名前>.sh` **または** `.claude/hooks/(<ディレクトリ>/)*<名前>.sh` の両方。`workflow-entry.sh:192` の継続判定も `*/finalize.sh|*/boundary.sh` のパターンで、パスに依存しない。
 
+**［追記 — 敵対的レビュー 1 回目の指摘 7］** 初版は直す対象を「実装 1 行 + 案内文 2 行」と書いたが、**テストの入力に 4 行**（上表の下 2 行）が漏れていた。この 4 行は「提供コマンドは allow になる」ことを検査するもので、`cmdpos.sh` が両方のパス形を受けるため**存在しないパスを入力にしても通り続ける**。案 (a) を採ると、実体の無いパスで検査するテストが残り、誰も気づかない。0005 の c6「期待値が変更対象に依存するテストは 0 本」は旧名 5 種だけを見た結論で、保留 P1 に依存するこの 4 行は両レポートの隙間に落ちていた。
+
 | 案 | 直す対象 | 既存パターンとの整合 |
 |---|---|---|
-| (a) `skills/*/scripts/` に置く（仕様どおり） | `session-start.sh` 1 行 + 案内文 2 行 | 既存の提供コマンド（`ticket.sh` / `commit.sh` / `push.sh` / `check-html.sh` / `run-tests.sh`）はすべて `skills/*/scripts/`。`.claude/hooks/` は settings.json が起動するフック本体だけ |
+| (a) `skills/*/scripts/` に置く（仕様どおり） | `session-start.sh` 1 行 + 案内文 2 行 + **テストの入力 4 行** = 7 行 | 既存の提供コマンド（`ticket.sh` / `commit.sh` / `push.sh` / `check-html.sh` / `run-tests.sh`）はすべて `skills/*/scripts/`。`.claude/hooks/` は settings.json が起動するフック本体だけ |
 | (b) `.claude/hooks/` に置く | 仕様 4 行 | `.claude/hooks/` に非フックのスクリプトが混ざる |
 
 **(a) が既存パターンと整合する**。ただし副作用として、テストの置き場が `skills/*/scripts/tests/` になり、`scope.sh:377` の分類では `hook-test` に当たる（`build-test` ではない）。実装チケットの `allow.ops` に `hook-test` が要る。**決定は 0007**。
@@ -164,7 +171,7 @@ issue #10 の追記 3 は「リンク一覧を本文に書くなら、**片付�
 ### b9. `gh` CLI 不在時のフォールバックは 2 本とも仕様に揃っている ◎良
 
 - `boundary.sh`: `request --external --comment-url <url>`（投稿は呼び出し元が代行）、`complete --external --report-file <json>`（同じスキーマの JSON を読む）、`--standalone`（MR が無い単独実行）。`via` に `cli` / `external` / `chat` を記録する
-- `finalize.sh`: 仕様の Script 処理には `--external` の記述が無い。`00-workflow-issue-mr-driven` 仕様のエラーハンドリング表が `merge-prep.sh`（旧名）について `--external` を書いていたが、新仕様の `finalize.sh` には対応する記述が見当たらない
+- `finalize.sh`: 仕様の Script 処理には `--external` の記述が無い。**旧** `.claude/skills/00-workflow-issue-mr-driven/SKILL.md` の「エラーハンドリング」表（261 行）が `merge-prep.sh`（旧名）について `--external` を書いていたが、新仕様の `finalize.sh` には対応する記述が見当たらない（初版は出どころを「仕様」と書いていたが、`.claude/docs/10_spec/` に `merge-prep.sh` は 1 件も無く、正しくは旧 SKILL.md — 敵対的レビュー 1 回目の指摘 12 による訂正）
 
 後者は**欠落の可能性**があるが、`gh` 不在時の draft 解除をどう扱うかは受け入れ条件に無いため、残課題に置く。
 
@@ -173,6 +180,21 @@ issue #10 の追記 3 は「リンク一覧を本文に書くなら、**片付�
 `10-task-investigation-exec` 仕様の共通手順 4 は「**最初のチケット**で `wip/30_reports/<最初のチケット連番>-<種類>.md` を作り、**以降のチケットは同じレポートに節を追記**する」と定める。しかし #9（PR #12）の実績は 1 チケット 1 レポート（`0005` / `0006` / `0007` がそれぞれ md + HTML を持つ）で、この issue の調査計画 0002 も同じ形で 4 枚のチケットに別々のレポートを割り当てている。
 
 どちらが良いかは決めない。**レポートが大きくなりすぎる（1 タスクで 4 観点・数百行）** ことと、**レビューの単位が 1 レポートになる** ことのトレードオフ。この報告は食い違いの存在を挙げるところまでで、扱いは 0007 とフィードバック計画へ。
+
+## 食い違いの一覧（計画書が求めた形）
+
+計画書 0002「成果物の形」が求める列（項目 / 仕様の言い分 / 実装の言い分 / 実測に依存するか）で全件を並べる。初版は b4〜b8 に散らして書いていた（敵対的レビュー 1 回目の指摘 8 による追加）。
+
+| # | 項目 | 仕様の言い分 | 実装の言い分 | 実測に依存するか |
+|---|---|---|---|---|
+| 1 | `boundary.sh` の置き場 | `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`（サンプル 3 行 + Script 処理） | `.claude/hooks/boundary.sh`（`session-start.sh:64` のハードコード、`workflow-state-guard.sh:40` の案内文、テスト 2 行） | 依存しない（読み取りで確定） |
+| 2 | `finalize.sh` の置き場 | `.claude/skills/10-task-overall-summary/scripts/finalize.sh`（サンプル 1 行 + Script 処理） | `.claude/hooks/finalize.sh`（`workflow-state-guard.sh:40, 43` の案内文、テスト 2 行） | 依存しない |
+| 3 | `session-start` の注入 | 6 行の注入形式・`position` ごとの文言・WF702 / WF703 を定める | 62〜86 行で `boundary.sh` を呼ぶところまで。`注入の整形は 3/3 で実装` として何も出さない | 依存しない（コードのコメントに明記） |
+| 4 | 本文のリンク一覧を書く時点 | 処理フロー 6 で `## 統括` に追記。`pre_cleanup_sha` は release 段階 3 で確定 | 実装なし（`finalize.sh` 自体が未作成） | 依存しない（仕様内で閉じた矛盾） |
+| 5 | HTML の添付手段 | 処理フロー 6 が `uploads.github.com` への `curl` を前提にする | 実装なし。issue #10 の追記 2 が API では通らないことを実測済み | **依存する**（実測は issue の追記に記録済み。再実測は不要） |
+| 6 | 全体まとめの完了検査の出力先 | release 段階 2 で検査するとだけ書き、結果の置き場が無い | `ticket.sh:254` が `overall-summary` の `complete` を TK005 で必ず拒否する | 依存しない |
+| 7 | `finalize.sh` の CLI 不在時の経路 | 記述なし | 旧 SKILL.md（261 行）が `merge-prep.sh --external` を書いていた | 依存しない |
+| 8 | 1 タスク 1 レポート | `investigation-exec` 共通手順 4 が「最初のチケットのレポートに追記」 | #9 の実績と本 issue の運用が 1 チケット 1 レポート | 依存しない |
 
 ## 検証の結果
 

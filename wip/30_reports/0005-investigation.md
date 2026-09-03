@@ -68,7 +68,23 @@ keywords: [旧名, 参照更新, work-boundary.sh, merge-prep.sh, 10-work-, 20-t
 | `.claude/docs/10_spec/skills/00-workflow-quick-request.md` | 1 | `10-work-ticket-driven` 1（c4） |
 | 合計 | 111 | — |
 
-`assets/issue-notify.template.md` と `evals/evals.json` 2 本は 0003 の a8 で**削除・移行の対象**なので、置換ではなくファイルごと無くなる（27 件が自動的に消える）。実際に「置換」が要るのは **SKILL.md 2 本の 83 件と仕様書の 1 件**。
+`assets/issue-notify.template.md`（1 件）は 0003 の a8 で**削除**の対象なので、ファイルごと無くなる。
+
+**［訂正 — 敵対的レビュー 1 回目の指摘 6］** 初版は `evals/evals.json` 2 本（26 件）も「ファイルごと無くなる」に含めていたが、**誤り**。0003 の a8 の見立ては削除ではなく `.claude/evals/<アセット名>.md` への**移行**で、`20-common-step-ai-asset-creator` 仕様の `eval.template.md` は「`evals.json` の項目を Markdown の表に写す」ものである。写した先は `.md` なので、**旧名は移行先に持ち越され、c5 の検索（`*.md` を含む）に引っかかる**。移行時に書き換えなければ V6 が落ちる。
+
+したがって置換・書き換えが要るのは次のとおり。
+
+| 対象 | 件数 | 扱い |
+|---|---|---|
+| `00-workflow-issue-mr-driven/SKILL.md` | 77 | 改訂の中で置換 |
+| `00-workflow-quick-request/SKILL.md` | 6 | 同上 |
+| `10_spec/skills/00-workflow-quick-request.md` | 1 | c4 の判断による |
+| `00-workflow-issue-mr-driven/evals/evals.json` → `.claude/evals/00-workflow-issue-mr-driven.md` | 25 | **移行時に書き換える**（旧名を持ち越さない） |
+| `00-workflow-quick-request/evals/evals.json` → `.claude/evals/00-workflow-quick-request.md` | 1 | 同上 |
+| `00-workflow-issue-mr-driven/assets/issue-notify.template.md` | 1 | ファイルごと削除 |
+| 合計 | 111 | — |
+
+なお `evals/evals.json` には旧名 5 種の外に `retrospective` が 4 件ある（c3 の 6 件は SKILL.md だけを数えたもの）。移行先でも同じ言い換えが要る。
 
 ### c2. 置換は 9 種。うち 7 種は 1:1 の名前の置き換え ◎良
 
@@ -123,16 +139,20 @@ keywords: [旧名, 参照更新, work-boundary.sh, merge-prep.sh, 10-work-, 20-t
 単純に `grep -r "workflow-issue-mr-driven"` とすると、**新名 `00-workflow-issue-mr-driven` の部分一致を全部拾う**（実測で 100 件超の偽陽性）。旧名だけを数えるには、前に `0` `9` `-` が来ないことを条件にする。
 
 ```
-grep -rno "[^0-9-]workflow-issue-mr-driven\|[^0-9-]workflow-quick-request\|20-task-ai-asset-creator\|20-task-gh-[a-z]*\|10-work-[a-z-]*\|work-boundary\.sh\|merge-prep\.sh\|workflow-lib\.sh" \
+grep -rnoE "(^|[^0-9-])(workflow-issue-mr-driven|workflow-quick-request)|20-task-ai-asset-creator|20-task-gh-[a-z]*|10-work-[a-z-]*|work-boundary\.sh|merge-prep\.sh|workflow-lib\.sh" \
   --include='*.md' --include='*.json' --include='*.tsv' --include='*.txt' --include='*.sh' . \
   | grep -v '^\./参考ディレクトリ/' | grep -v '^\./logs/' | grep -v '^\./wip/' | grep -v '^\./\.claude/docs/20_ddr/'
 ```
 
+**［訂正 — 敵対的レビュー 1 回目の指摘 14］** 初版は前置を `[^0-9-]` の 1 文字必須で書いていたため、**行頭から始まる旧名を拾えなかった**。`(^|[^0-9-])` に直した。現状は該当が無いので実害は出ていないが、V6 でそのまま使う前提なので直しておく。
+
 **期待値は「残るもの」で書く**（申し送り 0038）:
 
 - 上のコマンドの出力が空であること
-- `.claude/skills/` 配下に `00-workflow-issue-mr-driven` と `00-workflow-quick-request` を含む 17 個のスキルディレクトリが存在すること（`ls -d .claude/skills/*/ | wc -l` が 17）
+- `.claude/skills/` 配下のスキルディレクトリが **26 個**であること（`ls -d .claude/skills/*/ | wc -l` が 26）。内訳は現在の 11 個（`00-workflow-*` 2 + `20-common-step-*` 9）+ 新規のタスクスキル 15 本
 - `.claude/hooks/config/entry-skills.txt` の非コメント行が `00-workflow-quick-request` と `00-workflow-issue-mr-driven` の 2 行であること
+
+**［訂正 — 敵対的レビュー 1 回目の指摘 1］** 初版は「17 個」と書いていた。これは `15 + 2` の計算で、既存の `20-common-step-*` 9 本を数え落としている。実測（`ls -d .claude/skills/*/ | wc -l`）は現在 11 で、完了時は 26。**17 のまま実装チケットの DoD に貼ると、正しく実装しても V6 が落ちる**。
 
 行末に依存する検索語（`work-boundary.sh$` のような形）は使っていない。
 
@@ -146,6 +166,8 @@ grep -rno "[^0-9-]workflow-issue-mr-driven\|[^0-9-]workflow-quick-request\|20-ta
 | `.claude/hooks/lib/tests/test_hook_common.sh` | 同上 | 無し |
 
 旧名 5 種を期待値に持つテストは無い。**参照更新でテストが赤くなることはない**（申し送り 0038 の「期待値が変更対象に依存するテストを同じチケットの許可範囲に入れる」は、このケースでは対象なし）。
+
+**［追記 — 敵対的レビュー 1 回目の指摘 7］** ただしこれは**旧名 5 種だけを見た結論**である。旧名とは別に、**保留 P1（提供コマンドの置き場）に依存するテストが 4 行ある**（`test_workflow_entry.sh:143, 144` と `test_workflow_state_guard.sh:117, 118` が `bash .claude/hooks/finalize.sh release` などを入力にしている。詳細は 0004 の b4）。置き場を `skills/*/scripts/` に決めるなら、この 4 行も同じチケットの許可範囲に入れる必要がある。**旧名の観点（0005）と置き場の観点（0004）の隙間に落ちていた**。
 
 ### c7. `CLAUDE.md` と用語集は既に新名で書かれている ◎良
 
@@ -173,10 +195,30 @@ grep -rno "[^0-9-]workflow-issue-mr-driven\|[^0-9-]workflow-quick-request\|20-ta
 | # | 設計で決めること | 効く受け入れ条件・保留 |
 |---|---|---|
 | 1 | `00-workflow-quick-request.md:32` の旧名の引用の扱い（c4 の案 a / b / c） | A3 |
-| 2 | `10-work-ticket-driven` の 11 件を行ごとにどこへ振り分けるか（c2 の 4 分割） | A3 |
+| 2 | `10-work-ticket-driven` の 12 件を行ごとにどこへ振り分けるか（c2 の 4 分割。行ごとの一覧は下記「付録: 置換対象の行単位の一覧」） | A3 |
 | 3 | `20-task-gh-install` を削除して「停止して案内する」に書き換える文言 | A3 |
 | 4 | `retrospective` を `feedback-plan` に言い換える範囲（日本語の「振り返り」は残すか） | A3 |
 | 5 | A3 の判定に使う検索コマンドを仕様のどこに置くか（実装チケットの DoD に貼るか、`20-common-step-ai-asset-creator` の参照更新の作法に置くか） | A3、申し送り 0038 |
+
+## 付録: 置換対象の行単位の一覧
+
+計画書 0002「成果物の形 C」が求める「ファイル:行 / 旧名 / 置換後の候補」の形（敵対的レビュー 1 回目の指摘 8 による追加）。
+
+**1:1 の置換で済む 7 種（96 件）は行単位の一覧を作らない**。置換後の名前が文脈によらず決まるため、`sed` 相当の一括置換で足り、行番号は実装時の `grep` で足りる（c2 の表がその対応表）。行ごとに参照先が変わる `10-work-ticket-driven`（12 件・11 行）だけを列挙する。
+
+| # | ファイル:行 | 文脈 | 置換後の候補 |
+|---|---|---|---|
+| 1 | `00-workflow-issue-mr-driven/SKILL.md:53` | 役割分担表の行「チケット運用の仕組み（着手・完了・境界判定・フックのブロック時の対処）」 | 3 つに割れる: チケット操作 → `20-common-step-ticket` / 境界判定 → `boundary.sh` / 共通手順 → `10-task-investigation-plan`・`10-task-investigation-exec`（正） |
+| 2・3 | `00-workflow-issue-mr-driven/SKILL.md:121`（2 件） | 「`10-work-ticket-driven` の retrospective チケットの振り返り合意」 | `10-task-feedback-plan`（`retrospective` の言い換えも同時。c3） |
+| 4 | `00-workflow-issue-mr-driven/SKILL.md:202` | 手順 5-1「`todo_head_type` から次のスキルを選び」 | `boundary.sh status` の `next.skill`（type → スキル名の解決は `ticket.sh next` に一本化された） |
+| 5 | `00-workflow-issue-mr-driven/SKILL.md:209` | 手順 5-8「`10-work-ticket-driven` 手順 2 の要領で同じ type の追加チケット」 | `20-common-step-ticket`（`create`）+ 計画タスクの共通手順（`10-task-investigation-plan`） |
+| 6 | `00-workflow-issue-mr-driven/SKILL.md:217` | 完了処理の導入文（`merge-prep.sh` と同じ行） | `10-task-overall-summary` と `finalize.sh release` |
+| 7 | `00-workflow-issue-mr-driven/evals/evals.json:7` | eval の期待出力の文中 | 移行時に新名へ（`10-task-overall-plan` 系） |
+| 8 | 同上 `:21` | 同上 | 同上 |
+| 9 | 同上 `:33` | 同上 | 同上 |
+| 10 | 同上 `:140` | 「手順 1 でチケット全件を作るのではなく」 | `10-task-overall-plan`（全件を作らない規則はそちらへ移った） |
+| 11 | `00-workflow-quick-request/SKILL.md:51` | 「チケット駆動ワークフローの作業中。`10-work-ticket-driven` の再開が正しいか確認」 | `00-workflow-issue-mr-driven`（手順 0 の再開判定） |
+| 12 | `10_spec/skills/00-workflow-quick-request.md:32` | 移行の指示としての引用 | c4 の判断による（(a) 名前を出さない / (b) DDR へ / (c) 除外） |
 
 ## 想定と異なった点
 

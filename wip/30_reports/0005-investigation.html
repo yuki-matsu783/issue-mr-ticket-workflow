@@ -155,6 +155,7 @@
       </li>
       <li><a href="#verified">検証の結果</a></li>
       <li><a href="#next">設計への反映</a></li>
+      <li><a href="#appendix">付録: 置換対象の行単位の一覧</a></li>
       <li><a href="#surprises">想定と異なった点</a></li>
       <li><a href="#todo">残課題</a></li>
     </ol>
@@ -251,7 +252,8 @@
       </div>
       <div class="box ok">
         <p class="label">結論</p>
-        <p><code>assets/issue-notify.template.md</code> と <code>evals/evals.json</code> 2 本は 0003 の a8 で削除・移行の対象なので、置換ではなくファイルごと無くなる（27 件が自動的に消える）。実際に置換が要るのは SKILL.md 2 本の 83 件と仕様書の 1 件。</p>
+        <p><code>assets/issue-notify.template.md</code>（1 件）は 0003 の a8 で削除の対象なのでファイルごと無くなる。</p>
+        <p><strong>訂正（敵対的レビュー 1 回目の指摘 6）</strong>: 初版は <code>evals/evals.json</code> 2 本（26 件）も「ファイルごと無くなる」に含めていたが誤り。a8 の見立ては削除ではなく <code>.claude/evals/&lt;アセット名&gt;.md</code> への<strong>移行</strong>で、<code>eval.template.md</code> は <code>evals.json</code> の項目を Markdown の表に写すもの。写した先は <code>.md</code> なので<strong>旧名は移行先に持ち越され</strong>、c5 の検索に引っかかる。移行時に書き換えなければ V6 が落ちる。<code>evals.json</code> には旧名 5 種の外に <code>retrospective</code> が 4 件あり（c3 の 6 件は SKILL.md だけの数）、移行先でも同じ言い換えが要る。</p>
       </div>
     </li>
 
@@ -321,12 +323,16 @@
     <li class="tl-item">
       <span class="tl-dot good">5</span>
       <h3 id="f5">0 件を判定する検索は前置の <code>00-</code> を除外する形にする <span class="chip good">◎良</span> <span class="basis">根拠: 単純検索で 100 件超の偽陽性を実測</span></h3>
-      <pre><code>grep -rno "[^0-9-]workflow-issue-mr-driven\|[^0-9-]workflow-quick-request\|20-task-ai-asset-creator\|20-task-gh-[a-z]*\|10-work-[a-z-]*\|work-boundary\.sh\|merge-prep\.sh\|workflow-lib\.sh" \
+      <pre><code>grep -rnoE "(^|[^0-9-])(workflow-issue-mr-driven|workflow-quick-request)|20-task-ai-asset-creator|20-task-gh-[a-z]*|10-work-[a-z-]*|work-boundary\.sh|merge-prep\.sh|workflow-lib\.sh" \
   --include='*.md' --include='*.json' --include='*.tsv' --include='*.txt' --include='*.sh' . \
   | grep -v '^\./参考ディレクトリ/' | grep -v '^\./logs/' | grep -v '^\./wip/' | grep -v '^\./\.claude/docs/20_ddr/'</code></pre>
+      <div class="box warn">
+        <p class="label">訂正（敵対的レビュー 1 回目の指摘 1・14）</p>
+        <p>初版は 2 か所を誤っていた。(1) 前置を <code>[^0-9-]</code> の 1 文字必須で書いたため<strong>行頭から始まる旧名を拾えなかった</strong>ので <code>(^|[^0-9-])</code> に直した。(2) 期待値のスキルディレクトリ数を「17 個」と書いたが、これは <code>15 + 2</code> の計算で既存の <code>20-common-step-*</code> 9 本を数え落としている。実測は現在 11 で、完了時は <strong>26</strong>。17 のまま実装チケットの DoD に貼ると、正しく実装しても V6 が落ちる。</p>
+      </div>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>期待値は「残るもの」で書く: 上のコマンドの出力が空 / <code>.claude/skills/</code> にスキルディレクトリが 17 個 / <code>entry-skills.txt</code> の非コメント行が新名 2 行。行末に依存する検索語は使っていない。</p>
+        <p>期待値は「残るもの」で書く: 上のコマンドの出力が空 / <code>.claude/skills/</code> にスキルディレクトリが <strong>26 個</strong>（現在 11 + タスクスキル 15）/ <code>entry-skills.txt</code> の非コメント行が新名 2 行。行末に依存する検索語は使っていない。</p>
       </div>
     </li>
 
@@ -345,6 +351,7 @@
       <div class="box ok">
         <p class="label">結論</p>
         <p>旧名 5 種を期待値に持つテストは無い。参照更新でテストが赤くなることはない。</p>
+        <p><strong>追記（敵対的レビュー 1 回目の指摘 7）</strong>: これは旧名 5 種だけを見た結論。旧名とは別に、<strong>保留 P1（提供コマンドの置き場）に依存するテストが 4 行ある</strong>（<code>test_workflow_entry.sh:143, 144</code> と <code>test_workflow_state_guard.sh:117, 118</code>。詳細は 0004 の b4）。置き場を <code>skills/*/scripts/</code> に決めるなら、この 4 行も同じチケットの許可範囲に入れる必要がある。旧名の観点（0005）と置き場の観点（0004）の隙間に落ちていた。</p>
       </div>
     </li>
 
@@ -382,11 +389,32 @@
   <h2>設計への反映</h2>
   <ol>
     <li><code>00-workflow-quick-request.md:32</code> の旧名の引用の扱い（c4 の案 a / b / c）— 効く先: A3</li>
-    <li><code>10-work-ticket-driven</code> の 12 件を行ごとにどこへ振り分けるか — 効く先: A3</li>
+    <li><code>10-work-ticket-driven</code> の 12 件を行ごとにどこへ振り分けるか（行ごとの一覧は<a href="#appendix">付録</a>）— 効く先: A3</li>
     <li><code>20-task-gh-install</code> を削除して「停止して案内する」に書き換える文言 — 効く先: A3</li>
     <li><code>retrospective</code> を <code>feedback-plan</code> に言い換える範囲（日本語の「振り返り」は残すか）— 効く先: A3</li>
     <li>A3 の判定に使う検索コマンドをどこに置くか（実装チケットの DoD か、参照更新の作法か）— 効く先: A3、申し送り 0038</li>
   </ol>
+</section>
+
+<section id="appendix">
+  <h2>付録: 置換対象の行単位の一覧</h2>
+  <p>計画書 0002「成果物の形 C」が求める「ファイル:行 / 旧名 / 置換後の候補」の形（敵対的レビュー 1 回目の指摘 8 による追加）。<strong>1:1 の置換で済む 7 種（96 件）は行単位の一覧を作らない</strong>。置換後の名前が文脈によらず決まるため一括置換で足り、行番号は実装時の <code>grep</code> で足りる（c2 の表がその対応表）。行ごとに参照先が変わる <code>10-work-ticket-driven</code>（12 件・11 行）だけを列挙する。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>ファイル:行</th><th>文脈</th><th>置換後の候補</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>issue-mr-driven/SKILL.md:53</code></td><td>役割分担表「チケット運用の仕組み」</td><td>3 つに割れる: <code>20-common-step-ticket</code> / <code>boundary.sh</code> / <code>10-task-investigation-plan</code>・<code>-exec</code>（正）</td></tr>
+      <tr><td>2・3</td><td><code>issue-mr-driven/SKILL.md:121</code>（2 件）</td><td>retrospective チケットの振り返り合意</td><td><code>10-task-feedback-plan</code>（<code>retrospective</code> の言い換えも同時）</td></tr>
+      <tr><td>4</td><td><code>issue-mr-driven/SKILL.md:202</code></td><td>手順 5-1「<code>todo_head_type</code> から次のスキルを選び」</td><td><code>boundary.sh status</code> の <code>next.skill</code></td></tr>
+      <tr><td>5</td><td><code>issue-mr-driven/SKILL.md:209</code></td><td>手順 5-8「手順 2 の要領で追加チケット」</td><td><code>20-common-step-ticket</code>（create）+ 計画タスクの共通手順</td></tr>
+      <tr><td>6</td><td><code>issue-mr-driven/SKILL.md:217</code></td><td>完了処理の導入文</td><td><code>10-task-overall-summary</code> と <code>finalize.sh release</code></td></tr>
+      <tr><td>7〜9</td><td><code>issue-mr-driven/evals/evals.json:7, 21, 33</code></td><td>eval の期待出力の文中</td><td>移行時に新名へ</td></tr>
+      <tr><td>10</td><td>同上 <code>:140</code></td><td>「手順 1 でチケット全件を作るのではなく」</td><td><code>10-task-overall-plan</code></td></tr>
+      <tr><td>11</td><td><code>quick-request/SKILL.md:51</code></td><td>「再開が正しいか確認」</td><td><code>00-workflow-issue-mr-driven</code>（手順 0 の再開判定）</td></tr>
+      <tr><td>12</td><td><code>10_spec/skills/00-workflow-quick-request.md:32</code></td><td>移行の指示としての引用</td><td>c4 の判断による</td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="surprises" data-required>

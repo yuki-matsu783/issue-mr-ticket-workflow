@@ -145,7 +145,7 @@
         <a href="#findings">実施した内容と結果</a>
         <ol class="toc-sub">
           <li><a href="#f1"><span class="mk good">◎</span> 1. boundary.sh は 5 サブコマンド</a></li>
-          <li><a href="#f2"><span class="mk good">◎</span> 2. finalize.sh は release の 5 段階</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. finalize.sh は release の 6 段階</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. logs の 4 ファイルはキーが一致</a></li>
           <li><a href="#f4"><span class="mk stop">✕</span> 4. 置き場が仕様と実装で割れている</a></li>
           <li><a href="#f5"><span class="mk warn">△</span> 5. session-start の注入整形が未実装</a></li>
@@ -156,6 +156,7 @@
           <li><a href="#f10"><span class="mk warn">△</span> 10. 1 タスク 1 レポートと運用の食い違い</a></li>
         </ol>
       </li>
+      <li><a href="#conflicts">食い違いの一覧</a></li>
       <li><a href="#verified">検証の結果</a></li>
       <li><a href="#next">設計への反映</a></li>
       <li><a href="#surprises">想定と異なった点</a></li>
@@ -176,7 +177,7 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">提供コマンド 2 本の仕様はそのまま実装に落とせる粒度にある。<code>boundary.sh</code> は 5 サブコマンド、<code>finalize.sh</code> は <code>release</code> 1 本で 5 段階。<code>logs/</code> の 4 ファイルは書く側（仕様）と読む側（実装済みフック）でキー名が一致しており、そのまま結線できる。食い違いは 4 件で、うち 2 件は設計で先に決めないと実装できない。最も重いのは <code>finalize.sh release</code> の段階順が issue 追記 3 の要求と仕様内で矛盾していること。</p>
+  <p class="lead">提供コマンド 2 本の仕様はそのまま実装に落とせる粒度にある。<code>boundary.sh</code> は 5 サブコマンド、<code>finalize.sh</code> は <code>release</code> 1 本で 6 段階。<code>logs/</code> の 4 ファイルは書く側（仕様）と読む側（実装済みフック）でキー名が一致しており、そのまま結線できる。食い違いは 4 件で、うち 2 件は設計で先に決めないと実装できない。最も重いのは <code>finalize.sh release</code> の段階順が issue 追記 3 の要求と仕様内で矛盾していること。</p>
   <ul class="kpis">
     <li class="kpi good"><b>4</b><span>◎良</span></li>
     <li class="kpi warn"><b>4</b><span>△注意</span></li>
@@ -203,7 +204,7 @@
       <p class="label">・細かいレビューは不要</p>
       <p class="sub">ほぼ確実</p>
       <ul>
-        <li><a href="#f1">b1</a>〜<a href="#f3">b3</a>: サブコマンドの判定順・入出力、release の 5 段階、<code>logs/</code> のスキーマ一致</li>
+        <li><a href="#f1">b1</a>〜<a href="#f3">b3</a>: サブコマンドの判定順・入出力、release の 6 段階、<code>logs/</code> のスキーマ一致</li>
         <li><a href="#f9">b9</a>: CLI 不在時のフォールバックは 2 本とも仕様にある</li>
       </ul>
     </div>
@@ -261,7 +262,8 @@
 
     <li class="tl-item">
       <span class="tl-dot good">2</span>
-      <h3 id="f2"><code>finalize.sh</code> は <code>release</code> 1 本。5 段階と冪等の規則がある <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-overall-summary 仕様 release</span></h3>
+      <h3 id="f2"><code>finalize.sh</code> は <code>release</code> 1 本。6 段階と冪等の規則がある <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-overall-summary 仕様 release</span></h3>
+      <p>段階 6 は「出力」で状態遷移を伴わないが、仕様の番号付きリストは 1〜6 で b6 も「段階 6」と呼ぶ。初版は状態遷移の数に引きずられて「5 段階」と書いていた（敵対的レビュー 1 回目の指摘 11 による訂正）。</p>
       <div class="tablewrap">
       <table>
         <thead><tr><th>段階</th><th>内容</th><th>記録</th></tr></thead>
@@ -271,6 +273,7 @@
           <tr><td>3 片付け</td><td><code>pre_cleanup_sha</code> を記録し <code>wip/</code> の全成果物を削除して 1 コミット（<code>.gitkeep</code> は残す）</td><td><code>cleaned</code></td></tr>
           <tr><td>4 push</td><td><code>push.sh</code> を内部実行</td><td><code>pushed</code></td></tr>
           <tr><td>5 最終ゲートと draft 解除</td><td><code>git fetch</code> して遅れ・衝突を検査し draft を解除</td><td><code>ready</code>。止まれば FN003</td></tr>
+          <tr><td>6 出力</td><td>解除した MR の番号と URL、削除した件数、<code>pre_cleanup_sha</code> から組み立てた作業領域リンク</td><td>状態遷移なし</td></tr>
         </tbody>
       </table>
       </div>
@@ -311,13 +314,19 @@
           <tr><td>10-task-overall-summary 仕様（サンプル 1 行 + Script 処理）</td><td><code>.claude/skills/10-task-overall-summary/scripts/finalize.sh</code></td></tr>
           <tr><td><code>session-start.sh:64</code>（実装。ハードコード）</td><td><code>$HOOK_WORKTREE/.claude/hooks/boundary.sh</code></td></tr>
           <tr><td><code>workflow-state-guard.sh:40, 43</code>（案内文）</td><td><code>.claude/hooks/boundary.sh</code> / <code>.claude/hooks/finalize.sh</code></td></tr>
+          <tr><td><code>tests/test_workflow_entry.sh:143, 144</code>（テストの入力。WE-T06 / WE-T11）</td><td><code>bash .claude/hooks/finalize.sh release</code> / <code>bash .claude/hooks/boundary.sh status</code></td></tr>
+          <tr><td><code>tests/test_workflow_state_guard.sh:117, 118</code>（テストの入力。SG-T05）</td><td><code>bash .claude/hooks/finalize.sh release</code> / <code>bash .claude/hooks/boundary.sh request --body-file x.md</code></td></tr>
         </tbody>
       </table>
+      </div>
+      <div class="box warn">
+        <p class="label">追記（敵対的レビュー 1 回目の指摘 7）</p>
+        <p>初版は直す対象を「実装 1 行 + 案内文 2 行」と書いたが、<strong>テストの入力 4 行</strong>が漏れていた。この 4 行は「提供コマンドは allow になる」ことを検査するもので、<code>cmdpos.sh</code> が両方のパス形を受けるため<strong>存在しないパスを入力にしても通り続ける</strong>。案 (a) を採ると、実体の無いパスで検査するテストが残り誰も気づかない。0005 の c6「期待値が変更対象に依存するテストは 0 本」は旧名 5 種だけを見た結論で、この 4 行は両レポートの隙間に落ちていた。</p>
       </div>
       <p>分類の側は両方に対応済み。<code>cmdpos.sh:317</code> が提供コマンドと認めるのは <code>skills/&lt;名前&gt;/scripts/&lt;名前&gt;.sh</code> と <code>.claude/hooks/(&lt;dir&gt;/)*&lt;名前&gt;.sh</code> の両方で、<code>workflow-entry.sh:192</code> の継続判定も <code>*/finalize.sh|*/boundary.sh</code> のパターン。</p>
       <div class="box stop">
         <p class="label">結論</p>
-        <p>(a) 仕様どおり <code>skills/*/scripts/</code> に置き実装 3 行を直す、(b) <code>.claude/hooks/</code> に置き仕様 4 行を直す。既存の提供コマンドはすべて (a) の形なので (a) が整合する。副作用として、テストは <code>skills/*/scripts/tests/</code> になり <code>scope.sh:377</code> の分類では <code>hook-test</code> に当たるため、実装チケットの <code>allow.ops</code> に <code>hook-test</code> が要る。決定は 0007。</p>
+        <p>(a) 仕様どおり <code>skills/*/scripts/</code> に置き実装 7 行（ハードコード 1・案内文 2・テストの入力 4）を直す、(b) <code>.claude/hooks/</code> に置き仕様 4 行を直す。既存の提供コマンドはすべて (a) の形なので (a) が整合する。副作用として、テストは <code>skills/*/scripts/tests/</code> になり <code>scope.sh:377</code> の分類では <code>hook-test</code> に当たるため、実装チケットの <code>allow.ops</code> に <code>hook-test</code> が要る。決定は 0007。</p>
       </div>
     </li>
 
@@ -384,7 +393,7 @@
       <p><code>request --external --comment-url</code>、<code>complete --external --report-file</code>、<code>--standalone</code> が定義され、<code>via</code> に <code>cli</code> / <code>external</code> / <code>chat</code> を記録する。</p>
       <div class="box warn">
         <p class="label">結論</p>
-        <p><code>finalize.sh</code> の側には <code>--external</code> の記述が無い。<code>gh</code> 不在時の draft 解除の扱いは受け入れ条件に無いので残課題 R2 に置く。</p>
+        <p><code>finalize.sh</code> の側には <code>--external</code> の記述が無い。旧 <code>00-workflow-issue-mr-driven/SKILL.md</code> の「エラーハンドリング」表（261 行）が <code>merge-prep.sh --external</code> を書いていたが、新仕様に対応する記述が無い（初版は出どころを「仕様」と書いていたが <code>.claude/docs/10_spec/</code> に <code>merge-prep.sh</code> は 1 件も無い — 敵対的レビュー 1 回目の指摘 12 による訂正）。<code>gh</code> 不在時の draft 解除の扱いは受け入れ条件に無いので残課題 R2 に置く。</p>
       </div>
     </li>
 
@@ -399,6 +408,26 @@
     </li>
 
   </ol>
+</section>
+
+<section id="conflicts">
+  <h2>食い違いの一覧（計画書が求めた形）</h2>
+  <p>計画書 0002「成果物の形」が求める列（項目 / 仕様の言い分 / 実装の言い分 / 実測に依存するか）で全件を並べる。初版は b4〜b8 に散らして書いていた（敵対的レビュー 1 回目の指摘 8 による追加）。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>項目</th><th>仕様の言い分</th><th>実装の言い分</th><th>実測に依存するか</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>boundary.sh</code> の置き場</td><td><code>skills/00-workflow-issue-mr-driven/scripts/</code></td><td><code>.claude/hooks/</code>（<code>session-start.sh:64</code>・案内文・テスト 2 行）</td><td>依存しない</td></tr>
+      <tr><td>2</td><td><code>finalize.sh</code> の置き場</td><td><code>skills/10-task-overall-summary/scripts/</code></td><td><code>.claude/hooks/</code>（案内文・テスト 2 行）</td><td>依存しない</td></tr>
+      <tr><td>3</td><td><code>session-start</code> の注入</td><td>6 行の注入形式・<code>position</code> ごとの文言・WF702 / WF703</td><td>62〜86 行で呼ぶところまで。<code>注入の整形は 3/3 で実装</code></td><td>依存しない</td></tr>
+      <tr><td>4</td><td>本文のリンク一覧を書く時点</td><td>処理フロー 6 で追記。<code>pre_cleanup_sha</code> は release 段階 3 で確定</td><td>実装なし（<code>finalize.sh</code> 未作成）</td><td>依存しない（仕様内の矛盾）</td></tr>
+      <tr><td>5</td><td>HTML の添付手段</td><td>処理フロー 6 が <code>uploads.github.com</code> への <code>curl</code> を前提</td><td>実装なし。issue の追記 2 が API では通らないことを実測済み</td><td><strong>依存する</strong>（実測済みで再実測は不要）</td></tr>
+      <tr><td>6</td><td>全体まとめの完了検査の出力先</td><td>release 段階 2 で検査するとだけ書く</td><td><code>ticket.sh:254</code> が TK005 で必ず拒否する</td><td>依存しない</td></tr>
+      <tr><td>7</td><td><code>finalize.sh</code> の CLI 不在時の経路</td><td>記述なし</td><td>旧 SKILL.md 261 行が <code>merge-prep.sh --external</code></td><td>依存しない</td></tr>
+      <tr><td>8</td><td>1 タスク 1 レポート</td><td><code>investigation-exec</code> 共通手順 4 が「追記」</td><td>#9 と本 issue の運用が 1 チケット 1 レポート</td><td>依存しない</td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="verified">

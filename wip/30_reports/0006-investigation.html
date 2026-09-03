@@ -174,7 +174,7 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">申し送りは <strong>24 項目</strong>に分解でき、反映先は 8 本の仕様書に散る。<strong>反映済みは 1 項目だけ</strong>で、残る 23 項目は設計フェーズで書く。しかも 1 項目は現行の仕様が申し送りと正反対のことを書いており、追記ではなく書き換えになる。<code>fm_get</code> / <code>TICKET-T05</code> については、申し送りが想定していた修正はすでに終わっており、残るのは仕様の 2 行だけ。</p>
+  <p class="lead">申し送りは <strong>24 項目</strong>に分解でき、反映先は 8 本の仕様書に散る。<strong>仕様に反映済みなのは 1 項目だけ</strong>（#19 の一部）で、残る 23 項目は設計フェーズで書く。#21（<code>fm_get</code>）は実装とテストが済んでいるだけで仕様の文言は未反映なので 23 項目のうちに数える。しかも 1 項目は現行の仕様が申し送りと正反対のことを書いており、追記ではなく書き換えになる。<code>fm_get</code> / <code>TICKET-T05</code> については、申し送りが想定していた修正はすでに終わっており、残るのは仕様の 2 行だけ。</p>
   <ul class="kpis">
     <li class="kpi good"><b>2</b><span>◎良</span></li>
     <li class="kpi warn"><b>3</b><span>△注意</span></li>
@@ -459,6 +459,7 @@ CP-T08 (.claude/skills/20-common-step-commit-push/scripts/tests/test_commit.sh, 
     <thead><tr><th>出どころ</th><th>不足しているテスト ID</th><th>件数</th><th>理由</th></tr></thead>
     <tbody>
       <tr><td><code>hooks/00-SessionStart/session-start</code></td><td>SE-T01・02・03・04・07・08・09</td><td>7</td><td><code>boundary.sh status --offline</code> に依存（#9 で 3/3 へ）</td></tr>
+      <tr><td>同上（ID は通っているが作業は残る）</td><td>SE-T05・SE-T06 の<strong>前半</strong></td><td>（0）</td><td>仕様 93〜94 行は両方とも「前半は 3/3 へ」。#9 は後半だけ実装したため ID は PASS 一覧に載る。ID 数には現れないが実装とテストの追記は残る（指摘 10 による追記）</td></tr>
       <tr><td><code>hooks/10-UserPromptSubmit/workflow-entry</code></td><td>WE-T10</td><td>1</td><td>同上</td></tr>
       <tr><td><code>00-workflow-issue-mr-driven</code>（<code>boundary.sh</code>）</td><td>BD-T01〜BD-T13</td><td>13</td><td>提供コマンドが未作成</td></tr>
       <tr><td><code>10-task-overall-summary</code>（<code>finalize.sh</code>）</td><td>FN-T01〜FN-T05</td><td>5</td><td>同上</td></tr>
@@ -468,7 +469,7 @@ CP-T08 (.claude/skills/20-common-step-commit-push/scripts/tests/test_commit.sh, 
   </div>
   <div class="box ok">
     <p class="label">結論</p>
-    <p>現在の 165 件に 26 件を足して <strong>191 件</strong>が、この issue の完了時に通っているべき数。受け入れ条件 A2 に加えて <code>session-start</code> と <code>workflow-entry</code> の 8 件も同時に解ける（0004 の b5 のスコープの合意が、ここでは数として現れる）。</p>
+    <p>現在の 165 件に 26 件を足して <strong>191 件</strong>が、この issue の完了時に通っているべき数。受け入れ条件 A2 に加えて <code>session-start</code> と <code>workflow-entry</code> の 8 件も同時に解ける（0004 の b5 のスコープの合意が、ここでは数として現れる）。ただし <strong>ID 数と作業量は一致しない</strong>（SE-T05・SE-T06 は ID としては通っているが前半の実装が残る）。あわせて「この issue で扱えるか」は、d1 の 24 項目がすべて <code>.claude/docs/</code> への書き込みで完結するため<strong>扱えないものは無い</strong>。分量が問題であって可否ではない、というのが d2 の趣旨。</p>
   </div>
 </section>
 

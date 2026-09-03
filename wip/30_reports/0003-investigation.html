@@ -188,7 +188,7 @@
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li><a href="#f6">a6</a>: eval ID が 19 本中 1 本（<code>AS-E01</code>）にしか振られていない。採番規則も未文書化。設計で 19 本に振るか、eval 定義側だけで採番するか</li>
+        <li><a href="#f6">a6</a>: eval ID が 19 本中 1 本（<code>AS-E01</code>、しかも例文）にしか振られていない。<strong>採番規則は既に正史にあり</strong>（<code>フック共通仕様</code> §6・<code>20-common-step-spec</code>）、<code>SC-E03</code> が表の定義を義務づけているので、設計で決めるのは接頭辞とチケットの割り方だけ</li>
         <li><a href="#f7">a7</a>: 実施タスク 6 本が使うレポートの md テンプレートが存在しない。置き場（report-view に集約 / 各スキルに複製）は保留 P3・Q2 そのもの</li>
       </ul>
     </div>
@@ -220,6 +220,7 @@
       <li>申し送りの反映先（0006 の担当）</li>
       <li>eval を実行したときの結果（issue のスコープ外。定義まで）</li>
       <li>チケット分割の粒度（保留 P6。実装計画の担当。この報告は 55 件の内訳を渡すだけ）</li>
+      <li><strong>この 55 件に含まれないが実装に入る見込みのもの</strong>: <code>session-start</code> の注入整形（0004 の b5）と <code>session-start.sh:64</code> のパス修正、それに伴うテスト 8 件（0006 の e5）。0003 の観点は「19 本の仕様から作るもの」でフック側の残作業は範囲外。0007 は 0003 だけでなく 0004・0006 も入力にすること</li>
     </ul>
   </div>
 </section>
@@ -344,20 +345,36 @@
     <li class="tl-item">
       <span class="tl-dot stop">6</span>
       <h3 id="f6">eval ID が 19 本中 1 本にしか振られていない <span class="chip stop">✕問題</span> <span class="basis">根拠: 19 本を <code>[A-Z][A-Z]-E[0-9][0-9]</code> で検索してヒット 1 件</span></h3>
-      <p>ヒットは <code>10-task-ai-asset-design-exec.md</code> の <code>AS-E01</code> のみで、しかもこれは自分の eval ID ではなく「仕様書のテスト観点の書き方」を説明する例文中の ID。<code>eval.template.md</code> の評価シナリオ表は「各行は仕様書『テスト観点（eval）』の行と 1:1 に対応する（eval ID が対応の鍵）」と明記しており、仕様側に ID が無いと対応が取れない。既存 9 本の eval 定義を見ても採番規則はどこにも文書化されていない（<code>20-common-step-feature-mr</code> の <code>FM-E01〜03</code> が唯一の実例）。</p>
+      <p>ヒットは <code>10-task-ai-asset-design-exec.md</code> の <code>AS-E01</code> のみで、しかもこれは自分の eval ID ではなく「仕様書のテスト観点の書き方」を説明する例文中の ID。<code>eval.template.md</code> の評価シナリオ表は「各行は仕様書『テスト観点（eval）』の行と 1:1 に対応する（eval ID が対応の鍵）」と明記しており、仕様側に ID が無いと対応が取れない。</p>
+      <div class="box warn">
+        <p class="label">訂正（敵対的レビュー 1 回目の指摘 2）</p>
+        <p>初版はここに「採番規則はどこにも文書化されていない」「<code>FM-E01〜03</code> が唯一の実例」と書いたが、どちらも誤り。正史に規則と実例がある。</p>
+      </div>
       <div class="tablewrap">
       <table>
-        <thead><tr><th>案</th><th>内容</th><th>変更量</th><th>リスク</th></tr></thead>
+        <thead><tr><th>出どころ</th><th>内容</th></tr></thead>
         <tbody>
-          <tr><td>(a)</td><td>設計フェーズで 19 本の仕様に eval ID を振る</td><td>大</td><td>小。A1 を正面から満たす</td></tr>
-          <tr><td>(b)</td><td>eval 定義側だけで採番する</td><td>小</td><td><code>eval.template.md</code> の前提が崩れる</td></tr>
-          <tr><td>(c)</td><td>採番規則だけ決め、ID は実装時に振る</td><td>中</td><td>実装は <code>.claude/docs/**</code> に書けず、仕様に ID を残せない</td></tr>
+          <tr><td><code>フック共通仕様.md:162</code></td><td>eval ID は <code>&lt;接頭辞&gt;-E&lt;2 桁&gt;</code>。接頭辞は所属アセットの仕様が持つ（台帳への登録義務はエラー識別子だけ）</td></tr>
+          <tr><td><code>フック共通仕様.md:187</code></td><td>接頭辞の実例 5 件: <code>AC-E</code> / <code>FM-E</code> / <code>IS-E</code> / <code>RQ-E</code> / <code>SC-E</code></td></tr>
+          <tr><td><code>20-common-step-spec.md:56</code></td><td>スキルの節構成に「スクリプトが無ければテスト観点は eval ID の表で定義する」を<strong>義務</strong>として含む</td></tr>
+          <tr><td><code>20-common-step-spec.md:87</code></td><td><code>SC-E03</code>「スクリプトを持たないスキルの仕様 → テスト観点は eval ID で定義する」</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>実測でも <code>10_spec/</code> に <code>AC-E01〜04</code> / <code>FM-E01〜03</code> / <code>IS-E01〜03</code> / <code>RQ-E01〜07</code> / <code>SC-E01〜03</code> の 20 件が存在する。したがって 17 本の仕様に eval ID の表が無いのは「未決定」ではなく<strong>既存の規則への不適合</strong>で、選択の余地は無い。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>案</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>(a) 設計フェーズで 17 本の仕様に eval ID の表を足す（エージェント 2 本も）</td><td><strong>これ以外に無い</strong>（<code>20-common-step-spec.md:56</code> の義務）</td></tr>
+          <tr><td>(b) eval 定義側だけで採番し仕様には書かない</td><td>不可（節構成と <code>SC-E03</code> に反する）</td></tr>
+          <tr><td>(c) 規則だけ決めて ID は実装時に振る</td><td>不可（実装は <code>.claude/docs/**</code> に書けない）</td></tr>
         </tbody>
       </table>
       </div>
       <div class="box stop">
         <p class="label">結論</p>
-        <p>(a) が受け入れ条件に対して素直。ただし 19 本ぶんの設計作業が増えるので、設計計画（0007）で「まとめて 1 チケットにするか、群ごとに分けるか」を決める必要がある。決定は調査では行わない。</p>
+        <p>設計で決めるのは「19 本それぞれの接頭辞を何にするか」（既存 5 種と全テスト ID の接頭辞に重ねない）と「19 本ぶんをどう設計チケットに割るか」の 2 点だけ。</p>
       </div>
     </li>
 
@@ -441,7 +458,7 @@ done</code></pre>
 <section id="next" data-required>
   <h2>設計への反映</h2>
   <ol>
-    <li>eval ID の採番規則と、19 本の仕様への ID の付与（a6 の案 a / b / c）— 効く先: A1、保留 P6</li>
+    <li>19 本それぞれの eval ID の<strong>接頭辞</strong>（既存 5 種と全テスト ID の接頭辞に重ねない）と、19 本ぶんの設計チケットの割り方。採番規則そのものは既に正史にあるので決め直さない（a6 の訂正）— 効く先: A1、保留 P6</li>
     <li>レポートの md テンプレートの置き場（a7 の案 a / b / c）— 効く先: 申し送り 0022 E4、保留 P3・Q2</li>
     <li>旧 <code>00-workflow-*</code> の 4 資産の処遇（削除 / 移設 / 移行）— 効く先: A3、申し送り 0022 E1</li>
     <li>共通手順を SKILL.md にどう書くか（複製しない書き方）— 効く先: A1</li>
@@ -519,7 +536,7 @@ done</code></pre>
 <section id="todo" data-required>
   <h2>残課題</h2>
   <ul>
-    <li>R1: eval ID の採番規則がどこにも文書化されていない（<code>20-common-step-spec</code> 仕様に「eval ID を決める」とはあるが規則が無い）→ 設計（0007 が割り付け）</li>
+    <li>R1: <s>eval ID の採番規則がどこにも文書化されていない</s> → <strong>誤り</strong>（敵対的レビュー 1 回目の指摘 2）。規則は <code>フック共通仕様</code> §6 と <code>20-common-step-spec</code> にあり <code>SC-E03</code> が義務づけている。残るのは接頭辞の選定と設計チケットの割り方 → 設計（0007 が割り付け）</li>
     <li>R2: 共通手順を参照する形にしたとき、サブエージェントが実際に 2 つのスキルを読むかは未検証 → 実装フェーズの検証項目に追加を提案（V8 相当）</li>
     <li>R3: <code>10-task-overall-summary</code> の統括レポートが使うテンプレートは実施タスクのレポートと同じでよいか（節が違う）→ 設計</li>
     <li>R4: 19 本の仕様の「中身」が実装可能な粒度かは未確認。各スキルを書く段で不足が出る可能性がある → 実装フェーズ（逸脱として作業ログへ）</li>

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの 2 回は実
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T15:50:46+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3d97229"
 ---
 
 # 0007 AI アセット設計計画 — 申し送りの反映・overall-summary 仕様の改訂・食い違いの解消先の決定

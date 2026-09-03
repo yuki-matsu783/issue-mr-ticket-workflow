@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "調査フェーズの敵対的レ
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T15:28:25+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2c7f44f"
 ---
 
 # 0010 敵対的レビュー 2 回目の指摘 9 件を反映する（レビューは上限の 2 回で打ち切り）

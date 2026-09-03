@@ -1,7 +1,7 @@
 ---
 type: ddr
 title: 提供コマンドはそれを使うスキルの scripts/ 配下に置く
-description: boundary.sh と finalize.sh の置き場が仕様（各スキルの scripts/）と実装済みフックの案内（.claude/hooks/）で食い違っていたので、仕様側を正として全体の原則に格上げし、実装側の 7 行を追従させる決定
+description: boundary.sh と finalize.sh の置き場が仕様（各スキルの scripts/。フルパスは 4 行）と実装済みフックの案内（.claude/hooks/。7 行）で食い違っていたので、仕様側を正として全体の原則に格上げし、実装側の 7 行を追従させる決定
 tags: [ddr, 提供コマンド, 置き場, boundary.sh, finalize.sh, フック]
 keywords: [提供コマンド, 置き場, scripts, hooks, boundary.sh, finalize.sh, session-start, workflow-state-guard, scope.sh, 所有関係]
 ---
@@ -12,7 +12,7 @@ keywords: [提供コマンド, 置き場, scripts, hooks, boundary.sh, finalize.
 
 issue #10 の調査（結果報告 0004 の b4）で、まだ実装されていない提供コマンド 2 本の置き場が 2 通りに書かれていることが分かった。
 
-- **仕様の言い分**: `10_spec/skills/00-workflow-issue-mr-driven.md` は `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`、`10_spec/skills/10-task-overall-summary.md` は `.claude/skills/10-task-overall-summary/scripts/finalize.sh`（サンプルと Script 処理、計 8 行）
+- **仕様の言い分**: `10_spec/skills/00-workflow-issue-mr-driven.md` は `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`、`10_spec/skills/10-task-overall-summary.md` は `.claude/skills/10-task-overall-summary/scripts/finalize.sh`（IN / OUT サンプルにフルパスで 3 行 + 1 行の計 4 行。Script 処理は `scripts/<名前>.sh` の相対表記で置き場を含まない）
 - **実装の言い分**: 先行の issue で実装済みのフックは `.claude/hooks/boundary.sh` と `.claude/hooks/finalize.sh` を前提にしている（7 行。`session-start.sh:64` のハードコード 1、`workflow-state-guard.sh:40, 43` の案内文 2、テストの入力 4）
 
 どちらでも機構は動く。`scope.sh` の提供コマンドの識別（`フック共通仕様` §8）は `.claude/skills/*/scripts/*.sh` と `.claude/hooks/**/*.sh` の**両方**を受け付けるためである。ただし片方は必ず存在しないパスを案内することになり、そのまま実装フェーズに入ると「案内どおりに叩いたら無い」という形で AI と人間の両方が詰まる。申し送り 0028 は「実装と仕様が食い違う候補は計画の段階でどちらを正にするかまで決める」を求めており、AI アセット設計計画（チケット 0007）で決着させた。
@@ -30,7 +30,7 @@ issue #10 の調査（結果報告 0004 の b4）で、まだ実装されてい�
 - **既存の 5 本と揃う**: 実装済みの提供コマンド（`ticket.sh` / `commit.sh` / `push.sh` / `check-html.sh` / `run-tests.sh`）はすべてスキルの `scripts/` にある。2 本だけを別の場所に置くと、置き場から種類を推測できなくなる
 - **所有関係が置き場で分かる**: `boundary.sh` はワークフロースキルが、`finalize.sh` は全体まとめタスクが使う。スキルの下にあれば、スキルの手順を読む人がその場でスクリプトを見つけられる
 - **フックと提供コマンドは呼ばれ方が違う**: フックはイベント（ツール実行前・セッション開始）で機構が呼び、提供コマンドは手順の中で AI が呼ぶ。同じディレクトリに混ぜると、`.claude/hooks/` の中身が「機構が呼ぶもの」で揃わなくなる
-- **変更行数はほぼ引き分け**: 実装側に寄せれば仕様 8 行、仕様側に寄せれば実装 7 行。1 行の差で決めるべき論点ではないと判断した
+- **変更行数は仕様側のほうが少ない**: 実装側に寄せれば仕様 4 行（`00-workflow-issue-mr-driven` の IN / OUT サンプル 3 行と `10-task-overall-summary` の同 1 行）、仕様側に寄せれば実装 7 行。行数だけを見れば実装を正とするほうが安いが、この差では既存 5 本との一貫性を覆せないと判断した
 
 ## 却下した案
 

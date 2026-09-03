@@ -95,6 +95,7 @@ keywords: [SessionStart, 現在地, 注入, boundary.sh status, offline, ブラ�
 | SE-T07 | 境界（機械） | 8 KB 超で警告行が先頭に付き切り詰めない | **3/3 へ**（8 KB の注入テキストを作れないため） |
 | SE-T08 | 正常系（機械） | `boundary.sh status --offline` と同じ position を伝える（両者の結果を同じ入力で比較） | **3/3 へ**（本物との一致が観点なので偽実装では代えられない） |
 | SE-T09 | 正常系（機械） | CLI の有無・`GH_TOKEN` の有無で出力が変わらない | **3/3 へ**（`boundary.sh` が無いと両方とも無出力になり、空同士の比較で無意味に通る） |
+| SE-T10 | 正常系（機械） | `boundary.sh` を**新しい置き場**（`.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`）に置いたとき、その出力が注入される。同じものを**旧い置き場**（`.claude/hooks/boundary.sh`）だけに置いた場合は注入されず、`hook_record skip` の理由が「`boundary.sh` 不在」になる | **3/3 で実施**（置き場を変えるチケットのロックアウト対策。パスを実際に踏む） |
 
 **この issue で実施するのは SE-T05 の後半と SE-T06 の後半だけ**。理由は 0012 の WE-T10 と同じで、`boundary.sh`（3/3 で実装）が無い環境では「本物と一致するか」という観点が成立せず、偽実装で代えると観点そのものが失われるため。issue #9 の受け入れ条件 1 の「テストが通る」は、この issue で実装するフックのテストを指すと解釈する（DDR i0009-09）。
 

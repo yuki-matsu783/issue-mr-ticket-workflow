@@ -1,13 +1,13 @@
 ---
 type: ticket
 ticket_type: ai-asset-design
-predecessors: ["0018"]
+predecessors: ["0021"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは fable の敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "設計フェーズの 2 回目は 0018〜0020 の反映後に回す（全体計画）"}
 allow:
-  write: ["wip/**"]
-  ops: ["remote-read"]
+  write: [".claude/docs/**", "wip/**"]
+  ops: ["read", "remote-read"]
 started_at: ""
 completed_at: ""
 base_sha: ""

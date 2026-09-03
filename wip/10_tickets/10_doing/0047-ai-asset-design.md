@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "全体計画の方針どおり、
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T11:24:16+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "0163e92"
 ---
 
 # 0047 shlex の置き場の決定を DDR と仕様書に書く

@@ -173,6 +173,9 @@
           <li><a href="#f27"><span class="mk good">◎</span> 27. ヘッドレスの帰結を分ける</a></li>
           <li><a href="#f28"><span class="mk good">◎</span> 28. 再導出を固定マーカーに</a></li>
           <li><a href="#f29"><span class="mk good">◎</span> 29. 要件書の規約違反を直す</a></li>
+          <li><a href="#f30"><span class="mk good">◎</span> 30. feedback-plan の内部矛盾</a></li>
+          <li><a href="#f31"><span class="mk good">◎</span> 31. 対応表を 1 基準 1 行に</a></li>
+          <li><a href="#f32"><span class="mk good">◎</span> 32. 受け入れ条件との対応小節</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -195,9 +198,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。<strong>0015 まで</strong>: 共通ステップ 2 本に申し送り <strong>#20〜#24</strong> を反映し、保留 <strong>P3・P7・P8</strong> を決着させた。<strong>これで食い違い 8 行がすべて決着した</strong>。<strong>0016（設計フェーズ完了）</strong>: eval ID の接頭辞を 19 アセット分すべて確定し（A1）、<code>.claude/docs/</code> の旧名を 0 件にし（A3 の文書側）、旧資産 5 件の処遇と扱わない申し送りの線引き（0 件）を DDR <code>i0010-04</code> に残した。<strong>食い違い 8 行・受け入れ条件 B1〜B4・申し送り 24 項目のすべてが正史に落ちた</strong>。実装フェーズへ送る保留は P1'・P2・P6 の 3 件。<strong>0021（敵対的レビュー 1 回目の反映 1/3）</strong>: fable の敵対的レビューが返した <strong>22 件のうち 9 件</strong>（<code>10-task-overall-summary</code> に関わる分）を反映した。最も重いのは <strong>B4 が成立していなかった</strong>こと。完了検査の結果を書き出す段階はあったが、その節をコミットする段階が無く、片付けで <code>wip/</code> ごと消えていた。段階を 1 つ足して <strong>release は 8 段階</strong>になった。残る 13 件は 0019・0020 が引き取る。</p>
+  <p class="lead">設計フェーズの結果報告。チケット 0011〜0016 が同じレポートに節を積み上げる。<strong>0011 まで</strong>: 提供コマンド 2 本の置き場を<strong>仕様側（各スキルの <code>scripts/</code>）に確定</strong>し、0004 が挙げた食い違い 8 行のうち <strong>5 行（#1・#2・#3・#6・#7）を解消</strong>した。あわせて issue 追記 3（B3）が求める release の段階順を、新しい段階「片付け直前の SHA の確定と本文のリンク一覧の更新」を挿入する形で成立させた。<strong>0012 まで</strong>: <code>10-task-overall-summary</code> 仕様を issue 追記の <strong>B1〜B4 すべて</strong>に対応させ、申し送り #16・#17・#18 も同じ文書に落とした。食い違いで<strong>残るのは #8 だけ</strong>（0015 が担当）。<strong>0013 まで</strong>: 計画系タスクスキル 3 本に申し送り <strong>#1〜#13</strong> を反映した。<code>feedback-plan</code> だけは現行仕様と正反対だったので<strong>置換</strong>になり、判断を DDR <code>i0010-03</code> に残した。<strong>0014 まで</strong>: 実施系タスクスキルとエージェント 2 本を整え、保留 <strong>P4（モデルと <code>tools</code>）を確定</strong>した。2 本でモデルの扱いが逆になる。<strong>0015 まで</strong>: 共通ステップ 2 本に申し送り <strong>#20〜#24</strong> を反映し、保留 <strong>P3・P7・P8</strong> を決着させた。<strong>これで食い違い 8 行がすべて決着した</strong>。<strong>0016（設計フェーズ完了）</strong>: eval ID の接頭辞を 19 アセット分すべて確定し（A1）、<code>.claude/docs/</code> の旧名を 0 件にし（A3 の文書側）、旧資産 5 件の処遇と扱わない申し送りの線引き（0 件）を DDR <code>i0010-04</code> に残した。<strong>食い違い 8 行・受け入れ条件 B1〜B4・申し送り 24 項目のすべてが正史に落ちた</strong>。実装フェーズへ送る保留は P1'・P2・P6 の 3 件。<strong>0021（敵対的レビュー 1 回目の反映 1/3）</strong>: fable の敵対的レビューが返した <strong>22 件のうち 9 件</strong>（<code>10-task-overall-summary</code> に関わる分）を反映した。最も重いのは <strong>B4 が成立していなかった</strong>こと。完了検査の結果を書き出す段階はあったが、その節をコミットする段階が無く、片付けで <code>wip/</code> ごと消えていた。段階を 1 つ足して <strong>release は 8 段階</strong>になった。<strong>0019（同 2/3）</strong>: 指摘 4・13・15 を反映した。<code>10-task-feedback-plan</code> の内部矛盾（0013 の反転がメインフローに追随していなかった）を「確定」の定義で解き、<code>ai-asset-design-docs</code> ルールが求める「要件との対応」表の行数一致を 6 本、「issue の受け入れ条件との対応」小節を 6 本、規約節の見出しを 4 本 8 節に揃えた。エージェント 2 本は行のほうが多く、制約条件章にしかなかった規定を受け入れ基準に昇格させた。残る 11 件は 0020。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>28</b><span>◎良</span></li>
+    <li class="kpi good"><b>31</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -229,6 +232,7 @@
         <li><a href="#f23">e23</a>・<a href="#f24">e24</a>: 旧資産 5 件の処遇（削除 2・移設 1・移行 2）、扱わない申し送りは 0 件、横断文書と用語辞書の更新</li>
         <li><a href="#f5">e5</a>: CLI 不在時の release を「リンク一覧の更新と draft 解除の 2 段階だけを呼び出し元に代行させる」形で仕様に追加した（0021 の振り直し後は段階 4 と 7）</li>
         <li><a href="#f26">e26</a>〜<a href="#f29">e29</a>: HTML 添付の可否をホストで分けて要件と仕様の矛盾を解き、ヘッドレスの帰結を項目ごとに分け、再導出の判定材料を固定マーカーにし、要件書の規約違反 6 種を直した</li>
+        <li><a href="#f30">e30</a>〜<a href="#f32">e32</a>: <code>feedback-plan</code> の内部矛盾を「確定」の定義で解き、「要件との対応」表の行数一致（6 本）・「issue の受け入れ条件との対応」小節（6 本）・規約節の見出し（4 本 8 節）を揃えた</li>
         <li><a href="#f6">e6</a>〜<a href="#f9">e9</a>: B1（所在を本文へ）・B2（添付は人間）・B4（DoD の型）と申し送り #16・#17・#18 を <code>10-task-overall-summary</code> 仕様に反映した</li>
         <li><a href="#f12">e12</a>: <code>10-task-feedback-plan</code> のヘッドレス方針を「止まる」から「既定で進む」へ<strong>反転</strong>させた。別 issue の起票だけは例外として残した</li>
         <li><a href="#f14">e14</a>: エージェント 2 本の <code>model</code> の扱いが<strong>逆になる</strong>（レビュアーは定義で固定、実行者は起動時に上書き）。それぞれの理由を仕様に書いた</li>
@@ -726,6 +730,43 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       </ul>
     </li>
 
+    <li>
+      <h3 id="f30">feedback-plan の内部矛盾を「確定」の定義で解いた（指摘 4） <span class="chip good">◎良</span> <span class="basis">根拠: 0013 の反転とメインフローの文面</span></h3>
+      <p>0013 でヘッドレスの方針を反転させたとき、例外フローだけを書き換えてメインフローを見直していなかった。メインフローは「合意前に後続チケットを作ってはならない」、例外フローは「ヘッドレスでは既定どおりに決めて起票まで行う」。ヘッドレスでは合意が発生しないので、文面どおりに読むと後続チケットを作れない。</p>
+      <ul>
+        <li>メインフローを「<strong>対応先が確定する前に</strong>後続チケットを作ってはならない（確定とは、ユーザーとの合意、またはユーザーが応答できない実行形態での既定の提案どおりの決定を指す）」に書き換えた。禁止しているのは「決まっていないのに作る」ことで、決め方は 2 通りある</li>
+        <li>仕様の禁止事項も 2 行に分けた。後続チケットは「確定前」が禁止、別 issue は「承認を得ない起票」が禁止（ヘッドレスでは起票そのものを行わない）</li>
+      </ul>
+    </li>
+
+    <li>
+      <h3 id="f31">「要件との対応」表を 1 基準 1 行に開いた（指摘 13） <span class="chip good">◎良</span> <span class="basis">根拠: <code>ai-asset-design-docs</code> ルール「行数が一致する」</span></h3>
+      <p>この issue で受け入れ基準を足した 6 本すべてが、複数の基準を 1 行に束ねていて行数が合っていなかった。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>仕様書</th><th>改訂前の行数</th><th>受け入れ基準</th><th>改訂後</th></tr></thead>
+        <tbody>
+          <tr><td><code>10-task-feedback-plan</code></td><td>19</td><td>27</td><td>27</td></tr>
+          <tr><td><code>10-task-ai-asset-implementation-plan</code></td><td>11</td><td>32</td><td>32</td></tr>
+          <tr><td><code>10-task-ai-asset-design-plan</code></td><td>13</td><td>30</td><td>30</td></tr>
+          <tr><td><code>10-task-ai-asset-design-exec</code></td><td>14</td><td>28</td><td>28</td></tr>
+          <tr><td><code>agents/adversarial-reviewer</code></td><td>14</td><td>13 → 15</td><td>15</td></tr>
+          <tr><td><code>agents/task-executor</code></td><td>12</td><td>11 → 13</td><td>13</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>エージェント 2 本だけは<strong>行のほうが多かった</strong>。制約条件章の内容（実行者と別のモデル・リモート書き込みなし）を対応表に書いていて、受け入れ基準に対応する項目が無い状態だった。行を消すと仕様側の記述が要件を持たなくなるので、<strong>要件側に「他のスキル・機構との整合」節を足して受け入れ基準に昇格させた</strong>（計 4 件）。</p>
+    </li>
+
+    <li>
+      <h3 id="f32">「issue の受け入れ条件との対応」小節を 6 本に置いた（指摘 15） <span class="chip good">◎良</span> <span class="basis">根拠: <code>ai-asset-design-docs</code> ルールの該当規定</span></h3>
+      <ul>
+        <li>6 本とも該当は <strong>A4（申し送りの反映）</strong>。<code>ai-asset-design-exec</code> だけは <strong>A5（実装で判明した仕様との食い違いを仕様書へ書き戻す）</strong> も該当する</li>
+        <li>該当しない条件は「対象外」として、なぜ別のアセットが担うのかを 1 文で書いた。「該当なし」だけで終えると、次に読む人が数え漏れなのか判断できない</li>
+        <li>あわせて<strong>規約節の見出しを <code>規約: &lt;対象&gt;</code> に揃えた</strong>（4 本で 8 節）。この issue で作った要件書はどれも「〜の内容」「〜の扱い」で書いていた</li>
+      </ul>
+    </li>
+
   </ol>
 </section>
 
@@ -759,6 +800,10 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td><code>finalize.sh ready</code> への参照</td><td><code>.claude/docs/</code> に 0 件。旧 SKILL.md の 1 行は参照更新（A3）で消す</td></tr>
       <tr><td><code>release</code> の段階数と <code>state</code> の並び</td><td>8 段階 / <code>started → recorded → linked → cleaned → pushed → ready</code>。処理フロー・段階の説明・対応表・テスト観点の 4 か所で一致</td></tr>
       <tr><td>要件と仕様の順序（0021 分）</td><td>受け入れ基準を先に足してから仕様を書いた。段階番号の振り直しは要件の変更を伴わない表記の追従</td></tr>
+      <tr><td>「要件との対応」表の行数一致（7 本）</td><td>7 本とも一致。feedback-plan 27 / implementation-plan 32 / design-plan 30 / design-exec 28 / overall-summary 38 / adversarial-reviewer 15 / task-executor 13</td></tr>
+      <tr><td>「issue の受け入れ条件との対応」小節</td><td>この issue で受け入れ基準を足した要件書 7 本すべてにある。該当は A4（6 本）、A5（design-exec）、B1〜B4（overall-summary）。対象外の条件は理由を 1 文で添えた</td></tr>
+      <tr><td>規約節の見出し</td><td><code>規約: &lt;対象&gt;</code> に揃えたのは 5 本 9 節。エージェント 2 本は規約節を持たない</td></tr>
+      <tr><td>feedback-plan の内部矛盾</td><td>メインフローの「確定」の定義と例外フローが一致。仕様の禁止事項も 2 行に分けて対応</td></tr>
     </tbody>
   </table>
   </div>
@@ -791,6 +836,7 @@ hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:118  SG-T05 の入力</co
       <tr><td>食い違い #6 は「出力先を決める」だけ</td><td>検査の実装の共有まで書かないと、release と <code>ticket.sh</code> で検査が二重になる</td><td><code>ticket_check_completion</code> を共有関数として仕様に定義した</td></tr>
       <tr><td>B4 は「完了検査の結果を統括レポートに書き出す」で足りる</td><td>書き出すだけでは、その節がコミットされないまま片付けで消える</td><td>0021 で書き出しをコミット・push する段階を独立させ、<code>state</code> に <code>recorded</code> を足した（<a href="#f25">e25</a>）</td></tr>
       <tr><td>ヘッドレスの帰結は 1 本の例外フローで書ける</td><td>別 issue 起票（進む）と衝突解消・draft 解除（止まる）で帰結が逆だった</td><td>0021 で項目を分け、制約条件の書き方も揃えた（<a href="#f27">e27</a>）</td></tr>
+      <tr><td>「要件との対応」表は基準より行が少ないだけ（束ねているだけ）</td><td>エージェント 2 本は行のほうが多かった。制約条件章にしかない規定を対応表に書いていた</td><td>0019 で要件側に「他のスキル・機構との整合」節を足し、4 件を受け入れ基準に昇格させた（<a href="#f31">e31</a>）</td></tr>
     </tbody>
   </table>
   </div>

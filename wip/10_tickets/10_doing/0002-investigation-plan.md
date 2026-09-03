@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "調査フェーズの 2 回は実
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-03T13:46:51+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "14f636f"
 ---
 
 # 0002 調査計画 — 作るものの一覧・提供コマンド仕様の食い違い・旧名の残存・申し送りの割り付け

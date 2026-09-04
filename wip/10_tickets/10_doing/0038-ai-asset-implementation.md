@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装フェーズの敵対的レ
 allow:
   write: [".claude/hooks/20-PreToolUse/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T14:05:33+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3917655"
 ---
 
 # 0038 S13 中核: 削除の許可判定を締める（敵対的レビュー 2 回目の指摘 3 件）

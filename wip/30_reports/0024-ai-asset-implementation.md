@@ -32,7 +32,9 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 
 **0029（S6 スキル・エージェント）**: `task-types.tsv` の 15 種すべてに `SKILL.md` を置き、エージェント定義 **2 本**を作った。計画型・実施型の共通手順は `10-task-investigation-plan` / `10-task-investigation-exec` の 2 本に集約し、残り 10 本は固有部分だけを書く。
 
-- ◎良 7 件 / △注意 0 件 / ✕問題 0 件（節は e1〜e7 の 7 件。0029 と 1 回目の敵対的レビューまで）
+**0030（S7 ワークフロースキル 2 本）**: 旧名 83 件を置換ではなく**新仕様からの書き起こし**で解消した。2 本に残る旧名は 0 件。
+
+- ◎良 8 件 / △注意 0 件 / ✕問題 0 件（節は e1〜e8 の 8 件。0030 と 1 回目の敵対的レビューまで）
 
 ### ◆特に見てほしい（判断に困っている）
 
@@ -219,6 +221,16 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 
 **実施型 6 本は固有のテンプレートを持たない**。各仕様の OUT ひな形節が「report-view のレポートテンプレートを使う」と定めているためで、最初に `assets/<種類>.template.md` と書いていた 6 本を書き直した。
 
+### e8. ワークフロースキル 2 本を新仕様に書き換えた（S7） ◎良
+
+旧名 83 件（`00-workflow-issue-mr-driven` に 77・`00-workflow-quick-request` に 6）を 1 件ずつ置換するのではなく、**2 本とも新仕様から書き起こした**。置換だと旧構造（ワークループ・承認①〜⑥の番号体系）が残り、新仕様の手順 0〜5 と対応が取れなくなる。書き起こしたので旧名は 1 件も持ち越していない。
+
+`00-workflow-issue-mr-driven` は、タスクの種類 → スキル名の対応表 15 行とフェーズ列テンプレート 2 行を仕様から転記し、手順 0（状態確認と再開判定）から手順 5（次のタスクへ）に加えて**手順 2a（敵対的レビュー）**を持つ形にした。実行形態ごとの扱い（ヘッドレス / 外部委任 / 単独実行）も節として分けた。
+
+`00-workflow-quick-request` は、判定表 7 行を**要件定義書「判定基準」から同一文言で転記**した。仕様が「SKILL.md の手順 0 にはそれを同一文言で転記する」と指定しているので、要件を更新したときの追随先が 1 か所に定まる。
+
+**置換先の無い 3 件は文ごと落とした**。`20-task-gh-install` を案内していた記述で、新体系に導入を案内する専用スキルが無い。`gh auth login` / `glab auth login` の案内は各 common-step が持つので、ワークフロー側で重ねて書かない。`retrospective` の 6 件は、type としては新仕様に存在せず、振り返りをフィードバック計画タスクが担うので `10-task-feedback-plan` への参照に寄せた。
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -231,6 +243,7 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 | 全件テスト（回帰） | 0027 の時点で `OK: 27 本 / 196 件`。27 ファイルすべて PASS、失敗 0・アサーション 2,247 件（`--timeout 300`。既定の 120 秒では `test_workflow_guard.sh` だけが TIMEOUT する） |
 | `finalize.sh` の機械テスト | `FN-T01`〜`FN-T09` の 9 件・アサーション 38 件が PASS（`run-tests.sh --filter '*test_finalize*'`）。実行時間 44 秒 |
 | 完了検査の二重実装 | 0 件。`ticket.sh` と `finalize.sh` が同じ `ticket_check_completion` を source する |
+| ワークフロースキルの旧名 | 2 本とも 0 件（`grep -cE "10-work-\|20-task-gh\|work-boundary\.sh\|merge-prep\|retrospective\|wip/10_tickets/review-state\|wip/merge-prep"` が両方 0）。`ワーク` の残りは `ワークスペース`（仕様の禁止事項の文言）だけで、`grep -noE "ワーク[^ス]"` は 0 件 |
 | タスクスキルの網羅 | `task-types.tsv` の 5 列目 15 行と `.claude/skills/10-task-*/SKILL.md` を `diff` で突合し差分 0 行 |
 | SKILL.md の frontmatter | 15 本すべて `name` / `description` の 2 項目のみ（`type` / `title` / `tags` / `keywords` の混入 0 件）。テンプレート由来のプレースホルダ（`{{SKILL_NAME}}` 等）の残り 0 件 |
 | 共通手順の再掲 | 0 件。共通手順の本文を持つのは `10-task-investigation-plan` と `10-task-investigation-exec` の 2 本だけで、残り 10 本は正を参照する |

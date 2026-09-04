@@ -446,6 +446,23 @@
 
 <footer>#10 / #35 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
 
+<section id="completion-check">
+  <h2>完了検査</h2>
+  <p>全体まとめチケットの完了検査（<code>finalize.sh release</code> の段階 2）。未充足 0 件。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>DoD</th><th>合否</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td> 1 </td><td> 別 issue に起票すべき内容を確認し、起票したか「追加の反映なし」を統括レポートに書いた（フィードバック計画が別 issue に回した 11 件と、実装後半で見つかった 2 件を含む） </td><td> ◎ 済 </td><td> 拠: 統括レポートの節 6 に 14 件（フィードバック計画の 11 件 + 実装後半で見つかった 3 件）を表で並べた。**ヘッドレス実行のため 1 件も起票していない**。取り消せない外部への副作用を無断で起こさない方針で、判断は人間に委ねる。MR 本文の `## 統括` の「別 issue」の表にも同じ 14 件を書いた </td></tr>
+      <tr><td> 2 </td><td> default ブランチとの衝突を確認し、あれば承認を得て解消した </td><td> ◎ 済 </td><td> 拠: `git fetch origin` のあと `git rev-list --count HEAD..origin/main` が 0。default はこのブランチの分岐点から進んでおらず、衝突は無い。承認を要する解消は発生していない </td></tr>
+      <tr><td> 3 </td><td> 統括レポート（md + HTML）があり、受け入れ条件との対応・各タスクのレビュー結果・フィードバック計画の対応・残課題の 4 つが埋まっている </td><td> ◎ 済 </td><td> 拠: `wip/30_reports/0057-overall-summary.md` と同名 HTML。受け入れ条件は節 1、各タスクのレビュー結果は節 3、フィードバック計画の対応は節 4、残課題は「残課題」の節。`OK: 検査 7 項目すべて通過（id 21 件 / リンク 14 件を確認。テンプレート: report）` </td></tr>
+      <tr><td> 4 </td><td> MR 本文の ## 統括 節に統括レポートの要約が書き写されている </td><td> ◎ 済 </td><td> 拠: `gh pr edit` で本文を更新し、`## 統括` が 1 件あることを確認した。節の構成は `assets/summary-section.template.md` のとおり（要約 / 受け入れ条件との対応 / 残課題 / 別 issue / 成果物）。成果物の表は骨格だけを置き、中身は `finalize.sh release` の段階 4 が埋める </td></tr>
+      <tr><td> 5 </td><td> issue #10 の受け入れ条件 A1 から A5 と B1 から B4 が、どのタスク・どのテスト ID で満たされたかを根拠付きで示している </td><td> ◎ 済 </td><td> 拠: 統括レポートの節 1 の表。9 行すべてに「満たしたタスク」と「根拠」がある。テスト ID は `BD-T01`〜`BD-T19` / `FN-T01`〜`FN-T18` / `TICKET-T05` を挙げ、全件テスト `OK: 27 本 / 214 件` の PASS ID 一覧が裏付けになる </td></tr>
+      <tr><td> 6 </td><td> 作業領域に残る成果物のうち .claude/docs/ に残すべきものが無いことを確認した（あれば別 issue の起票に回した） </td><td> ◎ 済 </td><td> 拠: 設計フェーズ（0043〜0049）が仕様と DDR への書き戻しを終えている。残った食い違い 2 件（`20-common-step-report-view` 仕様の `cp`、`00-workflow-issue-mr-driven` 仕様の `BD006` の CLI）は `.claude/docs/` の修正が要るため、実装フェーズの許可範囲外として別 issue 候補 41・42 に回した </td></tr>    </tbody>
+  </table>
+  </div>
+</section>
+
 </main>
 </div>
 

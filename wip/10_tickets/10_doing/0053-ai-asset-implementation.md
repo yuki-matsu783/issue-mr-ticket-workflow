@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まない文書の追
 allow:
   write: [".claude/skills/20-common-step-report-view/SKILL.md", ".claude/skills/20-common-step-requirement/SKILL.md", ".claude/skills/20-common-step-spec/SKILL.md", ".claude/skills/20-common-step-shell-script/SKILL.md", ".claude/skills/20-common-step-ai-asset-creator/SKILL.md", ".claude/skills/20-common-step-feature-mr/SKILL.md", ".claude/rules/work-defaults.md", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T17:39:15+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "d5f047a"
 ---
 
 # 0053 共通ステップスキル 6 本とルール 1 本を仕様に追随させる（S4）

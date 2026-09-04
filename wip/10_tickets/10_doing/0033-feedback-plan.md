@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "後続フェーズの要否を人�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T14:45:36+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "d5c40ed"
 ---
 
 # 0033 フィードバック計画: 振り返りと後続フェーズの決定

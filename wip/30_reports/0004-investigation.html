@@ -127,12 +127,12 @@
 
 <aside class="sidebar">
   <p class="kind">調査結果レポート / 調査</p>
-  <h1 id="title" data-required>0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと <code>logs/</code> 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト / 観点 E: <code>scope.sh</code> の分類の穴と塞ぎ方）</h1>
+  <h1 id="title" data-required>0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと <code>logs/</code> 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト / 観点 E: <code>scope.sh</code> の分類の穴と塞ぎ方 / 観点 F: 実測と予測の突き合わせ）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 19</span>
-    <span class="chip warn">△注意 17</span>
-    <span class="chip stop">✕問題 8</span>
+    <span class="chip good">◎良 22</span>
+    <span class="chip warn">△注意 20</span>
+    <span class="chip stop">✕問題 11</span>
   </p>
 
   <nav class="toc" id="toc" data-required>
@@ -188,6 +188,15 @@
           <li><a href="#f42"><span class="mk good">◎</span> 42. 塞ぎ方の案 5 つ（6 観点で比較）</a></li>
           <li><a href="#f43"><span class="mk good">◎</span> 43. 案の組み合わせと評価軸（決めない）</a></li>
           <li><a href="#f44"><span class="mk good">◎</span> 44. 実測手順（観点 E。人間が実行）</a></li>
+          <li><a href="#f45"><span class="mk warn">△</span> 45. 観点 F の答え（一致 45 / 不一致 8 / 判定不能 6 / 未取得 11 / 予測外 4）</a></li>
+          <li><a href="#f46"><span class="mk good">◎</span> 46. 予測 / 実測 / 判定の表（全 74 項目）</a></li>
+          <li><a href="#f47"><span class="mk warn">△</span> 47. 不一致 8 件の原因</a></li>
+          <li><a href="#f48"><span class="mk stop">✕</span> 48. 判定不能 6 件（負のコントロールの喪失）</a></li>
+          <li><a href="#f49"><span class="mk stop">✕</span> 49. 予測外の発見 4 件（新しい不具合 2 件）</a></li>
+          <li><a href="#f50"><span class="mk warn">△</span> 50. 訂正 — 実測が覆した / 補強した結論</a></li>
+          <li><a href="#f51"><span class="mk stop">✕</span> 51. A1 の「動かない箇所」7 件</a></li>
+          <li><a href="#f52"><span class="mk good">◎</span> 52. A4 の材料（束 1 = 7 件 / 束 2 = 9 件）</a></li>
+          <li><a href="#f53"><span class="mk good">◎</span> 53. 保留 P1 の材料（揃った 8 / 足りない 7）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -201,7 +210,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）／0008（観点 E）</dd></div>
+    <div><dt>チケット</dt><dd>0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）／0008（観点 E）／0009（観点 F）</dd></div>
     <div><dt>作成日</dt><dd>2026-09-04</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -215,12 +224,13 @@
   <p class="lead">0006 まで（観点 A・B・C）。観点 C の答えは「<b>動かせる</b>。公式に専用の機能があり、Agent ツールの引数ではなくエージェント定義の frontmatter <code>isolation: worktree</code> で指定する。ただし現行の機構をそのまま載せると、サブエージェント側の worktree が<b>既定ブランチから切られる</b>ため、チケットが 0 枚になって機構が静かに無効化される」。<code>subagent-start-check</code> が読む <code>cwd</code> は 2 経路で別物で、PreToolUse <code>Agent</code> は<b>呼び出し元のもの（確定）</b>、SubagentStart は公式に発火順の記述が無く<b>不明</b>。サブエージェントは呼び出し元と <code>session_id</code> を共有する（本セッションの SubagentStart 4 件が同一 ID）。表題は 0006 で観点 A・B・C を含む形に広げた。</p>
   <p class="lead">0007 まで（観点 A・B・C・D）。観点 D の答えは「<b>保ったまま使える</b>。git の同一ブランチ制約は『サブブランチを切って後で合流する』形で回避でき、MR は squash merge なので中間の履歴は <code>main</code> に残らない。合流コストの主体はファイルの衝突ではなく、①機構が『ブランチ間の合流』を設計として拒否していること（<code>git merge &lt;ローカルブランチ&gt;</code> は <code>unknown</code> → WF204、<code>cherry-pick</code> / <code>rebase</code> / <code>am</code> は WF401）と、②1 タスク 1 レポートの積み上げが追記のたびに md 4 行 + HTML 9 行を必ず同じ行で書き換えることにある」。<code>wip/10_tickets/</code> の衝突は <b>0 件</b>（チケットごとに別ファイル。<code>feature-10</code> の 104 コミットすべてが 1 コミット 1 rename）。DDR <code>i0001-23</code> の却下文は「分離は強い」= 今も成り立つ、「1 issue = 1 ブランチ = 1 MR の原則と衝突し」= <b>成り立たない</b>、「統合のコストが利得を上回る」= 条件付きで成り立つ、と判定した。表題は 0007 で観点 A・B・C・D を含む形に広げた。</p>
   <p class="lead">0008 まで（観点 A・B・C・D・E）。観点 E の答えは「<b>穴は 4 層あり、git サブコマンドの白名簿（<code>_SC_GIT_READ_SUBCMDS</code>）はそのうち 1 層にすぎない。しかも穴は『通らない』方向だけでなく『通ってしまう』方向にもあり、後者は <code>read</code> 分類のまま任意コマンドを実行できるところまで開いている</b>」。L1: <code>git-core</code> の実体から取った <b>174</b> サブコマンドと白名簿 <b>29</b> 件の突き合わせで <b>145 件</b>が <code>unknown</code>（<code>checkout</code> / <code>switch</code> / <code>worktree</code> / <code>merge-tree</code> / <code>stash</code> を含む）。L2: <code>decisions.jsonl</code> の WF204 <b>62 件</b>の実行体別集計で <code>cd</code> <b>22</b> / <code>bash</code> <b>11</b> / <code>git</code> <b>7</b>。L3: <code>cmdpos.sh</code> の正規化が実行体を取り違える <b>2 件</b>（二重引用符の中の <code>$(( ))</code> と <code>$( )</code> / プロセス置換。本チケットで 4 回再現）。L4: <code>read</code> に分類されるのに状態を変えられる<b>逆向きの穴 5 件</b>（<code>branch -d</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output</code> / <code>-c diff.external</code>）。塞ぎ方は 5 案（A〜E）を 6 観点で比較し、<b>採用は決めていない</b>。表題は 0008 で観点 A・B・C・D・E を含む形に広げた。</p>
+  <p class="lead">0009 まで（観点 A・B・C・D・E・F）。観点 F の答えは「<b>読み取りだけで出した結論のうち、実測が届いた範囲は 1 件を除いてすべて当たった。外れた 8 件のうち 6 件は前提のずれで結論を覆さない。結論に効く不一致は D3（合流の衝突件数の見積もりの下振れ）1 件だけ。ただし実測の設計そのものに欠陥があり、観点 A の中心の問いは判定不能のまま残った</b>」。予測 <b>74 項目</b>の内訳は 一致 <b>45</b> / 不一致 <b>8</b> / 判定不能 <b>6</b> / 未取得 <b>11</b> / 予測外 <b>4</b>。<b>実測で確定した重い結論</b>は <a href="#f5">f5</a> の保護漏れ・<a href="#f30">f30</a> の採番重複・<a href="#f10">f10</a> の条件①・<code>scope_classify</code> の分類 13 項目。<b>判定不能 6 件</b>は実行時点でどのツリーにも作業中チケットが 0 枚で負のコントロールまで無音になったため（<a href="#f48">f48</a>）。<b>予測外の不具合 2 件</b>は <code>LOGGER_NAME</code> の子プロセスへの漏れ（本流でも起きている）と、<code>logs/mr.json</code> が無いときの <code>session-start</code> の現在地の誤導出（<a href="#f49">f49</a>）。受け入れ条件 A1 の「動かない箇所」は <b>7 件</b>（<a href="#f51">f51</a>）、A4 の材料は「並列を採るなら必ず直す 7 件」と「採らなくても直すべき 9 件」に分けた（<a href="#f52">f52</a>）。<b>保留 P1 の採否は決めていない</b> — コスト側は 8 項目そろい 5 項目が実測で確定したが、<b>利得側の材料は実測後も 1 つも無い</b>（<a href="#f53">f53</a>）。過去の節には「【0009 の実測】…」の引用ブロックを 1 行足しただけで、本文は書き換えていない。表題は 0009 で観点 F を含む形に広げた。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>19</b><span>◎良</span></li>
-    <li class="kpi warn"><b>17</b><span>△注意</span></li>
-    <li class="kpi stop"><b>8</b><span>✕問題</span></li>
+    <li class="kpi good"><b>22</b><span>◎良</span></li>
+    <li class="kpi warn"><b>20</b><span>△注意</span></li>
+    <li class="kpi stop"><b>11</b><span>✕問題</span></li>
   </ul>
-  <p class="note">件数はタスク全体の合計（0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件、0008 が ◎4 / △2 / ✕4 = 10 件、合計 44 件）。他の節はこの数を指す。</p>
+  <p class="note">件数はタスク全体の合計（0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件、0008 が ◎4 / △2 / ✕4 = 10 件、0009 が ◎3 / △3 / ✕3 = 9 件、合計 53 件）。他の節はこの数を指す。</p>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
       <p class="label">◆特に見てほしい</p>
@@ -236,6 +246,9 @@
         <li>（0007）合流の操作を機構がどう扱うかを決めきれていない（<a href="#f28">f28</a>・<a href="#f33">f33</a>）。<code>git merge &lt;サブブランチ&gt;</code> は作業中チケットが 0 枚なら現行でも素通りするが、DDR <code>i0004-07</code> は「取り込み以外の <code>merge</code>（ブランチ間の統合）は <code>merge-base</code> 分類で <code>origin/&lt;default&gt;</code> 以外を拒否できる」と<b>拒否できることを利点として書いている</b>。①<code>merge-base</code> を広げる ②合流専用の提供コマンドを足す ③合流は人間だけが行う、のいずれかを 0010 で選ぶ必要がある。③を選ぶと並列の利得が人間の手数で相殺されるおそれがある。</li>
         <li>（0008）<a href="#f40">f40</a> の X5（<code>git -c diff.external='&lt;任意のコマンド&gt;' diff</code> が <code>read</code> に分類され、<code>workflow-guard</code> も <code>block-direct-git</code> も通り抜ける）をどこで扱うか。<b>worktree とは無関係に常時開いている統制の穴</b>なので全体計画書の保留 P2（別 issue）に見えるが、①観点 E の DoD が「穴を全件洗い出す」ことを求めており ②案 C を採るなら本 issue の設計で一緒に直るので、切り出す判断を決めきれていない。<b>本チケットでは一切実行していない</b>（根拠は git 公式ドキュメントの逐語と静的読解のみ）。</li>
         <li>（0008）「穴を塞ぐ」の向きが 2 つあることをどう扱うか。L1〜L3（通らない）は手数の問題で受け入れ条件 A1 に直接効き、L4（通ってしまう）は統制の問題で A1 とは無関係だが同じ <code>_SC_GIT_READ_SUBCMDS</code> の性質から出ている。<b>手数だけを直して統制の穴を残すと「広げた」記録だけが残る</b>ので <a href="#f43">f43</a> の評価軸 2 に上げたが、両方を本 issue で直すのかは 0010 の判断に委ねる。</li>
+        <li>（0009）<b>観点 A の中心の問いが実測で確定していない</b>（<a href="#f48">f48</a>）。P2・P5・B3 の識別子は「本流では deny が出る」ことに乗っていたが、実行時点でどのツリーにも作業中チケットが 0 枚で負のコントロールまで無音になった。コード（<code>hook-common.sh:474-484</code>）と P1 の実測を合わせれば「worktree 側で数える」は導けるが<b>通しの実測は無い</b>。<b>受け入れ条件 A1 は「実測で確かめられ」と書いているので、6 項目を再実行してから A1 を満たしたと言うべきか、導出で足りると見るか</b>を決めてほしい。再実行の手順は f48 に用意した。</li>
+        <li>（0009）<b>D3 の実測が汚染されている</b>（<a href="#f47">f47</a> の (3)）。md 15 / HTML 30 は上限としか言えない。<b><a href="#f34">f34</a> の「20 件を超えたら J5 の優先度を上げる」条件が形式的には成立している</b>が、汚染を理由に<b>引き上げを保留</b>にした。この保留の是非（保留のまま 0010 へ渡すか、清浄な再実行を待つか）を判断してほしい。</li>
+        <li>（0009）<b><code>LOGGER_NAME</code> の漏れ（<a href="#f49">f49</a> の N1）を A1 に載せるか、保留 P2 の別 issue へ回すか。</b>本流でも起きており worktree とは無関係だが、実測で「W1 に <code>boundary.log</code> が無い」という形で見つかったので A1-4 に載せた。<b>worktree と無関係な不具合を A1 に載せる基準が定まっていない</b>（0004 の R6・0005 の R10・0006 の R18・0008 の R26 と同じ判断。本チケットは <a href="#f52">f52</a> の束 1 / 束 2 という形で材料までを作り、決定はしていない）。</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -261,6 +274,10 @@
         <li>（0008）塞ぎ方を<b>5 案</b>に広げた。計画書は「最低 2 案」を求めていたが、観点 C（隔離下で <code>git -C</code> と引用符なしヒアドキュメントが拒否され無効化できない）と観点 D（合流が DDR <code>i0004-07</code> に触れる）から条件が加わり、2 案では組み合わせを比較できなかった。計画書の 2 案は案 A・案 B としてそのまま残した。</li>
         <li>（0008）パーサの 2 件（<a href="#f38">f38</a> の X1・X2）を「案」ではなく別表（P-1〜P-3）にした。分類の白名簿の問題ではなく <code>cmdpos.sh</code> の正規化の誤りで、<b>どの案を採っても独立に必要</b>になるため。</li>
         <li>（0008）<code>git fetch</code> を逆向きの穴に数えなかった。<code>&lt;repo&gt; &lt;src&gt;:&lt;dst&gt;</code> でローカル ref を作れ <code>--prune</code> でリモート追跡 ref を消せるが、「取り込み」の一部として意図的に白名簿に入っていると読める。判断が割れうるので注記に留めた。</li>
+        <li>（0009）<b>判定の値を 3 値ではなく 4 値にした</b>。チケットの DoD は「一致・不一致・未取得」の 3 値を求めていたが、<b>「実測は取れたが前提が崩れて真偽を分けられない」ものを「不一致」に入れると読みを誤る</b>（P5 を「不一致」にすると仕様 §13 が正しいことになり <a href="#f6">f6</a> の D1 が根拠なく覆る）。<b>判定不能</b>を足して 6 件をそこに置いた。承認が要るなら承認してほしい。</li>
+        <li>（0009）<b>過去の節を書き換えず、引用ブロックの追記で訂正した</b>。起動プロンプトは「該当する e 節を訂正すること」、<code>10-task-investigation-exec</code> は「過去の節は書き換えない」と書いている。両立させるため<b>元の本文は 1 文字も変えず、節の末尾に「【0009 の実測】…」を 1 つ足す</b>形にし、訂正の内容は <a href="#f50">f50</a> に集約した（8 節）。この折衷が妥当かを見てほしい。</li>
+        <li>（0009）<b><a href="#f52">f52</a> の「束 1 / 束 2」の切り分け基準</b>。「並列を採用する場合に必ず直すもの」を「直列では発生しない事象に起因するもの」と定義し、「worktree を 1 つ使うだけで踏むもの」（A1-1・A1-2・A1-5）は束 2 に置いた。<b>worktree の利用そのものは並列の採否とは独立</b>（A1 は並列を前提にしていない）という読みに立っているが、承認がほしい。</li>
+        <li>（0009）<b>利得側を測る作業を本チケットでは行わなかった</b>。<code>git show</code> で過去のチケットの <code>started_at</code> / <code>completed_at</code> を復元すれば目安は作れるが、①本チケットの担当は「実測と予測の突き合わせ」であり ②直列の実績しか無いので短縮幅は推定にしかならない、という 2 点から<b>要否の判断ごと 0010 へ渡した</b>（<a href="#f53">f53</a>）。</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -294,6 +311,12 @@
         <li>（0008）<code>test_scope.sh:196-199</code> が <code>_SC_READ_ONLY_CMDS</code> と <code>_SC_GIT_READ_SUBCMDS</code> の<b>全要素</b>をループして <code>read</code> を assert していること（足した語は <code>HK-T15</code> の検査対象に自動で入る）。</li>
         <li>（0008）<code>test_config_integrity.sh:47</code> の <code>ops</code> の検査が <code>has("ops")</code> だけで、値の enum 検査を持たないこと。</li>
         <li>（0008）本環境の git が Git for Windows v2.39.2（<code>ReleaseNotes.html</code> の先頭記載）であること。<code>git version</code> は分類外で実行できない。</li>
+        <li>（0009）実測 P1 の 6 パスがすべて予測どおりに解決され、<b>参考ディレクトリが本流に倒れた</b>こと（<code>01-resolve.txt</code>）。DDR <code>i0009-64</code> の全面バイパス対策が実環境で効いている。</li>
+        <li>（0009）実測 E1 で既存テスト 3 本が全通過したこと（312 / 281 / 183、<code>failures=0</code>）。<b>現状のテストは <a href="#f36">f36</a>〜<a href="#f41">f41</a> の穴を 1 つも検出しない</b>という <a href="#f44">f44</a> の予測もそのまま当たっている。</li>
+        <li>（0009）<code>e2-result.txt</code> の負のコントロール（<code>bash .claude/skills/…/ticket.sh next</code> → <code>provided</code>）が効いていること。ルート相対なら提供コマンド、絶対パスなら <code>unknown</code> が 1 つの出力の中で対比できている。</li>
+        <li>（0009）<code>B4-boundary.txt</code> の <code>last_task</code> が W2 のチケットから正しく再導出されていること（<a href="#f12">f12</a> の裏取り）。</li>
+        <li>（0009）実測の後始末が済んでいること（<code>99-cleanup.txt</code>: <code>git status --porcelain</code> が空、<code>git worktree list</code> が本流 1 行、<code>probe-*</code> ブランチが 0 件）。</li>
+        <li>（0009）<code>00-setup.txt</code> が記録した git の版が <b><code>2.39.2.windows.1</code></b> であること（0008 が <code>ReleaseNotes.html</code> から読んだ v2.39.2 と一致）。</li>
       </ul>
     </div>
   </div>
@@ -332,6 +355,17 @@
       <li>（0008）bash の組み込みコマンドの網羅的な一覧 — <code>compgen -b</code> も <code>help</code> も分類外で実行できず、man ページも同梱されていない。候補 95 語は記憶と実績から作った。引き取り先: 0010。</li>
       <li>（0008）案 D（提供コマンド <code>worktree.sh</code>）で、作業ツリーのパス（リポジトリの外）が <code>__wg_check_provided_args</code> の判定に掛かってどうなるか — <code>workflow-guard.sh:83-85</code> が作業ツリー外を WF209 に倒す見込み。<b>案 D の実現可能性そのものに関わる</b>。引き取り先: 0010。</li>
       <li>（0008）案 B で新しい <code>ops</code> の値を足したとき <code>hook_read_input</code> の jq が未知キーとして WF210 に倒さないか — jq プログラム（<code>__HC_JQ_INPUT</code>）の本文を読めていない（読もうとしたコマンドが X2 で拒否された）。引き取り先: 0010。</li>
+      <li>（0009）<b><code>workflow-guard</code> と <code>workflow-diff-check</code> が worktree 側の作業中チケットで判定するか（観点 A の中心の問い）</b> — 実測 P2・P5 は取れたが、実行時点でどのツリーにも作業中チケットが 0 枚で両フックが入口で <code>exit 0</code> し、<b>負のコントロールまで無音になり識別できない</b>（<a href="#f48">f48</a>）。引き取り先: 再実行 R31（手順は f48）／0010。</li>
+      <li>（0009）<code>ticket.sh</code> の相対起動と本流の絶対パス起動で出力が割れるか（B3 の主目的） — W2 が <code>HEAD</code> 基点の detached でチケットの中身が本流と一致し、出力が同じになった。<b>条件①自体は B1-3 で確定</b>。引き取り先: R31。</li>
+      <li>（0009）<b>合流 1 回あたりの conflict marker の実数</b> — D3 は並列の一方を <code>git apply --3way</code> で作っており、その段階で衝突して marker が入ったままコミットしている。<b>md 15 / HTML 30 は上限</b>。引き取り先: R31（<code>git apply --3way</code> を使わない作り方に変える）。</li>
+      <li>（0009）<code>CLAUDE_PROJECT_DIR</code> が設定される経路（実測 B2） — セッション内での実行が要る。<code>run-probes.sh</code> は本流のシェルから走らせる形なので B2 は含まれていない。引き取り先: R32。</li>
+      <li>（0009）<code>isolation: worktree</code> の実効性・隔離下の提供コマンドとヒアドキュメント・<code>worktree.baseRef: "head"</code> の効き・本流の <code>git status</code> の汚れ（実測 C1・C3・C4・C5） — <code>.claude/agents/</code> と <code>.claude/settings.json</code> への書き込みとサブエージェントの起動が要り、本チケットの <code>allow.write</code>（<code>wip/**</code>）の外。<b>拒否されたのではなく宣言の範囲外なので試みていない</b>。引き取り先: R34・R35・R36。</li>
+      <li>（0009）SubagentStart フックの <code>cwd</code> がどちらのツリーか（実測 C2） — C1 に依存する。引き取り先: R34 の副産物。</li>
+      <li>（0009）<code>--force</code> で同じブランチを共有したときの挙動（実測 D2） — <b>本流に空コミットを 1 本作るため人間が既定で飛ばした</b>（<code>d2.txt</code>、<code>run-probes.sh:177-188</code> の <code>PROBE_D2</code> ガード）。引き取り先: R33。</li>
+      <li>（0009）サブエージェント worktree の成果が終了後にどこに残るか（実測 D4） — C1 に依存する。引き取り先: R37。</li>
+      <li>（0009）<code>scope_classify</code> の予測表のうち <b>8 入力</b>（<code>git version</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output=</code> / <code>merge origin/feature-49-x</code> / <code>while read</code> / <code>sed -n "$(…)"</code> / <code>sleep 1</code>） — 人間が用意した <code>e2-inputs.txt</code> が 18 行で予測表の 26 入力より 8 少ない。<b>落とした理由は出力に書かれていない</b>。引き取り先: R33（入力を足して再実行するだけ）。</li>
+      <li>（0009）実測 E3（worktree の中で <code>cd ../probe-wt1 &amp;&amp; ls</code> を <code>workflow-guard</code> に食わせる） — <code>e3-*.txt</code> が存在しない。P2 が同じ早期 <code>exit 0</code> を 3 ケースで観測しているが、E3 の入力そのものは試していない。引き取り先: R31。</li>
+      <li>（0009）<code>git -c diff.external=&lt;コマンド&gt; diff</code> が実際に任意コマンドを実行するか（X5 の後半） — 実測 E2 で<b>分類が <code>read</code> であることは確定</b>したが、<code>e2.sh</code> は分類を印字するだけで git を実行しない。引き取り先: 0010（人間の判断）。</li>
     </ul>
   </div>
 </section>
@@ -360,6 +394,13 @@
     <li>（0008）実行したのは読み取りのコマンドだけ（<code>ls</code> / <code>cat</code> / <code>sed</code> / <code>grep</code> / <code>awk</code> / <code>tr</code> / <code>sort</code> / <code>uniq</code> / <code>comm</code> / <code>wc</code> / <code>head</code> / <code>tail</code> / <code>printf</code> / <code>jq</code>）。<b><code>git</code> は 1 度も実行していない</b>（<code>git worktree</code> / <code>checkout</code> / <code>switch</code> / <code>merge</code> / <code>merge-tree</code> / <code>diff3</code> はもちろん <code>git log</code> も）。ファイルの作成は <code>wip/tmp/</code> のみ。</li>
     <li>（0008）<b>リポジトリ外を読んだ</b>: <code>…/libexec/git-core/</code>（サブコマンドの母集合）、<code>…/share/doc/git-doc/*.html</code>（<code>git-diff</code> / <code>git-config</code> / <code>git-symbolic-ref</code> / <code>git-reflog</code> / <code>git-branch</code> / <code>git.html</code>。逐語引用の出典）、<code>…/usr/bin/</code>（外部コマンドの実在確認）、<code>ReleaseNotes.html</code>（版）。いずれも <code>ls</code> / <code>sed</code> / <code>grep</code> による読み取りのみで、<code>web</code>（<code>curl</code> / <code>wget</code> / WebFetch）は使っていない。</li>
     <li>（0008）本チケットの実施中に踏んだ拒否は <b>8 件</b>。WF204 が 7 回（<code>cd</code> 2 / <code>hook-common.sh</code> 1 / <code>-v</code> 1 / <code>read</code> 1 / <code>_</code> 1 / <code>none.txt</code> 1）、WF205 が 1 回（引用符付きリダイレクト先が <code>_</code> に潰れたもの）。いずれも迂回せず書き換えて進めた。<b>うち 4 件が <a href="#f38">f38</a> の X2・X2b の再現、1 件が <a href="#f37">f37</a> の再現。</b></li>
+    <li>（0009）対象コミット: <code>feature-50-worktree-parallel-tickets</code> の <code>141c6af</code>（チケット 0009 の基準点は <code>9cb7269</code>）。</li>
+    <li>（0009）<b>実測を実行したのは人間</b>で、AI は <code>wip/tmp/worktree-probe/</code> 配下の出力を読んだだけである。実行に使われたのは <code>run-probes.sh</code>（<code>.gitignore</code> 対象）。<b>AI は <code>git worktree</code> / <code>git checkout</code> / <code>git switch</code> / <code>git merge</code> を 1 度も実行していない。</b></li>
+    <li>（0009）AI が実行したのは読み取りのコマンドだけ（<code>cat</code> / <code>sed</code> / <code>grep</code> / <code>tail</code> / <code>head</code> / <code>ls</code> / <code>wc</code> / <code>awk</code> / <code>git log -1</code> / <code>git -C &lt;本流&gt; status</code>）。ファイルの作成は <code>wip/30_reports/</code> のみ。</li>
+    <li>（0009）<b><code>cd</code> を含むコマンドが WF204 で 1 回拒否された</b>（<code>decisions.jsonl</code> の <code>2026-09-05T03:30:38</code>）。<b>チケットを着手する前は同じ形が通っていた</b>（<code>workflow-guard.sh:48-50</code> が作業中 0 枚で抜けるため）ので、これは <a href="#f48">f48</a> が指摘した現象を AI 自身の作業で踏んだ例でもある。以後はすべて絶対パスで読み、迂回はしていない。</li>
+    <li>（0009）実測の環境（<code>00-setup.txt</code>）: 本流 <code>C:/…/issue-mr-ticket-workflow</code>、W1 <code>/c/…/imtw-probe-main</code>（<code>main</code> 基点・detached）、W2 <code>/c/…/imtw-probe-head</code>（<code>HEAD</code> = <code>9cb7269</code> 基点・detached）、git <code>2.39.2.windows.1</code>。実行時刻は <code>2026-09-05T03:24</code>〜<code>03:27</code>。</li>
+    <li>（0009）実測の後始末は完了している（<code>99-cleanup.txt</code>）。<b>本チケットの開始時にも <code>git status</code> はクリーンだった。</b></li>
+    <li>（0009）読んだ出力ファイルは <b>26 件</b>。<b><code>c1-isolated</code> / <code>c2-main-log</code> / <code>c5-status</code> / <code>d4</code> / <code>e3-*</code> / <code>B2-projectdir</code> は存在しない。</b></li>
   </ul>
 </section>
 
@@ -1718,6 +1759,346 @@ EOF</code></pre>
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot warn">45</span>
+      <h3 id="f45">観点 F の答え — 予測 74 項目のうち 45 が一致、8 が不一致、6 が判定不能、11 が未取得、4 が予測外<span class="chip warn">△注意</span> <span class="basis">根拠: wip/tmp/worktree-probe/ の出力 26 件 / f46 の突き合わせ表</span></h3>
+      <p>問い「人間が実行した実測の結果は、A〜D の予測と一致するか」への答えは <b>「読み取りだけで出した結論のうち、実測が届いた範囲は 1 件を除いてすべて当たった。外れた 8 件のうち 6 件は『予測を書いた時点と実行した時点で作業ツリーの中身が変わっていた』ことによる前提のずれで、結論を覆さない。結論に効く不一致は D3（合流の衝突件数の見積もりの下振れ）1 件だけである。ただし実測の設計そのものに欠陥があり、観点 A の中心の問い（<code>workflow-guard</code> と <code>workflow-diff-check</code> が worktree 側で数えるか）は 6 項目が判定不能のまま残った」</b>。</p>
+      <ul>
+        <li><b>一致 45 件</b>。重かった 5 件は ①<code>__hc_resolve_worktree</code> が 6 パスすべてを予測どおりに解決し参考ディレクトリが本流に倒れる（P1。DDR <code>i0009-64</code> の対策が実環境で効く）②<b>作業ツリーをまたぐ絶対パスの書き込みが <code>workflow-state-guard</code> をすり抜ける</b>（P3。<a href="#f5">f5</a> の ✕問題が確定）③<code>__ss_load</code> が <code>cwd</code> を見ない（B1-3。<a href="#f10">f10</a> の条件①が確定）④<b>採番の重複が衝突せずに合流する</b>（D5。<a href="#f30">f30</a> の (1) が確定）⑤<code>scope_classify</code> の静的読解 13 項目が <b>13 件とも一致</b>（E2。最優先だった X5 も当たった）</li>
+        <li><b>不一致 8 件</b>。6 件は前提のずれで結論に影響しない。効くのは <b>D3 の conflict marker 件数</b>（md 予測 6〜10 → 実測 15、HTML 予測 8〜13 → 実測 <b>30</b>）だけで、<b>この実測は手順に汚染がある</b>ので「上限 45 件」としか言えない（<a href="#f47">f47</a> の (3)）</li>
+        <li><b>判定不能 6 件</b>（P2 の 3・P5 の 2・B3 の 1）。実行時点でどの作業ツリーにも作業中チケットが 0 枚で、<code>workflow-guard.sh:48-50</code> と <code>workflow-diff-check.sh:40-43</code> が入口で <code>exit 0</code> し、<b>負のコントロール（<code>cwd</code>=本流）まで無音になった</b>（<a href="#f48">f48</a>）</li>
+        <li><b>未取得 11 件</b>（P8 / B2 / C1〜C5 / D2 / D4 / E2 の 8 入力 / E3）。C 系は <code>.claude/</code> への書き込みとサブエージェント起動が要る、D2 は本流に空コミットを作る、D4 は C1 に依存する、という理由。再実行手順つきで残課題 R31〜R37 に残した</li>
+        <li><b>予測外の発見 4 件</b>（<a href="#f49">f49</a>）。うち 2 件は新しい不具合で、①<b><code>LOGGER_NAME</code> が子プロセスへ漏れる</b>（<code>hook-common.sh:52</code>。本流でも現に起きている）②<b><code>logs/mr.json</code> が無いだけで <code>session-start</code> が「全体計画の途中（issue 確定前）」と誤導出する</b>（<code>session-start.sh:115-117</code>）。②は DDR <code>i0009-55</code> の言う「静かな無効化」の実物</li>
+        <li>受け入れ条件 A1 の「動かない箇所」は <b>7 件</b>に確定（<a href="#f51">f51</a>）。うち 5 件は実測の出力が根拠</li>
+        <li>保留 P1 は <b>コスト側の材料はほぼ揃い、利得側の材料は 1 つも無い</b>という非対称が実測後も変わらなかった（<a href="#f53">f53</a>）。<b>採否は決めない</b></li>
+      </ul>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">46</span>
+      <h3 id="f46">予測 / 実測 / 判定の 3 列表（0004〜0008 の実測手順 全 74 項目）<span class="chip good">◎良</span> <span class="basis">根拠: wip/tmp/worktree-probe/ の出力ファイル 26 件</span></h3>
+      <p>判定の値は 4 つ。<b>一致</b>（予測どおり）／<b>不一致</b>（実測が予測と違う）／<b>判定不能</b>（実測は取れたが前提が崩れて真偽を分けられない）／<b>未取得</b>（実行されていない）。予測表に無かった観測は「予測外」として <a href="#f49">f49</a> で扱う。出力の列は <code>wip/tmp/worktree-probe/</code> 配下のファイル名。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>項目</th><th>予測</th><th>実測</th><th>判定</th><th>出力</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>P0-1 <code>W1/.git</code> の中身</td><td><code>gitdir: &lt;MAIN&gt;/.git/worktrees/imtw-probe-main</code> の 1 行</td><td>同じ（絶対パス・<code>C:/</code> 表記）</td><td>一致</td><td><code>00-setup.txt</code></td></tr>
+          <tr><td>2</td><td>P0-2 登録側 <code>gitdir</code></td><td><code>&lt;W1&gt;/.git</code></td><td><code>C:/…/imtw-probe-main/.git</code>。<b>相互参照が双方向に成立</b></td><td>一致</td><td><code>00-setup.txt</code></td></tr>
+          <tr><td>3</td><td>P0-3 W1 の <code>10_doing</code></td><td><code>.gitkeep</code> のみ（作業中 0 枚）</td><td><code>ls -1</code> の出力は空（隠しファイルは出ない）。0 枚は成立</td><td>一致</td><td><code>00-setup.txt</code></td></tr>
+          <tr><td>4</td><td>P0-4 W2 の <code>10_doing</code></td><td><code>.gitkeep</code> と <code>0004-investigation.md</code>（作業中 1 枚）</td><td><b>空</b>。実行時点の <code>HEAD</code>（<code>9cb7269</code>）では 0004 は <code>20_done</code> へ移動済み</td><td><b>不一致</b></td><td><code>00-setup.txt</code></td></tr>
+          <tr><td>5</td><td>P0-5 <code>logs</code> の有無</td><td>W1・W2 とも存在しない</td><td>両方とも <code>No such file or directory</code></td><td>一致</td><td><code>00-setup.txt</code></td></tr>
+          <tr><td>6</td><td>P1-1 <code>MAIN</code> / <code>MAIN/wip</code> の解決先</td><td><code>MAIN</code></td><td><code>MAIN</code></td><td>一致</td><td><code>01-resolve.txt</code></td></tr>
+          <tr><td>7</td><td>P1-2 <code>W1</code> / <code>W1/wip</code> の解決先</td><td><code>W1</code></td><td><code>C:/…/imtw-probe-main</code></td><td>一致</td><td><code>01-resolve.txt</code></td></tr>
+          <tr><td>8</td><td>P1-3 <code>W2</code> の解決先</td><td><code>W2</code></td><td><code>C:/…/imtw-probe-head</code></td><td>一致</td><td><code>01-resolve.txt</code></td></tr>
+          <tr><td>9</td><td>P1-4 参考ディレクトリの解決先</td><td><code>MAIN</code>（DDR <code>i0009-64</code> の全面バイパス対策が効く）</td><td><code>MAIN</code></td><td>一致</td><td><code>01-resolve.txt</code></td></tr>
+          <tr><td>10</td><td>P2-1 <code>workflow-guard</code> / <code>cwd</code>=W1</td><td>無出力・<code>exit 0</code></td><td>無出力・<code>exit 0</code></td><td><b>判定不能</b></td><td><code>02-guard.txt</code></td></tr>
+          <tr><td>11</td><td>P2-2 <code>workflow-guard</code> / <code>cwd</code>=W2</td><td>WF201 か WF202 の JSON 1 行</td><td><b>無出力・<code>exit 0</code></b></td><td><b>判定不能</b></td><td><code>02-guard.txt</code></td></tr>
+          <tr><td>12</td><td>P2-3 <code>workflow-guard</code> / <code>cwd</code>=MAIN（負のコントロール）</td><td>WF201 か WF202 の JSON 1 行</td><td><b>無出力・<code>exit 0</code></b></td><td><b>判定不能</b></td><td><code>02-guard.txt</code></td></tr>
+          <tr><td>13</td><td>P3-1 自ツリーの <code>20_done</code> への Write</td><td>WF303 の deny</td><td>WF303 の deny</td><td>一致</td><td><code>03-state-guard.txt</code></td></tr>
+          <tr><td>14</td><td>P3-2 他ツリーの <code>20_done</code> への Write</td><td>無出力（絶対パスのまま照合され一致しない）</td><td>無出力・<code>exit 0</code></td><td>一致</td><td><code>03-state-guard.txt</code></td></tr>
+          <tr><td>15</td><td>P3-3 他ツリーの <code>logs/mr.json</code> への Write</td><td>無出力</td><td>無出力・<code>exit 0</code></td><td>一致</td><td><code>03-state-guard.txt</code></td></tr>
+          <tr><td>16</td><td>P4-1 <code>workflow-entry</code> / <code>cwd</code>=W1</td><td>WF102 の deny</td><td>WF102 の deny</td><td>一致</td><td><code>04-entry.txt</code></td></tr>
+          <tr><td>17</td><td>P4-2 <code>workflow-entry</code> / <code>cwd</code>=W2</td><td>無出力（継続条件が成立）</td><td>無出力・<code>exit 0</code></td><td>一致</td><td><code>04-entry.txt</code></td></tr>
+          <tr><td>18</td><td>P5-1 <code>workflow-diff-check</code> / <code>cwd</code>=W2</td><td><code>additionalContext</code> に WF601 と <code>apl/probe.txt</code></td><td><b>無出力・<code>exit 0</code></b></td><td><b>判定不能</b></td><td><code>05-diff-check.txt</code></td></tr>
+          <tr><td>19</td><td>P5-2 <code>workflow-diff-check</code> / <code>cwd</code>=MAIN（負のコントロール）</td><td><code>apl/probe.txt</code> は現れない</td><td>無出力・<code>exit 0</code></td><td><b>判定不能</b></td><td><code>05-diff-check.txt</code></td></tr>
+          <tr><td>20</td><td>P6-1 <code>session-start</code> / <code>cwd</code>=W1</td><td>「進行中の作業は無い」を含む</td><td>そのとおり</td><td>一致</td><td><code>06-session-start.txt</code></td></tr>
+          <tr><td>21</td><td>P6-2 <code>cwd</code>=W2 の issue・MR 行</td><td>出ない（<code>logs/mr.json</code> が無い）</td><td><code>MR: 無し</code>、<code>ブランチ: 不明</code>（detached）</td><td>一致</td><td><code>06-session-start.txt</code></td></tr>
+          <tr><td>22</td><td>P6-3 <code>cwd</code>=W2 のチケット行</td><td>0004 を含む</td><td><code>未着手の先頭 0009 / 作業中 無し / 完了の最後 0008</code></td><td><b>不一致</b>（P0-4 と同源）</td><td><code>06-session-start.txt</code></td></tr>
+          <tr><td>23</td><td>P6-4 <code>cwd</code>=W2 の現在地の導出</td><td>予測に無い</td><td><b>「全体計画の途中（issue 確定前）」「次に読み込むスキル: 10-task-overall-plan」と誤導出</b></td><td>予測外（<a href="#f49">f49</a> の N3）</td><td><code>06-session-start.txt</code></td></tr>
+          <tr><td>24</td><td>P6-5 <code>session-start</code> / <code>cwd</code>=MAIN</td><td>0004 と issue #50 / MR #51 の両方</td><td>MR #51 が出た（チケット行は実行時点のもの）</td><td>一致</td><td><code>06-session-start.txt</code></td></tr>
+          <tr><td>25</td><td>P7-1 worktree の <code>decisions.jsonl</code></td><td>W1・W2 に新しく作られる</td><td>両方に作られた</td><td>一致</td><td><code>07-logs.txt</code></td></tr>
+          <tr><td>26</td><td>P7-2 本流の <code>logs/sh</code> の更新時刻</td><td>P1〜P6 の実行時刻になる</td><td><code>hook-session-start</code> / <code>hook-workflow-entry</code> / <code>hook-workflow-state-guard</code> が <code>Sep 5 03:25</code></td><td>一致</td><td><code>07-logs.txt</code></td></tr>
+          <tr><td>27</td><td>P7-3 worktree の <code>logs/sh</code></td><td>予測に無い（実行ログは本流側だけのはず）</td><td><b>W1・W2 に <code>logs/sh/hook-session-start.log</code> が生えた</b></td><td>予測外（<a href="#f49">f49</a> の N1）</td><td><code>07-logs.txt</code> / <code>B6-split.txt</code></td></tr>
+          <tr><td>28</td><td>P8 実セッションでの確認</td><td>W2 で起動すれば <code>HOOK_ROOT</code> も W2 になる</td><td>—</td><td><b>未取得</b></td><td>—</td></tr>
+          <tr><td>29</td><td>B1-1 <code>__ss_load</code> 相対 / <code>PWD</code>=MAIN</td><td><code>r=MAIN found=yes</code></td><td><code>r=/c/…/issue-mr-ticket-workflow found=yes</code></td><td>一致</td><td><code>B1-ssload.txt</code></td></tr>
+          <tr><td>30</td><td>B1-2 <code>__ss_load</code> 絶対 / <code>PWD</code>=MAIN</td><td><code>r=MAIN found=yes</code></td><td><code>r=C:/…/issue-mr-ticket-workflow found=yes</code></td><td>一致</td><td><code>B1-ssload.txt</code></td></tr>
+          <tr><td>31</td><td>B1-3 <code>__ss_load</code> 絶対 / <code>PWD</code>=/tmp</td><td><code>r=MAIN found=yes</code>（<b>条件①の確定</b>）</td><td><code>r=C:/…/issue-mr-ticket-workflow found=yes</code></td><td>一致</td><td><code>B1-ssload.txt</code></td></tr>
+          <tr><td>32</td><td>B1-4 <code>__ss_load</code> 参考ディレクトリ起点</td><td>1 段目は当たるが <code>found=no</code>、3 段目で <code>MAIN</code> に落ちて <code>found=yes</code></td><td><code>r=MAIN found=yes</code>（当該 <code>.claude</code> は実在するが <code>logger.sh</code> を持たない）</td><td>一致</td><td><code>B1-ssload.txt</code></td></tr>
+          <tr><td>33</td><td>B2 <code>CLAUDE_PROJECT_DIR</code> の設定経路</td><td>Bash ツールでは未設定、フック経由では設定されている</td><td>—</td><td><b>未取得</b></td><td>—</td></tr>
+          <tr><td>34</td><td>B3-1 相対 / <code>PWD</code>=W2 と 絶対(MAIN) / <code>PWD</code>=W2 の差</td><td>出力が<b>違う</b></td><td><b>完全に同一の JSON</b>。W2 は <code>HEAD</code> 基点の detached でチケットの中身が本流と一致</td><td><b>判定不能</b></td><td><code>B3-logger-root.txt</code></td></tr>
+          <tr><td>35</td><td>B3-2 相対 / <code>PWD</code>=W1</td><td><code>{"current":null,"next":null,…}</code> に近い形</td><td><code>{"current":null,"next":null}</code></td><td>一致</td><td><code>B3-logger-root.txt</code></td></tr>
+          <tr><td>36</td><td>B3-3 <code>logs</code> の生え方</td><td>W1・W2 とも <code>logs/sh/ticket.log</code> ができる</td><td>ディレクトリは両方できたが、<b><code>ticket.log</code> は W2 にだけ</b></td><td><b>不一致</b></td><td><code>B3-logger-root.txt</code> / <code>B6-split.txt</code></td></tr>
+          <tr><td>37</td><td>B4-1 <code>boundary.sh status --offline</code> / <code>PWD</code>=W2</td><td><code>"mr": null</code>、<code>review.state</code> は <code>none</code></td><td><code>"mr":null</code>、<code>"review":{"state":"none",…}</code></td><td>一致</td><td><code>B4-boundary.txt</code></td></tr>
+          <tr><td>38</td><td>B4-2 W2 に生えるログ</td><td><code>boundary.log</code> ができる（<code>mr.json</code> は書かれない）</td><td>そのとおり</td><td>一致</td><td><code>B4-boundary.txt</code></td></tr>
+          <tr><td>39</td><td>B4-3 <code>last_task</code> の再導出</td><td>予測に無い</td><td><b><code>logs/</code> が無いまま W2 のチケットから <code>["0008"…"0004"]</code> を再導出</b></td><td>予測外（<a href="#f12">f12</a> の補強）</td><td><code>B4-boundary.txt</code></td></tr>
+          <tr><td>40</td><td>B5 <code>push.sh</code> 項目 4（<a href="#f13">f13</a>-1 の再現）</td><td><code>✗ 項目 4</code> と <code>merge-state ready</code> の文言、<code>CP005</code>、<code>exit=1</code></td><td><code>✗ 項目 4: draft 解除後の作業領域が空</code> / <code>CP005: … 未充足 2 件</code> / <code>exit=1</code></td><td>一致</td><td><code>B5-push-item4.txt</code></td></tr>
+          <tr><td>41</td><td>B6 記録の分かれ方</td><td>本流に一式、W1・W2 には走らせた分だけ</td><td>そのとおり</td><td>一致</td><td><code>B6-split.txt</code></td></tr>
+          <tr><td>42</td><td>C1 <code>isolation: worktree</code> の実効性</td><td><code>pwd</code> が <code>.claude/worktrees/&lt;名前&gt;</code>、<code>git log -1</code> は <code>main</code> の先端</td><td>—</td><td><b>未取得</b></td><td>—</td></tr>
+          <tr><td>43</td><td>C2 SubagentStart の <code>cwd</code></td><td>(a) 本流に増える か (b) worktree 側に落ちる</td><td>—</td><td><b>未取得</b>（C1 に依存）</td><td>—</td></tr>
+          <tr><td>44</td><td>C3 隔離下の提供コマンドとヒアドキュメント</td><td>(1) 通る (2) command shape で拒否 (3) 通る (4) 拒否</td><td>—</td><td><b>未取得</b></td><td>—</td></tr>
+          <tr><td>45</td><td>C4 <code>worktree.baseRef: "head"</code> の効き</td><td><code>git log -1</code> が feature ブランチの先端になる</td><td>—</td><td><b>未取得</b></td><td>—</td></tr>
+          <tr><td>46</td><td>C5 本流の <code>git status</code> の汚れ</td><td><code>?? .claude/worktrees/</code> が出る</td><td>—</td><td><b>未取得</b>（C1 に依存）</td><td>—</td></tr>
+          <tr><td>47</td><td>D1-1 同一ブランチ制約の成否</td><td>非 0 で終了し <code>fatal:</code> 1 行</td><td><code>exit=128</code>、<code>fatal:</code> 1 行。git は <code>2.39.2.windows.1</code></td><td>一致</td><td><code>d1.txt</code> / <code>00-setup.txt</code></td></tr>
+          <tr><td>48</td><td>D1-2 エラーの文言</td><td><code>'&lt;branch&gt;' is already used by worktree at '&lt;path&gt;'</code></td><td><code>fatal: '…' is already checked out at 'C:/…/issue-mr-ticket-workflow'</code></td><td><b>不一致</b>（文言のみ）</td><td><code>d1.txt</code></td></tr>
+          <tr><td>49</td><td>D1-3 <code>git worktree list</code> の行数</td><td>本流 1 行だけ</td><td>本流 + W1 + W2 の 3 行（P0 の作業ツリーが生きていた）</td><td><b>不一致</b>（実行順の前提のずれ）</td><td><code>d1.txt</code></td></tr>
+          <tr><td>50</td><td>D2 <code>--force</code> でのブランチ共有</td><td>共有され、本流の commit 後に共有側に大量の差分</td><td>—</td><td><b>未取得</b>（本流に空コミットを作るため既定で飛ばした）</td><td><code>d2.txt</code></td></tr>
+          <tr><td>51</td><td>D3-1 衝突の有無</td><td>非 0 で終わり md と HTML の 2 ファイルに <code>CONFLICT (content)</code></td><td><code>exit=1</code>、両ファイルに <code>CONFLICT (content)</code></td><td>一致</td><td><code>d3.txt</code></td></tr>
+          <tr><td>52</td><td>D3-2 md の conflict marker 件数</td><td>6〜10 件</td><td><b>15 件</b></td><td><b>不一致</b>（超過）</td><td><code>d3.txt</code></td></tr>
+          <tr><td>53</td><td>D3-3 HTML の conflict marker 件数</td><td>8〜13 件</td><td><b>30 件</b>（予測の「20 件」の閾値も超えた）</td><td><b>不一致</b>（超過）</td><td><code>d3.txt</code></td></tr>
+          <tr><td>54</td><td>D3-4 <code>wip/10_tickets/</code> の衝突</td><td>1 件も出ない</td><td>0 件（<code>D</code>/<code>A</code>/<code>R</code> の 3 行はすべて自動で解けた）</td><td>一致</td><td><code>d3.txt</code></td></tr>
+          <tr><td>55</td><td>D4 サブエージェント worktree の成果の残り方</td><td><code>worktree-&lt;名前&gt;</code> の ref と <code>.claude/worktrees/&lt;名前&gt;/</code> が残る</td><td>—</td><td><b>未取得</b>（C1 に依存）</td><td>—</td></tr>
+          <tr><td>56</td><td>D5-1 採番</td><td>2 つの worktree が<b>同じ番号</b>（<code>0011</code>）を採る</td><td><code>0011-investigation.md</code> と <code>0011-design.md</code></td><td>一致</td><td><code>d5.txt</code></td></tr>
+          <tr><td>57</td><td>D5-2 合流</td><td>衝突せずに成功し <code>00_todo/</code> に 2 枚並ぶ</td><td><code>Merge made by the 'ort' strategy</code> / <code>exit=0</code>、2 枚並んだ</td><td>一致</td><td><code>d5.txt</code></td></tr>
+          <tr><td>58</td><td>D5-3 <code>ticket.sh next</code> の返り</td><td>辞書順で先の <code>0011-design.md</code></td><td><code>{"current":null,"next":"0009",…}</code>（<code>0009</code>・<code>0010</code> が残っていた）</td><td><b>不一致</b>（副予測）</td><td><code>d5.txt</code></td></tr>
+          <tr><td>59</td><td>E1 既存テストの全通過</td><td>3 本とも <code>FAIL</code> 0 件</td><td><code>test_scope</code> 312 / <code>test_cmdpos</code> 281 / <code>test_workflow_guard</code> 183、いずれも <code>failures=0</code></td><td>一致</td><td><code>e1-*.txt</code> / <code>e1-failcount.txt</code></td></tr>
+          <tr><td>60</td><td>E2-1 <code>cd /tmp</code></td><td><code>unknown</code></td><td><code>unknown</code></td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>61</td><td>E2-2 <code>git worktree list</code> / <code>add</code></td><td><code>unknown</code></td><td><code>unknown</code> × 2</td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>62</td><td>E2-3 <code>git checkout -b</code> / <code>git switch</code></td><td><code>unknown</code></td><td><code>unknown</code> × 2</td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>63</td><td>E2-4 <code>git merge-tree</code> / <code>git stash list</code></td><td><code>unknown</code></td><td><code>unknown</code> × 2</td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>64</td><td>E2-5 <code>git branch -d probe</code>（<a href="#f40">f40</a> の X3）</td><td><b><code>read</code></b></td><td><code>read</code></td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>65</td><td>E2-6 <code>git -c diff.external=echo diff</code>（X5。<b>最優先</b>）</td><td><b><code>read</code></b></td><td><code>read</code></td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>66</td><td>E2-7 <code>git merge origin/main</code></td><td><code>merge-base</code></td><td><code>merge-base</code></td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>67</td><td>E2-8 <code>git merge &lt;ローカル&gt;</code> / <code>--abort</code></td><td><code>unknown</code></td><td><code>unknown</code> × 2</td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>68</td><td>E2-9 <code>bash &lt;絶対パス&gt;/ticket.sh next</code>（<a href="#f39">f39</a>）</td><td><code>unknown</code></td><td><code>unknown</code></td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>69</td><td>E2-10 <code>bash wip/tmp/x.sh</code></td><td><code>unknown</code></td><td><code>unknown</code></td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>70</td><td>E2-11 <code>bash .claude/skills/…/ticket.sh next</code>（ルート相対）</td><td>予測表に無い（人間が負のコントロールとして足した）</td><td><b><code>provided</code></b></td><td>予測外</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>71</td><td>E2-12 <code>echo "$(( 1 + 1 ))"</code>（<a href="#f38">f38</a> の X1）</td><td>どこかの段が <code>unknown</code></td><td><code>read unknown</code>（2 段目が <code>unknown</code>）</td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>72</td><td>E2-13 <code>diff3 a b c</code></td><td><code>unknown</code></td><td><code>unknown</code></td><td>一致</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>73</td><td>E2-14 予測表の残り 8 入力（<code>git version</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output=</code> / <code>merge origin/feature-49-x</code> / <code>while read</code> / <code>sed -n "$(…)"</code>〈X2〉/ <code>sleep 1</code>）</td><td><a href="#f44">f44</a> の予測表のとおり</td><td><b>入力ファイルから落ちていた</b>（<code>e2-inputs.txt</code> は 18 行で予測表の 26 入力より 8 少ない）</td><td><b>未取得</b></td><td><code>e2-inputs.txt</code></td></tr>
+          <tr><td>74</td><td>E3 worktree の中での <code>workflow-guard</code></td><td>作業中 0 枚の作業ツリーでは無出力</td><td><code>e3-*.txt</code> は存在しない。P2 が同じ早期 <code>exit 0</code> を 3 ケースで観測</td><td><b>未取得</b>（P2 で部分的に代替）</td><td><code>02-guard.txt</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">内訳: 一致 <b>45</b> / 不一致 <b>8</b> / 判定不能 <b>6</b> / 未取得 <b>11</b> / 予測外 <b>4</b> = <b>74 行</b>。実測手順の項目（P0〜P8 の 9・B1〜B6 の 6・C1〜C5 の 5・D1〜D5 の 5・E1〜E3 の 3 = <b>28 項目</b>）はすべて 1 行以上で現れている。</p>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">47</span>
+      <h3 id="f47">不一致 8 件の原因（実測の出力つき）<span class="chip warn">△注意</span> <span class="basis">根拠: 00-setup.txt / 06-session-start.txt / d1.txt / d3.txt / d5.txt / ticket.sh:327</span></h3>
+      <p>不一致は 3 つの型に分かれる。<b>(1)(2)(4)(5)(6) は「予測を書いた時点と実測を実行した時点で対象が変わっていた」ことによるもので、機構の読みが誤っていたわけではない。</b>結論に効くのは (3) だけである。</p>
+      <p><b>(1) 予測の陳腐化 — W2 の中身が変わっていた（#4・#22）。</b><a href="#f8">f8</a> の e8 は「<code>W2</code>（<code>HEAD</code> 基点）は 0004 が <code>10_doing</code> にある」と書いたが、実測が走ったのは 0008 完了後の <code>9cb7269</code> で、0004〜0008 がすべて <code>20_done</code> にあり <code>10_doing</code> は空である。</p>
+      <pre><code>== doing in W1
+== doing in W2                     ← 00-setup.txt。どちらも空
+
+- チケット: 未着手の先頭 0009-investigation / 作業中 無し / 完了の最後 0008-investigation
+                                   ← 06-session-start.txt の cwd=W2。0004 ではない</code></pre>
+      <p><b>これは単なる予測の外れではなく、実測の設計を壊した</b>（<a href="#f48">f48</a>）。予測を「<code>HEAD</code> を基点にすれば作業中 1 枚が手に入る」という<b>その時点のリポジトリの状態</b>に依存させたことが原因で、<code>W2</code> の中で <code>ticket.sh start</code> を 1 回打つ手順にしていれば起きなかった。</p>
+      <p><b>(2) 実行順の前提のずれ（#49）。</b>D1 は <code>git worktree list</code> が本流 1 行だけになると予測したが、P0 が作った W1・W2 が生きたままで 3 行出た。<code>run-probes.sh</code> が P0〜P7 → B → D → E → 片付けの順で 1 本にまとめられているためで、<b>同一ブランチ制約が働いたこと（<code>exit=128</code>）の判定には影響しない。</b></p>
+      <p><b>(3) 見積もりの下振れ — D3 の conflict marker 件数（#52・#53）。結論に効く唯一の不一致。</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象</th><th>予測（<a href="#f34">f34</a>）</th><th>実測</th><th>差</th></tr></thead>
+        <tbody>
+          <tr><td><code>0004-investigation.md</code></td><td>6〜10 件</td><td><b>15 件</b></td><td>1.5〜2.5 倍</td></tr>
+          <tr><td><code>0004-investigation.html</code></td><td>8〜13 件</td><td><b>30 件</b></td><td>2.3〜3.8 倍</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>原因の候補は 2 つあり、<b>どちらがどれだけ効いたかはこの出力からは分けられない</b>。<b>候補 (a) 見積もりが甘い</b> — <a href="#f29">f29</a> の (7) は hunk の挿入点を数えたが、3-way マージは行の重なりで marker を割るので 1 つの挿入点が複数に分かれうる。<b>候補 (b) 実測の手順そのものが marker を持ち込んだ</b> — D3 は並列の一方を <code>git diff A B | git apply --3way</code> で作ったが、この段階で既に衝突している。</p>
+      <pre><code>Applied patch to 'wip/30_reports/0004-investigation.html' with conflicts.
+Applied patch to 'wip/30_reports/0004-investigation.md' with conflicts.
+U wip/30_reports/0004-investigation.html
+U wip/30_reports/0004-investigation.md
+[probe-b fe2e01f] probe: 0006 の追記だけを BASE の上に載せる
+ 2 files changed, 1219 insertions(+)</code></pre>
+      <p><code>git add -A &amp;&amp; git commit</code> は<b>この marker が入ったままのファイルをコミットしている</b>。最後の <code>grep -c '^&lt;&lt;&lt;&lt;&lt;&lt;&lt;'</code> は残留分と新規分を区別できない。つまり <b>15 / 30 は上限であって実数ではない</b>。</p>
+      <div class="box warn">
+        <p class="label">e29 の (8) の読み替えと、J5 の扱い</p>
+        <p><b>「合流 1 回あたり手で解く箇所はおよそ 25 前後」は下振れしていた可能性が高いが、正しい値は 25 と 45 の間としか言えない。</b><a href="#f34">f34</a> の予測が置いた「marker が 20 件を超えるなら J5（衝突源を減らす）の優先度が上がる」については、<b>汚染された測定を根拠に設計の優先度を動かさない</b>ため<b>引き上げを保留</b>とし、清浄な再実行（R31）に委ねる。<b>定性的な結論 —「レポート 1 対への追記は合流のたびに必ず md と HTML の両方で衝突する」— は実測で確定した</b>ので <a href="#f29">f29</a> の (6) と <a href="#f30">f30</a> の (2) は変わらない。</p>
+      </div>
+      <p><b>(4) <code>ticket.sh</code> の記録の条件（#36）。</b>原因は <code>ticket.sh:327</code> で、<code>cmd_next</code> は<b>チケットを見つけたときだけ</b> <code>log_info</code> を呼ぶ。W1 はチケット 0 枚なので logger は <code>logger.sh:16-18</code> の <code>mkdir -p</code> までしか動かない（B3 の <code>ls -d</code> が両方のディレクトリを返しているのはこのため）。<b><code>LOGGER_ROOT</code> の解決の問題ではない。</b></p>
+      <p><b>(5) 予測が伝聞だった項目（#48）。</b><a href="#f34">f34</a> が留保付きで書いたとおり、実際は <code>is already checked out at</code> だった。git <code>2.39.2.windows.1</code> の実文言として確定する。<b>公式ドキュメントに載っていない文言をここで初めて取れた</b>ので、f34 の狙いは達成された。</p>
+      <p><b>(6) 副予測の外れ（#58）。</b>D5 の「<code>next</code> は <code>0011-design.md</code> を返す」は <code>00_todo/</code> に <code>0009</code>・<code>0010</code> が残っていることを勘定に入れていなかった。<b><a href="#f30">f30</a> の (1) の本体は #56・#57 で確定している</b>ので結論は変わらない。</p>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">48</span>
+      <h3 id="f48">判定不能 6 件 — 実測の設計が負のコントロールを失っていた<span class="chip stop">✕問題</span> <span class="basis">根拠: workflow-guard.sh:48-50 / workflow-diff-check.sh:40-43 / hook-common.sh:474-484 / 02-guard.txt / 05-diff-check.txt / 06-session-start.txt</span></h3>
+      <p><b>観点 A の中心の問い「<code>workflow-guard</code> と <code>workflow-diff-check</code> は worktree 側の <code>wip/</code> を見て判定するか」は、実測でも確定していない。</b>予測の識別子はこう書かれていた。</p>
+      <blockquote><p>判定: <b>W1 だけ無音</b>なら worktree 側で数えている。W1 でも deny / ask が出たら本流のチケットで判定している（= 解決の失敗）。（<a href="#f8">f8</a> の P2）</p></blockquote>
+      <p>この識別子は「本流（<code>cwd</code>=MAIN）では deny / ask が出る」ことに乗っている。ところが実行時点では<b>本流にも作業中チケットが 0 枚だった</b>（<code>06-session-start.txt</code> の <code>cwd=MAIN</code> が「作業中 無し」）。両方のフックは入口で抜ける。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>フック</th><th>抜ける条件</th><th>行</th></tr></thead>
+        <tbody>
+          <tr><td><code>workflow-guard</code></td><td><code>hook_doing_ticket</code> が空 → <code>exit 0</code></td><td><code>workflow-guard.sh:48-50</code></td></tr>
+          <tr><td><code>workflow-diff-check</code></td><td>同上</td><td><code>workflow-diff-check.sh:40-43</code></td></tr>
+          <tr><td>（共通）</td><td>作業中チケットは <code>$HOOK_WORKTREE/wip/10_tickets/10_doing/*.md</code> を数える</td><td><code>hook-common.sh:474-484</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>結果、W1・W2・MAIN の 3 ケースがすべて無出力・<code>exit 0</code> になり、<b>「worktree 側を見ているから無音」と「本流を見ているが本流にもチケットが無いから無音」を区別できない</b>。B3-1（#34）も同型で、W2 が <code>HEAD</code> 基点の detached だったため出力が同じになった。</p>
+      <ul>
+        <li><b>言える</b>: <code>hook_doing_ticket</code> が <code>$HOOK_WORKTREE</code> を読むことはコードで確定し（<code>hook-common.sh:478</code>）、<code>HOOK_WORKTREE</code> が worktree に解決されることは <b>P1 が実測で確定</b>した（#6〜#9）。<b>両者を合わせれば「worktree 側で数える」は導ける</b></li>
+        <li><b>言えない</b>: <b>端から端まで通した実測では確かめていない</b>。<a href="#f3">f3</a> は読み取りの結論のままで、<a href="#f7">f7</a> が挙げた「実測でしか確かめられない残余」は閉じていない</li>
+        <li><b>副産物として言える</b>: <b>作業中チケットが 0 枚の作業ツリーでは両フックが完全に無音である</b>ことが 3 ケースで実測された。<a href="#f20">f20</a> の「既定ブランチから切られたサブエージェント worktree では機構が静かに無効化される」の<b>前半は確定</b>。後半（分岐元が既定ブランチ）は C1 が未取得</li>
+      </ul>
+      <p>再実行の手順（残課題 R31）。要点は <b><code>ticket.sh start</code> を W2 の中で打って作業中 1 枚を作ること</b>で、これは W2 の作業ツリーの中だけを変える。</p>
+      <pre><code>MAIN=/c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow
+OUT="$MAIN/wip/tmp/worktree-probe"; cd "$MAIN"
+git worktree add --detach ../imtw-probe-head HEAD
+W2="$(cd ../imtw-probe-head &amp;&amp; pwd)"
+( cd "$W2" &amp;&amp; bash .claude/skills/20-common-step-ticket/scripts/ticket.sh start 0010 )
+gp() { printf '{"session_id":"probe","transcript_path":"","cwd":"%s","hook_event_name":"PreToolUse","permission_mode":"default","tool_name":"Write","tool_input":{"file_path":"%s/apl/probe.txt","content":"x"}}' "$1" "$1"; }
+{ echo "== cwd=W2（作業中 1 枚）"; gp "$W2" | bash .claude/hooks/20-PreToolUse/workflow-guard.sh; echo "exit=$?"
+  echo "== cwd=MAIN（作業中 0 枚 = 負のコントロール）"; gp "$MAIN" | bash .claude/hooks/20-PreToolUse/workflow-guard.sh; echo "exit=$?"
+} &gt; "$OUT/02-guard-rerun.txt" 2&gt;&amp;1
+printf 'x' &gt; "$W2/apl/probe.txt"
+dp() { printf '{"session_id":"probe","transcript_path":"","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{"file_path":"%s/apl/probe.txt"},"tool_response":{"status":"success"}}' "$1" "$1"; }
+{ echo "== cwd=W2"; dp "$W2" | bash .claude/hooks/22-PostToolUse/workflow-diff-check.sh; echo "exit=$?"; } &gt; "$OUT/05-diff-check-rerun.txt" 2&gt;&amp;1
+{ echo "== 相対 / PWD=W2";      ( cd "$W2" &amp;&amp; bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next )
+  echo "== 絶対(MAIN) / PWD=W2"; ( cd "$W2" &amp;&amp; bash "$MAIN/.claude/skills/20-common-step-ticket/scripts/ticket.sh" next )
+} &gt; "$OUT/B3-rerun.txt" 2&gt;&amp;1
+rm -f "$W2/apl/probe.txt"; git worktree remove --force ../imtw-probe-head; git worktree prune
+git status --porcelain    # 空であること。本流の wip/ と logs/ には触れていない</code></pre>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">49</span>
+      <h3 id="f49">予測外の発見 4 件 — うち 2 件は新しい不具合<span class="chip stop">✕問題</span> <span class="basis">根拠: hook-common.sh:52 / session-start.sh:87,113,115-117 / logger.sh:21-26 / ticket.sh:327 / 07-logs.txt / B6-split.txt / 06-session-start.txt / B4-boundary.txt</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>発見</th><th>根拠（ファイル:行）</th><th>実測の出力</th><th>性質</th></tr></thead>
+        <tbody>
+          <tr><td>N1</td><td><b><code>LOGGER_NAME</code> が子プロセスへ漏れ、<code>boundary.sh</code> と <code>ticket.sh</code> の実行ログがフックの名前のファイルに書かれる</b></td><td><code>hook-common.sh:52</code>（<code>LOGGER_NAME="hook-$HOOK_NAME"; export LOGGER_NAME</code>）→ <code>session-start.sh:87</code> が <code>bash "$HOOK_WORKTREE/.claude/skills/…/boundary.sh" status --offline</code> を起動 → 子の <code>__ss_load</code> は <code>LOGGER_ROOT</code> を取り直すが <code>LOGGER_NAME</code> は環境から引き継ぐ → <code>logger.sh:21-26</code></td><td>W1 に <code>logs/sh/hook-session-start.log</code> だけがあり <code>boundary.log</code> が無い（<code>07-logs.txt</code> / <code>B6-split.txt</code>）。<b>本流でも現に混ざっている</b>: <code>logs/sh/hook-session-start.log</code> に <code>boundary.sh</code> の <code>start subcommand=status args=--offline</code> が <b>8 件</b>、<code>ticket.sh</code> の <code>next -&gt; 0009 type=investigation</code> が 1 件（いずれも <code>[hook-session-start]</code> の名札付き）</td><td>✕ 新しい不具合。<b>worktree と無関係に本流でも起きている</b></td></tr>
+          <tr><td>N2</td><td><b><code>ticket.sh next</code> は「チケットが 1 枚も無い」ことを記録しない</b></td><td><code>ticket.sh:327</code> の <code>log_info</code> が、チケットを見つけた分岐の中にしかない</td><td>W1 に <code>logs/sh/ticket.log</code> が生えなかった（#36 の原因）</td><td>△ 記録の欠け</td></tr>
+          <tr><td>N3</td><td><b><code>logs/mr.json</code> が無いだけで <code>session-start</code> が現在地を誤導出し、完了済みの全体計画をやり直すよう案内する</b></td><td><code>session-start.sh:115-117</code>（<code>logs/mr.json</code> から issue / URL を読む）／同 <code>:113</code>（detached では <code>branch --show-current</code> が空）</td><td><code>06-session-start.txt</code> の <code>cwd=W2</code>: 「ブランチ: 不明 / MR: 無し / <b>現在地: 全体計画の途中（issue 確定前）</b> / <b>次に読み込むスキル: 10-task-overall-plan</b>」。同じチケット構成の <code>cwd=MAIN</code> は正しく <code>10-task-investigation-exec</code> を出す</td><td>✕ <b>DDR <code>i0009-55</code> の言う「静かな無効化」の実物。</b>拒否側に倒れるのではなく<b>誤った案内を確信を持って出す</b></td></tr>
+          <tr><td>N4</td><td><code>boundary.sh status --offline</code> は <code>logs/</code> が 1 バイトも無い worktree でも、チケットのファイルだけから <code>last_task</code> を正しく再導出する</td><td><code>boundary.sh</code> の <code>ensure_logs</code>（<code>:176</code>）と <code>wip/10_tickets/20_done/</code> の走査</td><td><code>B4-boundary.txt</code>: <code>"last_task":{"task_type":"investigation","tickets":["0008","0007","0006","0005","0004"],"last_done":"0008",…}</code></td><td>◎ <a href="#f12">f12</a> の裏取り</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>N1 と N3 は性質が違う。</b>N3 は worktree に固有（<code>logs/</code> が複製されないことの帰結）で A1 に直接効く。<b>N1 は本流でも起きており、worktree とも並列とも無関係な記録の不具合</b>なので、全体計画書の保留 P2（機構の不具合の別 issue）へ回すのが筋である（判断は 0010 と人間に委ねる）。</p>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">50</span>
+      <h3 id="f50">訂正 — 実測が覆した / 補強した 0004〜0007 の結論<span class="chip warn">△注意</span> <span class="basis">根拠: f46 の突き合わせ表 / f47 の原因分析</span></h3>
+      <p><b>過去の節は書き換えない</b>（<code>10-task-investigation-exec</code> の「積み上げたレポートはその時点の記録」）ため、訂正はここに集める。該当する節には「【0009 の実測】…」の引用ブロックを 1 つだけ足し、本文は当時のまま残した（md 側 8 節）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象の節</th><th>当時の記述（要点）</th><th>実測の結果</th><th>訂正</th></tr></thead>
+        <tbody>
+          <tr><td><b><a href="#f29">f29</a> の (8)</b></td><td>「合流 1 回あたり、手で解く箇所はおよそ <b>25 前後</b>」</td><td>md 15 + HTML 30 = 45（<code>d3.txt</code>）。ただし <code>git apply --3way</code> の残留 marker を含むため<b>上限</b></td><td><b>「25 前後」→「25 以上 45 以下。中央値は取れていない」に読み替える。</b>清浄な再実行（R31）まで確定しない</td></tr>
+          <tr><td><b><a href="#f34">f34</a> の D3 の「外れたとき」</b></td><td>「marker が 20 件を超えるなら <b>J5 の優先度が上がる</b>」</td><td>HTML が 30 件で閾値を超えた</td><td><b>優先度の引き上げは保留する。</b>汚染された測定を根拠に設計の優先度を動かさない</td></tr>
+          <tr><td><b><a href="#f34">f34</a> の D1 の予測文言</b></td><td><code>'&lt;branch&gt;' is already used by worktree at '&lt;path&gt;'</code>（と伝えられているもの）</td><td><code>'&lt;branch&gt;' is already checked out at '&lt;path&gt;'</code>（git <code>2.39.2.windows.1</code>）</td><td><b>文言を差し替える。</b>制約の存在と <a href="#f27">f27</a> の案の差は変わらない</td></tr>
+          <tr><td><b><a href="#f16">f16</a> の B3 の予測</b></td><td>「<code>logs</code> は W1・W2 とも <code>logs/sh/ticket.log</code> ができる」</td><td>ディレクトリは両方、<code>ticket.log</code> は W2 だけ</td><td><b>「ディレクトリは <code>mkdir -p</code> で必ずできる。ファイルは <code>log_info</code> が呼ばれたときだけできる」に訂正</b></td></tr>
+          <tr><td><b><a href="#f8">f8</a> の P0 の予測</b></td><td>「<code>W2</code> は <code>.gitkeep</code> と <code>0004-investigation.md</code>」</td><td>空（実行時点で 0004 は <code>20_done</code>）</td><td><b><code>HEAD</code> 基点の worktree は「実行した時点」を映す。実測の識別子をリポジトリの可変な状態に乗せない</b></td></tr>
+          <tr><td><b><a href="#f5">f5</a>（✕問題）</b></td><td>「作業ツリーをまたぐ絶対パスの書き込みは進行状態ファイル保護をすり抜ける」</td><td>P3 が 3 ケースとも予測どおり（<code>03-state-guard.txt</code>）</td><td><b>訂正なし。実測で確定した</b>（読み取り → 実測済みへ格上げ）</td></tr>
+          <tr><td><b><a href="#f6">f6</a> の D1</b></td><td>「仕様 §13 と実装が逆。<b>コードが正で文書が古い</b>」</td><td>P5 は<b>判定不能</b>。無出力は早期 <code>exit 0</code> によるもので、仕様が正しい証拠ではない</td><td><b>訂正なし。ただし「P5 が無出力だったから仕様が正しい」と読んではいけない。</b>D1 の結論は<b>静的読解のまま</b>で、残課題 R2 は開いたまま</td></tr>
+          <tr><td><b><a href="#f10">f10</a> の条件①</b></td><td>「絶対パス起動で <code>cwd</code> が worktree だとずれる」</td><td>B1-3 で<b>確定</b>（B3-1 は判定不能だが B1-3 だけで成り立つ）</td><td><b>訂正なし。確定</b></td></tr>
+          <tr><td><b><a href="#f30">f30</a> の (1)</b></td><td>「採番が重複し、種類が違えば衝突せず番号だけが重複する」</td><td>D5 が予測どおり（<code>d5.txt</code>）</td><td><b>訂正なし。実測で確定した</b></td></tr>
+          <tr><td><b><a href="#f36">f36</a>〜<a href="#f41">f41</a></b></td><td>すべて静的読解</td><td>E2 の 13 項目が <b>13 件とも一致</b>。E1 は既存テスト 3 本が全通過</td><td><b>訂正なし。確定</b>（未確認の 8 入力は R33）</td></tr>
+          <tr><td><b><a href="#f40">f40</a> の X5</b></td><td>「<code>-c diff.external</code> が <code>read</code> で通る。<b>実行していない</b>」</td><td><code>e2-result.txt</code> で <code>read</code> を確認（分類のみ）</td><td><b>訂正なし。分類は確定。</b>「その分類で実際に任意コマンドが動くか」は依然として実行していない</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">51</span>
+      <h3 id="f51">受け入れ条件 A1 の「動かない箇所」一覧（ファイル・行・症状・実測の出力）<span class="chip stop">✕問題</span> <span class="basis">根拠: wip/tmp/worktree-probe/ の出力 / f5 / f49 / e2-result.txt</span></h3>
+      <p>受け入れ条件 A1 は「worktree 上で機構（フック・提供コマンド・<code>boundary.sh</code>）が健全に動くことが実測で確かめられ、動かない箇所があれば直っている」。<b>動かない箇所は 7 件</b>で、うち <b>5 件は実測の出力を根拠に確定</b>、2 件は実測が届かず静的読解のまま残る。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>箇所</th><th>ファイル:行</th><th>症状</th><th>実測の出力</th><th>根拠の強さ</th></tr></thead>
+        <tbody>
+          <tr><td>A1-1</td><td><b><code>session-start</code> が worktree で現在地を誤導出する</b></td><td><code>session-start.sh:113</code>／<code>:115-117</code>／<code>.gitignore</code> の <code>logs/</code> 行</td><td>完了済みの全体計画を「途中（issue 確定前）」と判定し <code>10-task-overall-plan</code> を案内する。<b>拒否ではなく誤った断定</b>なので AI は指示どおり全体計画をやり直す</td><td><code>06-session-start.txt</code> の <code>cwd=W2</code>。同じチケット構成の <code>cwd=MAIN</code> は正しく出る</td><td><b>実測で確定</b></td></tr>
+          <tr><td>A1-2</td><td><b>作業ツリーをまたぐ絶対パスの書き込みが進行状態ファイル保護をすり抜ける</b></td><td><code>workflow-state-guard.sh:63-67</code> → <code>hook-common.sh:757-770</code>／二重の守りの <code>workflow-guard.sh:48-50</code> は作業中 0 枚で抜ける</td><td><code>cwd</code> が W のとき、本流の <code>logs/*.json</code> と <code>wip/10_tickets/20_done/*.md</code> を絶対パスで書き換えても止まらない</td><td><code>03-state-guard.txt</code>: 自ツリーは WF303 deny、<b>他ツリーの 2 件はどちらも無出力・<code>exit 0</code></b></td><td><b>実測で確定</b></td></tr>
+          <tr><td>A1-3</td><td><b><code>logs/</code> が worktree に複製されず、宣言・承認・進行状態がすべて失われる</b></td><td><code>.gitignore</code> の <code>logs/</code> 行／<code>workflow-entry.sh:205</code></td><td>新しい worktree では WF102 で拒否される（安全側だが<b>その worktree では作業を始められない</b>）。承認は取り直し、MR / レビュー / マージの状態は <code>missing</code></td><td><code>00-setup.txt</code>（<code>logs</code> が無い）／<code>04-entry.txt</code> の WF102 ／<code>B4-boundary.txt</code> の <code>"mr":null</code></td><td><b>実測で確定</b></td></tr>
+          <tr><td>A1-4</td><td><b><code>LOGGER_NAME</code> が子プロセスへ漏れ、実行ログの出どころが混ざる</b></td><td><code>hook-common.sh:52</code>／<code>session-start.sh:87</code>／<code>logger.sh:21-26</code></td><td><code>boundary.sh</code> と <code>ticket.sh</code> の実行ログが <code>hook-session-start.log</code> に書かれ、<code>boundary.log</code> が作られない。障害調査で実行履歴を追えない</td><td><code>07-logs.txt</code> / <code>B6-split.txt</code>／本流の <code>logs/sh/hook-session-start.log</code> に <code>start subcommand=status</code> 8 件と <code>next -&gt; 0009</code> 1 件</td><td><b>実測で確定</b>（worktree に固有ではない）</td></tr>
+          <tr><td>A1-5</td><td><b>worktree を作る・移る・戻る操作が AI からは一切できない</b></td><td><code>scope.sh</code> の <code>_SC_GIT_READ_SUBCMDS</code> / <code>_SC_READ_ONLY_CMDS</code>／<code>workflow-guard</code> の WF204</td><td><code>git worktree add</code> / <code>checkout -b</code> / <code>switch</code> / <code>cd</code> がどの <code>allow.ops</code> を宣言しても既定拒否。<b>worktree 運用を機構が支えられない</b></td><td><code>e2-result.txt</code>: 5 つの入力すべてが <code>unknown</code></td><td><b>実測で確定</b></td></tr>
+          <tr><td>A1-6</td><td>両フックが worktree 側のチケットで判定するか（観点 A の中心の問い）</td><td><code>hook-common.sh:474-484</code> ＋ <code>workflow-guard.sh:48-50</code> / <code>workflow-diff-check.sh:40-43</code></td><td>読み取りでは「worktree 側で判定する（= 動く）」。ただし<b>通しの実測で確かめていない</b></td><td><code>02-guard.txt</code> / <code>05-diff-check.txt</code> は<b>判定不能</b>（<a href="#f48">f48</a>）。<code>01-resolve.txt</code> が解決だけを確定</td><td>静的読解 + 部分実測（R31 で閉じる）</td></tr>
+          <tr><td>A1-7</td><td>サブエージェント worktree が既定ブランチから切られ、機構が丸ごと無音になる</td><td><a href="#f20">f20</a>（公式の <code>worktree.baseRef</code> 既定）＋ <code>workflow-guard.sh:48-50</code></td><td>分岐元にチケットが無いので両フックが入口で抜け、宣言範囲の強制・差分の基準点がどちらも効かない</td><td>前半（<b>チケット 0 枚では両フックが完全に無音</b>）は実測済み。後半（分岐元）は C1・C4 が<b>未取得</b></td><td>部分実測（R34 / R35 で閉じる）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>「動かない箇所」ではないと確認できたもの</b>（A1 の裏側。無いことも根拠付きで書く）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象</th><th>実測の出力</th></tr></thead>
+        <tbody>
+          <tr><td>作業ツリーの解決（<code>__hc_resolve_worktree</code>）</td><td><code>01-resolve.txt</code>。6 パスすべて予測どおり。参考ディレクトリは本流に倒れ全面バイパスは起きない</td></tr>
+          <tr><td><code>workflow-state-guard</code> の<b>自ツリー</b>の保護</td><td><code>03-state-guard.txt</code> の 1 件目が WF303 deny</td></tr>
+          <tr><td><code>workflow-entry</code> の継続条件</td><td><code>04-entry.txt</code>。チケットのある W2 は通り、無い W1 は WF102</td></tr>
+          <tr><td>提供コマンド 5 本の <code>logs/</code> 非依存</td><td><code>B3-logger-root.txt</code> / <code>B4-boundary.txt</code>。<code>logs/</code> が 1 バイトも無い worktree で <code>ticket.sh next</code> と <code>boundary.sh status --offline</code> が正しい値を返す</td></tr>
+          <tr><td>既存のフック・分類のテスト</td><td><code>e1-*.txt</code>。3 本とも <code>failures=0</code>（合計 776 件）</td></tr>
+          <tr><td><code>scope_classify</code> の分類</td><td><code>e2-result.txt</code>。静的読解の 13 項目が 13 件とも一致</td></tr>
+          <tr><td><code>wip/10_tickets/</code> のファイル移動の合流</td><td><code>d3.txt</code>。<code>D</code>/<code>A</code>/<code>R</code> の 3 行はすべて自動で解け conflict は 0 件</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">52</span>
+      <h3 id="f52">受け入れ条件 A4 の材料 — 「並列を採るなら必ず直すもの」と「採らなくても直すべきもの」<span class="chip good">◎良</span> <span class="basis">根拠: f51 の 7 件 / f13 / f29 / f30 / f38 / f40 / f49</span></h3>
+      <p>A4（並列実施の採否と理由を DDR に残す）に向けて 2 つの束に分けた。<b>採否は決めない</b>（保留 P1 は 0010）。</p>
+      <p class="note"><b>束 1: 並列実施を採用する場合に必ず直す必要があるもの（採用しないなら直さなくてよい）</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>直すもの</th><th>なぜ並列でだけ必要か</th><th>実測の裏付け</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>チケットの採番を作業ツリーに閉じない</b>（<code>ticket.sh:151-159</code>）</td><td>直列なら作業ツリーは 1 つで番号は必ず一意。並列にした瞬間、番号の重複が<b>衝突せずに合流する</b></td><td><code>d5.txt</code></td></tr>
+          <tr><td>2</td><td><b>レポート 1 対への追記の衝突源を減らす</b>（「1 タスクにつきレポートは 1 つ」）</td><td>直列なら追記の順序が決まっており衝突しない</td><td><code>d3.txt</code></td></tr>
+          <tr><td>3</td><td><b>合流の操作を機構に通す道を決める</b>（<a href="#f33">f33</a> の J1〜J6）</td><td>直列では合流そのものが発生しない</td><td><code>e2-result.txt</code></td></tr>
+          <tr><td>4</td><td><b>合流後に <code>10_doing/</code> が 2 枚になる状態の扱い</b>（WF207）</td><td>直列では 2 枚にならない。合流を切れ目に限れば回避できる</td><td>実測なし（<a href="#f31">f31</a>）</td></tr>
+          <tr><td>5</td><td><b>サブエージェント worktree の分岐元を feature ブランチにする</b></td><td>直列では worktree を使わない。既定ブランチ基点では機構が丸ごと無音になる</td><td>前半のみ（チケット 0 枚なら無音）。<b>分岐元は C1・C4 が未取得</b></td></tr>
+          <tr><td>6</td><td><b><code>logs/</code> を worktree でどう用意するか</b>（保留 P2）</td><td>直列では本流の <code>logs/</code> が常にある</td><td><code>00-setup.txt</code> / <code>04-entry.txt</code> / <code>B4-boundary.txt</code></td></tr>
+          <tr><td>7</td><td><b><code>usage</code> と <code>locks</code> の分断</b></td><td>同じブランチの集計と排他が作業ツリーをまたぐと成立しない</td><td><code>B6-split.txt</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note"><b>束 2: 並列実施を採用しなくても直すべきもの</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>直すもの</th><th>なぜ並列と無関係に必要か</th><th>実測の裏付け</th><th>分類</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b><code>session-start</code> の現在地の誤導出</b>（A1-1）</td><td>worktree を 1 つ使うだけで踏む。<b>A1 の「動かない箇所」の筆頭</b></td><td><code>06-session-start.txt</code></td><td>worktree を使うなら必須</td></tr>
+          <tr><td>2</td><td><b>作業ツリーをまたぐ絶対パスの保護漏れ</b>（A1-2）</td><td>作業ツリーが 2 つ以上あれば、並列でなくても踏む</td><td><code>03-state-guard.txt</code></td><td>worktree を使うなら必須</td></tr>
+          <tr><td>3</td><td><b><code>scope.sh</code> の分類の穴 L1〜L3</b>（A1-5）</td><td>worktree を作る・移る操作が AI からできない。<b>A1 の実測を AI が自分で回すには要る</b></td><td><code>e2-result.txt</code></td><td>worktree を使うなら必須</td></tr>
+          <tr><td>4</td><td><b><code>scope.sh</code> の逆向きの穴 L4</b>（<a href="#f40">f40</a> の 5 件）</td><td><b>worktree とも並列とも無関係に常時開いている統制の穴</b>。X5 は任意コマンドの実行まで開いている</td><td><code>e2-result.txt</code></td><td><b>worktree と無関係</b></td></tr>
+          <tr><td>5</td><td><b><code>cmdpos.sh</code> の正規化の 2 件</b>（<a href="#f38">f38</a>）</td><td>実行体の取り違えで正当なコマンドが拒否される。本 issue で 4 回踏んだ</td><td><code>e2-result.txt</code></td><td><b>worktree と無関係</b></td></tr>
+          <tr><td>6</td><td><b><code>push.sh</code> 項目 4 が前 issue の <code>merge-state</code> で永久に落ちる</b></td><td>直列の運用で現に踏んだ</td><td><code>B5-push-item4.txt</code></td><td><b>worktree と無関係</b></td></tr>
+          <tr><td>7</td><td><b><code>LOGGER_NAME</code> の漏れ</b>（A1-4）</td><td>本流でも現に起きている記録の不具合</td><td><code>07-logs.txt</code></td><td><b>worktree と無関係</b></td></tr>
+          <tr><td>8</td><td><b><code>ticket.sh next</code> が「チケット無し」を記録しない</b></td><td>同上。軽微</td><td><code>B6-split.txt</code></td><td><b>worktree と無関係</b></td></tr>
+          <tr><td>9</td><td><b>仕様 §13 / DDR <code>i0009-64</code> と実装の食い違い</b>（<a href="#f6">f6</a>）</td><td>文書が古いだけで実害は無いが、設計フェーズが根拠に使うと誤る</td><td>実測は判定不能</td><td><b>worktree と無関係</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>束 2 の 4〜9（6 件）は worktree とも並列とも関係が無い</b>ので、全体計画書の保留 P2（別 issue）の候補である。<b>束 2 の 1〜3 は worktree を使う限り必須</b>なので issue #50 の A1 に留まる。<b>決定は 0010 と人間。</b></p>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">53</span>
+      <h3 id="f53">保留 P1（並列実施の採否）— 揃った材料と、まだ足りない材料<span class="chip good">◎良</span> <span class="basis">根拠: f32 / f51 / f52 / 実測の出力</span></h3>
+      <p><b>採否そのものは決めない</b>（調査計画書の保留 P1 のとおり、本フェーズは材料を集めるだけで DDR <code>i0001-23</code> を覆さない）。</p>
+      <p class="note"><b>揃った材料（コスト側）</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>材料</th><th>値</th><th>根拠</th><th>確度</th></tr></thead>
+        <tbody>
+          <tr><td>1 issue = 1 ブランチ = 1 MR と両立するか</td><td><b>両立できる</b></td><td><a href="#f32">f32</a> の D-2</td><td>読み取りで確定</td></tr>
+          <tr><td>同一ブランチを 2 つの作業ツリーで開けるか</td><td><b>開けない</b>（<code>fatal: … is already checked out at …</code>、<code>exit=128</code>）</td><td><code>d1.txt</code></td><td><b>実測で確定</b></td></tr>
+          <tr><td>サブエージェントを別 worktree で動かせるか</td><td><b>動かせる</b>（<code>isolation: worktree</code>）</td><td><a href="#f17">f17</a> / <a href="#f18">f18</a></td><td>公式で確定（<b>本環境での解釈は未確認 = C1</b>）</td></tr>
+          <tr><td>合流時のファイル衝突の大きさ</td><td>チケット移動は <b>0 件</b>。レポート 1 対は<b>必ず衝突</b>し、手で解く箇所は <b>25 以上 45 以下</b></td><td><code>d3.txt</code> / <a href="#f29">f29</a></td><td>定性は実測で確定、<b>定量は上限のみ</b></td></tr>
+          <tr><td>採番の重複</td><td><b>衝突せずに合流し、番号が重複したまま気づけない</b></td><td><code>d5.txt</code></td><td><b>実測で確定</b></td></tr>
+          <tr><td>合流の操作を機構が通すか</td><td>実質「人間が合流する」か「機構を広げる」の二択</td><td><code>e2-result.txt</code> / <a href="#f28">f28</a></td><td><b>実測で確定</b></td></tr>
+          <tr><td>並列を採った場合に必ず直すもの</td><td><b>7 件</b>（<a href="#f52">f52</a> の束 1）</td><td><a href="#f52">f52</a></td><td>5 件が実測の裏付けあり</td></tr>
+          <tr><td>worktree 上で機構が健全に動くか</td><td><b>動かない箇所 7 件</b>（うち 5 件は実測で確定）</td><td><a href="#f51">f51</a></td><td>—</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note"><b>まだ足りない材料</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>足りないもの</th><th>なぜ足りないか</th><th>どうすれば埋まるか</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>利得（所要時間の短縮幅）が 1 つも測れていない</b></td><td>完了した issue の <code>wip/</code> は片付けで消えており <code>git show</code> で掘らないと読めない。しかも直列の実績しか無い</td><td><code>git show</code> で <code>started_at</code> / <code>completed_at</code> を復元し「独立なチケットの所要時間の合計」対「最長のもの」を比べる。<b>本チケットの担当範囲外</b>（0010 で要否を決める）</td></tr>
+          <tr><td>2</td><td><code>isolation: worktree</code> が本環境で解釈されるか</td><td><code>.claude/agents/</code> への書き込みが要る</td><td>実測 C1（R34）</td></tr>
+          <tr><td>3</td><td>分岐元を feature ブランチにできるか（<code>worktree.baseRef: "head"</code>）</td><td><code>.claude/settings.json</code> への書き込みが要る</td><td>実測 C4（R35）</td></tr>
+          <tr><td>4</td><td>隔離下で提供コマンド 5 本とヒアドキュメントが通るか</td><td>C1 に依存</td><td>実測 C3（R36）</td></tr>
+          <tr><td>5</td><td>サブエージェント worktree の成果が終了後に残るか</td><td>C1 に依存。<b>ref が消えるなら合流手段は J4 だけになる</b></td><td>実測 D4（R37）</td></tr>
+          <tr><td>6</td><td>合流 1 回あたりの conflict marker の<b>実数</b></td><td>D3 の測定が <code>git apply --3way</code> の残留 marker に汚染されている</td><td>清浄な再実行（R31）</td></tr>
+          <tr><td>7</td><td>両フックが worktree 側で判定することの通しの実測</td><td>実行時点で全ツリーの作業中チケットが 0 枚で負のコントロールが失われた</td><td>再実行（R31）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">判断の形についての注記（決定ではない）</p>
+        <p>DDR <code>i0001-23</code> の却下理由「統合のコストが利得を上回る」は、<b>実測を経てもなおコスト側の片側しか数値を持っていない</b>。0010 で保留 P1 を決めるときは、<b>(a) 利得側を測ってから決める</b> / <b>(b) 非対称を明示したうえで「コストが確定的に大きいので採らない」と決める</b> / <b>(c) 並列は採らずに worktree の健全性（A1）だけを直す</b> のどれを選ぶかを先に決めるのが筋である。<b>なお (c) を選んでも <a href="#f52">f52</a> の束 2 の 1〜3 は残る</b>ので、issue #50 の作業量はそれほど減らない。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -1791,6 +2172,18 @@ EOF</code></pre>
       <tr><td>（0008）各案に「影響する既存テスト ID」が具体的な ID で入っている</td><td>A: <code>HK-T15</code> <code>WG-T06</code> <code>HK-T02</code> ／ B: <code>HK-T15</code> <code>WG-T06</code> <code>HK-T02</code> ／ C: <code>HK-T15</code> <code>WG-T06</code>（+ 新設）／ D: <code>HK-T12</code> <code>WG-T14</code>（+ 新設）／ E: <code>HK-T02</code> <code>HK-T15</code>。P-1〜P-3 は <code>HK-T05</code> <code>HK-T12</code> <code>WG-T14</code></td></tr>
       <tr><td>（0008）「隔離下でも通ること」が条件に入っている</td><td><a href="#f35">f35</a> の注意書き、<a href="#f42">f42</a> の各案の「隔離下で通るか」行、<a href="#f43">f43</a> の評価軸 4、<a href="#f44">f44</a> の <code>&lt;&lt;'EOF'</code> の注記の 4 か所</td></tr>
       <tr><td>（0008）<code>git worktree add</code> / <code>checkout -b</code> / <code>switch</code> を実行していない</td><td>「実施条件（0008）」に「<code>git</code> は 1 度も実行していない」と明記。<code>decisions.jsonl</code> の本チケット分（<code>01:03:54</code> 以降）に <code>git</code> の実行記録が無い</td></tr>
+      <tr><td>（0009）3 列表に 0004〜0008 の実測手順の項目がすべて現れている</td><td><a href="#f46">f46</a> の表は <b>74 行</b>。内訳は P0〜P8 が 28 / B1〜B6 が 13 / C1〜C5 が 5 / D1〜D5 が 12 / E1〜E3 が 16 = 74 で一致し、<b>28 項目すべてが 1 行以上ある</b></td></tr>
+      <tr><td>（0009）判定の値の合計が行数と合う</td><td>一致 45 + 不一致 8 + 判定不能 6 + 未取得 11 + 予測外 4 = <b>74</b> で一致</td></tr>
+      <tr><td>（0009）不一致の全件に原因が書かれている</td><td><a href="#f47">f47</a> は不一致 8 件を 6 つの型 (1)〜(6) に分けて全件扱っている（(1) が #4・#22、(2) が #49、(3) が #52・#53、(4) が #36、(5) が #48、(6) が #58 = 8 件）</td></tr>
+      <tr><td>（0009）不一致の全件に実測の出力が添えられている</td><td><a href="#f46">f46</a> の「出力」列が 8 行すべて埋まっており、<a href="#f47">f47</a> は <code>00-setup.txt</code> / <code>06-session-start.txt</code> / <code>d3.txt</code> の逐語を <code>&lt;pre&gt;</code> で載せている</td></tr>
+      <tr><td>（0009）A1 の「動かない箇所」が 4 点セットで一覧になっている</td><td><a href="#f51">f51</a> の表は <b>7 行</b>で「箇所 / ファイル:行 / 症状 / 実測の出力 / 根拠の強さ」の 5 列すべてが埋まっている。<b>実測の出力が具体的なファイル名を持つのは 5 行</b>で、残り 2 行は「判定不能」「未取得」と明記</td></tr>
+      <tr><td>（0009）「動かない箇所ではない」ことも根拠付きで書かれている</td><td><a href="#f51">f51</a> の 2 つ目の表が <b>7 行</b>。各行に <code>wip/tmp/worktree-probe/</code> の出力ファイル名がある</td></tr>
+      <tr><td>（0009）保留 P1 の材料が「揃った / 足りない」で分かれている</td><td><a href="#f53">f53</a> が 2 つの表に分けている（揃った 8 行 / 足りない 7 行）。<b>採否を書いた文は無い</b></td></tr>
+      <tr><td>（0009）採否を決めていない</td><td><a href="#f45">f45</a>・<a href="#f52">f52</a>・<a href="#f53">f53</a> のいずれにも「採用する」「採用しない」の結論が無い。f53 の末尾は 0010 が選ぶべき 3 つの進め方 (a)(b)(c) を並べるに留めている</td></tr>
+      <tr><td>（0009）未取得の項目に理由と再実行手順がある</td><td>「確かめられなかったこと」に 0009 分を <b>11 行</b>追加し、全行に理由と引き取り先（R31〜R37）を書いた。再実行のコマンド列は <a href="#f48">f48</a> と残課題にある</td></tr>
+      <tr><td>（0009）実測が 0004〜0008 の結論を覆したかの判定が全件ある</td><td><a href="#f50">f50</a> の表は <b>11 行</b>で、訂正が要る 5 行と「訂正なし」6 行を分けている</td></tr>
+      <tr><td>（0009）実測を AI が実行していない</td><td>「実施条件（0009）」に明記。<code>decisions.jsonl</code> の本チケット分（<code>03:30:30</code> 以降）に <code>git worktree</code> / <code>checkout</code> / <code>switch</code> / <code>merge</code> の実行記録が無く、唯一の deny は <code>cd</code> の WF204 1 件</td></tr>
+      <tr><td>（0009）実測の後始末が済んでいる</td><td><code>99-cleanup.txt</code> の 3 項目（<code>git status --porcelain</code> が空 / <code>git worktree list</code> が本流 1 行 / <code>probe-*</code> 無し）。本チケット着手時の <code>git status</code> もクリーン</td></tr>
     </tbody>
   </table>
   </div>
@@ -1840,6 +2233,12 @@ EOF</code></pre>
     <li>（0008）<b><code>_SC_SHELL_KEYWORDS</code> に直接のテストが無い</b>（定義行と参照行の 2 行のみ）。一覧を増やすなら、増やす前に <code>test_scope.sh:196-199</code> と同じ全要素ループを足す。引き取り先: 0010 / AI アセット実装。</li>
     <li>（0008）<code>_SC_READ_ONLY_CMDS</code> に <code>column</code> が 2 回入っている（<code>scope.sh:31</code>）。害は無いが表形式の実装として重複は取る。全要素ループのテストは重複を検出しない。引き取り先: 0010（軽微）。</li>
     <li>（0008）<b><code>hook_record</code> の <code>target</code> が 80 文字で切られる</b>（<code>workflow-guard.sh:100</code>）ため、誤分類 9 件のうち 6 件の原因を特定できなかった（<a href="#f38">f38</a>）。記録の粒度を決める。0006 の 16 と同じ根。引き取り先: 0010。</li>
+    <li>（0009）<b><code>LOGGER_NAME</code> が子プロセスへ漏れる</b>（<code>hook-common.sh:52</code> が <code>export</code> し <code>logger.sh:21-26</code> が環境の値を優先する）。<code>session-start.sh:87</code> が起動する <code>boundary.sh</code> と、その先の <code>ticket.sh</code> の実行ログが <code>logs/sh/hook-session-start.log</code> に混ざる。候補は ①提供コマンド側の <code>__ss_load</code> で <code>LOGGER_NAME</code> を自分の名前に上書き ②<code>export</code> をやめる ③子を起動する側が <code>LOGGER_NAME=</code> で落とす。<b>worktree とも並列とも無関係で本流でも起きている</b>（<a href="#f49">f49</a> の N1 / <a href="#f51">f51</a> の A1-4）。引き取り先: 0010 / 保留 P2。</li>
+    <li>（0009）<b><code>logs/mr.json</code> が無いだけで <code>session-start</code> が「全体計画の途中（issue 確定前）」と誤導出する</b>（<code>session-start.sh:113</code>・<code>:115-117</code>）。worktree では <code>logs/</code> が複製されないので必ずこうなる。<b>拒否側に倒れるのではなく誤った案内を確信を持って出す</b>。候補は ①無いときは「不明」と出して断定しない ②ブランチ名から issue を再導出 ③チケットの状態を現在地の導出に使う（<a href="#f49">f49</a> の N3 / <a href="#f51">f51</a> の A1-1）。引き取り先: 0010（A1 の筆頭）。</li>
+    <li>（0009）<b><code>ticket.sh next</code> が「チケットが 1 枚も無い」ことを記録しない</b>（<code>ticket.sh:327</code>）。障害調査で「走ったが何も無かった」と「走っていない」を分けられない。引き取り先: 0010（軽微）。</li>
+    <li>（0009）<b>実測の手順に「識別子が成立する条件」を書く決まりが無い</b>。<a href="#f8">f8</a> の P2 は「本流では deny が出る」ことを識別子にしたが、その条件（本流に作業中チケットが 1 枚ある）が手順のどこにも書かれておらず、実行時に崩れていることに誰も気づけなかった（<a href="#f48">f48</a>）。<b>実測手順の型に「負のコントロールが成立する前提を手順の中で作る」を足す</b>候補。引き取り先: 0010（<b>スキルの書き方の改善</b>）。</li>
+    <li>（0009）<b>実測手順が「測定を汚染しない作り方」を求めていない</b>。D3 は数える対象を作る手順（<code>git apply --3way</code>）が数える対象そのもの（marker）を混入させた（<a href="#f47">f47</a> の (3)）。引き取り先: 0010（<b>スキルの書き方の改善</b>）。</li>
+    <li>（0009）<b>実測を人間に渡すときの取りこぼしが 3 系統あった</b>。①<code>.claude/</code> への書き込みが要る C1・C3・C4 は <code>run-probes.sh</code> に入っていない ②<code>e2-inputs.txt</code> が予測表の 26 入力のうち 18 しか含まず落とした理由が残っていない ③D2 は既定で飛ばす設計だが、飛ばすと何が確定しないかが <code>d2.txt</code> に書かれていない。<b>「この項目を飛ばすと何が確定しないか」を項目ごとに書く</b>候補。引き取り先: 0010（<b>スキルの書き方の改善</b>）。</li>
   </ol>
 </section>
 
@@ -1877,6 +2276,11 @@ EOF</code></pre>
       <tr><td>（0008）<code>git branch</code> が <code>read</code> 分類なのは 0007 が既に指摘していたので、同種の穴は 1〜2 件だろうと見込んでいた</td><td><b>5 件あり、うち 1 件（<code>git -c diff.external=&lt;コマンド&gt; diff</code>）は任意コマンドの実行まで開いていた。</b>白名簿がサブコマンド名だけを見る設計から機械的に導かれる</td><td><a href="#f40">f40</a> に表としてまとめ、公式ドキュメントの逐語を根拠に添えた。X5 は<b>実行していない</b>ことを明記し、扱いの判断を ◆ に上げた</td></tr>
       <tr><td>（0008）塞ぎ方の案は「既存分類への追加」と「新分類の導入」の 2 案で足りると見込んでいた</td><td>観点 C の隔離検査（<code>git -C</code> と引用符なしヒアドキュメントを拒否し無効化できない）と観点 D の合流（DDR <code>i0004-07</code> に触れる）が条件として加わり、<b>2 案では条件を満たす組み合わせを比較できなかった</b></td><td>5 案に広げ、計画書の 2 案を案 A・案 B としてそのまま残した。組み合わせ表（<a href="#f43">f43</a>）で「何のために何が要るか」を分けた</td></tr>
       <tr><td>（0008）既存テストを走らせて分類を確かめられると見込んでいた（<code>allow.ops</code> に <code>build-test</code> があると思っていた）</td><td>本チケットの <code>allow.ops</code> は <code>read</code> / <code>remote-read</code> のみで、<code>test_scope.sh</code> は <code>hook-test</code> 分類。<b>分類の結論はすべて静的読解になった</b></td><td>「確かめられなかったこと」に上げ、実測手順 E1・E2 に落とした。E2 は分類を印字するだけで git を実行しない形にした</td></tr>
+      <tr><td>（0009）実測は 0004〜0008 の読み取りの結論を何件か覆すだろうと見込んでいた（観点 F の問いが「食い違った項目はどれか」という形をしている）</td><td><b>覆った結論は 1 件だけ</b>（<a href="#f29">f29</a> の (8)）で、しかも測定が汚染されていて確定していない。<b>不一致 8 件のうち 6 件は前提のずれ</b>で、機構の読みが誤っていた例は <b>0 件</b>だった</td><td>観点は書き換えず、<a href="#f47">f47</a> で不一致を型に分けたうえで、重心を「読みは当たっていた」ではなく <b><a href="#f48">f48</a>（実測の設計が壊れていた）</b> に置いた</td></tr>
+      <tr><td>（0009）実測の値打ちは「読み取りの結論を検証すること」にあると見込んでいた</td><td><b>最も大きな収穫は予測外の 2 件</b>（<code>LOGGER_NAME</code> の漏れ・<code>session-start</code> の誤導出）だった。どちらも「予測して確かめる」形では出てこず、<b>出力を端から読んで予測に無い行に気づく</b>ことでしか見つからない</td><td><a href="#f49">f49</a> を独立の節にし、<a href="#f51">f51</a> の A1 の一覧に 2 件とも入れた。実測手順の型の改善を設計への反映に上げた</td></tr>
+      <tr><td>（0009）判定は「一致 / 不一致 / 未取得」の 3 値で足りると見込んでいた（チケットの DoD がその 3 値を指定していた）</td><td><b>「実測は取れたが前提が崩れて真偽を分けられない」ものが 6 件あり、3 値では表せなかった。</b>「不一致」に入れると <a href="#f6">f6</a> の D1 が根拠なく覆り、「一致」に入れると確かめていないものを確かめたことにしてしまう</td><td><b>判定不能</b>を足して 4 値にした。DoD の文言との差は ・ に上げて承認を仰いだ</td></tr>
+      <tr><td>（0009）<code>workflow-guard</code> の識別力が失われたのは実測の実行順の問題だろうと見込んでいた</td><td><b>手順そのものの欠陥だった。</b><a href="#f8">f8</a> の P2 は <code>W2</code> を「<code>HEAD</code> 基点なら 0004 が作業中のはず」という<b>その時点のリポジトリの状態</b>に乗せており、手順の中で作業中チケットを作っていない。0008 完了後に実行すれば必ず崩れる</td><td><a href="#f48">f48</a> に再実行手順を書き、スキルの書き方の改善として設計への反映に上げた</td></tr>
+      <tr><td>（0009）AI 側は <code>cd</code> の拒否をもう踏まないだろうと見込んでいた（0008 までで 22 回踏んでおり絶対パスで書く癖がついていた）</td><td><b>チケット着手の直後に 1 回踏んだ。</b>着手前は同じ形が通っていたためで、<code>workflow-guard.sh:48-50</code> が作業中 0 枚で抜けること（<a href="#f48">f48</a> で扱っている現象そのもの）を AI 自身の作業で踏んだ形になる</td><td>「実施条件（0009）」に記録した。<b>「チケットに着手した瞬間に通っていたコマンドが通らなくなる」ことは機構の説明として書かれていない</b>ので、設計への反映には上げずスコープ外の観察として作業ログに残した</td></tr>
     </tbody>
   </table>
   </div>
@@ -1915,6 +2319,16 @@ EOF</code></pre>
     <li><b>R28</b>（0008）<b>案 D（提供コマンド <code>worktree.sh</code>）が <code>__wg_check_provided_args</code> を通るか。</b>作業ツリーはリポジトリの外に作るので引数のパスが <code>__wg_rel</code>（<code>workflow-guard.sh:83-85</code>）で WF209 に倒れる見込みで、そうなると案 D は成立しない。引き取り先: 0010 / AI アセット実装計画。</li>
     <li><b>R29</b>（0008）<b>案 B で新しい <code>ops</code> の値を足したとき <code>hook_read_input</code> の jq が未知キーとして WF210 に倒さないか。</b>jq プログラム（<code>__HC_JQ_INPUT</code>）の本文を読めていない（読もうとしたコマンドが <a href="#f38">f38</a> の X2 で拒否された）。引き取り先: 0010。</li>
     <li><b>R30</b>（0008）<b><code>decisions.jsonl</code> の <code>target</code> が 80 文字で切られる</b>（<code>workflow-guard.sh:100</code>）ため、誤分類 9 件のうち 6 件の原文を復元できなかった。分類を直した後も同じ調査が要る見込みなので、記録の粒度を見直すかを決める。引き取り先: 0010 / 保留 P2。</li>
+    <li><b>R31</b>（0009）<b>実測 P2・P5・B3 の再実行（判定不能 6 件を閉じる）。</b>実行時点でどのツリーにも作業中チケットが 0 枚で、両フックが入口で <code>exit 0</code> し負のコントロールまで無音になった（<a href="#f48">f48</a>）。<b>コマンド列は f48 に記載</b>。要点は「W2 を作ったあと W2 の中で <code>ticket.sh start 0010</code> を打って作業中 1 枚を作ってからやり直す」こと。あわせて E3（未取得）と D3 の清浄な再実行（<code>git apply --3way</code> を使わず 2 つの worktree で別々の追記を行ってから <code>git merge</code> する）も同じ回で行える。<b>本流の <code>wip/</code> と <code>logs/</code> には触れない。</b>これが閉じると A1-6 について「実測で確かめられ」が満たされ、<a href="#f29">f29</a> の (8) が確定する。引き取り先: 人間 / 0010。</li>
+    <li><b>R32</b>（0009）<b>実測 B2 の実行。</b>Claude のセッションから <code>echo "CLAUDE_PROJECT_DIR=[${CLAUDE_PROJECT_DIR:-未設定}]"</code> を 1 回実行し <code>B2-projectdir.txt</code> に貼る。あわせてフック直後の <code>decisions.jsonl</code> の末尾 1 行も貼る。<b>Bash ツールでも設定されていれば <code>__ss_load</code> の条件②が実運用の経路になる</b>。引き取り先: 人間 / 0010。</li>
+    <li><b>R33</b>（0009）<b>実測 E2 の入力 8 件の追加実行。</b><code>e2-inputs.txt</code> に <code>git version</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output=</code> / <code>merge origin/feature-49-x</code> / <code>while read</code> / <code>sed -n "$(…)"</code> / <code>sleep 1</code> の 8 行を足して <code>bash wip/tmp/worktree-probe/e2.sh &lt; …</code> を再実行する。<b><a href="#f40">f40</a> の X4・X6・X7 と <a href="#f38">f38</a> の X2 と <a href="#f41">f41</a> の <code>origin/&lt;非既定&gt;</code> がこれで初めて実測される。</b>あわせて D2（<code>PROBE_D2=1</code>）を実行するかを決める（<b>本流に空コミットを 1 本残す</b>）。引き取り先: 人間 / 0010。</li>
+    <li><b>R34</b>（0009）<b>実測 C1・C2 の実行。</b>手順は <a href="#f24">f24</a> のまま使える。<b><code>.claude/</code> への書き込みが要るので調査チケットの <code>allow.write</code> の外</b>で AI は実行できない。これが閉じないと <b>A1-7 の後半が未確定</b>のままで、<a href="#f52">f52</a> の束 1 の 5 番の要否も決まらない。引き取り先: 人間 / 0010。</li>
+    <li><b>R35</b>（0009）<b>実測 C4 の実行（<code>worktree.baseRef: "head"</code>）。</b><b>分岐元を feature ブランチにできなければ、並列に <code>isolation: worktree</code> を使う道は成立しない</b>（束 1 の 5 番が「直せない」になり保留 P1 がその時点で片付く）。引き取り先: 人間 / 0010。</li>
+    <li><b>R36</b>（0009）<b>実測 C3・C5 の実行。</b><b>(1) <code>bash .claude/skills/…/ticket.sh next</code> が隔離下で通らなければ A1（<code>isolation: worktree</code>）は成立しない</b>。<b>この状態で <code>push.sh</code> を実行してはいけない</b>（項目 1 が落ちて本流の進行が止まる）。引き取り先: 人間 / 0010。</li>
+    <li><b>R37</b>（0009）<b>実測 D4 の実行。</b>C1 に依存する。<b>ref が消えるなら未合流の成果が失われ、合流手段は J4 だけになる</b>ので <a href="#f33">f33</a> の J1〜J3 が全部落ちる。<b>合流手順（受け入れ条件 A6）の前提</b>。引き取り先: 人間 / 0010。</li>
+    <li><b>R38</b>（0009）<b>実測手順の書き方そのものの改善。</b>①負のコントロールが成立する前提を手順の中で作る ②数える対象を作る手順が数える対象そのものを混入させていないかを確認する ③その項目を飛ばすと何が確定しないかを項目ごとに書く。<b>本フェーズの実測はこの 3 つを守っていなかったために 28 項目のうち 6 項目が判定不能・1 項目が汚染・8 入力が黙って落ちた</b>。引き取り先: 0010（AI アセット設計）。</li>
+    <li><b>R39</b>（0009）<b><code>LOGGER_NAME</code> の漏れと <code>session-start</code> の誤導出を、issue #50 の A1 で直すか保留 P2 の別 issue へ回すか。</b>N3 は worktree に固有なので A1 に残るのが自然だが、N1 は本流でも起きており無関係である。<b><a href="#f52">f52</a> の束 1 / 束 2 で材料は作ったが振り分けは決めていない</b>。引き取り先: 0010 / 人間の判断。</li>
+    <li><b>R40</b>（0009）<b>保留 P1 を、利得側の材料が無いまま決めるかどうか。</b>実測を経てもコスト側の片側しか数値を持っていない（<a href="#f53">f53</a>）。<b>0010 は (a) 利得を測ってから決める / (b) 非対称を明示して決める / (c) 並列は採らず A1 だけ直す のどれを選ぶかを先に決める必要がある。(c) を選んでも束 2 の 1〜3 は残る</b>ので issue #50 の作業量はそれほど減らない。引き取り先: 0010 / 人間の判断。</li>
   </ul>
 </section>
 

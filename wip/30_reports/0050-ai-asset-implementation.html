@@ -381,7 +381,7 @@ run-tests.sh --filter '*test_finalize*'
     <tbody>
       <tr><td><code>grep -rn '承認が欲しい' .claude/skills/*/assets/</code></td><td>0 行</td></tr>
       <tr><td><code>run-tests.sh --filter '*test_check_html*'</code>（<code>RV-T01</code>〜<code>RV-T08</code> の回帰）</td><td><code>OK: 1 本 / 8 件</code>（<code>passed=58 failures=0</code>）</td></tr>
-      <tr><td>このレポートの HTML が <code>check-html.sh</code> を通る</td><td>通過（S2 の追記後に再実行）</td></tr>
+      <tr><td>このレポートの HTML が <code>check-html.sh</code> を通る</td><td>節を追記するたびに再実行して通過。最終の値は各チケットの作業ログにあり、最新は 0056 の作業ログ</td></tr>
       <tr><td>テンプレートにプレースホルダの書き残しが無い</td><td>テンプレートは二重波括弧のプレースホルダを持つのが正なので対象外。書き終わりの検査は使う側（レポート・計画書）で行う</td></tr>
       <tr><td><code>boundary.sh status</code>（書き換えた直後のロックアウト確認）</td><td>JSON を返す（終了 0）。<code>bogus</code> は <code>BD006</code> で終了 2</td></tr>
       <tr><td><code>run-tests.sh --filter '*test_boundary*'</code>（<code>BD-T19</code> を含む全 ID）</td><td><code>OK: 1 本 / 19 件</code>（<code>passed=112 failures=0</code>）</td></tr>
@@ -409,6 +409,7 @@ run-tests.sh --filter '*test_finalize*'
     <li><code>10-task-overall-summary/SKILL.md</code> の「FN001〜FN003」を <code>FN004</code> まで含む表記に直す → S3（0052）で反映済み</li>
     <li><code>20-common-step-report-view</code> 仕様の IN / OUT サンプルと概要が、処理フロー 2 が禁じた <code>cp</code> とテンプレートの「コピー」のままで、仕様の中で矛盾している → 別 issue（<code>.claude/docs/</code> は実装フェーズの許可範囲外）</li>
     <li><code>.claude/hooks/10-UserPromptSubmit/workflow-entry.sh</code> のログ文言が <code>merge-prep</code> で、進行状態の値 <code>merge_prep</code> と表記が揃っていない → 別 issue（<code>.claude/hooks/</code> は許可範囲外）</li>
+    <li><code>00-workflow-issue-mr-driven</code> 仕様の <code>BD006</code> の行が「足りない環境（<code>jq</code> / <code>git</code> / CLI）」と CLI を含むが、実装は CLI の不在を <code>BD004</code>・終了 1 で返す。同じ表の <code>BD004</code> の行とも矛盾している → 別 issue（敵対的レビューの指摘 5）</li>
   </ol>
 </section>
 
@@ -421,6 +422,7 @@ run-tests.sh --filter '*test_finalize*'
       <tr><td>0050 の DoD の「<code>grep -rn '承認が欲しい' .claude/skills/</code> が 0 件」はこのステップで達成できる</td><td>SKILL.md にも 1 件あり、そのファイルは S4 の許可範囲</td><td>DoD をこのステップの担当（<code>assets/</code>）に絞り、<code>.claude/skills/</code> 全体での 0 件は S5（0054）の DoD が確かめる形にした</td></tr>
       <tr><td>S4 で直すのは仕様が新しく足した規約だけ</td><td><code>20-common-step-ai-asset-creator/SKILL.md</code> の eval 定義の手順が <code>cp</code> でテンプレートを複製する形のままだった</td><td>同じ許可範囲のファイルで、S4 が写した「テンプレートは Read + Write」と同じ誤りなので、その場で直した</td></tr>
       <tr><td>参照更新 #4 は <code>RV003</code> の案内文が 1 件残る</td><td>0 件だった（<code>RV003</code> の文言は「章をコピーしたら」で検索語に当たらない）</td><td>検索語が対象を絞りすぎていたので、0 件でも「何もヒットしない」状態と区別できるよう <code>.claude/docs/</code> 側のヒット数を併記した</td></tr>
+      <tr><td>敵対的レビューの指摘は指摘された場所を直せば済む</td><td>指摘 1（チケット 0052 の DoD の根拠欄の「18 項目」）は完了済みチケットの本文で、機構が WF303 で編集を拒否した</td><td>迂回せず、<b>正しい数は 24 項目</b>であることをここに訂正として残した。同じチケットの備考とレポート e5 は最初から 24 で、誤っているのは 0052 の DoD 8 の根拠欄の 1 か所だけ</td></tr>
     </tbody>
   </table>
   </div>

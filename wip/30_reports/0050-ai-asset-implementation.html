@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0050- AI アセット実装・テスト結果 — 仕様に本体を追随させる</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 6</span>
+    <span class="chip good">◎良 7</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -149,6 +149,7 @@
           <li><a href="#f4"><span class="mk good">◎</span> 4. BD-T19 / FN-T18 を足した</a></li>
           <li><a href="#f5"><span class="mk good">◎</span> 5. SKILL.md 8 本を追随させた</a></li>
           <li><a href="#f6"><span class="mk good">◎</span> 6. 共通ステップ 6 本 + ルールを追随させた</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. 参照更新の消し込みと全件テスト</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -171,9 +172,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。<b>0051 まで（S2: 中核）</b>: 提供コマンド 2 本の引数・環境の誤りを <code>BD006</code> / <code>FN004</code> に分け、テスト <code>BD-T19</code> / <code>FN-T18</code> を足した。<b>0052 まで（S3: スキル）</b>: ワークフロー・タスクスキル 8 本の SKILL.md に、仕様が足した手順・規約の要約 24 項目を写した。<b>0053 まで（S4: 共通ステップ）</b>: 作法系の共通ステップスキル 6 本とルール 1 本を追随させ、<code>.claude/skills/</code> 全体で「承認が欲しい」が 0 件になった。</p>
+  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。<b>0051 まで（S2: 中核）</b>: 提供コマンド 2 本の引数・環境の誤りを <code>BD006</code> / <code>FN004</code> に分け、テスト <code>BD-T19</code> / <code>FN-T18</code> を足した。<b>0052 まで（S3: スキル）</b>: ワークフロー・タスクスキル 8 本の SKILL.md に、仕様が足した手順・規約の要約 24 項目を写した。<b>0053 まで（S4: 共通ステップ）</b>: 作法系の共通ステップスキル 6 本とルール 1 本を追随させ、<code>.claude/skills/</code> 全体で「承認が欲しい」が 0 件になった。<b>0054 まで（S5: 参照更新と全件テスト）</b>: 参照更新一覧 7 行を消し込み、旧名とプレースホルダを洗い出し、全件テストで回帰を確かめた。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>6</b><span>◎良</span></li>
+    <li class="kpi good"><b>7</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -201,6 +202,7 @@
         <li><a href="#f4">引数・環境の誤りのテスト</a>は原因ごとに ID を分けず、1 つの ID に 3 原因を並べた</li>
         <li><a href="#f5">SKILL.md には要約だけを書き</a>、正は仕様書という関係を崩していない</li>
         <li><a href="#f6">共通ステップ 6 本 + ルール 1 本</a>も同じ写し方で、新しい規約はここで作っていない</li>
+        <li><a href="#f7">プレースホルダ 12 行</a>は「DoD の型」のひな形と記法の説明で、書き残しは 0 件</li>
       </ul>
     </div>
   </div>
@@ -339,6 +341,35 @@ run-tests.sh --filter '*test_finalize*'
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">参照更新の 7 行を消し込み、全件テストで回帰を確かめた <span class="chip good">◎良</span> <span class="basis">根拠: 実装計画書の参照更新一覧と run-tests.sh の結果行</span></h3>
+      <p>計画書の参照更新一覧 7 行を、検索語・実際の出力・期待値の形で 1 行ずつ確かめた。対象は S1〜S4 が触った範囲（<code>.claude/skills/</code> と <code>.claude/rules/</code>）で、7 行すべてが期待どおりになった。</p>
+      <p>期待値を「残るもの」で書いた 3 行のうち、<b>#4 は想定と違って 0 件だった</b>。<code>RV003</code> の案内文が残る想定だったが、その文言は「章をコピーしたら」であって検索語「テンプレートのコピー」に当たらない。検索語の側が対象を絞りすぎていたので、0 件でも「検索語が間違って何もヒットしない」状態と区別が付くよう、<code>.claude/docs/</code> 側のヒット数（12 行）を併せて記録した。</p>
+      <p>旧名の検索は <code>10-work-</code> / <code>20-task-</code> / <code>work-boundary</code> が 0 件。<code>merge-prep</code> だけ 1 件当たるが、フックのログ文言で、旧スクリプト名ではなく進行状態の値 <code>merge_prep</code> を指すラベルなので置換対象ではない。プレースホルダの検索は 12 行当たるが、「DoD の型」のひな形 7 行と記法の説明 5 行で、<b>書き残しは 0 件</b>である。</p>
+      <details>
+        <summary>根拠を見る（全件テストの結果行）</summary>
+        <pre><code>run-tests.sh --timeout 300 --ids
+=&gt; OK: 27 本 / 214 件
+   アサーション 2,359 件 / FAIL ID: なし / 重複 ID: なし
+   PASS ID に BD-T19 と FN-T18 を含む</code></pre>
+      </details>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>受け入れ条件 A1 の対象</th><th>本数</th><th>仕様との 1:1</th><th>eval 定義</th></tr></thead>
+        <tbody>
+          <tr><td>ワークフロースキル</td><td>2</td><td>S3 で <code>00-workflow-issue-mr-driven</code> を追随。<code>00-workflow-quick-request</code> は 0043 で追随済み</td><td>2 件</td></tr>
+          <tr><td>タスクスキル</td><td>15</td><td>S3 で 7 本を追随。残る 8 本は今回の設計フェーズが仕様を変えていないので対象外</td><td>15 件</td></tr>
+          <tr><td>エージェント</td><td>2</td><td><code>adversarial-reviewer</code> / <code>task-executor</code> は S3 より前のチケットで定義済み</td><td>2 件</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>eval はすべて「未実行」のまま定義だけを持つ（実行は人間の判断）。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -361,6 +392,10 @@ run-tests.sh --filter '*test_finalize*'
       <tr><td><code>grep -rn '承認が欲しい' .claude/skills/</code>（S4 の締め）</td><td>0 行</td></tr>
       <tr><td>共通ステップ 6 本 + ルール 1 本のプレースホルダ</td><td>書き残しは 0 件。4 か所に残る二重波括弧は、プレースホルダの記法そのものを説明する地の文</td></tr>
       <tr><td>共通ステップ 6 本 + ルール 1 本の frontmatter</td><td>7 本とも <code>---</code> で始まる（<code>20-common-step-report-view</code> は <code>description</code> の本文だけ手順に合わせて直した）</td></tr>
+      <tr><td>参照更新一覧 7 行の消し込み</td><td>7 行すべて期待どおり（検索語と出力はチケット 0054 の作業ログの表）</td></tr>
+      <tr><td>旧名の検索（<code>10-work-</code> / <code>20-task-</code> / <code>work-boundary</code>。DDR 除く）</td><td><code>.claude/</code> と <code>CLAUDE.md</code> で 0 件</td></tr>
+      <tr><td>プレースホルダの検索（<code>.claude/skills/*/SKILL.md</code> と <code>.claude/rules/</code>）</td><td>12 行。内訳は「DoD の型」のひな形 7 行 / 記法の説明 5 行。書き残しは 0 件</td></tr>
+      <tr><td>全件テスト <code>run-tests.sh --timeout 300 --ids</code></td><td><code>OK: 27 本 / 214 件</code>。アサーション 2,359 件・FAIL 0・重複 ID なし。<code>BD-T19</code> と <code>FN-T18</code> を含む</td></tr>
     </tbody>
   </table>
   </div>
@@ -372,6 +407,8 @@ run-tests.sh --filter '*test_finalize*'
     <li><code>20-common-step-report-view/SKILL.md</code> の視覚語彙の 1 行を「判断が欲しい」に追随させる → S4（0053）で反映済み</li>
     <li><code>00-workflow-issue-mr-driven/SKILL.md</code> の「BD001〜BD005」を <code>BD006</code> まで含む表記に直す → S3（0052）で反映済み</li>
     <li><code>10-task-overall-summary/SKILL.md</code> の「FN001〜FN003」を <code>FN004</code> まで含む表記に直す → S3（0052）で反映済み</li>
+    <li><code>20-common-step-report-view</code> 仕様の IN / OUT サンプルと概要が、処理フロー 2 が禁じた <code>cp</code> とテンプレートの「コピー」のままで、仕様の中で矛盾している → 別 issue（<code>.claude/docs/</code> は実装フェーズの許可範囲外）</li>
+    <li><code>.claude/hooks/10-UserPromptSubmit/workflow-entry.sh</code> のログ文言が <code>merge-prep</code> で、進行状態の値 <code>merge_prep</code> と表記が揃っていない → 別 issue（<code>.claude/hooks/</code> は許可範囲外）</li>
   </ol>
 </section>
 
@@ -383,6 +420,7 @@ run-tests.sh --filter '*test_finalize*'
     <tbody>
       <tr><td>0050 の DoD の「<code>grep -rn '承認が欲しい' .claude/skills/</code> が 0 件」はこのステップで達成できる</td><td>SKILL.md にも 1 件あり、そのファイルは S4 の許可範囲</td><td>DoD をこのステップの担当（<code>assets/</code>）に絞り、<code>.claude/skills/</code> 全体での 0 件は S5（0054）の DoD が確かめる形にした</td></tr>
       <tr><td>S4 で直すのは仕様が新しく足した規約だけ</td><td><code>20-common-step-ai-asset-creator/SKILL.md</code> の eval 定義の手順が <code>cp</code> でテンプレートを複製する形のままだった</td><td>同じ許可範囲のファイルで、S4 が写した「テンプレートは Read + Write」と同じ誤りなので、その場で直した</td></tr>
+      <tr><td>参照更新 #4 は <code>RV003</code> の案内文が 1 件残る</td><td>0 件だった（<code>RV003</code> の文言は「章をコピーしたら」で検索語に当たらない）</td><td>検索語が対象を絞りすぎていたので、0 件でも「何もヒットしない」状態と区別できるよう <code>.claude/docs/</code> 側のヒット数を併記した</td></tr>
     </tbody>
   </table>
   </div>

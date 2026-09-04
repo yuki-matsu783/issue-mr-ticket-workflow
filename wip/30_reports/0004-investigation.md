@@ -1,12 +1,12 @@
 ---
 type: report
-title: 0004 調査結果 — worktree 上でのフックの作業ツリー解決と、WIP・宣言範囲・差分判定の健全性
-description: issue #50 の調査フェーズの結果。観点 A について、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定し、既存テスト HK-T18 が検証済みの範囲と実測でしか確かめられない残余を分け、人間が実行するための実測手順（コマンド列 + 予測）を残した。
+title: 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと logs/ 状態ファイル）
+description: issue #50 の調査フェーズの結果。観点 A では、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定した。観点 B では、提供コマンド 5 本の状態ファイル依存 17 行を「無いときの振る舞い」つきで表にし、__ss_load が cwd ではなくスクリプトの置き場で LOGGER_ROOT を決めることと、そのずれる 3 条件を特定し、本 issue の実施中に実際に踏んだ 3 件の根本原因を行番号で押さえた。人間が実行するための実測手順（コマンド列 + 予測）を観点ごとに残した。
 tags: [report, investigation, issue-50]
-keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 実測手順]
+keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 提供コマンド, merge-state, mr.json, 実測手順]
 ---
 
-# 0004 調査結果 — worktree 上でのフックの作業ツリー解決と、WIP・宣言範囲・差分判定の健全性
+# 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと `logs/` 状態ファイル）
 
 - 対象 issue: [#50](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50)
 - MR: [#51](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51)（draft）
@@ -28,10 +28,25 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, 作業ツリー解決, 静かな�
 - 既存テストは `test_hook_common.sh` の `case_worktree`（`HK-T18` を借用）1 か所だけで、**`__hc_resolve_worktree` と `__hc_winpath` の単体は厚く固定されているが、実際の `git worktree add` が作る作業ツリーも、6 本のフックの端から端までの挙動も、1 件も固定されていない**（e7）
 - ◎良 3 件 / △注意 4 件（e2・e4・e6・e7）/ ✕問題 1 件（節は e5 の 1 件）
 
+0005 まで（観点 A・B）。ここから下の段落・箇条書きが 0005（観点 B）で足した分で、上の 0004 の記述は書き換えていない。**表題だけは観点 A 専用から観点 A・B を含む形に広げた**（0004 時点の表題は「0004 調査結果 — worktree 上でのフックの作業ツリー解決と、WIP・宣言範囲・差分判定の健全性」。以後の言及はこれと読み替える）。
+
+観点 B の問い「提供コマンド 5 本と `logs/` 配下の状態ファイルは worktree ごとに分かれるか」への答えは **「分かれる。ただし『何を基準に分かれるか』がフックと提供コマンドで違い、提供コマンドは `cwd` ではなく起動したスクリプトの置き場で作業ツリーを決める」**。フックは `HOOK_ROOT`（スクリプトの置き場）と `HOOK_WORKTREE`（`cwd` から解決した作業ツリー）を分けて持つが、提供コマンドが持つ根は `LOGGER_ROOT` 1 本だけで、`__ss_load` が `BASH_SOURCE[1]` から上向きに決め（`ticket.sh:16` ほか 5 本に同じ 1 行）、本体は最初に `cd "$LOGGER_ROOT"` して以後すべて相対パスで触る（`ticket.sh:342` / `commit.sh:96` / `push.sh:65` / `boundary.sh:664` / `finalize.sh:538`）。
+
+- 5 本のうち `logs/` の進行状態を読む・書くのは **`boundary.sh`（5 種）・`finalize.sh`（3 種）・`push.sh`（1 種）の 3 本**で、`ticket.sh` と `commit.sh` は logger が書く `logs/sh/<名前>.log` 以外に `logs/` へ**一切依存しない**（`grep -c 'logs/'` が 0 件）。全 17 行の表が e9-1（e9）
+- `LOGGER_ROOT` が worktree とずれるのは **3 条件**。①本流の絶対パスで起動して `cwd` が worktree（およびその逆）、②worktree 側の `.claude` に共通ライブラリが無く `CLAUDE_PROJECT_DIR` に落ちる、③`.claude` を持つ別ディレクトリを起点にする。フックが持つ相互参照の検査（`__hc_is_worktree_of`）に当たるものは `__ss_load` に**無い**（e10）
+- **フックの実体は常に「セッションの `CLAUDE_PROJECT_DIR`」の側**（`settings.json` が `bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/…"` と絶対パスで起動する）、**提供コマンドの実体はスキルが指示する相対起動なら worktree の側**。`.claude/` を変えるブランチを worktree で開発すると、機構が自分自身の 2 つのバージョンを混ぜて動く（e11）
+- **`logs/` が無い worktree で壊れるコマンドは 1 本も無い**。logger が `mkdir -p <root>/logs/sh` で作り（`logger.sh:16-18`）、`boundary.sh` は `ensure_logs`（`:176`）で作り、進行状態はどれも「無ければ既定値か再導出」の経路を持つ。最初に実害が出るのは `finalize.sh release` の段階 1（`logs/mr.json` と `logs/review-state.json` が両方無いと FN001 で停止）で、`--pr` と `boundary.sh skip --final` で回避できる（e12）
+- 壊れるのは「無い」ほうではなく **「残る」ほう**。本 issue の実施中に実際に踏んだ 3 件（`push.sh` 項目 4 が前 issue の `merge-state` で永久に落ちる / `resolve_mr` が古い MR を掴む / `mr.json` の `issue` が常に null）はいずれも、`logs/` の**置き場の粒度が作業ツリー**なのに**中身の意味の粒度がブランチ・MR・issue** であることの帰結で、**worktree を使うとむしろ減る**（e13・e14）
+- 提供コマンドには**排他制御が 1 つも無い**（5 本に `lock` の語が 0 件。`hc_lock` はフック専用）。同じ作業ツリーでの並列は `.git/index.lock` と採番で衝突し、worktree に分ければ index は分かれるが `logs/` は別々になる（e15）
+- 件数（**タスク全体の合計。ここが唯一の合計で、他の節はここを指す**）: **◎良 6 件 / △注意 8 件 / ✕問題 2 件 = 16 件**（内訳: 0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件）
+
 ### ◆特に見てほしい（判断に困っている）
 
 - e5 の位置づけ。「作業ツリーをまたぐ絶対パス指定で進行状態ファイル保護がすり抜ける」ことは、フック共通仕様 §13「意図的な緩和」が約束している「機構が守るのは進行状態・コミット / push・`chmod`（常時フック）まで」に反する。**issue #50 の受け入れ条件 A1 の「動かない箇所」として扱うか、全体計画書の保留 P2（機構の不具合として別 issue）へ回すか**を決めきれていない。並列実施を採らなくても worktree を使えば踏むので前者に寄せたが、判断は 0009 と 0010 に委ねる
 - e2 の `session-start.sh:74`（`boundary.sh` のパスを `HOOK_WORKTREE` から取る）。仕様 §2 の「スクリプトの置き場は常に `HOOK_ROOT`」に反するが、`boundary.sh` は自分の `BASH_SOURCE` からルートを決めるので、本流の実体を呼ぶと本流の `wip/` を読んでしまい、かえって間違った現在地が出る。**「原則が例外を必要としている」のか「原則の書き方が粗い」のか**を設計フェーズで決めてほしい
+
+- （0005）e13 の 3 件の位置づけ。`push.sh` 項目 4・`resolve_mr`・`write_mr_json` の 3 件は、全体計画書の保留 P2 に「`logs/` の進行状態が issue をまたいで残る」「`mr.json` の `issue` が誰にも書かれない」として既に挙がっている。一方で 3 件とも**受け入れ条件 A1 の「動かない箇所」でもある**（worktree を使えば緩和されるという意味で、本 issue の判断材料そのもの）。**P2 として別 issue に切り出すのか、A1 の一覧に載せて本 issue の設計フェーズで直すのか**を決めきれていない。0004 の e5 と同じ判断で、まとめて 0009 / 0010 に委ねる
+- （0005）e11 の「フックは本流の実体、提供コマンドは worktree の実体」を**正とするか**。正とするなら「機構が自分自身の 2 バージョンで動く」ことを仕様に明記して、`.claude/` を変えるブランチを worktree で開発するときの手順（本流へ戻ってから機構を使う等）を決める必要がある。正としないなら提供コマンドも `CLAUDE_PROJECT_DIR` 起動に寄せることになるが、そうすると worktree で作業しても本流の `wip/` を触ってしまい、worktree の意味が消える。**どちらも一長一短で、調査の範囲では決めない**
 
 ### ◇判断が欲しい（決めた方針の承認 / 決められない点の判断）
 
@@ -39,11 +54,20 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, 作業ツリー解決, 静かな�
 - 実測手順は **「Claude を worktree に入れる」実測と「`cwd` を worktree にしたフックの単体実行」の 2 段に分け、後者を主にした**（e8）。前者は `git worktree add` も `cd` も機構が WF204 で拒否するため AI からは組み立てられず、人間の手数も多い。後者は同じ判定経路を stdin から直接叩けて、識別子（W1 = チケット 0 枚の作業ツリー）を置けば「worktree 側で判定したか」を一意に切り分けられる
 - 実測の識別子として **`main` を基点にした作業ツリー W1（`wip/10_tickets/10_doing/` が `.gitkeep` だけ = チケット 0 枚）** を使う設計にした。本流と同じ内容の作業ツリーでは「worktree 側を見た」と「本流を見た」が同じ出力になり区別できないため
 
+- （0005）「無いときの振る舞い」を **既定値 / 再導出 / 停止 / 依存なし** の 4 値に固定して分類した（e9-1）。「既定値」は無いことを正常として続けるもの、「再導出」は無いことを検知して別の情報源から作り直すもの、「停止」は未充足として止まるもの。この線引きで 17 行を割った
+- （0005）`LOGGER_ROOT` のずれは **`__ss_load` の 1 行を読んだ静的解析**であって実測ではない。`CLAUDE_PROJECT_DIR` は本セッションの Bash ツールの環境では**未設定**（`echo "${CLAUDE_PROJECT_DIR:-未設定}"` で確認）なので条件②は実運用では起きにくいと判断したが、フックは `settings.json` がこの変数で起動するので**フック経由では必ず設定されている**。経路によって結論が変わる
+- （0005）実測手順（e16）は **本流だけでできる 2 件（B1・B2）と worktree が要る 4 件（B3〜B6）** に分けた。B1・B2 は 0004 の実測手順 P0（worktree の作成）より前に単独で実行できるので、worktree を作れない環境でも先に片付く
+
 ### ・細かいレビューは不要（ほぼ確実）
 
 - 参照の総数 81 行・90 箇所（`grep -rn ... | wc -l` と `grep -rno ... | wc -l`）は機械的に数えた値である
 - `logs/` が `.gitignore` されていること（`.gitignore` の `logs/` 行、`git ls-files logs/` が 0 件）と、`wip/` が追跡されていること（`git ls-files wip/` が 19 件）
 - `hc_lock` / `hc_unlock` / `__hc_unlock_all` のロックの置き場が `"$HOOK_WORKTREE/logs/locks/<name>.lock"` であること（`hook-common.sh:604` / `624` / `634`）
+
+- （0005）5 本の `grep -c 'logs/' <スクリプト>` の件数（`ticket.sh` 0 / `commit.sh` 0 / `push.sh` 1 / `boundary.sh` 7 / `finalize.sh` 6。コメント行を含む）は機械的に数えた値である
+- （0005）5 本すべてが本体の先頭で `cd "$LOGGER_ROOT"` すること（`ticket.sh:342` / `commit.sh:96` / `push.sh:65` / `boundary.sh:664` / `finalize.sh:538`）。`check-html.sh:61` と `run-tests.sh:62` も同じ形
+- （0005）提供コマンド 5 本に `lock` の語が 1 件も無いこと（`grep -rn lock` が 0 件。`blocked` を除く）
+- （0005）現物の `logs/mr.json` の `.issue` が `null` であること（`cat logs/mr.json`）
 
 ## 確かめられなかったこと
 
@@ -55,12 +79,21 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, 作業ツリー解決, 静かな�
 | `git worktree add` が実際に書く `.git` ファイルと `.git/worktrees/<名前>/gitdir` の中身（絶対 / 相対、Windows でのパス表記） | `git worktree` は `scope.sh` の git 分類に無く、どの `allow.ops` を宣言しても WF204 で拒否される（全体計画書の差分 2）。実行は人間に回す | 0009（実測手順 P0） |
 | 6 本のフックを `cwd` = worktree で走らせたときの実際の出力 | 同上。作業ツリーを作れないため | 0009（実測手順 P1〜P7） |
 | `logs/` が無い worktree で提供コマンド 5 本（`ticket.sh` ほか）が何を読み、どう振る舞うか | 観点 B（0005）の担当範囲。本レポートはフック側の `logs/` 依存だけを見た | 0005 |
+| （0005）worktree で `bash .claude/skills/…/ticket.sh` を実際に走らせたときの `LOGGER_ROOT` の実値 | `git worktree add` も `cd` もどの `allow.ops` を宣言しても WF204 で拒否されるため、`__ss_load` を読んだ静的解析までしか進めない。本チケットでも `cd` を含むコマンドが 1 回拒否された | 0009（実測手順 B3） |
+| （0005）`CLAUDE_PROJECT_DIR` がフック以外の経路（Skill が起動した Bash、サブエージェントの Bash）で設定されるか | 本セッションの Bash ツールでは未設定だったが、他の起動経路を自分で切り替えられない。設定されると `__ss_load` の 2 段目が効き、`LOGGER_ROOT` がセッションの起点に倒れる | 0006（外部仕様）／0009（実測手順 B2） |
+| （0005）`logs/usage/<branch>.json` の集計が作業ツリーをまたいで分断されたときの実害の大きさ | 実際に 2 つのツリーで push しないと測れない。読み取りでは「別ファイルになる」ところまでしか言えない | 0009（実測手順 B6） |
+| （0005）前 issue の `logs/mr.json` を掴んだ `boundary.sh status`（`logs/sh/boundary.log` の 2026-09-04T22:09:45）の**出力そのもの** | `boundary.sh` は `status` の出力をログに残さない（`start subcommand=status` と結果行だけ）。当時の会話ログは本ブランチの `wip/` に無い | 実測不要（コードの経路で説明できる。e13-2） |
+| （0005）`logs/mr.json` の `.issue` が **いつから** null なのか（過去の issue でも null だったのか） | `logs/` は追跡外なので履歴が無く、現物の 1 世代しか読めない | 追えない（`write_mr_json` に書き手が無いことから、初回作成時は常に null と言える。e13-3） |
 
 ## 実施条件（測った対象・環境）
 
 - 対象コミット: `feature-50-worktree-parallel-tickets` の `65d908e`（チケット 0004 の基準点は `9721416`）
 - 実行したのは読み取りのコマンドだけ（`grep -rn` / `sed -n` / `git ls-files` / `git ls-tree` / `git rev-parse` / `git log -S`）。ファイルの作成は `wip/30_reports/` と `wip/tmp/` のみ
 - 参照の数え方: `grep -rn "HOOK_ROOT\|HOOK_WORKTREE" .claude/hooks/ | wc -l` = 81（行数）、`grep -rno ... | wc -l` = 90（箇所数。内訳 `HOOK_ROOT` 28 / `HOOK_WORKTREE` 62）、テストを除いた本体 = 71 行
+- （0005）対象コミット: `feature-50-worktree-parallel-tickets` の `f83cdfd`（チケット 0005 の基準点は `719c098`）
+- （0005）実行したのは読み取りのコマンドだけ（`grep -rn` / `sed -n` / `cat` / `ls` / `find` / `wc` / `jq`（ローカルの `logs/*.json` を読むだけ）／ `git ls-files` / `git log -S` / `echo` による環境変数の確認）。ファイルの作成は `wip/30_reports/` と `wip/tmp/` のみ
+- （0005）`cd` を含むコマンドが WF204 で 1 回拒否されたため、以後はすべて絶対パスと `git -C` で読んだ
+- （0005）`CLAUDE_PROJECT_DIR` は本セッションの Bash ツールでは**未設定**、`PWD` は MSYS 形式（`/c/Users/…`）だった。フック側の `HOOK_WORKTREE` は `__hc_winpath` で `C:/…` に正規化されるので、同じディレクトリでも 2 つの根は**文字列としては別表記**になる
 
 ## 実施した内容と結果
 
@@ -454,6 +487,292 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
 
 万一本流が壊れたら、チケット 0004 の基準点 `9721416` を基準に戻す（`git checkout 9721416 -- <path>`）。
 
+### e9. 提供コマンド 5 本 × 依存する状態ファイル × 無いときの振る舞い ◎良
+
+前提として、5 本はすべて**本体の先頭で `cd "$LOGGER_ROOT"` してから相対パスで状態ファイルを触る**。したがって「どの作業ツリーの `logs/` を触るか」は `LOGGER_ROOT` 1 本で決まり、`cwd` は `__ss_load` が相対パス起動を解決するときにしか効かない（e10）。フックのように「置き場（`HOOK_ROOT`）」と「作業ツリー（`HOOK_WORKTREE`）」を分けて持つ仕組みは、提供コマンドには**無い**。
+
+| コマンド | `cd "$LOGGER_ROOT"` の行 | `grep -c 'logs/'` の件数 |
+|---|---|---|
+| `ticket.sh` | `:342` | 0 |
+| `commit.sh` | `:96` | 0 |
+| `push.sh` | `:65` | 1（`:19`） |
+| `boundary.sh` | `:664` | 7（`:28`〜`:31`・`:138`（注釈）・`:399`・`:400`） |
+| `finalize.sh` | `:538` | 6（`:22`〜`:24`・`:168`（注釈）・`:191`（注釈）・`:257`） |
+
+#### e9-1. 「コマンド × 状態ファイル × 無いときの振る舞い」（全 17 行）
+
+分類は **既定値**（無いことを正常として続ける）／**再導出**（無いことを検知して別の情報源から作り直す）／**停止**（未充足として止まる）／**依存なし**の 4 値。
+
+| # | コマンド | 状態ファイル | R/W | 無いときの振る舞い | 分類 | 根拠（ファイル:行） |
+|---|---|---|---|---|---|---|
+| 1 | `ticket.sh` | `logs/sh/ticket.log` | W | logger が `mkdir -p <root>/logs/sh` で作る。作れなければ `LOGGER_DIR=""` になり**黙って書かない**（標準出力・標準エラーには何も出さない） | 既定値 | `logger.sh:15-18, 31`／`ticket.sh:17` |
+| 2 | `ticket.sh` | `logs/` の進行状態（`mr.json` ほか） | — | 参照しない。`wip/10_tickets/**`・`git`・`ticket.template.md`（`:23`）・`task-types.tsv`（`:25`）・`commit.sh`（`:24`）だけで動く | 依存なし | `grep -c 'logs/' ticket.sh` = 0 件 |
+| 3 | `commit.sh` | `logs/sh/commit.log` | W | 1 と同じ | 既定値 | `logger.sh:15-18`／`commit.sh:12` |
+| 4 | `commit.sh` | `logs/` の進行状態 | — | 参照しない。`assets/exclude-patterns.txt`（`:15`）が無ければ除外なしで続行（`:48` が `return 1`） | 依存なし | `grep -c 'logs/' commit.sh` = 0 件／`commit.sh:48` |
+| 5 | `push.sh` | `logs/merge-state.json` | R | **無ければ項目 4 は「draft 解除前のため対象外」で ✓**。あって `.state == "ready"` なら `wip/` に `.gitkeep` 以外が残っていないかを検査し、残っていれば CP005 で停止（項目 4 はスキップ不可）。**ブランチ・MR での絞り込みが無い**ので、前 issue の記録でも `ready` と読む（e13-1） | 既定値（無いほうが安全側）／残っていると停止 | `push.sh:19, 133-151` |
+| 6 | `push.sh` | `wip/push-check-skip.md`（`HEAD` にある版） | R | 無ければスキップ指定なしとして全項目を検査 | 既定値 | `push.sh:17, 41-` |
+| 7 | `push.sh` | `logs/sh/push.log` | W | 1 と同じ | 既定値 | `logger.sh:15-18`／`push.sh:13` |
+| 8 | `boundary.sh` | `logs/mr.json` | R→W | 無ければ CLI（`gh pr view --json number,url,state` / `glab mr list --source-branch`）で特定し、取れたら `write_mr_json` で書く。`--offline` か CLI 不在なら `B_MR="null"` のまま続行し、`status` は `mr: null` を返す。`request` は BD001「MR が無い」で**停止**（`--standalone` を除く） | 再導出（できなければ `request` は停止） | `boundary.sh:28, 225-257, 472` |
+| 9 | `boundary.sh` | `logs/review-state.json` | R/W | 無ければ `R_STATE="none"`。`status` はリモートの依頼マーカー（`<!-- boundary:request … -->`）から再導出する（`--offline` では再導出しない）。**あっても現在の切れ目（`task_type` / `last_done`）と一致しなければ `none` 扱い**（`review_valid`） | 再導出 | `boundary.sh:29, 119-136, 340-` |
+| 10 | `boundary.sh` | `logs/review-history.jsonl` | append | 無ければ追記で作られる。読み手は無い（監査用の積み上げ） | 既定値 | `boundary.sh:30, 178-187` |
+| 11 | `boundary.sh` | `logs/merge-state.json` | R | 無ければ `""`。**あっても `.mr` か `.branch` が現在のものと違えば「無い」扱い**（別 issue の `ready` が残っていても毎回 BD005 で止まらないための明示の対策。`:138` の注釈） | 既定値 | `boundary.sh:31, 138-147, 160-166` |
+| 12 | `boundary.sh` | `logs/usage/<branch>.json` | W（上書き） | `note --usage-report` の投稿に成功したときだけ `{posted, since_sha, url}` で**上書き**する。無ければ `mkdir -p logs/usage` で作る | 既定値 | `boundary.sh:393-406` |
+| 13 | `boundary.sh` | `logs/sh/boundary.log` | W | 1 と同じ | 既定値 | `logger.sh:15-18`／`boundary.sh:22` |
+| 14 | `finalize.sh` | `logs/mr.json` | R | 無ければ `F_MR` は `--pr` で渡した値だけ。両方無いと `F_MR=""` になり、段階 1 の `fetch_body` が失敗して「MR 本文を取得できない」で**停止**（FN001） | 停止（`--pr` で回避可） | `finalize.sh:22, 51-58, 240-245` |
+| 15 | `finalize.sh` | `logs/review-state.json` | R | 無ければ `rstate=""` → 段階 1 が「レビューが記録されていない」で**停止**（人間レビュー要なら `completed`、不要なら `skipped` を要求する） | 停止（`boundary.sh complete --final` / `skip --final` で作る） | `finalize.sh:23, 253-262` |
+| 16 | `finalize.sh` | `logs/merge-state.json` | R/W | 無ければ `rederive_state` が `wip/` の中身・統括レポートの完了検査の節・MR 本文の `<!-- finalize:linked <sha> -->` マーカー・`is_draft` の結果から状態を作り直す。draft を判定できないときは**拒否側**（`pushed`）に倒す。`pre_cleanup_sha` は片付けコミットの親から復元する（`:168` の注釈「`logs/` を唯一の正にしない」） | 再導出 | `finalize.sh:24, 105-112, 141-173` |
+| 17 | `finalize.sh` | `logs/sh/finalize.log` | W | 1 と同じ | 既定値 | `logger.sh:15-18`／`finalize.sh:15` |
+
+**読み取り**: 進行状態への依存は `boundary.sh`（5 種）と `finalize.sh`（3 種）に集中し、`push.sh` は 1 種、`ticket.sh` と `commit.sh` は 0 種。**チケットを回すだけなら `logs/` は要らない**。
+
+### e10. `__ss_load` の解決先と、`LOGGER_ROOT` が worktree とずれる 3 条件 △注意
+
+`__ss_load` は 5 本すべてに**同一の 1 行**として置かれている（`ticket.sh:16` / `commit.sh:11` / `push.sh:12` / `boundary.sh:21` / `finalize.sh:14`。スキル `20-common-step-shell-script` が「中身を改変しない」と定める共通の読み込み行）。処理の順は次の 3 段。
+
+1. **`BASH_SOURCE[1]` から上向き**: 呼び出し元スクリプトのパスの親を取り、相対なら `$PWD/` を前置し、`-d "$d/.claude"` が成り立つ最初の祖先まで `${d%/*}` で遡って `r` にする
+2. **`CLAUDE_PROJECT_DIR`**: 1 で決めた `r` の下に `.claude/skills/20-common-step-shell-script/scripts/<lib>.sh` が**無いとき**だけ、`CLAUDE_PROJECT_DIR`（`\` を `/` に置換）を `r` にし直す
+3. **`git rev-parse --show-toplevel`**: 2 でも見つからないときだけ、`$PWD` を基準にした git のトップレベルを `r` にする
+
+見つかれば `LOGGER_ROOT="$r"` を export して lib を source する。見つからなければ方針（`nop` / `deny` / `fatal`）に落ちる。**`commit.sh` だけは `logger nop` の 1 本しか読まない**ので lib が欠けても動き続けるが、他の 4 本は `frontmatter fatal` を読むので、その作業ツリーに `frontmatter.sh` が無ければ `FATAL: …` と出して終了 2 で落ちる。
+
+#### e10-1. 起動の形ごとの解決先（`MAIN` = 本流、`W` = worktree）
+
+| # | 起動の形 | `PWD` | `BASH_SOURCE[1]` | 1 段目の上向き探索 | `LOGGER_ROOT` | 同時刻の `HOOK_WORKTREE` | 一致 |
+|---|---|---|---|---|---|---|---|
+| 1 | `bash .claude/skills/…/ticket.sh`（スキルが指示する形） | `MAIN` | 相対 | `$PWD/.claude/…` → `MAIN` | `MAIN` | `MAIN` | 一致 |
+| 2 | 同上 | `W` | 相対 | `$PWD/.claude/…` → `W`（`.claude` は追跡されているので worktree にも実体がある） | `W` | `W` | 一致 |
+| 3 | `bash "$MAIN/.claude/skills/…/ticket.sh"` | `W` | **絶対（MAIN）** | `MAIN` | **`MAIN`** | `W` | **ずれる（条件①）** |
+| 4 | `bash "$W/.claude/skills/…/ticket.sh"` | `MAIN` | **絶対（W）** | `W` | **`W`** | `MAIN` | **ずれる（条件①の逆向き）** |
+| 5 | 相対だが `W/.claude` に共通ライブラリが無い（`.claude/` の構成が違うコミットから `worktree add` した場合） | `W` | 相対 | `W`（`.claude` はあるが lib が無い）→ 2 段目へ | `CLAUDE_PROJECT_DIR` が設定されていれば **その値（＝セッションの起点。多くは `MAIN`）**、未設定なら 3 段目の `git rev-parse` で `W` に戻るが lib は見つからず方針に落ちる | `W` | **ずれる（条件②）** |
+| 6 | `bash ../<別ツリー>/.claude/skills/…/ticket.sh` | 任意 | 相対（`..` を含む） | `..` を畳まずに `-d` で判定するため、実体としては目的のツリーに解決する（`LOGGER_ROOT` は `…/x/../y` のような未正規化の文字列になる） | 目的のツリー | `PWD` 側 | 場合による |
+| 7 | `cwd` が `.claude` を持つ別ディレクトリ（`参考ディレクトリ/agent-workflow` など）で、そこを起点に相対起動 | 別ディレクトリ | 相対 | その `.claude` が最初に当たるが、`20-common-step-shell-script` を持たないので 2 段目・3 段目に落ちる | 2 段目の `CLAUDE_PROJECT_DIR` または 3 段目の git トップレベル | `MAIN`（`__hc_is_worktree_of` が弾く） | **ずれうる（条件③）** |
+
+（7 の「別ディレクトリ」は実在する: `参考ディレクトリ/MR-driven-workflow/.claude/skills/` と `参考ディレクトリ/agent-workflow/.claude/skills/` はあるが、どちらにも `20-common-step-shell-script` は無い。`.gitignore` の `参考ディレクトリ/` 行で追跡外。）
+
+#### e10-2. ずれる条件の要約と、フックとの落差
+
+| 条件 | 内容 | 効き先 | 現状の起きやすさ |
+|---|---|---|---|
+| ① | 起動に**絶対パス**を使い、その置き場と `cwd` の作業ツリーが違う | 提供コマンドが**別の作業ツリーの `wip/` と `logs/` を書き換える**。`cd "$LOGGER_ROOT"` の後は全部相対なので、コマンドは最後まで気づかない | スキル・SKILL.md・チケットの手順はすべて相対起動なので、通常経路では起きない。人間が絶対パスで叩くと起きる |
+| ② | worktree 側の `.claude` に共通ライブラリが無く、2 段目の `CLAUDE_PROJECT_DIR` が拾う | 同上。加えて「どのツリーに落ちたか」がコマンドの出力に現れない | `CLAUDE_PROJECT_DIR` は本セッションの Bash ツールでは未設定だったが、フック起動時は必ず設定されている。設定される経路から提供コマンドを起動すると起きうる |
+| ③ | `.claude` を持つ別ディレクトリを起点にする | 同上 | `参考ディレクトリ/` が実在するので経路はある |
+
+**フックとの落差**は 2 点。
+
+- フックの `__hc_resolve_worktree`（`hook-common.sh:319-331`）は、候補が `.claude` を持つだけでは採らず、`__hc_is_worktree_of`（`:293-316`）で **`.git` ファイルと `worktrees/<名前>/gitdir` の相互参照**まで確かめる。`__ss_load` の 1 段目は **`-d "$d/.claude"` だけ**で、相互参照の検査も `..` の畳み込み（`__hc_winpath` 相当）も無い
+- フックは `HOOK_ROOT`（置き場）と `HOOK_WORKTREE`（作業ツリー）を分けて持つが、提供コマンドは `LOGGER_ROOT` 1 本で両方を兼ねる。**「どこのスクリプトを実行したか」がそのまま「どこの `wip/` と `logs/` を触るか」になる**
+
+なお `hook-common.sh:19` は `HOOK_ROOT="${HOOK_ROOT:-${LOGGER_ROOT:-$__hc_root}}"` と**環境の `LOGGER_ROOT` を尊重する**が、`__ss_load` は環境の `LOGGER_ROOT` を見ずに必ず上書きする。向きは逆だが、提供コマンドから子スクリプトを呼ぶ経路（`ticket.sh:78` の `bash "$COMMIT"`、`finalize.sh:25-27`）はすべて `cd` 後の**相対パス**で呼ばれており、子も同じ `LOGGER_ROOT` に解決する。**親子でツリーが割れることはない**。
+
+### e11. フックの実体は本流、提供コマンドの実体は worktree — 機構が 2 つのバージョンで動く △注意
+
+- `settings.json` はフックの起動 **16 個所すべて**（スクリプトは 11 本）で `bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/…"` と**絶対パス**で起動する（`:16, 26, 36, 45, 49, 58, 69, 79, 88, 97, …`）。したがって `hook-common.sh:16-19` の上向き探索は必ず `CLAUDE_PROJECT_DIR` の側に着き、**`HOOK_ROOT` はセッションの起点で固定**される
+- 一方、提供コマンドはスキルと SKILL.md が `bash .claude/skills/…/xxx.sh` と**相対パス**で呼ぶよう定めている（`ticket.sh:4` の「使い方」ほか）。したがって `cwd` が worktree なら **worktree 側の実体**が動く
+
+帰結:
+
+| 対象 | どのツリーの実体が動くか | どのツリーの状態を見るか |
+|---|---|---|
+| フック 11 本（登録は 16 個所） | セッションの起点（`CLAUDE_PROJECT_DIR`） | `cwd` から解決した作業ツリー（`HOOK_WORKTREE`） |
+| `scope-limits.json`・`task-types.tsv`（フックが読む設定） | セッションの起点（`hook-common.sh:347` ほか。0004 の R5） | — |
+| 提供コマンド 5 本 | `cwd`（相対起動なら worktree） | 同じ（`LOGGER_ROOT`） |
+| `task-types.tsv`（`ticket.sh` が読む `:25`） | `cwd`（相対起動なら worktree） | — |
+
+つまり `.claude/` を変えるブランチ（**本 issue がまさにそれ**）を worktree で開発すると、**新しい提供コマンドと古いフック**、あるいは**新しい `task-types.tsv`（`ticket.sh` 側）と古い `task-types.tsv`（フック側）** の組み合わせで動く。これは 0004 の R5（設定は常に本流）と対になる同じ構造の問題で、AI アセット開発というこのリポジトリの性質上、無視できない。
+
+### e12. `logs/` が無い worktree で壊れるコマンドは無い ◎良
+
+`git worktree add` は追跡されているファイルだけを展開するので、`.gitignore` の `logs/` 行により **worktree に `logs/` は存在しない**（0004 の e4 で確認済み。`git ls-files logs/` = 0 件）。この状態で 5 本を順に当てると:
+
+| 順 | コマンド | `logs/` が無い worktree での挙動 | 壊れるか | 根拠 |
+|---|---|---|---|---|
+| 1 | 最初に走る 1 本（どれでもよい） | logger が `mkdir -p "<root>/logs/sh"` するので、**`logs/` はその場で作られる** | 壊れない | `logger.sh:16-18` |
+| 2 | `ticket.sh next` / `start` / `complete` | `logs/` を読まない。`wip/10_tickets/**` と git だけで完結する | 壊れない | e9-1 の 2 |
+| 3 | `commit.sh` | 同上 | 壊れない | e9-1 の 4 |
+| 4 | `push.sh` | `logs/merge-state.json` が無い ＝ 項目 4 が「draft 解除前のため対象外」で ✓。項目 1〜3 は git と `wip/` から判定 | 壊れない（むしろ安全側） | `push.sh:149` |
+| 5 | `boundary.sh status` | `mr.json` 無し → CLI で再導出して書く。`review-state.json` 無し → `none` にしてリモートのマーカーから再導出。`merge-state.json` 無し → `""` | 壊れない（CLI が要る） | `boundary.sh:225-257, 119-136` |
+| 6 | `boundary.sh request` / `complete` | `resolve_mr` が CLI で MR を取れれば通る。**CLI が無い・`--offline` だと BD001「MR が無い」で停止** | CLI 次第 | `boundary.sh:472` |
+| 7 | `finalize.sh release` | 段階 1 で `logs/mr.json`（MR 番号）と `logs/review-state.json`（レビューの記録）を要求する。**`logs/` が空だと FN001 で停止**。`--pr <M>` で MR は渡せるが、レビューの記録は `boundary.sh complete --final` / `skip --final` で作り直すしかない | **ここが最初の実害** | `finalize.sh:240-245, 253-262` |
+
+**結論**: 「壊れる」と言えるのは 7（`finalize.sh release`）の 1 か所だけで、それも停止（拒否側）であって誤動作ではなく、`--pr` と `boundary.sh` の再記録で回復できる。`logs/` の不在は**機構を静かに無効化しない**。
+
+ただし、無いことによる**損失**は 2 つある。
+
+- `logs/usage/<branch>.json`（対応工数の集計）は再導出の経路が無く、worktree を作った時点から**別の集計が始まる**。同じブランチの作業を 2 ツリーに割ると数字が割れる（`post-push-usage-report.sh:51` が `HOOK_WORKTREE/logs/usage/…` を見るため）
+- `logs/review-history.jsonl`（レビューの履歴）も再導出の経路が無い。読み手が無いので運用上の実害は小さい
+
+### e13. 本 issue の実施中に実際に踏んだ 3 件の根本原因 ✕問題
+
+3 件とも「`logs/` が作業ツリー粒度で残るのに、中身の意味はブランチ・MR・issue 粒度である」ことの帰結である。全体計画書の保留 P2 に 2 件（`logs/` の進行状態が issue をまたいで残る / `mr.json` の `issue` が誰にも書かれない）として挙がっている。
+
+#### e13-1. 前 issue の `merge-state.json` が `ready` のまま残り、`push.sh` 項目 4 が永久に落ちた
+
+- `push.sh` の項目 4 は `logs/merge-state.json` の `.state` だけを見る。**`.mr` も `.branch` も見ない**（`push.sh:134-138`）
+- 同じファイルを読む `boundary.sh` の `merge_state()` は、`.mr` が現在の MR と違う／`.branch` が現在のブランチと違うときに **`""`（無い扱い）に落とす**（`boundary.sh:141-147`）。しかもその直前の `:138-140` に「`logs/` はブランチに紐づかないローカルの記録なので、別の issue で `ready` まで終えた記録がそのまま残る。（中略）そうしないと、同じ clone で次の issue を始めた瞬間から `status` が毎回 BD005 で止まる」と**同じ失敗の対策が明記されている**。`push.sh` にはこの対策が入っていない
+- 書き手の `finalize.sh` は `.branch` を必ず書く（`finalize.sh:127-133` の注釈「`branch` は `boundary.sh` が『この記録は今のブランチのものか』を見るために要る」）。**書き手は分離のためのキーを用意しているのに、`push.sh` だけが使っていない**
+- 症状: 項目 4 は**スキップできない**（`push.sh:26, 151`）ので、`wip/` に成果物がある限り新しい issue の最初の push が必ず CP005 で落ちる。回復には `logs/merge-state.json` の削除が要るが、これは `workflow-state-guard` の WF301 と `workflow-guard` の WF205 の対象なので **AI からは消せず、人間の手が要る**
+- 実際の記録: `logs/sh/push.log:264` — `2026-09-04T22:04:29 start branch=feature-50-worktree-parallel-tickets` の直後に `22:04:30 CP005: push できない。未充足 1 件`。同ブランチの次の push は `22:08:39` に成功しており、その間に人間が記録を消したことと整合する。現在 `logs/merge-state.json` は存在しない
+- 仕様も同じ穴を持つ: `10_spec/skills/20-common-step-commit-push.md:99` は項目 4 の条件を「`logs/` の記録が draft 解除済みを示すとき」としか書いておらず、**どの MR・どのブランチの記録かを問うていない**
+- テストが現状を固定している: `test_push.sh:46` は `{"state":"ready"}` という **`mr` も `branch` も無い記録**を置いて項目 4 の不成立を期待する（`:55`）。同じ形が `:100` と `:127` にもある。直すならテストの期待値も変わる
+
+#### e13-2. `logs/mr.json` が前 issue の MR 番号を保持し、`resolve_mr` が CLI より記録を優先して古い MR を掴んだ
+
+- `resolve_mr()` は `logs/mr.json` に `.mr` があればその場で `return 0` し、**CLI を一切見ない**（`boundary.sh:227-236`）。CLI へ行くのは記録が無いか `.mr` が空のときだけ（`:237` 以降）
+- これは仕様どおりの順序である（`10_spec/skills/00-workflow-issue-mr-driven.md:218`「MR を `logs/mr.json` から読み、無ければ CLI（…）で特定して書く」）。**問題は順序ではなく、`logs/mr.json` に「どのブランチの記録か」を表すキーが無いこと**。正の形は `{"host","issue","mr","url"}`（同仕様 `:194`）で、`branch` が無い
+- 同じ `boundary.sh` の中で、`review-state.json` には `review_valid()`（`:136`。`task_type` と `last_done` の一致を要求）、`merge-state.json` には `.mr` / `.branch` の照合（`:141-147`）がある。**`mr.json` だけが素通し**である
+- 回復手段が無い: `boundary.sh` に `--refresh` / `--pr` に当たる引数は無く（`status` は `--offline` だけ。`:309-317`）、記録を捨てる以外に再導出させる方法が無い。その削除は WF301 / WF205 で AI からは不可
+- 実際の記録: `logs/sh/boundary.log` に `2026-09-04T18:18:21` と `18:25:25` の `note` が **PR #35**（前 issue #10）へ投稿された行が残り、`22:09:45 start subcommand=status` は**新ブランチ `feature-50-worktree-parallel-tickets` に切り替わった後**（最初の push は `22:08:39`）である。その後 `22:17:37` の `note` は PR #51 に入っている。`logs/review-history.jsonl` にも `mr:35` の 2 件（`archived_at` `18:24:12` / `18:43:35`）と `mr:51` の 3 件が**同じファイルに連続して**積まれている
+- 危険度: `status` で気づけたが、気づかずに `boundary.sh request` / `note` を打てば**前 issue の MR にレビュー依頼を投稿する**。リモートへの書き込みなので取り消しが効かない
+
+#### e13-3. `write_mr_json` が `issue` を既存値からしか引き継がず、常に null になる
+
+- `write_mr_json()` は `issue` を **`logs/mr.json` が既にあるときにその `.issue` を読む**だけで、引数にも CLI にも issue 番号の入り口が無い（`boundary.sh:211-218`。引数は `$1=host $2=mr $3=url` の 3 つ）
+- 呼び手は `resolve_mr` の 1 か所だけ（`boundary.sh:257`）で、そこも host / mr / url しか渡さない
+- リポジトリ全体で `logs/mr.json` に書き込むコードは `write_mr_json` の 1 か所だけ（`grep -rn "mr\.json"` の結果、書き込みは `boundary.sh:211-217` のみ。`finalize.sh:132` が書くのは `merge-state.json` の `.issue`）。したがって **初回作成時の `.issue` は必ず `null` になり、以後も null が引き継がれる**
+- 現物がそうなっている: `logs/mr.json` は `{"host":"github","issue":null,"mr":51,"url":"…/pull/51"}`
+- 仕様との食い違い: `10_spec/skills/00-workflow-issue-mr-driven.md:194` は正の形を `{"host": "github"|"gitlab", "issue": N, "mr": M, "url": …}` と定めており、**`issue: N` が入る前提で書かれている**。実装がこれを満たしていない
+- 実害: 読み手は 2 か所。`session-start.sh:116` は現在地の案内から **issue の行が落ちる**（`session-start.sh:160` は MR 行だけ出す）。`finalize.sh:55` は `F_ISSUE` に空を入れ、`write_state`（`:132`）が `merge-state.json` の `.issue` に null を書く。`.issue` の読み手は無いので、実害は「現在地の案内が痩せる」ことに留まる
+- ブランチ名からは復元できる（`feature-<N>-*` / `fix-<N>-*`。`session-start` 仕様 `:58` の WF703 が同じ規約を使う）ので、直し方の候補は「`resolve_mr` がブランチ名から拾う」「`boundary.sh` に `--issue` を足す」「MR 本文の `Closes #N` から拾う」の 3 通りある（決めない）
+
+### e14. `logs/` の置き場の粒度と、中身の意味の粒度が合っていない △注意
+
+e13 の 3 件はどれも同じ形をしている。整理すると:
+
+| 状態ファイル | 置き場の粒度 | 中身の意味の粒度 | 現在の照合 | 一致しないと何が起きるか |
+|---|---|---|---|---|
+| `logs/mr.json` | 作業ツリー | **MR（＝ブランチ、＝issue）** | 無し | 前 issue の MR を掴む（e13-2） |
+| `logs/review-state.json` | 作業ツリー | 切れ目（`task_type` + `last_done`） | `review_valid()`（`boundary.sh:136`） | — |
+| `logs/merge-state.json` | 作業ツリー | MR + ブランチ | `boundary.sh:141-147` にはあり、**`push.sh:134-138` には無し** | 項目 4 が永久に落ちる（e13-1） |
+| `logs/review-history.jsonl` | 作業ツリー | 追記のみ（意味の粒度なし） | 不要 | issue をまたいで 1 本に積まれるが読み手が無い |
+| `logs/push-state.json` | 作業ツリー | **ブランチ**（キーがブランチ名） | キーで分離済み | — |
+| `logs/usage/<branch>.json` | 作業ツリー | **ブランチ**（ファイル名がブランチ名） | ファイル名で分離済み | ツリーを分けると集計が割れる（e12） |
+| `logs/sessions/<sid>/` | 作業ツリー | **セッション** | ディレクトリ名で分離済み | ツリーを分けると宣言・承認が空から始まる（0004 の e4） |
+| `logs/locks/` | 作業ツリー | ロックの名前ごと | 名前で分離済み | ツリーをまたぐと排他にならない（0004 の e4） |
+
+**worktree はこのズレを縮める方向に働く**。git は同じブランチを 2 つの作業ツリーで checkout させないので、「1 ブランチ = 1 作業ツリー」を守るかぎり、ブランチ・MR 粒度の記録（`mr.json` / `merge-state.json` / `push-state.json` / `usage/`）は**自然に 1 つのツリーに閉じ**、e13-1 と e13-2 は起きなくなる。逆に**セッション粒度の記録**（`sessions/<sid>/entry.json` と `approvals.json`）は新しいツリーで空から始まるので、宣言のやり直しと承認の取り直しが増える（0004 の e4 のとおり、拒否側に倒れるので危険ではない）。
+
+この観点は、保留 P1（並列の採否）に対して **「worktree を採ると得られるもの」の 1 つ**として数えてよい材料である（決めるのは 0010）。
+
+### e15. 提供コマンドに排他制御が無い △注意
+
+- 5 本に `lock` の語が **0 件**（`grep -rn lock` を 5 本に当てて `blocked` を除くと出力なし）。`hc_lock` / `hc_unlock`（`hook-common.sh:604, 624, 634`）は**フック専用**で、提供コマンドからは呼ばれない
+- したがって同じ作業ツリーで 2 つのプロセスが同時に提供コマンドを叩くと、次が競合する。
+  - **`.git/index.lock`**: `ticket.sh` は状態を変えた後に `commit.sh` を呼ぶ（`ticket.sh:78`）。`commit.sh` は `git add` → `git commit` を行うので、同時実行は `index.lock` の取得失敗で片方が落ちる
+  - **チケットの採番**: `ticket.sh create` は `wip/10_tickets/**` の既存ファイルから次の番号を決めるため、同時に 2 枚作ると同じ番号になりうる
+  - **`logs/*.json` の読み書き**: `write_review` / `write_mr_json` / `write_state` は `.tmp` に書いて `mv` するので、**単一ファイルとしては壊れない**（アトミック）が、read-modify-write の間に挟まれた更新は失われる
+- **worktree に分ければ** `.git/index` は作業ツリーごとに別（`.git/worktrees/<名前>/index`）になるので index の競合は消え、`logs/` も別なので JSON の競合も消える。残るのは**採番**（`wip/10_tickets/` は各ツリーのチェックアウトなので、合流時に同じ番号が 2 枚できる）で、これは観点 D（0007）の合流コストの話に接続する
+
+### e16. 実測手順（観点 B。人間が実行する。コマンド列 + 予測）◎良
+
+**前提**（0004 の e8 と共通）
+
+- 実行は**人間**が行う。`git worktree add` / `cd` はどの `allow.ops` を宣言しても WF204 で拒否される
+- 結果は **`wip/tmp/worktree-probe/`** に置く（`.gitignore` の `wip/tmp/*` により追跡されない。同一作業ツリーなので 0009 が読める）
+- **B1・B2 は本流だけで完結する**（worktree を作る前に単独で実行できる）。**B3・B4・B6 は 0004 の P0 で作った `W1` / `W2` を前提にする**ため、0004 の P0 の後に続けて実行する。**B5 は `wip/tmp/` の下に作った使い捨てのリポジトリの中だけで完結する**（本流の `logs/` と `wip/` には触らない）
+- 副作用: `logs/sh/*.log` が増える
+
+**B1. `__ss_load` の解決先（本流のみ。相対 / 絶対 / 別ディレクトリ起点）**
+
+```bash
+cd /c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow
+mkdir -p wip/tmp/worktree-probe
+MAIN="$(pwd)"
+# __ss_load と同じ探索を再現して解決先を印字する（本体は改変しない）
+probe_root() { # $1=起動に使うパス（BASH_SOURCE[1] の代わり） $2=PWD
+  ( cd "$2" 2>/dev/null || exit 9
+    bash -c 'set -u
+      d="${1%/*}"; [ "$d" = "$1" ] && d="."
+      case "$d" in /*|[A-Za-z]:/*) ;; *) d="$PWD/$d" ;; esac
+      while [ -n "$d" ] && [ ! -d "$d/.claude" ]; do case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac; done
+      r="$d"; f="$r/.claude/skills/20-common-step-shell-script/scripts/logger.sh"
+      if [ ! -f "$f" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then r="${CLAUDE_PROJECT_DIR//\\//}"; f="$r/.claude/skills/20-common-step-shell-script/scripts/logger.sh"; fi
+      if [ ! -f "$f" ]; then r="$(git rev-parse --show-toplevel 2>/dev/null || true)"; f="$r/.claude/skills/20-common-step-shell-script/scripts/logger.sh"; fi
+      printf "r=%s found=%s\n" "$r" "$([ -f "$f" ] && echo yes || echo no)"' _ "$1" )
+}
+{ echo "== 相対 / PWD=MAIN";     probe_root ".claude/skills/20-common-step-ticket/scripts/ticket.sh" "$MAIN"
+  echo "== 絶対 / PWD=MAIN";     probe_root "$MAIN/.claude/skills/20-common-step-ticket/scripts/ticket.sh" "$MAIN"
+  echo "== 絶対 / PWD=/tmp";     probe_root "$MAIN/.claude/skills/20-common-step-ticket/scripts/ticket.sh" "/tmp"
+  echo "== 参考ディレクトリ起点"; probe_root "$MAIN/参考ディレクトリ/agent-workflow/.claude/x/y.sh" "$MAIN"
+} > wip/tmp/worktree-probe/B1-ssload.txt 2>&1
+```
+
+予測: 1・2・3 とも `r=<MAIN> found=yes`（絶対起動は `PWD` に依存しない）。4 は 1 段目が `参考ディレクトリ/agent-workflow` に当たるが `found=no` になり、`CLAUDE_PROJECT_DIR` が未設定なら 3 段目の `git rev-parse` で `MAIN`（`PWD=MAIN` のため）に落ちて `found=yes`。
+判定: 3 が `MAIN` になれば **条件①（絶対起動は `cwd` を見ない）が確定**する。4 が `参考ディレクトリ/agent-workflow` のまま `found=yes` になったら、`__ss_load` に相互参照の検査が無いことの実害が本流の中にもある。
+
+**B2. `CLAUDE_PROJECT_DIR` が設定される経路の確認**
+
+Claude のセッションから `echo "CLAUDE_PROJECT_DIR=[${CLAUDE_PROJECT_DIR:-未設定}]"` を 1 回実行し、結果を `wip/tmp/worktree-probe/B2-projectdir.txt` に貼る（0005 の実行では**未設定**だった）。あわせて、フックが動いた直後の `logs/hooks/decisions.jsonl` の末尾 1 行を同じファイルに貼る（フック側では `settings.json` が `${CLAUDE_PROJECT_DIR}` を展開できている以上、設定されているはずである）。
+
+予測: Bash ツールでは未設定、フック経由では設定されている。
+判定: Bash ツールでも設定されていれば、条件②（2 段目に落ちたとき本流へ倒れる）は実運用の経路になる。
+
+**B3. worktree での `LOGGER_ROOT`（相対起動 / 絶対起動）**
+
+```bash
+# 0004 の P0 で作った W1 / W2 を前提にする
+W1="$(cd ../imtw-probe-main && pwd)"; W2="$(cd ../imtw-probe-head && pwd)"
+{ echo "== 相対 / PWD=W2";     ( cd "$W2" && bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next )
+  echo "== 絶対(MAIN) / PWD=W2"; ( cd "$W2" && bash "$MAIN/.claude/skills/20-common-step-ticket/scripts/ticket.sh" next )
+  echo "== 相対 / PWD=W1";     ( cd "$W1" && bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next )
+  echo "== logs の生え方";      ls -d "$W1/logs" "$W2/logs" 2>&1
+} > wip/tmp/worktree-probe/B3-logger-root.txt 2>&1
+```
+
+予測: 「相対 / `PWD=W2`」は W2 のチケット状態を反映した JSON。「絶対(MAIN) / `PWD=W2`」は**本流の状態**を返す。「相対 / `PWD=W1`」は W1（`main` 基点でチケット 0 枚）なので `{"current":null,"next":null,…}` に近い形。`logs` は W1・W2 とも**この時点で作られている**（`logs/sh/ticket.log` だけ）。
+判定: 「相対 / `PWD=W2`」と「絶対(MAIN) / `PWD=W2`」の出力が**違えば条件①が実測で確定**する。同じなら `__ss_load` の読みが誤っている。
+
+**B4. `logs/` が無い worktree での `boundary.sh status`（再導出が働くか）**
+
+```bash
+{ echo "== PWD=W2 / logs 無し / --offline"
+  ( cd "$W2" && bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh status --offline ); echo "exit=$?"
+  echo "== W2 に生えた logs"; find "$W2/logs" -type f 2>&1
+} > wip/tmp/worktree-probe/B4-boundary.txt 2>&1
+```
+
+予測: `--offline` なので CLI を見ず、`logs/mr.json` も無いので **`"mr": null`** を含む JSON が返る。レビューの `state` は `none`。`W2/logs/sh/boundary.log` が新しくできている（`logs/mr.json` は書かれない）。
+判定: `mr` に **51** が入っていたら本流の `logs/` を読んでいる（＝ `LOGGER_ROOT` が本流に倒れている）。`--offline` を外すと `gh pr view` が走るので、**detached HEAD の worktree では MR を再導出できない**ことも同時に見える（R8）。
+
+**B5. e13-1 の再現（前 issue の `merge-state` で項目 4 が落ちる）— 使い捨てのリポジトリで行う**
+
+```bash
+T="$MAIN/wip/tmp/worktree-probe/b5"; rm -rf "$T"; mkdir -p "$T"
+( cd "$T" && git init -q . && printf 'logs/\n' > .gitignore \
+  && mkdir -p .claude/skills/20-common-step-shell-script/scripts .claude/skills/20-common-step-commit-push/scripts \
+             .claude/skills/20-common-step-commit-push/assets wip/30_reports wip/10_tickets/10_doing logs \
+  && cp "$MAIN"/.claude/skills/20-common-step-shell-script/scripts/*.sh .claude/skills/20-common-step-shell-script/scripts/ \
+  && cp "$MAIN"/.claude/skills/20-common-step-commit-push/scripts/*.sh .claude/skills/20-common-step-commit-push/scripts/ \
+  && cp "$MAIN"/.claude/skills/20-common-step-commit-push/assets/exclude-patterns.txt .claude/skills/20-common-step-commit-push/assets/ \
+  && echo x > wip/30_reports/dummy.md && echo r > README.md \
+  && git add -A && git commit -q -m "chore: init" \
+  && printf '{"state":"ready","mr":35,"branch":"feature-9-old"}\n' > logs/merge-state.json \
+  && bash .claude/skills/20-common-step-commit-push/scripts/push.sh; echo "exit=$?" ) \
+  > "$MAIN/wip/tmp/worktree-probe/B5-push-item4.txt" 2>&1
+```
+
+予測: **`✗ 項目 4`** と `項目 4: draft 解除後（merge-state ready）なのに wip/ に成果物が残っている` を含み、最終行が `CP005: …` で `exit=1`（上流が無いので項目 1〜3 も何か出るが、項目 4 が落ちることが要点）。`mr` も `branch` も現在のリポジトリと無関係なのに `ready` と読まれることが確認できる。
+判定: 項目 4 が ✓ になったら e13-1 の読みが誤っている。なお前チェックで落ちるので `git push` には到達せず、リモートには何も起きない。
+
+**B6. 記録の分かれ方（`usage` / `push-state` / `mr.json`）**
+
+```bash
+{ echo "== 本流"; ls -1 "$MAIN/logs" "$MAIN/logs/usage" 2>&1
+  echo "== W1";  find "$W1/logs" -type f 2>&1
+  echo "== W2";  find "$W2/logs" -type f 2>&1
+} > wip/tmp/worktree-probe/B6-split.txt 2>&1
+```
+
+予測: 本流には `mr.json` / `review-state.json` / `review-history.jsonl` / `push-state.json` / `usage/*.json` / `sessions/` / `hooks/` / `sh/` が揃い、W1・W2 には **B3・B4 で走らせた分の `sh/*.log`（と、フックを叩いていれば `hooks/decisions.jsonl`）しか無い**。
+判定: 予測どおりなら「`logs/` は作業ツリーごとに分かれ、新しい worktree は空から始まる」が実測で確定する。
+
+**片付け**
+
+```bash
+rm -rf "$MAIN/wip/tmp/worktree-probe/b5"
+# W1 / W2 の削除は 0004 の e8「片付け」に従う
+git -C "$MAIN" status --porcelain   # 空であること（wip/tmp/ は .gitignore 対象）
+```
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -469,6 +788,21 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
 | 作業ツリー解決のテスト ID が仕様にあるか | 仕様 §11 の `HK-T01`〜`HK-T20` に該当なし。`HK-T18` は「副入力の縮退」（`10_spec/フック共通仕様.md:373`）で、`case_worktree` はコメントどおり ID を借りている |
 | worktree に触れるテストの本数 | `grep -rln worktree` を `hooks/**/tests/` に掛けて **1 ファイル**（`lib/tests/test_hook_common.sh`） |
 | `workflow-diff-check` が `HOOK_WORKTREE` を使うのは初版からか | `git log --oneline -S'git -C "$HOOK_WORKTREE" status --porcelain=v2' -- <該当ファイル>` = `7cf83a2` の **1 件のみ** |
+| （0005）5 本の `logs/` 依存の件数 | `grep -c 'logs/' <5 本>` = `ticket.sh` **0** / `commit.sh` **0** / `push.sh` **1** / `boundary.sh` **7** / `finalize.sh` **6**（コメント行を含む） |
+| （0005）e9-1 の表が 5 コマンド分ある | 表は 17 行。コマンド別の内訳は `ticket.sh` 2 / `commit.sh` 2 / `push.sh` 3 / `boundary.sh` 6 / `finalize.sh` 4 = **17** で一致し、5 本すべてが 1 行以上ある |
+| （0005）各セルに根拠が添えられている | e9-1 の「根拠」列 17 行すべてに `ファイル:行` がある（依存が 0 件の 2 行は、その `grep -c` 自体を根拠として明記） |
+| （0005）`__ss_load` が 5 本すべてに置かれている | `grep -c '__ss_load'` = `ticket.sh` 3 / `commit.sh` 2 / `push.sh` 3 / `boundary.sh` 3 / `finalize.sh` 3（定義 1 + 呼び出し 1〜2。`commit.sh` だけ `logger nop` の 1 本しか読まない） |
+| （0005）5 本すべてが `cd "$LOGGER_ROOT"` する | `grep -n 'cd "$LOGGER_ROOT"'` = **7 件**（提供コマンド 5 本 + `check-html.sh:61` + `run-tests.sh:62`） |
+| （0005）`logs/mr.json` の書き手が 1 か所だけ | `grep -rn "mr\.json" .claude/` の結果、書き込みは `boundary.sh:211-217`（`write_mr_json`）のみ。読み手は `session-start.sh:115-117, 160`／`post-push-compact-prompt.sh:88-90`／`post-push-usage-report.sh:245`／`finalize.sh:55` |
+| （0005）`logs/mr.json` の `.issue` が現に null | `cat logs/mr.json` = `{"host":"github","issue":null,"mr":51,"url":"…/pull/51"}` |
+| （0005）`push.sh` 項目 4 に絞り込みが無い / `boundary.sh` にはある | `push.sh:134-138` は `.state` のみ。`boundary.sh:141-147` は `.mr` と `.branch` を照合。書き手 `finalize.sh:127-133` は両方を書いている |
+| （0005）e13-1 の実際の発生 | `logs/sh/push.log:264`（`2026-09-04T22:04:30 CP005: push できない。未充足 1 件`。直前の行が `start branch=feature-50-worktree-parallel-tickets`）。同ブランチの次の push は `22:08:39` に成功 |
+| （0005）e13-2 の状況証拠 | `logs/sh/boundary.log` の `18:18:21` / `18:25:25` が PR **#35** への `note`、`22:09:45 status` が新ブランチ切り替え後（最初の push は `22:08:39`）、`22:17:37` の `note` が PR **#51**。`logs/review-history.jsonl` に `mr:35` 2 件と `mr:51` 3 件が同じファイルに積まれている |
+| （0005）提供コマンドに排他制御が無い | `grep -rn lock` を 5 本に当てて `blocked` を除くと **0 件**。`hc_lock` は `hook-common.sh:604, 624, 634` のみ |
+| （0005）提供コマンドのテストに worktree のケースが無い | `grep -rln worktree .claude/skills/*/scripts/tests/` = **0 ファイル**。各テストは一時リポジトリに `.claude` を**コピーして相対パスで叩く**形（`test_ticket.sh:12-23`）なので、絶対パス起動のケースも 1 件も無い |
+| （0005）テストが `push.sh` 項目 4 の現状を固定している | `test_push.sh:46, 100, 127` が `{"state":"ready"}`（`mr` / `branch` 無し）を置き、`:55` / `:104-105` で項目 4 の不成立を期待する |
+| （0005）フックが絶対パスで起動される | `grep -c 'CLAUDE_PROJECT_DIR}/.claude/hooks/' .claude/settings.json` = **16**（スクリプトは重複を除いて 11 本）。相対パスで起動する登録は 0 件 |
+| （0005）`CLAUDE_PROJECT_DIR` は Bash ツールでは未設定 | `echo "CLAUDE_PROJECT_DIR=[${CLAUDE_PROJECT_DIR:-未設定}]"` → `未設定`。`PWD` は `/c/Users/…`（MSYS 形式） |
 
 ## 設計への反映
 
@@ -481,6 +815,14 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
 | 5 | 作業ツリー解決に固有のテスト ID が無く、`HK-T18`（副入力の縮退）を借りている（e7）。フック 6 本の worktree 通しテストも無い | 0010（AI アセット設計で ID を新設）／AI アセット実装 |
 | 6 | 仕様 §13 の D1 と DDR `i0009-64` の D2 の記述が実装と食い違う（e6）。仕様は書き戻しの対象、DDR は経緯なので「決定が後に変わった」ことが分かる形の追補が要る | 0010／設計反映 |
 | 7 | `session-start.sh:74` が `boundary.sh` を `HOOK_WORKTREE` から取る（e2 X2）。仕様 §2 の「スクリプトは常に `HOOK_ROOT`」という原則の書き方を、状態を自分で解決する提供コマンドの扱いを含めて見直す | 0010 |
+| 8 | （0005）提供コマンドは `LOGGER_ROOT` 1 本で「置き場」と「作業ツリー」を兼ねており、フックのような `HOOK_ROOT` / `HOOK_WORKTREE` の分離が無い（e9・e10）。worktree 運用を正とするなら、①相対起動を明文の前提にする、②`__ss_load` に相互参照の検査を足す、③提供コマンドにも作業ツリーの解決を持たせる、の 3 系統の候補がある（本チケットでは決めない） | 0010（AI アセット設計計画） |
+| 9 | （0005）`push.sh` 項目 4 が `logs/merge-state.json` を MR・ブランチで絞り込まない（e13-1）。`boundary.sh:141-147` に既にある照合を移すか共通化するかを決める。仕様 `20-common-step-commit-push.md:99` とテスト `test_push.sh:46, 100, 127` も同時に変わる | 0010／全体計画書の保留 P2（別 issue にするなら） |
+| 10 | （0005）`logs/mr.json` に「どのブランチ・どの issue の記録か」を表すキーが無く、`resolve_mr` が記録を無条件に優先する（e13-2）。`branch` キーの追加、`boundary.sh` への再導出の入り口（`--refresh` 等）、ブランチ名（`feature-<N>-*`）との突き合わせが候補 | 0010／保留 P2 |
+| 11 | （0005）`write_mr_json` に issue 番号の入り口が無く `.issue` が常に null（e13-3）。仕様 `00-workflow-issue-mr-driven.md:194` の正の形と実装が食い違っている。読み手は `session-start.sh:116` と `finalize.sh:55` | 0010／保留 P2 |
+| 12 | （0005）フックは本流の実体、提供コマンドは worktree の実体で動く（e11）。`.claude/` を変えるブランチを worktree で開発するときの前提を仕様に書くか、起動の形を揃えるかを決める。0004 の R5（設定は常に本流）と同じ根 | 0010 |
+| 13 | （0005）提供コマンドに排他制御が無い（e15）。同一ツリーでの並列は `.git/index.lock` と採番で衝突する。worktree に分ければ index の競合は消えるが採番は残る | 0010／0007（観点 D の合流コスト） |
+| 14 | （0005）提供コマンドのテストに worktree のケースが 1 件も無く、絶対パス起動のケースも無い（既存テストは一時リポジトリへ**コピーして相対起動**する形）。作業ツリー解決のテスト ID を提供コマンド側にも新設する必要がある | 0010（テスト ID の新設）／AI アセット実装 |
+| 15 | （0005）`logs/usage/<branch>.json` は再導出の経路が無く、作業ツリーを分けると対応工数の集計が割れる（e12）。`boundary.sh:399-403` が投稿後に**上書き**する形も、フック側の積み上げ（`post-push-usage-report.sh:51`）と噛み合っているか確かめる必要がある | 0010 |
 
 ## 想定と異なった点
 
@@ -490,6 +832,11 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
 | フック共通仕様 §13 と DDR `i0009-64` の「`workflow-diff-check` は worktree の差分を見ない」は現状の記述として使えると見込んでいた | 実装は初版から `git -C "$HOOK_WORKTREE"` で、記述と逆 | e6 の D1 として記録し、実測 P5 で確定させることにした |
 | 実測は「Claude を worktree に入れる」形でしか取れないと見込んでいた | フックは stdin の `cwd` だけで作業ツリーを決めるので、`cwd` を与えて直接叩けば大半の観点が確かめられる（P1〜P7）。Claude 本体の挙動に依存するのは「`cwd` が追随するか」だけ | 実測手順を 2 段に分け、人間の手数を P8 に閉じ込めた |
 | `git worktree list` は読み取りなので通ると見込んでいた | `git worktree` は `_SC_GIT_READ_SUBCMDS` に無く WF204。同じコマンド行に混ぜた他の `git` 読み取りも巻き添えで拒否された | 迂回せず、`ls-tree` / `rev-parse` に分けて取り直した。観点 E（0008）の材料として記録 |
+| （0005）調査計画書は「`logs/` が worktree に無い状態で各コマンドがどう振る舞うか」を主な問いに置き、DoD も「最初に壊れるコマンドを特定する」と書いていた | **壊れるコマンドは実質 1 本（`finalize.sh release`）だけ**で、それも停止であって誤動作ではない。実害が大きいのは逆方向、つまり前 issue の記録が**残る**ことだった（e13） | 観点は書き換えず、e12 で「壊れない」ことを根拠付きで書いたうえで、重心を e13・e14 に置いた |
+| （0005）`LOGGER_ROOT` は `cwd` から決まると見込んでいた（フックの `HOOK_WORKTREE` と同じ形だと思っていた） | `__ss_load` は **`BASH_SOURCE[1]`（起動に使ったスクリプトのパス）** から決める。`cwd` が効くのは相対パス起動のときだけで、絶対パス起動では `cwd` を一切見ない | e10 に対応表として書き、ずれる条件を 3 つに分けた |
+| （0005）`CLAUDE_PROJECT_DIR` は常に設定されていると見込んでいた | 本セッションの Bash ツールでは**未設定**だった。`settings.json` がフックの起動に使っている以上フック経由では設定されているので、経路によって `__ss_load` の 2 段目が効いたり効かなかったりする | 「確かめられなかったこと」に上げ、実測手順 B2 に落とした |
+| （0005）提供コマンドのテストは worktree を扱っていないだろうと見込んでいた（0004 のフック側と同じ想定） | そのとおり 0 件だったが、**既存テストが一時リポジトリに `.claude` をコピーして相対起動する形**（`test_ticket.sh:12-23`）であることが、`__ss_load` の読み（相対起動なら `$PWD` のツリーに解決する）の裏取りになっていた | e10 の根拠として使い、e16 の B5 でも同じ形を使う設計にした |
+| （0005）`boundary.sh` の `merge_state()` の絞り込みは、汎用の作りだろうと見込んでいた | `:138-140` に「別の issue で `ready` まで終えた記録がそのまま残る」という**同じ失敗の再発防止のコメント**が明示されていた。つまり 1 度踏んで直した箇所で、`push.sh` にだけ横展開されていない | e13-1 の根拠にした。設計への反映 9 で共通化の候補として挙げた |
 
 ## 残課題
 
@@ -501,3 +848,8 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
 | R4 | Skill ツールが読み込む `SKILL.md` が本流と worktree のどちらの実体か。これが決まるまで `session-start.sh:140`（X1）の正誤は確定しない | 0006／0010 |
 | R5 | 本流と worktree で `scope-limits.json` の内容が食い違う場合（worktree が古い / 新しいブランチ）、フックは常に本流の設定で判定する（`hook-common.sh:347`）。設定を変えるブランチを worktree で開発すると、そのブランチの設定はテストされない | 0010 |
 | R6 | e5 を受け入れ条件 A1 の「動かない箇所」として扱うか、全体計画書の保留 P2（機構の不具合として別 issue）へ回すか | 0009／0010（人間の判断） |
+| R7 | （0005）`LOGGER_ROOT` が worktree とずれる 3 条件（e10-2）が実環境で本当に起きるか。とくに条件②（`CLAUDE_PROJECT_DIR` に落ちる）は、この変数がどの経路で設定されるかに依存する | 0009（実測 B1・B2・B3） |
+| R8 | （0005）`boundary.sh status` を detached HEAD の worktree で走らせたとき、`gh pr view` が MR を特定できるか（`gh` はブランチから PR を引くので、detached では失敗する見込み）。並列で detached HEAD を使う案（観点 D）の成否に効く | 0009（実測 B4）／0007 |
+| R9 | （0005）`logs/usage/<branch>.json` について、`boundary.sh:399-403` の**上書き**（`{posted, since_sha, url}` の 3 キーだけ）が、フック側の積み上げ（`post-push-usage-report.sh:51` が持つ `sessions` / `subagents` / `last_offset`）を消していないか。本チケットの担当範囲（worktree 分離）を超えるが、読んだ範囲で疑いが出た | 保留 P2 の別 issue（スコープ外で見つけたこと） |
+| R10 | （0005）e13 の 3 件を受け入れ条件 A1 の「動かない箇所」に載せるか、全体計画書の保留 P2 として別 issue に切り出すか。R6 と同じ判断 | 0009／0010（人間の判断） |
+| R11 | （0005）`__ss_load` の 1 段目は `..` を畳まずに `-d` で判定するため、`LOGGER_ROOT` に `…/x/../y` のような未正規化の文字列が入りうる（e10-1 の 6）。フック側は `__hc_winpath` で畳むので、同じディレクトリでも 2 つの根が別表記になる。比較する箇所は今は無いが、将来「本流と同じツリーか」を判定するなら効く | 0010 |

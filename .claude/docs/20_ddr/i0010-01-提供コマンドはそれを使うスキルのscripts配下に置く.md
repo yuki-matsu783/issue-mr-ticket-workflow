@@ -22,7 +22,7 @@ issue #10 の調査（結果報告 0004 の b4）で、まだ実装されてい�
 - **提供コマンドは、それを使うスキルの `scripts/` 配下に置く**。これを 2 本だけの措置ではなく、機構全体の原則とする
 - したがって `boundary.sh` は `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`、`finalize.sh` は `.claude/skills/10-task-overall-summary/scripts/finalize.sh` に置く（仕様の現行記述をそのまま正とする）
 - `.claude/hooks/` はフック本体（イベント駆動で機構が呼ぶもの）と、その設定・ライブラリ・テストだけを置く場とする
-- 実装済みフックの 7 行は実装フェーズで新しいパスへ追従させる。一覧は `10_spec/skills/00-workflow-issue-mr-driven.md`「現行アセットとの差分」に置く
+- 実装済みフックの 7 行は実装フェーズで新しいパスへ追従させる（追従の一覧は AI アセット実装計画の参照更新一覧が持ち、追従が済んだら役目を終える）
 - `scope.sh` の提供コマンド識別は両方の形を受け付けたままにする（狭めない）。実装フェーズの途中でどちらの形も現れうるため、識別を先に狭めると移行中に機構が止まる
 
 ## 理由
@@ -41,7 +41,7 @@ issue #10 の調査（結果報告 0004 の b4）で、まだ実装されてい�
 
 ## 影響
 
-- `10_spec/skills/00-workflow-issue-mr-driven.md` の Script 処理に置き場を明記し、「現行アセットとの差分」の 7 行の表を追加する
+- `10_spec/skills/00-workflow-issue-mr-driven.md` の Script 処理に置き場を明記する
 - `10_spec/skills/10-task-overall-summary.md` の Script 処理に置き場を明記する
 - `10_spec/hooks/00-SessionStart/session-start.md` の処理フロー 3 が参照するパスを明記する
 - `00_requirement/自己改善ワークフロー機構.md` に置き場の原則を書く

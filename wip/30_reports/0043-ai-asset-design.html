@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0043-0046 AI アセット設計結果 — フィードバックの正史への書き戻し</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 21</span>
+    <span class="chip good">◎良 22</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -165,6 +165,7 @@
           <li><a href="#f20"><span class="mk good">◎</span> 20. 標準構成・移設・参照更新</a></li>
           <li><a href="#f21"><span class="mk good">◎</span> 21. ブランチ作成時の上流</a></li>
           <li><a href="#f22"><span class="mk good">◎</span> 22. レビュアーのモデルと DDR 4 本</a></li>
+          <li><a href="#f23"><span class="mk good">◎</span> 23. 敵対的レビューの指摘 8 件</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -178,7 +179,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
-    <div><dt>チケット</dt><dd>0043・0044・0045・0046</dd></div>
+    <div><dt>チケット</dt><dd>0043・0044・0045・0046・0048</dd></div>
     <div><dt>作成日</dt><dd>2026-09-04</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -187,9 +188,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">フィードバック計画（0033・0042）が「この MR で対応」と決めた改善候補 45 件を、要件定義書 6 本・仕様書 15 本・DDR 4 本に書き戻した。設計計画（0041）の文書一覧に沿って 4 枚のチケットで分担し、候補 1 件ごとに反映先を突き合わせて 45 / 45 が正史に現れることを確かめた。</p>
+  <p class="lead">フィードバック計画（0033・0042）が「この MR で対応」と決めた改善候補 45 件を、要件定義書 11 本・仕様書 18 本・横断仕様 1 本・DDR 5 本（合計 35 ファイル）に書き戻した。設計計画（0041）の文書一覧に沿って 4 枚のチケットで分担し、候補 1 件ごとに反映先を突き合わせて 45 / 45 が正史に現れることを確かめた。切れ目の敵対的レビューが返した 8 件も 0048 で反映した。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>21</b><span>◎良</span></li>
+    <li class="kpi good"><b>22</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -475,6 +476,31 @@ grep -n '^[0-9]\+\. \*\*' .claude/docs/10_spec/skills/10-task-investigation-exec
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">23</span>
+      <h3 id="f23">敵対的レビューの指摘 8 件を反映した <span class="chip good">◎良</span> <span class="basis">根拠: MR コメント（boundary.sh note）/ チケット 0048</span></h3>
+      <p>切れ目で <code>claude-fable-5-1</code> の敵対的レビューを 1 回実施し（実行者はメインエージェントで別モデル。差し替えなし）、返った 8 件をすべて反映した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>指摘</th><th>反映</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>残骸の片付けが「作業中チケットの <code>allow</code> を広げる」形で、WF208 に塞がれる</td><td>全体計画チケットの宣言は起票の時点で <code>wip/</code> 全体を含むので、承認が制御するのは範囲ではなく行為だと書き直した。要件の規約も同じ形に揃えた</td></tr>
+          <tr><td>2</td><td>採番台帳が <code>BD001–005</code> / <code>FN001–003</code> のまま</td><td><code>フック共通仕様</code> §6 を <code>BD001–006</code> / <code>FN001–004</code> に更新した</td></tr>
+          <tr><td>3</td><td>DDR <code>i0010-06</code> の決定が仕様の 7 段と条件・順序ともに食い違う</td><td>決定を仕様と同じ 7 段に書き直し、<code>-r</code> / 末尾 <code>/</code> を判定に使わない理由を却下した案に移した</td></tr>
+          <tr><td>4</td><td>反映先の文書数が frontmatter とサマリと実体で食い違う</td><td>差分から数え直して 要件 11 / 仕様 18 / 横断 1 / DDR 4 に揃え、数えたコマンドを検証の結果に添えた</td></tr>
+          <tr><td>5</td><td>候補 45 件の内訳の足し算が合わない</td><td>0045 を 14 件、0046 を 5 件に直した（候補 18 は 0043 に含める）</td></tr>
+          <tr><td>6</td><td>例外フローを足したのに図の更新要否の判断が記録に無い</td><td>判断の結果を検証の結果に 1 行足した</td></tr>
+          <tr><td>7</td><td><code>10-task-investigation-exec</code> の新しい受け入れ基準が対応表から辿れない</td><td>対応表に 1 行足した</td></tr>
+          <tr><td>8</td><td>DDR <code>i0010-01</code> が削除済みの節を参照している</td><td>参照を実装計画の参照更新一覧に付け替えた</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>確度 0.5 以上の 8 件がすべて正史とレポートに落ちた。実施回数は 1 回で上限に到達している。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -484,13 +510,16 @@ grep -n '^[0-9]\+\. \*\*' .claude/docs/10_spec/skills/10-task-investigation-exec
   <table>
     <thead><tr><th>検証</th><th>結果</th></tr></thead>
     <tbody>
-      <tr><td>候補 45 件（この MR で対応 44 + 候補 56）がすべて仕様のどこかに現れる</td><td>45 / 45。0043 が 11 件（1〜7・18〜20・44）、0044 が 15 件（8・10・13・14・17・31・37・41〜43・45・48・50・51・56）、0045 が 13 件（11・15・16・32・36・38・39・46・47・49・52〜55）、0046 が 6 件（9・12・28・30・34・18 の要件側）</td></tr>
+      <tr><td>候補 45 件（この MR で対応 44 + 候補 56）がすべて仕様のどこかに現れる</td><td>45 / 45。0043 が 11 件（1〜7・18〜20・44）、0044 が 15 件（8・10・13・14・17・31・37・41〜43・45・48・50・51・56）、0045 が 14 件（11・15・16・32・36・38・39・46・47・49・52〜55）、0046 が 5 件（9・12・28・30・34）。11 + 15 + 14 + 5 = 45。候補 18 は要件側を 0046 が書いたが件数は 0043 に数える。この MR の候補の件数は <code>grep -c '^| [0-9]\{1,2\} |.*| この MR' wip/20_plans/0033-feedback-plan.md</code> が 44（連番を 1〜2 桁に限るのは下部のチケット表の <code>0041</code> を拾わないため）で、これに候補 56 を加えて 45</td></tr>
+      <tr><td>反映先の文書数</td><td>35 ファイル（要件定義書 11 / 仕様書 18 / 横断仕様 1 / DDR 5。DDR は新設 4 本と参照を直した <code>i0010-01</code>）。<code>git diff --name-only e75feea -- .claude/docs | wc -l</code> が 35、同じ出力を <code>awk -F/ '{print $3}' | sort | uniq -c</code> で束ねると <code>00_requirement 11</code> / <code>10_spec 19</code>（うち 1 本は直下の横断仕様）/ <code>20_ddr 5</code></td></tr>
+      <tr><td>受け入れ基準を足した書のメインフローの図の更新要否</td><td>判断済み・更新不要。図を持つ書への追加は <code>00-workflow-issue-mr-driven</code> の [E6]・[E7] だけで、両方とも図に離脱先ノードを足した。他の書はメインフローの図を持たない書式（<code>grep -l 'flowchart TD'</code> が 5 本のみ）なので図の追加は範囲外とした</td></tr>
       <tr><td><code>00-workflow-issue-mr-driven</code> の要件の項目数と仕様の対応表の行数</td><td>44 / 44</td></tr>
       <tr><td><code>10-task-overall-summary</code> の要件の項目数と仕様の対応表の行数</td><td>41 / 41（<code>- Where</code> で始まる 1 行を含む）</td></tr>
       <tr><td><code>grep -rn '^### テスト観点（eval）' .claude/docs/</code></td><td>0 行（5 本を <code>##</code> に昇格した後）</td></tr>
-      <tr><td>旧名の残存（<code>10-work-</code> / <code>20-task-</code> / <code>work-boundary</code> / <code>merge-prep</code>。DDR を除く）</td><td>0 行（4 チケットとも完了時に確認）</td></tr>
+      <tr><td>旧名の残存（<code>10-work-</code> / <code>20-task-</code> / <code>work-boundary</code> / <code>merge-prep</code>。DDR を除く）</td><td>0 行（5 チケットとも完了時に確認。このレポートの表に残る 2 行は検索語そのもので <code>.claude/</code> 配下ではない）</td></tr>
       <tr><td>共通手順の番号（計画 1〜7 / 実施 1〜6）が変わっていない</td><td><code>grep -n '^[0-9]\+\. \*\*'</code> の出力が 7 行 / 6 行で連番</td></tr>
-      <tr><td>アセット本体に触っていない</td><td>4 チケットの <code>git status --porcelain</code> がすべて <code>.claude/docs/</code> 配下と <code>wip/</code> のみ</td></tr>
+      <tr><td>アセット本体に触っていない</td><td>5 チケットの <code>git status --porcelain</code> がすべて <code>.claude/docs/</code> 配下と <code>wip/</code> のみ</td></tr>
+      <tr><td>敵対的レビューの指摘の反映</td><td>8 / 8（確度 0.5 以上の全件）。指摘の一覧は MR のコメントに投稿済み。実施回数は 1 回で上限に到達</td></tr>
     </tbody>
   </table>
   </div>
@@ -533,6 +562,8 @@ grep -n '^[0-9]\+\. \*\*' .claude/docs/10_spec/skills/10-task-investigation-exec
     <li><b>R3</b>: <code>20-common-step-shell-script</code> 仕様の「終了コード」節に対応する要件の行が無い（過剰仕様か要件の書き漏れ） → 別 issue 候補 22</li>
     <li><b>R4</b>: 別 issue に回すと決めた 11 件（候補 21〜27・29・33・35・40）は、ヘッドレスのため未起票 → 全体まとめで MR 本文に一覧として残し、人間が起票する</li>
     <li><b>R5</b>: <code>git checkout --no-track -b</code> を実機で確かめていない → 実装フェーズのテスト、または次の issue の実測</li>
+    <li><b>R6</b>: レポートの md と HTML の対応の数え方 (b)（表の数の一致）は、テンプレートが一部の節をリストで描くためどのレポートでも成立しない → 次のフィードバック計画の候補</li>
+    <li><b>R7</b>: 設計フェーズのレポートを最初のチケットで作らせる規定が設計計画スキルに無い（実装計画には 0044 で入れた） → 次のフィードバック計画の候補</li>
   </ul>
 </section>
 

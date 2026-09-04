@@ -17,7 +17,7 @@ mkdir -p .claude/skills/20-common-step-shell-script/scripts .claude/skills/20-co
 cp "$REAL"/skills/20-common-step-shell-script/scripts/*.sh .claude/skills/20-common-step-shell-script/scripts/
 cp "$REAL"/skills/20-common-step-commit-push/scripts/*.sh .claude/skills/20-common-step-commit-push/scripts/
 cp "$REAL"/skills/20-common-step-commit-push/assets/exclude-patterns.txt .claude/skills/20-common-step-commit-push/assets/
-cp "$REAL"/skills/20-common-step-ticket/scripts/ticket.sh .claude/skills/20-common-step-ticket/scripts/
+cp "$REAL"/skills/20-common-step-ticket/scripts/*.sh .claude/skills/20-common-step-ticket/scripts/
 cp "$REAL"/skills/20-common-step-ticket/assets/ticket.template.md .claude/skills/20-common-step-ticket/assets/
 cp "$REAL"/hooks/config/task-types.tsv .claude/hooks/config/
 T=".claude/skills/20-common-step-ticket/scripts/ticket.sh"

@@ -38,6 +38,7 @@ description: >
 ## 参照
 
 - テンプレート: `assets/issue.template.md`（新規 issue の本文）、`assets/issue-addendum.template.md`（追記セクション。区切り・日付・追記の経緯・追記内容）
+- 類似 / 関連 / 無関係の判定基準と検索コマンド集: `references/issue-triage.md`（検索モードで候補を分類するときに使う。分類そのものの決定は呼び出し元）
 - GitLab の長文送信（正。`glab api --raw-field key=@file`）: 仕様の同名の節。`20-common-step-feature-mr` の MR 本文と、タスクの切れ目の MR 本文更新からも参照される
 - ホスト判定の利用元: `20-common-step-feature-mr`
 - issue の受け入れ条件の書き方と DoD への対応: `10-task-overall-plan` の要件書

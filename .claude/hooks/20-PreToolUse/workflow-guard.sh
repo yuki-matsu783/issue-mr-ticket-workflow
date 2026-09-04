@@ -278,6 +278,92 @@ __wg_check_write_targets() { # $1=US 区切りの宛先
   return 0
 }
 
+# 削除だけを行う段か（`rm` / `git rm`）。ファイルの中身を作らないので、対象がチケットの
+# allow.write に収まっていれば通す（Edit / Write にファイルを消す手段が無く、これが無いと
+# AI は自分が作ったアセットを片付けられない。仕様 制御方式 6 との差分は 0036 の作業ログ）
+__wg_is_delete_seg() { # $1=セグメント番号
+  case "${CP_EXE[$1]:-}" in
+    rm)  return 0 ;;
+    git) [[ "${CP_SUBCMD[$1]:-}" == rm ]] && return 0 ;;
+  esac
+  return 1
+}
+
+__wg_delete_targets() { # $1=セグメント番号 → 削除対象を REPLY_LIST に置く。読み取れなければ 1
+  local i="$1" a seen_sub=0
+  if [[ "${CP_EXE[$i]:-}" == rm ]]; then
+    # cmdpos が抜いた書き込み先をそのまま使う（オプションの規則を複製しない）
+    __wg_split_us "${CP_WRITE_TARGETS[$i]:-}"
+    (( ${#REPLY_LIST[@]} )) || return 1
+    return 0
+  fi
+  # git rm はサブコマンドより後ろの非オプション語が対象（cmdpos は git の書き込み先を抜かない）
+  REPLY_LIST=()
+  cmdpos_args "$i"
+  for a in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
+    if (( seen_sub == 0 )); then [[ "$a" == rm ]] && seen_sub=1; continue; fi
+    [[ "$a" == --pathspec-from-file* ]] && return 1   # 対象が別ファイルにあり読み取れない
+    [[ "$a" == -* ]] && continue
+    REPLY_LIST+=("$a")
+  done
+  (( ${#REPLY_LIST[@]} )) || return 1
+  return 0
+}
+
+# 対象の配下に「消してはいけない範囲」が入り得るか（ディレクトリごとの削除で子孫を巻き込ませない）。
+# glob は展開せず、文字列として `<対象>/` で始まるかだけを見る（判定できないものは拒否側に倒す）
+__wg_delete_covers_guarded() { # $1=ルート相対パス
+  local p="$1" g
+  for g in ${SC_COMMON_PROTECTED[@]+"${SC_COMMON_PROTECTED[@]}"} \
+           ${SC_COMMON_CONFIRM[@]+"${SC_COMMON_CONFIRM[@]}"} \
+           ${SC_COMMON_STATE_FILES[@]+"${SC_COMMON_STATE_FILES[@]}"} \
+           ${SC_TYPE_DENY[@]+"${SC_TYPE_DENY[@]}"} \
+           ${SC_TYPE_CONFIRM[@]+"${SC_TYPE_CONFIRM[@]}"}; do
+    [[ "$g" == "$p/"* ]] && return 0
+  done
+  return 1
+}
+
+# 削除してよいか。置き場（wip/tmp/** と logs/**）か、チケットが宣言した allow.write の内側だけを通す。
+# 宣言を必須にするのは、共通の許可範囲（計画書・レポート・未着手チケット）を削除に開かないため
+__wg_delete_ok() { # $1=ルート相対パス
+  local p="$1" g
+  # 進行状態のファイルは logs/ の中にあってもコマンドで消させない（書き換えと同じ扱い）
+  for g in ${SC_COMMON_STATE_FILES[@]+"${SC_COMMON_STATE_FILES[@]}"}; do scope_match "$g" "$p" && return 1; done
+  for g in "${__WG_CMD_WRITE_OK[@]}"; do scope_match "$g" "$p" && return 0; done
+  scope_resolve "$p"
+  [[ "$SC_DECISION" == allow ]] || return 1
+  (( ${#SC_DECL_WRITE[@]} )) || return 1
+  for g in "${SC_DECL_WRITE[@]}"; do scope_match "$g" "$p" && return 0; done
+  return 1
+}
+
+__wg_check_delete_targets() { # $1=セグメント番号
+  local i="$1" t p
+  if ! __wg_delete_targets "$i"; then
+    hook_deny WF205 "削除するコマンドだが、消す対象を読み取れなかった。消すファイルをパスで 1 つずつ指定すること（コマンドで消してよいのはチケットの allow.write の内側だけ）。" "$(__wg_cmd_head)"
+  fi
+  __wg_load_approvals
+  for t in ${REPLY_LIST[@]+"${REPLY_LIST[@]}"}; do
+    if [[ "$t" == "_" ]]; then
+      hook_deny WF205 "削除の対象を読み取れなかった（クォート等で潰れている）。消すファイルをパスでそのまま指定すること。" "$(__wg_cmd_head)"
+    fi
+    # 展開前の文字列は、どのパスになるか決まらない（`.claude/hooks/*` が glob として宣言に一致してしまう）
+    if [[ "$t" == *'*'* || "$t" == *'?'* || "$t" == *'['* || "$t" == *'{'* \
+       || "$t" == *'$'* || "$t" == *'`'* || "$t" == *'~'* || "$t" == *','* ]]; then
+      hook_deny WF205 "削除の対象 $t は展開してからでないとパスが決まらない（glob・ブレース・変数・コンマ区切り）。消すファイルを 1 つずつ書くこと。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
+    __wg_rel "$t"; p="$REPLY"
+    if __wg_delete_covers_guarded "$p"; then
+      hook_deny WF205 "$p を丸ごと消すと、配下の保護範囲・毎回確認の範囲・進行状態のファイルまで巻き込む。中のファイルを 1 つずつ消すこと。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
+    if ! __wg_delete_ok "$p"; then
+      hook_deny WF205 "$p を消そうとしているが、$(__wg_ticket_line)が宣言した allow.write の外（判定 $SC_STAGE）。コマンドで消せるのは wip/tmp/** と logs/**、それに宣言した範囲だけ。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
+  done
+  return 0
+}
+
 # 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）
 __wg_check_provided_args() { # $1=セグメント番号
   local i="$1" a skip=0 first=1 p
@@ -310,6 +396,14 @@ for (( __wg_i = 0; __wg_i < CP_COUNT; __wg_i++ )); do
   __WG_TARGETS="${SC_TARGETS:-}"
   if [[ -n "${CP_REDIRECTS[$__wg_i]:-}" ]]; then
     __WG_TARGETS="${__WG_TARGETS}${__WG_TARGETS:+$__WG_US}${CP_REDIRECTS[$__wg_i]}"
+  fi
+
+  # 削除だけの段は allow.write で判定する（作成・更新は従来どおり Edit / Write に寄せる）。
+  # リダイレクト先は削除ではなく書き込みなので、置き場の判定を当てる
+  if __wg_is_delete_seg "$__wg_i"; then
+    __wg_check_delete_targets "$__wg_i"
+    __wg_check_write_targets "${CP_REDIRECTS[$__wg_i]:-}"
+    continue
   fi
 
   case "$__WG_SEG_CLASS" in

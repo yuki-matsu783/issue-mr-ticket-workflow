@@ -23,7 +23,9 @@ readonly TODO="$TICKETS/00_todo" DOING="$TICKETS/10_doing" DONE="$TICKETS/20_don
 readonly TEMPLATE=".claude/skills/20-common-step-ticket/assets/ticket.template.md"
 readonly COMMIT=".claude/skills/20-common-step-commit-push/scripts/commit.sh"
 readonly TASK_TYPES=".claude/hooks/config/task-types.tsv"
-readonly LOG_HEADINGS=("現在地" "うまくいったこと" "うまくいかなかったこと" "仕様からの逸脱" "判断と根拠" "拒否・確認・迂回の記録" "使った AI アセットと効き目" "スコープ外で見つけたこと" "AI アセットに反映すべき内容" "備考")
+# 完了検査は finalize.sh release の段階 2 と共有する（二重実装しない）
+# shellcheck disable=SC1090
+. "${BASH_SOURCE[0]%/*}/ticket-check.sh"
 
 usage() {
   cat <<'USAGE'
@@ -240,12 +242,7 @@ cmd_start() {
 }
 
 # ---------------------------------------------------------------- complete
-section() { # $1=file $2=見出し行の正規表現 → その節の本文（次の同レベル以上の見出しまで）
-  awk -v re="$2" '
-    $0 ~ re { f=1; lvl=match($0, /^#+/) ? RLENGTH : 0; next }
-    f && /^#+ / { l=match($0, /^#+/) ? RLENGTH : 0; if (l <= lvl) { f=0 } }
-    f { print }' "$1"
-}
+# 検査そのものは ticket-check.sh の ticket_check_completion（finalize.sh と共有）
 cmd_complete() {
   local n="${1:-}"; [[ "$n" =~ ^[0-9]{4}$ ]] || result_ng 008 "complete には 4 桁の番号を指定する" 2
   find_ticket "$n" || result_ng 004 "チケット $n が見つからない" 1
@@ -253,32 +250,9 @@ cmd_complete() {
   local type; type="$(type_of "$T_PATH")"
   [ "$type" != "overall-summary" ] || result_ng 005 "全体まとめは complete しない。片付けの提供コマンド（finalize.sh release）が完了を内包する" 1
 
-  local unmet=() dod unchecked noroot cur ai h st
-  dod="$(section "$T_PATH" '^## DoD')"
-  unchecked="$(printf '%s\n' "$dod" | grep -n '^- \[ \]' | cut -d: -f1 | tr '\n' ' ' || true)"
-  [ -z "$unchecked" ] || unmet+=("DoD に未チェックの項目がある（DoD 節の行 ${unchecked}）")
-  noroot="$(printf '%s\n' "$dod" | grep -E '^- \[x\]' | grep -nE '（根拠:[[:space:]]*）|（根拠:[[:space:]]*$' | cut -d: -f1 | tr '\n' ' ' || true)"
-  [ -z "$noroot" ] || unmet+=("チェック済み DoD の根拠欄が空（チェック済み項目の ${noroot}番目）")
-  local noroot2
-  noroot2="$(printf '%s\n' "$dod" | grep -E '^- \[x\]' | grep -nv '（根拠:' | cut -d: -f1 | tr '\n' ' ' || true)"
-  [ -z "$noroot2" ] || unmet+=("チェック済み DoD に根拠欄「（根拠: ）」そのものが無い（チェック済み項目の ${noroot2}番目）。欄を消して通さない")
-  local hc
-  for h in "${LOG_HEADINGS[@]}"; do
-    # 見出しの一致は末尾の空白・CR を許し、前方一致の別見出し（### 現在地の続き）は数えない
-    hc="$(grep -cE "^### $h[[:space:]]*\$" "$T_PATH" || true)"
-    if [ "$hc" -eq 0 ]; then unmet+=("作業ログの見出し「$h」が無い")
-    elif [ "$hc" -ge 2 ]; then unmet+=("作業ログの見出し「$h」が重複している（$hc 回。テンプレートの見出しを残したまま追記していないか）")
-    fi
-  done
-  cur="$(section "$T_PATH" '^### 現在地')"
-  if printf '%s\n' "$cur" | grep -qE '^- *(次|未着手)|未着手|^- *次[:：]'; then unmet+=("作業ログ「現在地」に未完了の項目が残っている（「次:」「未着手」）"); fi
-  ai="$(section "$T_PATH" '^### AI アセットに反映すべき内容' | sed '/^[[:space:]]*$/d')"
-  [ -n "$ai" ] || unmet+=("作業ログ「AI アセットに反映すべき内容」が空（0 件なら 0 件である根拠を書く）")
-  st="$(git status --porcelain 2>/dev/null | tr -d '\r' | awk -v p="${T_PATH#./}" 'substr($0, 4) != p' | sed '/^$/d' || true)"
-  if [ -n "$st" ]; then unmet+=("チケット以外に未コミットの変更がある（$(printf '%s\n' "$st" | wc -l | tr -d ' ') 件: $(printf '%s\n' "$st" | head -5 | sed 's/^...//' | tr '\n' ' ')）→ commit.sh で先にコミットする"); fi
-  if [ "${#unmet[@]}" -gt 0 ]; then
-    printf '%s\n' "${unmet[@]/#/- }"
-    result_ng 003 "完了できない。未充足 ${#unmet[@]} 件（上に列挙）。形だけの記入で通さず、実態を満たしてから再実行する" 1
+  if ! ticket_check_completion "$T_PATH"; then
+    printf '%s\n' "${TICKET_UNMET[@]/#/- }"
+    result_ng 003 "完了できない。未充足 ${#TICKET_UNMET[@]} 件（上に列挙）。形だけの記入で通さず、実態を満たしてから再実行する" 1
   fi
 
   local orig ts new

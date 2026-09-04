@@ -37,10 +37,10 @@ hook_read_input limits || hook_fail "入力を読めない"
 __SG_DOING="wip/10_tickets/10_doing"
 __SG_DONE="wip/10_tickets/20_done"
 
-__SG_HOWTO_STATE="進行状態は提供コマンドでのみ遷移する（bash .claude/hooks/boundary.sh … / bash .claude/hooks/finalize.sh …）。前提が満たせないならユーザーに報告し、ファイルを作って状態を作らないこと。"
+__SG_HOWTO_STATE="進行状態は提供コマンドでのみ遷移する（bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh … / bash .claude/skills/10-task-overall-summary/scripts/finalize.sh …）。前提が満たせないならユーザーに報告し、ファイルを作って状態を作らないこと。"
 __SG_HOWTO_START="着手は bash .claude/skills/20-common-step-ticket/scripts/ticket.sh start <番号>。取り消しは ticket.sh cancel。"
 __SG_HOWTO_DONE="完了は bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete <番号>（全体まとめは finalize.sh release）。完了済みのチケットは触らない。"
-__SG_HOWTO_READY="draft の解除は bash .claude/hooks/finalize.sh release 経由でのみ行う（MCP 経由でも同じ）。"
+__SG_HOWTO_READY="draft の解除は bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release 経由でのみ行う（MCP 経由でも同じ）。"
 __SG_NO_BYPASS="コマンドの分割・別の実行系・権限設定の変更・フックの登録解除で迂回しないこと。"
 
 # ---- 制御方式 0: 設定が読めないときは既定値へフォールバックし、拒否に倒さない ----

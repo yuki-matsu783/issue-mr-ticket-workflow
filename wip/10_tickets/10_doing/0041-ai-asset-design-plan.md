@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり（計画書は設
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T15:17:26+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "6365046"
 ---
 
 # 0041 書き戻しの反映先をまとめ、設計チケットと次の計画チケットを起こす

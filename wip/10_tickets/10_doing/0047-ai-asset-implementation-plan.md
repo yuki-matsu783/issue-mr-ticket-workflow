@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "今回の実装は中核（フッ
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T16:47:23+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b84221a"
 ---
 
 # 0047 仕様に追随する本体の変更を割り付ける

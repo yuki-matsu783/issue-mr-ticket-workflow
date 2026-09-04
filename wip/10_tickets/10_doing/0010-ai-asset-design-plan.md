@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "全体計画書の方針（ai-ass
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T05:01:18+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f14b783"
 ---
 
 # 0010 AI アセット設計計画: worktree 運用と並列実施の採否を設計に落とす

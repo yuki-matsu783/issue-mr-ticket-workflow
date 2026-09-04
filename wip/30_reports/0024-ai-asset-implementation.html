@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0024- AI アセット実装・テスト結果 — 機構の実体を作る</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 12</span>
+    <span class="chip good">◎良 14</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -156,6 +156,8 @@
           <li><a href="#f11"><span class="mk good">◎</span> 11. 敵対的レビュー指摘の反映（finalize.sh）</a></li>
           <li><a href="#f12"><span class="mk good">◎</span> 12. 許可範囲内の削除（WF205）と旧資産の削除</a></li>
           <li><a href="#f13"><span class="mk good">◎</span> 13. 0 件判定・全件テスト・受け入れ条件の対応</a></li>
+          <li><a href="#f14"><span class="mk good">◎</span> 14. 敵対的レビュー（2 回目・指摘 16 件）</a></li>
+          <li><a href="#f15"><span class="mk good">◎</span> 15. 2 回目の指摘の反映（S13・S14・S15）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果・受け入れ条件との対応</a></li>
@@ -169,7 +171,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
-    <div><dt>チケット</dt><dd>0024〜0032</dd></div>
+    <div><dt>チケット</dt><dd>0024〜0032・0035〜0040（0034 は取り消し → 0037）</dd></div>
     <div><dt>作成日</dt><dd>2026-09-04</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -178,9 +180,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。<strong>0029（S6 スキル・エージェント）</strong>: <code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、エージェント定義 <strong>2 本</strong>を作った。計画型・実施型の共通手順は 2 本に集約し、残り 10 本は固有部分だけを書く。<strong>0030（S7 ワークフロースキル 2 本）</strong>: 旧名 83 件を置換ではなく<strong>新仕様からの書き起こし</strong>で解消した。2 本に残る旧名は 0 件。<strong>0031（S8 eval 定義と旧資産の処遇）</strong>: eval 定義 <strong>19 本</strong>を作って <code>.claude/evals/</code> を 28 本にした。旧資産の<strong>削除は機構に経路が無く</strong>（WF205）、追加チケット 0036 へ移した。<strong>0037（S10 敵対的レビュー指摘の反映・<code>boundary.sh</code>）</strong>: 指摘 5 件を直し、再現テスト <code>BD-T14</code>〜<code>BD-T18</code> を足した（74 → <strong>97 アサーション</strong>）。<strong>0035（S11 敵対的レビュー指摘の反映・<code>finalize.sh</code>）</strong>: 指摘 7 件を直し、再現テスト <code>FN-T10</code>〜<code>FN-T16</code> を足した（38 → <strong>54 アサーション</strong>）。<strong>0036（S12 中核: 許可範囲内の削除）</strong>: e9 で見つかった機構の穴を塞いだ。<code>WF205</code> に「削除だけを行う段は <code>allow.write</code> で判定する」分岐を足し、再現テスト <code>WG-T18</code> を置いてから旧資産 <strong>5 ファイル</strong>を実際に削除した。<strong>0032（S9 総仕上げ）</strong>: 旧名の 0 件判定・「残るもの」の期待値・全件テスト（27 本 / 211 件 / <strong>2,312 アサーション</strong>が失敗 0）・受け入れ条件との対応表で実装フェーズを締めた。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。<strong>0029（S6 スキル・エージェント）</strong>: <code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、エージェント定義 <strong>2 本</strong>を作った。計画型・実施型の共通手順は 2 本に集約し、残り 10 本は固有部分だけを書く。<strong>0030（S7 ワークフロースキル 2 本）</strong>: 旧名 83 件を置換ではなく<strong>新仕様からの書き起こし</strong>で解消した。2 本に残る旧名は 0 件。<strong>0031（S8 eval 定義と旧資産の処遇）</strong>: eval 定義 <strong>19 本</strong>を作って <code>.claude/evals/</code> を 28 本にした。旧資産の<strong>削除は機構に経路が無く</strong>（WF205）、追加チケット 0036 へ移した。<strong>0037（S10 敵対的レビュー指摘の反映・<code>boundary.sh</code>）</strong>: 指摘 5 件を直し、再現テスト <code>BD-T14</code>〜<code>BD-T18</code> を足した（74 → <strong>97 アサーション</strong>）。<strong>0035（S11 敵対的レビュー指摘の反映・<code>finalize.sh</code>）</strong>: 指摘 7 件を直し、再現テスト <code>FN-T10</code>〜<code>FN-T16</code> を足した（38 → <strong>54 アサーション</strong>）。<strong>0036（S12 中核: 許可範囲内の削除）</strong>: e9 で見つかった機構の穴を塞いだ。<code>WF205</code> に「削除だけを行う段は <code>allow.write</code> で判定する」分岐を足し、再現テスト <code>WG-T18</code> を置いてから旧資産 <strong>5 ファイル</strong>を実際に削除した。<strong>0032（S9 総仕上げ）</strong>: 旧名の 0 件判定・「残るもの」の期待値・全件テスト・受け入れ条件との対応表で実装フェーズを締めた。<strong>敵対的レビュー（2 回目）</strong>: 65 ファイル・3,642 行をレビュアー 2 体で分担し、<strong>指摘 16 件</strong>。高 2 件はどちらも 0036 で開けた削除の経路だった。<strong>0038・0039・0040（S13〜S15）</strong>: 16 件をすべて反映した。削除の許可判定に 3 条件を足し、提供コマンドの 4 件を直し、文書の 8 件（部分再掲・参照切れ・frontmatter）を揃えた。<strong>0034 は取り消して 0037 に置き換えた</strong>（<code>ticket.sh create</code> の <code>--allow-write</code> にコンマ区切りではなく繰り返しで値を渡し、宣言が最後の 1 つだけになった状態で着手したため）。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>12</b><span>◎良</span></li>
+    <li class="kpi good"><b>14</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -444,7 +446,7 @@
       <p><strong><code>work-defaults.md</code> に敵対的レビュアーの節を新設した</strong>。役割欄に「タスクの実行者ではなくレビュアー」と明記し、既定 <code>claude-fable-5-1</code>・上限 1 回・実行者と一致したときは起動側が差し替えることを書いた（残課題 R7・R9 の決着）。上の表に混ぜなかったのは、<code>type</code> の列に入らない行ができてモデル検査の比較対象を取り違えるためである。</p>
       <div class="box warn">
         <p class="label">注意</p>
-        <p><strong>旧資産の削除ができなかった</strong>。<code>rm</code> / <code>mv</code> / <code>git rm</code> は <code>WF205</code> が一律に拒否し、コマンドで書いてよいのは <code>wip/tmp/**</code> と <code>logs/**</code> だけ。Edit / Write ツールにファイルを消す手段は無いので、<strong>AI は <code>.claude/</code> 配下のアセットを削除できない</strong>。一方で AI アセット実装計画の仕様は変更対象に「削除」を含めており、設計と実装が食い違っている。ユーザーの判断で機構を直す追加チケット <strong>0036</strong> を起こし、削除 3 種 5 ファイルをそこへ移した。<code>issue-triage.md</code> は移設ではなく複製の状態で残っている。</p>
+        <p><strong>旧資産の削除ができなかった</strong>。<code>rm</code> / <code>mv</code> / <code>git rm</code> は <code>WF205</code> が一律に拒否し、コマンドで書いてよいのは <code>wip/tmp/**</code> と <code>logs/**</code> だけ。Edit / Write ツールにファイルを消す手段は無いので、<strong>AI は <code>.claude/</code> 配下のアセットを削除できない</strong>。一方で AI アセット実装計画の仕様は変更対象に「削除」を含めており、設計と実装が食い違っている。ユーザーの判断で機構を直す追加チケット <strong>0036</strong> を起こし、削除 3 種 5 ファイルをそこへ移した。<code>issue-triage.md</code> は移設ではなく複製の状態で残っている。<strong>この穴は e12 で塞ぎ、5 ファイルの削除も済んでいる</strong>（△注意はこのチケットの時点の状態として残す）。</p>
       </div>
     </li>
 
@@ -529,6 +531,49 @@
       <p>計画時の見込み（198 件）より 13 件多い。内訳は 0027 時点の 196 に、<code>RV-T08</code> 1・<code>CP-T11</code> 1・<code>BD-T14</code>〜<code>BD-T18</code> 5・<code>FN-T10</code>〜<code>FN-T16</code> 7・<code>WG-T18</code> 1 を足した 211 で、<strong>敵対的レビューの指摘に対する再現テストが増えたぶん</strong>である。</p>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">14</span>
+      <h3 id="f14">敵対的レビュー（実装フェーズ全体・2 回目） <span class="chip good">◎良</span> <span class="basis">根拠: 指摘 16 件をすべて追加チケット 0038・0039・0040 に落とした</span></h3>
+      <p>1 回目（中核 3 枚）の後に積み上がった差分 <code>72fe964..HEAD</code>（65 ファイル・3,642 行）を、読み取り専用のレビュアー 2 体で分担して見た。実行者（opus）と別のモデルで走らせ、経緯（コミット履歴・チケットの作業ログ・計画書）は渡していない。差分は 2 本に割り、<strong>チケットの作業ログを含む <code>wip/10_tickets/</code> は両方から外した</strong>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>担当</th><th>対象</th><th>指摘</th></tr></thead>
+        <tbody>
+          <tr><td>中核コード</td><td><code>workflow-guard.sh</code>・<code>boundary.sh</code>・<code>finalize.sh</code> とテスト</td><td>8 件（高 2 / 中 4 / 低 2）</td></tr>
+          <tr><td>文書・レポート</td><td>タスクスキル 15・ワークフロースキル 2・エージェント 2・eval 19・<code>work-defaults</code>・結果レポート</td><td>8 件（中 3 / 低 5）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><strong>高の 2 件はどちらも 0036 で開けた削除の経路だった</strong>。(1) <code>.claude/hooks/**</code> を宣言したチケットが <code>rm -rf .claude/hooks/config</code> で「毎回確認」の範囲を巻き込める（glob <code>.claude/hooks/config/**</code> はディレクトリ自身に一致しない）。(2) <code>rm -rf .claude/hooks/*</code> の <code>*</code> が展開前の文字列のまま宣言の <code>**</code> に一致する。どちらもレビュアーが <code>cmdpos_parse</code> と <code>scope_match</code> を実際に走らせて裏取りしている。</p>
+      <div class="box ok">
+        <p class="label">まとめの主張の抜き取り検証</p>
+        <p>テンプレート 15 件・スキル 26・eval 28 本と 111 件の突合・旧名 0 件・旧名 83 件・共通手順の再掲 0 件・テストファイル 27 本のすべてが「一致」。テスト件数だけはレビュアーがテストを実行できないため「確かめられない」。<strong>不一致が 3 件</strong>: 仕様が削除の例外を書いていない・<code>merge-state.json</code> の <code>branch</code> を書く側が無い・GitLab の <code>is_draft</code> が <code>draft:false</code> を「判定できない」に倒す。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">15</span>
+      <h3 id="f15">2 回目の指摘 16 件を反映した（S13・S14・S15） <span class="chip good">◎良</span> <span class="basis">根拠: WG-T18 が 33 アサーション・BD-T が 100・FN-T が 57 で PASS</span></h3>
+      <p><strong>S13（0038）削除の許可判定を締めた</strong>。0036 の「許可範囲の内側なら消してよい」に 3 つの条件を足した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>足した条件</th><th>何を止めるか</th></tr></thead>
+        <tbody>
+          <tr><td>配下に保護範囲・毎回確認・進行状態・種類の禁止範囲が入り得るディレクトリは拒否</td><td><code>rm -rf .claude/hooks/config</code>・<code>rm -rf logs</code></td></tr>
+          <tr><td>展開前の文字列（<code>* ? [ { $</code> バッククォート <code>~ ,</code>）は「読み取れない」として拒否</td><td><code>rm -rf .claude/hooks/*</code>・ブレース展開・変数・コンマ区切り</td></tr>
+          <tr><td>許可は「置き場（<code>wip/tmp/**</code> / <code>logs/**</code>）」か「チケットが宣言した <code>allow.write</code>」だけ</td><td>宣言外の計画書・レポート・未着手チケットの削除</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>進行状態のファイル（<code>logs/review-state.json</code> など）は <code>logs/**</code> の中にあってもコマンドで消せない。<code>WG-T18</code> は 16 → <strong>33 アサーション</strong>（<code>test_workflow_guard.sh</code> 全体で 150 → 183）。</p>
+      <p><strong>S14（0039）提供コマンドの 4 件</strong>。GitLab の <code>is_draft</code> が <code>jq</code> の <code>// empty</code> で <code>false</code> を落としていたので <code>has("draft")</code> で見る形に替えた。<code>merge-state.json</code> の <code>branch</code> は読む側だけがあって書く側が無かったので <code>write_state</code> に足した（逸脱 S14-1）。片付けの再実行が引用付きパスで壊れる件は <code>-z</code> の NUL 区切りに替えた。<code>BD-T14</code> / <code>BD-T15</code> は依頼時刻を固定値にして<strong>実行環境のタイムゾーンに依存しない</strong>ようにし、<code>date -d</code> への依存ごと消した。<code>BD-T18</code> に <code>.mr</code> の分岐を踏むケース、<code>FN-T17</code>（空白を含むパスでの再実行）を追加した。</p>
+      <p><strong>S15（0040）文書の 8 件</strong>。フィードバック計画の類型の文言を機構の定義に揃え、10 本のスキルが共通手順の禁止事項を<strong>部分再掲していた括弧を参照だけに変えた</strong>。移設した <code>issue-triage.md</code> を指す参照を <code>20-common-step-issue</code> の参照節に足し、<code>task-executor</code> に「文脈が足りなければ推測せず結果報告に書いて終える」を明記し、<code>work-defaults</code> の frontmatter に敵対的レビュアーの節を反映し、<code>00-workflow-quick-request</code> のヘッドレス節から仕様の手順番号への依存を外した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>部分再掲は「正が 1 つ」を壊す。10 本の括弧内が本ごとに違う部分集合になっていて、その本だけを読むと共通の禁止事項がそれで全部に見える。共通手順を集約した意味が消えるので、列挙をやめて参照だけにした。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -555,9 +600,12 @@
       <tr><td>共通手順の再掲</td><td>0 件。共通手順の本文を持つのは <code>10-task-investigation-plan</code> と <code>10-task-investigation-exec</code> の 2 本だけで、残り 10 本は正を参照する</td></tr>
       <tr><td>フックの追随</td><td><code>.claude/hooks/boundary.sh</code> / <code>.claude/hooks/finalize.sh</code> を指す実行時の参照は 0 件（残るのは仕様の過渡期記述・DDR・SE-T10 の意図的な旧パス）</td></tr>
       <tr><td>注入の機械テスト</td><td><code>SE-T01</code>〜<code>SE-T10</code> の 10 件・アサーション 45 件が PASS。<code>WE-T10</code>（<code>position</code> と継続条件の一致）は <code>test_workflow_entry.sh</code> 75 件に含まれる</td></tr>
-      <tr><td>テスト ID の総数</td><td>165 → 178（<code>BD-T</code> 13 件）→ 187（<code>FN-T</code> 9 件）→ 196（<code>SE-T</code> を 3 件から 10 件へ ほか）→ <strong>211</strong>（<code>RV-T08</code>・<code>CP-T11</code>・<code>BD-T14</code>〜18・<code>FN-T10</code>〜16・<code>WG-T18</code>）</td></tr>
+      <tr><td>テスト ID の総数</td><td>165 → 178（<code>BD-T</code> 13 件）→ 187（<code>FN-T</code> 9 件）→ 196（<code>SE-T</code> を 3 件から 10 件へ ほか）→ 211（<code>RV-T08</code>・<code>CP-T11</code>・<code>BD-T14</code>〜18・<code>FN-T10</code>〜16・<code>WG-T18</code>）→ <strong>212</strong>（<code>FN-T17</code>）</td></tr>
       <tr><td>全件テスト（実装フェーズの締め）</td><td><code>run-tests.sh --ids --timeout 300</code> が <code>OK: 27 本 / 211 件</code>。27 ファイルすべて PASS、FAIL ID 0 件・アサーション <strong>2,312 件</strong>・失敗 0 件・<strong>重複 ID なし</strong></td></tr>
-      <tr><td>削除の許可判定（<code>WG-T18</code>）</td><td>許可範囲内の削除 5 件が allow、範囲外 5 件が <code>WF205</code>、作成・更新 3 件が <code>WF205</code> のまま、対象を読めない 2 件が <code>WF205</code>。<code>test_workflow_guard.sh</code> は 150 → <strong>166 アサーション</strong>が PASS</td></tr>
+      <tr><td>削除の許可判定（<code>WG-T18</code>）</td><td>許可範囲内の削除 5 件が allow、範囲外 5 件が <code>WF205</code>、作成・更新 3 件が <code>WF205</code> のまま、対象を読めない 2 件が <code>WF205</code>。S13 でディレクトリ 4 件・展開前の文字列 5 件・進行状態 2 件・宣言外 4 件を足し、<code>test_workflow_guard.sh</code> は 150 → <strong>183 アサーション</strong>が PASS</td></tr>
+      <tr><td><code>boundary.sh</code> / <code>finalize.sh</code>（S14 の後）</td><td><code>BD-T01</code>〜<code>BD-T18</code> が <strong>100 アサーション</strong>、<code>FN-T01</code>〜<code>FN-T17</code> が <strong>57 アサーション</strong>で PASS。<code>BD-T14</code> / <code>BD-T15</code> は実行環境のタイムゾーンに依存しない固定時刻になった</td></tr>
+      <tr><td>共通手順の部分再掲</td><td>0 件。10 本の冒頭はすべて <code>10-task-investigation-plan</code> / <code>10-task-investigation-exec</code> への参照だけ（2 種類・各 5 本）</td></tr>
+      <tr><td>全件テスト（S15 の後・最終）</td><td><code>run-tests.sh --ids --timeout 300</code> が <code>OK: 27 本 / 212 件</code>。27 ファイルすべて PASS、FAIL ID 0 件・アサーション <strong>2,335 件</strong>・失敗 0 件・<strong>重複 ID なし</strong>（0032 の 211 件から <code>FN-T17</code> が 1 件増えた）</td></tr>
       <tr><td>旧資産の削除</td><td>5 ファイルが消えている（コミット <code>decf384</code>）。空になった <code>evals/</code> 2 つと <code>references/</code> 1 つも除去済み</td></tr>
       <tr><td>旧名の 0 件判定</td><td>0005 の c5 の検索コマンド（訂正版）の出力が <strong>0 行</strong>。除外は <code>参考ディレクトリ/</code>・<code>logs/</code>・<code>wip/</code>・<code>.claude/docs/20_ddr/</code> の 4 つだけ</td></tr>
       <tr><td>「残るもの」の期待値</td><td>スキルディレクトリ <strong>26</strong>、<code>entry-skills.txt</code> の非コメント行 <strong>2</strong>、<code>.claude/evals/*.md</code> <strong>28</strong>。3 つとも 0005 の c5 が置いた期待値どおり</td></tr>
@@ -591,6 +639,9 @@
     <li>種類ごとのテンプレートが「共通の型に足す節だけ」であることは、使う側の SKILL.md にも書く必要がある（テンプレートを 1 枚だけコピーして完成と誤解しないため）。引き取り先: S6（0029）</li>
     <li><code>workflow-guard</code> 仕様の制御方式 6（51 行目）に「削除だけを行う段（<code>rm</code> / <code>git rm</code>）は対象を <code>allow.write</code> で判定する」を足し、テスト表に <code>WG-T18</code> を加える（逸脱 S12-1 / S12-2）。引き取り先: 設計反映</li>
     <li>AI アセット実装計画の許可範囲の書き方に「削除を伴う作業は、消す対象を <code>allow.write</code> に含める」を添える（同じ詰まり方をしないため）。引き取り先: 設計反映</li>
+    <li>削除の例外は 0036 + 0038 の最終形（置き場か宣言の一致・ディレクトリの扱い・展開前の文字列・進行状態のファイル）で 1 節にまとめて書く。断片で書くと 0036 の時点の緩い形が残る。引き取り先: 設計反映</li>
+    <li><code>logs/merge-state.json</code> のスキーマに <code>branch</code> を足す（逸脱 S14-1）。引き取り先: 設計反映</li>
+    <li>テストの作法に「負のコントロールは環境（タイムゾーン・ロケール）が変わっても落ちるか確かめる」を足す（<code>BD-T14</code> が <code>TZ=UTC</code> で偶然通っていた）。引き取り先: 設計反映</li>
   </ol>
 </section>
 
@@ -621,6 +672,9 @@
     <li><strong>R7</strong>: <s>旧資産 3 種 5 ファイルが残っている</s> <strong>解消</strong>（0036 で削除。<code>issue-triage.md</code> は移設の状態になった）</li>
     <li><strong>R8</strong>: AI アセット実装計画の仕様は変更対象に「削除」を含めるのに、機構に削除の経路が無かった。0036 で機構は直したので、<code>workflow-guard</code> の仕様（制御方式 6・51 行目）に「削除のみのコマンドは許可範囲で判定する」と、テスト表に <code>WG-T18</code> を入れる。引き取り先: 設計反映</li>
     <li><strong>R9</strong>: <code>rmdir</code> はどの分類にも当たらず <code>WF204</code> になる。空ディレクトリの片付けは <code>rm -r</code> で代替できたが、分類表（読み取り系の一覧）に足すかは決めていない。引き取り先: フィードバック計画（0033）</li>
+    <li><strong>R10</strong>: <code>logs/merge-state.json</code> に <code>branch</code> を書くようにした（逸脱 S14-1）。仕様のスキーマに項目が無い。引き取り先: 設計反映</li>
+    <li><strong>R11</strong>: 作成・更新側（<code>cp</code> / <code>mv</code> の宛先）にも展開前の文字列の穴が残っている。置き場が <code>wip/tmp/**</code> と <code>logs/**</code> に限られていて被害が小さいため S13 では触っていない。引き取り先: フィードバック計画（0033）</li>
+    <li><strong>R12</strong>: GitLab 経路は <code>is_draft</code> の修正を含めてテストが無い。根拠は <code>jq</code> の実測であって <code>glab</code> の応答を通した検証ではない（R4 と同根）。引き取り先: フィードバック計画（0033）</li>
   </ul>
 </section>
 

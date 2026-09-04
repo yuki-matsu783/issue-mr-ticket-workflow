@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-design-plan
-predecessors: ["0004", "0005", "0006", "0007", "0008", "0009"]
+predecessors: ["0004", "0005", "0006", "0007", "0008", "0009", "0011"]
 executor: opus
 human_review: {required: false, reason: "全体計画書の方針（基準どおり: 計画書は設計結果と一緒に見れば足りる）"}
 adversarial_review: {required: false, reason: "全体計画書の方針（ai-asset-design-plan は基準どおり不要）"}

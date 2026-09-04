@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-04T18:26:22+09:00"
 completed_at: ""
 base_sha: "a029b55"
+cancelled_at: "2026-09-04T18:35:07+09:00"
+cancel_reason: "allow.ops のリモート書き込みの分類名が機構の語彙と合っていない（remote-write:issue / remote-write:mr は存在せず、正しくは issue-create / issue-append / mr-edit / mr-comment / attach / draft-ready）。作業中チケットの allow は WF208 で編集できないので、正しい宣言で起票し直す"
 ---
 
 # 0055 issue #10 の全体まとめ

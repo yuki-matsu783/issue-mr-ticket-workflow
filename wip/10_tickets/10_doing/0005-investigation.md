@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の差分 3。フ�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T23:07:31+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "719c098"
 ---
 
 # 0005 調査: 提供コマンドと logs/ 状態ファイルの worktree 分離

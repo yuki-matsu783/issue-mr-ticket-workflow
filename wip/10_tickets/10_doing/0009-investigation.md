@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の差分 3。フ�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T03:30:30+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9cb7269"
 ---
 
 # 0009 調査: 実測結果と予測の突き合わせ、並列採否の判断材料の確定

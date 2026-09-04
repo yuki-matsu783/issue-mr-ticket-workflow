@@ -9,7 +9,7 @@ description: >
 
 # 10-task-ai-asset-design-plan — .claude/docs/ に何を書くかを決める
 
-共通手順の禁止事項（計画書・チケット・`wip/tmp/` 以外に書き込まない、全体計画書と受け入れ条件を書き換えない、次の計画チケットを推測で作らない）に加えて、`.claude/docs/` の要件・仕様・DDR・用語辞書・横断文書の**本文を書き始めない**（骨子まで）。アセット本体（`.claude/skills/`・`hooks/`・`rules/`・`agents/`・`settings.json`）に書き込まない。1:1:1（アセット 1 : 要件定義書 1 : 仕様書 1。rules は要件のみ）を崩す一覧を作らない。中核の変更要否を判断せずに計画を書かない。
+共通手順の禁止事項（`10-task-investigation-plan` の冒頭が正）に加えて、`.claude/docs/` の要件・仕様・DDR・用語辞書・横断文書の**本文を書き始めない**（骨子まで）。アセット本体（`.claude/skills/`・`hooks/`・`rules/`・`agents/`・`settings.json`）に書き込まない。1:1:1（アセット 1 : 要件定義書 1 : 仕様書 1。rules は要件のみ）を崩す一覧を作らない。中核の変更要否を判断せずに計画を書かない。
 
 ## 目的
 

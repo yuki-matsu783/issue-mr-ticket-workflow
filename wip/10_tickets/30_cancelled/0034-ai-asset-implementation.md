@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-04T12:47:35+09:00"
 completed_at: ""
 base_sha: "0b6f182"
+cancelled_at: "2026-09-04T12:54:39+09:00"
+cancel_reason: "起票時に --allow-write / --allow-ops を繰り返し指定したため最後の 1 つしか入らず、宣言（wip/** / remote-read）が作業の実体（boundary.sh の修正とテスト実行）と合わない。同じ内容を正しい宣言で 0037 として起こし直す"
 ---
 
 # 0034 S10 敵対的レビュー指摘の反映（boundary.sh 5 件）

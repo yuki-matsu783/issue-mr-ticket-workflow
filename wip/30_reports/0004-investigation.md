@@ -1,17 +1,17 @@
 ---
 type: report
-title: 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと logs/ 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否）
-description: issue #50 の調査フェーズの結果。観点 A では、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定した。観点 B では、提供コマンド 5 本の状態ファイル依存 17 行を「無いときの振る舞い」つきで表にし、__ss_load が cwd ではなくスクリプトの置き場で LOGGER_ROOT を決めることと、そのずれる 3 条件を特定し、本 issue の実施中に実際に踏んだ 3 件の根本原因を行番号で押さえた。観点 C では、サブエージェントを別 worktree で動かせること（isolation: worktree）を公式 18 引用つきで確定し、既定の分岐元が既定ブランチであるために機構が静かに無効化されることと、subagent-start-check が読む cwd が 2 経路で別物であることを押さえた。人間が実行するための実測手順（コマンド列 + 予測）を観点ごとに残した。
+title: 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと logs/ 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト）
+description: issue #50 の調査フェーズの結果。観点 A では、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定した。観点 B では、提供コマンド 5 本の状態ファイル依存 17 行を「無いときの振る舞い」つきで表にし、__ss_load が cwd ではなくスクリプトの置き場で LOGGER_ROOT を決めることと、そのずれる 3 条件を特定し、本 issue の実施中に実際に踏んだ 3 件の根本原因を行番号で押さえた。観点 C では、サブエージェントを別 worktree で動かせること（isolation: worktree）を公式 18 引用つきで確定し、既定の分岐元が既定ブランチであるために機構が静かに無効化されることと、subagent-start-check が読む cwd が 2 経路で別物であることを押さえた。観点 D では、git の同一ブランチ制約を公式引用で確定し、ブランチ構成 4 案の比較表・合流手段 6 案のコスト・過去 issue の実データ（feature-10 の 247 コミット中 168 件が状態遷移コミット、rename 104 件）からの衝突見積もり（レポート 1 対あたり同一行の書き換え 13 行）を出し、DDR i0001-23 の却下文 3 主張を再評価した。人間が実行するための実測手順（コマンド列 + 予測）を観点ごとに残した。
 tags: [report, investigation, issue-50]
-keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 提供コマンド, merge-state, mr.json, 実測手順, isolation, worktree.baseRef, subagent-start-check, EnterWorktree, worktreeinclude, 隔離強制, decisions.jsonl]
+keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 提供コマンド, merge-state, mr.json, 実測手順, isolation, worktree.baseRef, subagent-start-check, EnterWorktree, worktreeinclude, 隔離強制, decisions.jsonl, 同一ブランチ制約, detached HEAD, ignore-other-worktrees, 合流, rename検出, WF207, WF401, merge-base, i0001-23, squash merge, 採番]
 ---
 
-# 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと `logs/` 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否）
+# 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと `logs/` 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト）
 
 - 対象 issue: [#50](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50)
 - MR: [#51](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51)（draft）
 - ブランチ: `feature-50-worktree-parallel-tickets`
-- チケット: 0004（観点 A）
+- チケット: 0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）
 - 作成日: 2026-09-04
 
 ## サマリ
@@ -54,6 +54,21 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - 動かせない場合・採らない場合の代替は 6 通り挙げ、成立条件を書いた（e23）。うち機構と最も相性がよいのは「人間が `claude --worktree <名前>` で別セッションを開く」で、成立条件は ①`.claude/worktrees/` を `.gitignore` に入れる ②`logs/` を `.worktreeinclude` で複製するか worktree ごとに作る ③同じ feature ブランチを 2 つの作業ツリーで checkout できない git 制約を回避する（0007 の観点 D）④workspace trust を先に取る、の 4 つ
 - 件数（**タスク全体の合計。0005 の合計行を 0006 分まで積み上げた最新の合計で、以後はこの行を指す。0005 の「◎良 6 件 / △注意 8 件 / ✕問題 2 件 = 16 件」は 0005 時点の合計として読む**）: **◎良 10 件 / △注意 11 件 / ✕問題 3 件 = 24 件**（内訳: 0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件）
 
+0007 まで（観点 A・B・C・D）。ここから下の段落・箇条書きが 0007（観点 D）で足した分で、上の 0004・0005・0006 の記述は書き換えていない。**表題は観点 A・B・C から観点 A・B・C・D を含む形に広げた**（読み替えの注記は 0005 の段落にある）。あわせて冒頭の「チケット」欄が `0004（観点 A）` のまま取り残されていたので 4 枚を列挙する形に直した（HTML 側は 0006 の時点で 3 枚を列挙しており、md が追随していなかった。結論の書き換えではなく見出し情報の同期）。
+
+観点 D の問い「1 issue = 1 ブランチ = 1 MR を保ったまま複数 worktree を使えるか、合流コストはどれだけか」への答えは **「保ったまま使える。git の同一ブランチ制約は『サブブランチを切って後で合流する』形で回避でき、MR は squash merge されるので中間の履歴は `main` に残らない。合流コストの主体はファイルの衝突ではなく、①機構が『ブランチ間の合流』という操作を設計として拒否していること（DDR `i0004-07` が `merge-base` 分類で `origin/<default>` 以外の `merge` を拒否すると明記）と、②1 タスク 1 レポートの積み上げ運用が、追記のたびに md と HTML の同じ 13 行を必ず書き換えるため、並列の追記が確実に衝突することにある」**。
+
+- **git の同一ブランチ制約は公式に明記されている**（`git worktree` の `--force` の説明が「`add` refuses to create a new worktree when *&lt;commit-ish&gt;* is a branch name and is already checked out by another worktree」、`git checkout` の `--ignore-other-worktrees` が「`git checkout` refuses when the wanted branch is already checked out or otherwise in use by another worktree」）。回避策は 3 つとも公式に口がある（`--detach` / 引数省略時の自動ブランチ作成 / `--force`・`--ignore-other-worktrees`）（e26）
+- ブランチ構成は **4 案**（detached HEAD / サブブランチ + 合流 / `--force` で同一ブランチ共有 / 別 clone）を比較した。**成立するのはサブブランチ + 合流と別 clone の 2 案だけ**で、detached HEAD は `push.sh:68` が「現在ブランチを特定できない（detached HEAD。環境の誤り）」で必ず CP007 に落ちるため成立せず、`--force` は 2 つの作業ツリーが同じ ref を進めるため一方の commit が他方を「削除済み」状態にする（e27）
+- **Claude Code のサブエージェント隔離（`isolation: worktree`）が作るのは `worktree-<名前>` というサブブランチ**（0006 の e18 の S9）で、これは案 2 そのものである。つまり「隔離を採る = サブブランチ + 合流を採る」であり、合流手順を決めないと成果が孤立したブランチに残る（e27・e28）
+- **合流の手段は 6 案挙げたが、現行の機構が AI に通すのは 2 つだけ**。`cherry-pick` / `rebase` / `am` / `revert` / `commit-tree` は `block-direct-git` が WF401 で拒否する（`block-direct-git.sh:36, 98-100`）。`git merge` は WF401 の対象外だが、`scope.sh:392-393` が「引数に `origin/*` があれば `merge-base`、無ければ `unknown`」と分類するため、`git merge worktree-<名前>` は `unknown` → WF204 の既定拒否になる。**ただし作業中チケットが 0 枚なら `workflow-guard.sh:49` が即座に抜けるので素通りする** — 通るのは統制の抜けであって許容ではない（DDR `i0004-07` が「取り込み以外の `merge`（ブランチ間の統合）は `merge-base` 分類で `origin/<default>` 以外を拒否できる」と設計意図を明記している）（e28）
+- **過去 issue の実データ**（`git log --diff-filter=R --name-status`）: 全ブランチ合計の rename は **235 件**（`00_todo→10_doing` 133 / `10_doing→20_done` 94 / `10_doing→30_cancelled` 6 / `00_todo→20_done` 2）。直近の完了 issue `feature-10` は **チケット 57 枚 / rename 104 件 / 全 247 コミット中 168 件（68%）が状態遷移コミット**で、**1 コミットあたりの rename はちょうど 1 件**（104 コミットすべてが 1 件）だった（e29）
+- **衝突の見積もり**: `wip/10_tickets/` の rename は**チケットごとに別ファイル**なので、並列でも衝突は **0 件**（同じチケットを 2 つの worktree で動かさない限り）。一方 `wip/30_reports/` の**同一レポート 1 対への追記は、md 4 行 + HTML 9 行 = 13 行が毎回必ず同じ行の書き換え**になり、並列だと**必ず衝突する**。加えて挿入点も重なり、0005 と 0006 の追記を共通の基点から見ると **md の 11 か所の挿入のうち 6 か所が同一の挿入点、5 か所が 1 行違い**だった（e29・e30）
+- **`ticket.sh` の連番の採番は衝突する**。`ticket.sh:154-159` は**自分の作業ツリーの `wip/10_tickets/*/` だけ**を見て最大 + 1 を採るので、2 つの worktree が同じ番号を採る。種類が同じなら同名ファイルで add/add 衝突、種類が違うと**衝突せずに同じ番号のチケットが 2 枚並び**、`find_ticket`（`ticket.sh:50-59`）が先勝ちで片方だけを返す（e30）
+- **`ticket.sh` の「作業中は常に 1 枚」の前提は、作業ツリーごとには保たれるが合流後は破れる**。合流時に双方が作業中チケットを持っていると `10_doing/` が 2 枚になり、`workflow-guard.sh:128-138` の WF207 が提供コマンド以外のすべての操作を拒否し、`workflow-diff-check.sh:44-47` は黙って判定をやめる。**合流をタスクの切れ目（作業中 0 枚）に限れば起きない**（e31）
+- **DDR `i0001-23` の却下文 3 主張の再評価**: 「分離は強い」= **今も成り立つ**（むしろ 0004 の e5 を Claude Code 側の隔離検査が塞ぐぶん強くなった）／「1 issue = 1 ブランチ = 1 MR の原則と衝突し」= **成り立たない**（原則は issue↔ブランチ↔MR の対応を言うもので、push しないローカルのサブブランチは MR を増やさない。加えて squash merge で中間履歴は `main` に残らない）／「統合のコストが利得を上回る」= **条件付きで成り立つ**（ファイル衝突は小さいが、合流の操作自体が機構の設計意図に反しており、レポート追記の衝突は毎回確実に出る）（e32）
+- 件数（**タスク全体の合計。0006 の合計行を 0007 分まで積み上げた最新の合計で、以後はこの行を指す。0006 の「◎良 10 件 / △注意 11 件 / ✕問題 3 件 = 24 件」は 0006 時点の合計として読む**）: **◎良 15 件 / △注意 15 件 / ✕問題 4 件 = 34 件**（内訳: 0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件）
+
 ### ◆特に見てほしい（判断に困っている）
 
 - e5 の位置づけ。「作業ツリーをまたぐ絶対パス指定で進行状態ファイル保護がすり抜ける」ことは、フック共通仕様 §13「意図的な緩和」が約束している「機構が守るのは進行状態・コミット / push・`chmod`（常時フック）まで」に反する。**issue #50 の受け入れ条件 A1 の「動かない箇所」として扱うか、全体計画書の保留 P2（機構の不具合として別 issue）へ回すか**を決めきれていない。並列実施を採らなくても worktree を使えば踏むので前者に寄せたが、判断は 0009 と 0010 に委ねる
@@ -64,6 +79,9 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 
 - （0006）**観点 C の答えが肯定なので、保留 P1（並列を採るか）の重心が「できるか」から「載せ替える価値があるか」に移った**。手段は存在するが、そのまま載せると e20（既定ブランチから切られて機構が無効化される）・e21（`.claude/worktrees/` が protected かつ未 gitignore）・e22（ヒアドキュメント検査を無効化できない）の 3 つを同時に直すことになる。**この 3 つを直してでも 1 issue 内の並列を採るのか**を、0009 と 0010 で判断してほしい。調査の範囲では決めない
 - （0006）**e20 を受け入れ条件 A1 の「動かない箇所」に載せるか**。「サブエージェントを `isolation: worktree` で起動すると機構が静かに無効化される」は、worktree 上の健全性（A1）の問題でもあり、並列採否（A4）の材料でもある。0004 の e5・0005 の e13 と同じ判断で、まとめて 0009 / 0010 に委ねる
+
+- （0007）**DDR `i0001-23` の却下文のうち「1 issue = 1 ブランチ = 1 MR の原則と衝突する」を『成り立たない』と判定した**。根拠は ①原則の正文（`00_requirement/自己改善ワークフロー機構.md:163`）が言うのは issue とブランチと MR の 1:1:1 対応で、ローカルの中間ブランチを禁じてはいないこと ②同じ前提条件の次の行が「並行して作業する場合は git worktree または別の clone を使う」と**明示的に worktree を許している**こと ③「MR は squash merge され、ブランチ上の作業領域（`wip/`）の履歴は main に残らない」（同 :161）ので中間の合流コミットが正史を汚さないこと、の 3 点である。**この読み方でよいか**（原則を「feature ブランチ以外のブランチを作らない」と読むなら判定は逆になる）を判断してほしい。調査の範囲では原則の解釈を変更していない（e32）
+- （0007）**合流の操作を機構がどう扱うかを決めきれていない**。`git merge worktree-<名前>` は作業中チケットが 0 枚なら現行でも素通りするが、DDR `i0004-07` は「取り込み以外の `merge`（ブランチ間の統合）は `merge-base` 分類で `origin/<default>` 以外を拒否できる」と、**拒否できることを利点として書いている**。並列を採るなら ①`merge-base` を「合流も含む」に広げる ②合流専用の提供コマンド（`merge.sh`）を足す ③合流は人間だけが行う、のいずれかを選ぶことになる。**この選択は設計判断なので 0010 に委ねた**が、③を選ぶと並列の利得が人間の手数で相殺されるおそれがある（e28・e33）
 
 ### ◇判断が欲しい（決めた方針の承認 / 決められない点の判断）
 
@@ -79,6 +97,11 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0006）`subagent-start-check` が読む `cwd` について、**PreToolUse `Agent` 経路は「呼び出し元」と断定し、SubagentStart 経路は「不明」に留めた**。前者は Agent ツールの呼び出し自体がメイン側のツール呼び出しであることと、公式の `agent_id` の説明（「Present only when the hook fires inside a subagent call」）から断定できる。後者は worktree の作成時点と SubagentStart の発火時点の前後関係が公式に書かれていないため、推測で埋めずに実測（C2）へ落とした
 - （0006）**`isolation: worktree` を実際に試していない**。試すには `.claude/agents/` に検査用のエージェント定義を置くか既存の `task-executor.md` の frontmatter を変えることになり、どちらも本チケットの `allow.write`（`wip/**`）の外である。書き込みを拒否されたわけではなく、**宣言の範囲外なので初めから試みなかった**。実測手順 C1〜C4 に落として人間に回した
 - （0006）**フックは Claude Code の隔離検査（git リダイレクト・command shape）の対象外**と読んだ。公式が検査の対象を「a Bash, PowerShell, or Monitor command」と限っており、フックは Claude Code 自身が起動するプロセスでツール呼び出しではないためだが、これは**引用からの推論**であって明文ではない。外れると `git -C "$HOOK_WORKTREE"` を持つフック 4 本（`session-start` / `subagent-stop-check` / `post-push-compact-prompt` / `post-push-usage-report`）が隔離下で止まる
+
+- （0007）**衝突の「件数」を、git を実際に走らせずに出した**。`git merge` も `git merge-tree` も `diff3` も `scope.sh` の分類に無く WF204 で拒否されるため（`merge-tree` は `_SC_GIT_READ_SUBCMDS` に無い）、**3-way マージを 1 度も実行していない**。代わりに「過去の追記コミットの hunk の位置を共通の基点に写して、両者が同じ行・同じ挿入点に当たるかを数える」という静的な方法を採った。同一行の書き換え 13 行は確実だが、挿入点の重なりが実際に conflict marker を生むかは **git のマージ規則（重なりの判定）に依存する**ので、実測手順 D3 に落とした（e29・e34）
+- （0007）**ブランチ構成の選択肢を、計画書の 3 案（detached HEAD / サブブランチ + 合流 / `--force`）に「別 clone」を足して 4 案にした**。理由は、`00_requirement/自己改善ワークフロー機構.md:164` が並行の手段として worktree と並べて別 clone を明記しており、比較表に載せないと「原則が許している選択肢」が落ちるためである。計画書の 3 案は表の 1〜3 行目にそのまま残した（e27）
+- （0007）**「合流コスト」を 3 つに分けて測った**: ①ファイルの衝突（git が自動で解けない箇所の数）②合流の操作そのものが機構で通るか ③合流後に機構の前提（作業中 1 枚・切れ目の判定）が壊れないか。計画書は ① だけを求めていたが、①が小さいことが分かった時点で ②③ が主コストになったため 3 分割した（e25・e28・e31）
+- （0007）**サブエージェント隔離の worktree を、ブランチ構成の第 5 の案にはせず「案 2 の具体形」として表に併記した**。`worktree-<名前>` は `git worktree add <path>` が引数省略時に作るブランチと同じ性質（`$(basename <path>)` の新規ブランチ）で、案 2 と別立てにすると合流手順が二重になるためである（e27）
 
 ### ・細かいレビューは不要（ほぼ確実）
 
@@ -96,6 +119,15 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0006）`.claude/settings.json` に `worktree` キーが **0 件**であること、`.gitignore` に `.claude/worktrees/` の行が **0 件**であること
 - （0006）`scope-limits.json` の `common.protected` が `[".claude/**", ".gitignore", "apl/*/.gitignore", ".gitattributes"]` の 4 件であること
 - （0006）本サブエージェントの実行環境が `AI_AGENT=claude-code_2-1-259_agent` / `CLAUDE_AGENT_SDK_VERSION=0.3.259` / `CLAUDE_CODE_CHILD_SESSION=1` / `CLAUDE_PROJECT_DIR` 未設定 / `pwd` が本流のリポジトリルートであること（`env | grep -i claude` と `pwd`）
+
+- （0007）全ブランチの `wip/10_tickets/` の rename が **235 件**、内訳が `00_todo→10_doing` **133** / `10_doing→20_done` **94** / `10_doing→30_cancelled` **6** / `00_todo→20_done` **2** であること（`git log --all --diff-filter=R --name-status --format='' -- wip/10_tickets/` を `awk` で集計）
+- （0007）`feature-10-task-skills-agents-finalize` が **247 コミット / チケット 57 枚 / rename 104 件**で、状態遷移コミットが **168 件**（作成 56 / 着手 56 / 完了 53 / 取り消し 3）であること。**rename を含む 104 コミットはすべて 1 コミット 1 rename**（分布の集計が `104 1` の 1 行）
+- （0007）`ticket.sh` の採番が自分の作業ツリーだけを見ること（`ticket.sh:154-159` の `for f in "$TICKETS"/*/[0-9][0-9][0-9][0-9]-*.md` と `max + 1`）
+- （0007）`push.sh` が detached HEAD を拒否すること（`push.sh:67-68` の `[ "$branch" != "HEAD" ] || result_ng 007 "現在ブランチを特定できない（detached HEAD。環境の誤り）"`）
+- （0007）`block-direct-git` が `merge` と `stash` を明示的に対象外にしていること（`block-direct-git.sh:35-36` のコメントと `__BG_COMMIT_SUBCMDS=' revert cherry-pick am rebase commit-tree '`）
+- （0007）`scope.sh` の `merge` の分類が「引数に `origin/*` があれば `merge-base`、無ければ `unknown`」であること（`scope.sh:392-393`）と、`merge-base` を `ops` に持つ種類が `overall-summary` の **1 種類だけ**であること（`scope-limits.json:24`）
+- （0007）`.gitattributes` が LF 固定にしているのは `*.sh` / `*.tsv` / `*.json` / `*.html` の 4 拡張子で、**`*.md` は含まれない**こと
+- （0007）レポート 1 対への 1 回の追記が md **14 hunk** / HTML **17 hunk** であること（`git show <sha> -U0 -- <path> | grep -c '^@@'` が 0005 の追記・0006 の追記とも md 14 / HTML 17）
 
 ## 確かめられなかったこと
 
@@ -120,6 +152,12 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 | （0006）`.worktreeinclude` で `logs/` を worktree へ複製したときに、進行状態（`merge-state.json` ほか）が二重になって何が起きるか | 複製を試すには worktree を作る必要があり、AI からは実行できない（`git worktree` も `--worktree` 起動も WF204 / 人間の操作） | 0009／0010（調査計画書の保留 P2） |
 | （0006）`isolation` frontmatter が本環境の Claude Code 2.1.259 で実際に解釈されるか（公式は `isolation` の導入版を明記していない） | 実行して確かめるほかなく、上と同じ理由で試みていない | 0009（実測手順 C1） |
 
+| （0007）2 つの作業ツリーの成果を実際に `git merge` したときに conflict marker が何件出るか | `merge` は `scope.sh` の `unknown`（引数が `origin/*` でないため）で WF204、`merge-tree` は `_SC_GIT_READ_SUBCMDS` に無く同じく WF204、`diff3` は `_SC_READ_ONLY_CMDS` に無い。**3-way マージを実行する手段が 1 つも無い**ので、過去の追記コミットの hunk 位置からの静的な見積もりに留めた | 0009（実測手順 D3）／人間 |
+| （0007）`git worktree add --force` で同じブランチを 2 つの作業ツリーに置いたとき、片方の commit が他方の `git status` にどう見えるか | `git worktree` はどの `allow.ops` を宣言しても WF204。公式ドキュメントにも「共有した場合に他方がどうなるか」の明示的な記述が無い（`git-worktree` の BUGS 節は「Multiple checkout in general is still experimental」とだけ書く） | 0009（実測手順 D2） |
+| （0007）`git worktree add` が同じブランチを拒否するときの**正確なエラー文言** | 公式ドキュメントは「refuses to create a new worktree when *&lt;commit-ish&gt;* is a branch name and is already checked out by another worktree」と振る舞いだけを書き、文言（`fatal: '<branch>' is already used by worktree at '<path>'` と伝えられているもの）は載っていない。実行して確かめるほかない | 0009（実測手順 D1） |
+| （0007）サブエージェント worktree の `worktree-<名前>` ブランチが、サブエージェント終了後に**いつまで残るか** | 公式は「a worktree with changes stays on disk until the periodic sweep below can remove it without losing work」（0006 の e18 の S7）と書くが、sweep の周期も、**ブランチ ref を消すのか worktree ディレクトリだけを消すのか**も書いていない。ref が消えると未合流の成果が失われるため、合流手順の前提として確かめる必要がある | 0009（実測手順 D4）／0010 |
+| （0007）並列で得られる**利得**（所要時間の短縮幅） | チケットの `started_at` / `completed_at` は記録されているが、**本ブランチ以外のチケットは `finalize.sh` の片付けで `wip/` ごと消えており、過去 issue の所要時間を後から読めない**（`git show` で復元はできるが、直列で実施した時間しか無く、並列にしたときの短縮幅は推定できない）。コスト側だけを測って利得側を測っていないので、「コストが利得を上回る」の判定は片側の根拠しか持たない | 0009 / 0010（保留 P1 の判断材料として明示） |
+
 ## 実施条件（測った対象・環境）
 
 - 対象コミット: `feature-50-worktree-parallel-tickets` の `65d908e`（チケット 0004 の基準点は `9721416`）
@@ -135,6 +173,12 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0006）`cd` を含むコマンドが WF204 で **2 回**拒否された（`2026-09-04T23:48:12` と `23:48:24` の `decisions.jsonl` の記録）。以後はすべて絶対パスで読んだ。`for … do` を含むコマンドも 1 回 WF204（`_ はどの分類にも当たらない`）で拒否され、`grep` を並べる形に書き換えた。`bash wip/tmp/<スクリプト>.sh` も WF204（`bash はどの分類にも当たらない`）で拒否されたため、レポートの差し込みは `awk` の出力を `wip/tmp/` に書いて Edit ツールで反映する形に変えた（`cp` で `wip/30_reports/` を上書きしようとして WF205 も 1 回）
 - （0006）Web の取得は 4 URL・取得日 **2026-09-04**（e18 の表）。`docs.claude.com/en/docs/claude-code/hooks` は `code.claude.com/docs/en/hooks` へ **301** で、リダイレクト先を明示して取り直した
 - （0006）本サブエージェントの実行環境: `AI_AGENT=claude-code_2-1-259_agent`、`CLAUDE_AGENT_SDK_VERSION=0.3.259`、`CLAUDE_CODE_SESSION_ID=595e717b-bd51-4bf4-b049-a23fb8a2fae8`、`CLAUDE_CODE_CHILD_SESSION=1`、`CLAUDE_PROJECT_DIR` **未設定**、`pwd` は本流のリポジトリルート（`/c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow`）
+
+- （0007）対象コミット: `feature-50-worktree-parallel-tickets` の `2a3077d`（チケット 0007 の基準点は `85b90c4`）
+- （0007）実行したのは読み取りのコマンドと Web の取得だけ（`grep -rn` / `sed -n` / `cat` / `awk` / `jq` / `wc` / `git log` / `git show` / `git for-each-ref` / `git merge-base` / `git rev-list` / `git config --get-regexp`）。`git worktree` / `git merge` / `git merge-tree` / `diff3` / `cd` は一切実行していない
+- （0007）`cd` を含むコマンドが WF204 で **1 回**拒否された。以後はすべて絶対パスと `git -C <本流>` で読んだ
+- （0007）Web の取得は 2 URL・取得日 **2026-09-05**（`git-scm.com/docs/git-worktree` を 2 回、`git-scm.com/docs/git-checkout` を 1 回。引用は e26 の表）
+- （0007）過去 issue の実データは、`main` との `git merge-base` から各 feature ブランチの先端までを対象にした。対象は `feature-1` / `feature-4` / `feature-6` / `feature-8` / `feature-9` / `feature-10` / `feature-50` の 7 本
 
 ## 実施した内容と結果
 
@@ -1049,6 +1093,406 @@ git -C "$MAIN" worktree list >> "$MAIN/wip/tmp/worktree-probe/c5-status.txt" 2>&
 外れたとき: 出ないなら Claude Code が別の場所に worktree を作っているか、`WorktreeCreate` の既定が変わっている。`git worktree list` の出力で置き場を確定させる。
 **この状態で `push.sh` を実行してはいけない**（項目 1 が落ちるのは予測どおりなので、確かめる必要が無い。落ちた記録だけが残って本流の進行が止まる）。
 
+### e25. 観点 D の答え — 両立できる。合流コストの主体はファイルの衝突ではなく「合流という操作を機構が想定していないこと」◎良
+
+**可否: 1 issue = 1 ブランチ = 1 MR を保ったまま複数 worktree を使える。**
+
+理由は 3 段である。
+
+| # | 段 | 根拠 |
+|---|---|---|
+| 1 | git の同一ブランチ制約は**回避できる**。同じブランチを 2 つの作業ツリーで checkout することは拒否されるが、公式が回避の口を 3 つ用意している（detached HEAD / 引数省略時の自動ブランチ作成 / `--force`・`--ignore-other-worktrees`） | e26 の G1〜G5 |
+| 2 | 回避策のうち**サブブランチ + 合流だけが、機構を壊さずに成立する**。detached HEAD は `push.sh` が必ず落ち、`--force` は 2 つの作業ツリーが同じ ref を進めるので互いの成果を「消えた」と見る | e27 |
+| 3 | サブブランチを**ローカルで合流して feature ブランチにだけ push すれば、issue↔ブランチ↔MR の 1:1:1 は保たれる**。MR は squash merge されるので中間の合流コミットは `main` に残らない | `00_requirement/自己改善ワークフロー機構.md:161, 163`。原則の正文は「1 issue = 1 ブランチ = 1 MR」であって「ブランチを 1 本しか作らない」ではない |
+
+**ただし「両立できる」は「安く合流できる」を意味しない。** 合流コストを 3 つに分けて測った結果は次のとおりで、**主体は ① ではなく ②③ にある**。
+
+| コストの種類 | 大きさ | 根拠 |
+|---|---|---|
+| ① ファイルの衝突（git が自動で解けない箇所） | **小〜中**。`wip/10_tickets/` は 0 件。`wip/30_reports/` の同一レポート 1 対は **13 行が必ず同一行の書き換え**で衝突し、挿入点も重なる。採番が当たると 1 件 | e29・e30 |
+| ② 合流の操作そのものが機構で通るか | **大**。`cherry-pick` / `rebase` / `am` は WF401 で拒否。`git merge <ローカルブランチ>` は `unknown` → WF204（作業中チケットがあるとき）。作業中 0 枚なら素通りするが、DDR `i0004-07` は**それを拒否できることを利点として書いている**ので、素通りは統制の抜けである | e28 |
+| ③ 合流後に機構の前提が壊れないか | **中**。`10_doing/` が 2 枚になると WF207 で全操作が止まり、`workflow-diff-check` は黙って抜ける。`boundary.sh` の「末尾から同じ種類が続く範囲」も、種類の違うチケットが交互に完了すると 1 タスクを取りこぼす | e31 |
+
+**この節は決定をしない。** 「並列を採るか」（保留 P1）と「合流手順をどれにするか」（受け入れ条件 A6）は 0010 の AI アセット設計計画で決める。ここは選択肢とコストを並べるまでである。
+
+### e26. git の同一ブランチ制約と回避策の根拠（公式の逐語引用。取得日 2026-09-05）◎良
+
+取得は WebFetch。引用は原文の逐語で、訳は付けない（訳すと条件が落ちるため）。
+
+| # | URL | 節 | 引用（逐語） |
+|---|---|---|---|
+| G1 | `https://git-scm.com/docs/git-worktree` | `add` の `--force` | 「By default, `add` refuses to create a new worktree when *&lt;commit-ish&gt;* is a branch name and is already checked out by another worktree, or if *&lt;path&gt;* is already assigned to some worktree but is missing (for instance, if *&lt;path&gt;* was deleted manually). This option overrides these safeguards. To add a missing but locked worktree path, specify `--force` twice.」 |
+| G2 | 同上 | `add` の既定 | 「If *&lt;commit-ish&gt;* is omitted and neither `-b` nor `-B` nor `--detach` used, then, as a convenience, the new worktree is associated with a branch (call it *&lt;branch&gt;*) named after `$(basename <path>)`. If *&lt;branch&gt;* doesn't exist, a new branch based on `HEAD` is automatically created as if `-b` *&lt;branch&gt;* was given.」 |
+| G3 | 同上 | `--detach` / DESCRIPTION | 「With `add`, detach `HEAD` in the new worktree.」／「if you just plan to make some experimental changes or do testing without disturbing existing development, it is often convenient to create a *throwaway* worktree not associated with any branch. For instance, `git worktree add -d <path>` creates a new worktree with a detached `HEAD` at the same commit as the current branch.」 |
+| G4 | 同上 | BUGS | 「Multiple checkout in general is still experimental, and the support for submodules is incomplete. It is NOT recommended to make multiple checkouts of a superproject.」 |
+| G5 | `https://git-scm.com/docs/git-checkout` | `--ignore-other-worktrees` | 「`git checkout` refuses when the wanted branch is already checked out or otherwise in use by another worktree. This option makes it check the branch out anyway. In other words, the branch can be in use by more than one worktree.」 |
+| G6 | `https://git-scm.com/docs/git-worktree` | `remove` | 「Remove a worktree. Only clean worktrees (no untracked files and no modification in tracked files) can be removed. Unclean worktrees or ones with submodules can be removed with `--force`. The main worktree cannot be removed.」 |
+
+**読み取れること。**
+
+- 制約は「**ブランチ名**を指定したときに、それが既に別の作業ツリーで checkout されていれば拒否する」という形で、`add` と `checkout` の**両方**に掛かっている（G1・G5）。したがって「本流が `feature-50-…` にいるまま、worktree でも `feature-50-…` を開く」は既定では成立しない
+- 引数を省略すると **`$(basename <path>)` という新しいブランチが `HEAD` から自動で作られる**（G2）。Claude Code のサブエージェント隔離が `worktree-<名前>` というブランチを作るのは、この既定の上に名前の規則を載せたものと読める（0006 の e18 の S9）
+- **`--force` と `--ignore-other-worktrees` は「安全装置を外す」と明記されている**（G1「This option overrides these safeguards」、G5「In other words, the branch can be in use by more than one worktree」）。禁止ではないが、公式が safeguard と呼んでいるものを外す選択である
+- **G4 は multiple checkout 全体を experimental と書いている。** 本リポジトリに submodule は無いので BUGS 節の主眼（superproject）には当たらないが、「実験的」という位置づけは合流手順を決めるときの前提に入れる
+- **公式は「同じブランチを共有したときに他方の作業ツリーがどうなるか」を書いていない。** `--force` を選ぶ場合はここが実測項目になる（実測 D2）
+
+### e27. ブランチ構成の選択肢 4 案 — 成立可否・合流手順・衝突の種類 ◎良
+
+計画書は 3 案（detached HEAD / サブブランチ + 合流 / `--force`）を挙げていた。`00_requirement/自己改善ワークフロー機構.md:164` が並行の手段として worktree と並べて別 clone を明記しているので、**4 案目として別 clone を足した**（計画書の 3 案は 1〜3 行目にそのまま残した）。
+
+| # | 案 | 成立可否 | 合流手順 | 衝突の種類 | 成立可否の根拠 |
+|---|---|---|---|---|---|
+| 1 | **detached HEAD**（`git worktree add -d <path>`） | **✕ 成立しない** | 合流には結局ブランチか SHA の指定が要る（`git merge <sha>` / `git branch <名前> <sha>` の後に merge） | ファイル衝突は案 2 と同じ。加えて worktree を消すと**到達不能なコミットになり得る**（ref が無いので `git gc` の対象） | `push.sh:67-68` が `git rev-parse --abbrev-ref HEAD` の結果が `HEAD` のとき **CP007「現在ブランチを特定できない（detached HEAD。環境の誤り）」で必ず落ちる**。`boundary.sh:467` の `git rev-list "origin/$br..HEAD"` も `br` が `HEAD` になり、`origin/HEAD`（既定ブランチへの symbolic ref）と比較して**別ブランチとの差分を「未 push」と誤判定する**。`ticket.sh` と `commit.sh` はブランチを見ないので動く |
+| 2 | **サブブランチ + 合流**（`git worktree add <path>` の既定 = `$(basename <path>)` ブランチ。Claude Code の `isolation: worktree` が作る `worktree-<名前>` もこれ） | **◎ 成立する（推奨側）** | ①サブブランチで作業してコミット ②本流で `git merge <サブブランチ>`（または成果物をコピーして `commit.sh`）③衝突があれば解消して `commit.sh` ④`git worktree remove` と ref の後始末 | ・`wip/10_tickets/`: **0 件**（チケットごとに別ファイル）・`wip/30_reports/`: **同一行 13 行が確実に衝突**・採番: 同じ番号を採ると同名なら add/add、別種なら**衝突せず番号が重複**（e30） | G2。`push.sh` は feature ブランチにいるときだけ動かせばよく、サブブランチは push しないので MR は増えない。**ただし合流の操作が機構で通らない**（e28） |
+| 3 | **`--force` で同一ブランチを共有**（`git worktree add --force <path> feature-50-…`） | **△ 成立するが割に合わない** | 合流は不要（同じ ref を進めるため）。ただし片方が commit するともう片方の作業ツリーは HEAD より古い状態になり、**追随の操作（`git checkout` / `reset`）が要る** — どちらも機構が拒否する | ファイルの衝突は起きないが、**`git status` の見え方が壊れる**。作業ツリー B が持つ「HEAD に無いファイル」は A の commit 後に「削除された」と見え、`push.sh` 項目 1（`push.sh:78`）と `boundary.sh:466` の未コミット判定が偽陽性で落ちる | G1・G5 が「safeguards を外す」と明記。`.git/index` は作業ツリーごとに分かれるが `refs/heads/<branch>` は 1 つなので、同じ ref を 2 プロセスが進める |
+| 4 | **別 clone**（`git clone` で別ディレクトリ） | **◎ 成立する** | ①別 clone の側で feature ブランチと別名のブランチを作って push、②本流で `git fetch` して `git merge origin/<そのブランチ>`（この形なら `scope.sh:392-393` の `merge-base` 分類に当たる）、または成果物をコピーして `commit.sh` | 案 2 と同じファイル衝突。加えて **`.claude/` の実体が 2 つになる**（0005 の e11 と同じ根で、機構自身を変える issue では両者がドリフトする） | `00_requirement/自己改善ワークフロー機構.md:164`「並行して作業する場合は git worktree または別の clone を使う」。`logs/` が自動的に分かれる利点があるが、リモートを経由するので MR が増えない工夫（push 先のブランチ名）が要る |
+
+**案 2 と案 4 の分かれ目は「合流をローカルで済ませるか、リモートを経由するか」である。** リモートを経由すると `git merge origin/<ブランチ>` の形になり、**現行の `scope.sh` の `merge-base` 分類にそのまま当たって通る**（`scope.sh:392-393` は「引数に `origin/*` があれば `merge-base`」としか見ていない）。ただし `merge-base` を `ops` に持つ種類は `overall-summary` だけ（`scope-limits.json:24`）なので、実施系のチケットでは結局宣言が要る。**この「`origin/` を前に付けるだけで分類が変わる」は、意図した統制というより分類の粗さである**（観点 E / 0008 の材料）。
+
+**サブエージェント隔離を採ると、案 2 が自動的に選ばれる。** 0006 の e18 の S7 が「Subagent worktrees use the same base branch as `--worktree`」、S9 が「on a new branch named `worktree-<name>`」と書いており、**終了時に自動で合流する記述はどこにも無い**。したがって `isolation: worktree` を採る = 案 2 の合流手順を決める、である。
+
+### e28. 合流の手段 6 案と、現行の機構がどれを通すか △注意
+
+| # | 手段 | 履歴 | 現行の機構での可否 | 根拠 |
+|---|---|---|---|---|
+| M1 | `git merge <ローカルのサブブランチ>` | 残る（マージコミット） | **条件付きで通る**。`block-direct-git` は `merge` を明示的に対象外にしている（`block-direct-git.sh:35-36`）。`workflow-guard` は `scope.sh:392-393` が `unknown` を返すので **WF204 で拒否**するが、**作業中チケットが 0 枚なら `workflow-guard.sh:49`（`[[ -n "$__WG_NAME" ]] \|\| exit 0`）で即座に抜けるため素通りする** | `block-direct-git.sh:35-36, 98-100`、`scope.sh:392-393`、`workflow-guard.sh:47-49` |
+| M2 | `git merge origin/<リモートに上げたサブブランチ>` | 残る | **通る**（`scope.sh:392-393` が `merge-base` を返す）。ただし `merge-base` を `ops` に持つのは `overall-summary` だけなので、他の種類では WF203 相当の宣言不足になる。加えてサブブランチを push する必要があり、リモートにブランチが増える | `scope.sh:392-393`、`scope-limits.json:24` |
+| M3 | `git cherry-pick` | 残る（コミット単位） | **拒否**（WF401） | `block-direct-git.sh:36` の `__BG_COMMIT_SUBCMDS` に `cherry-pick` |
+| M4 | `git rebase <サブブランチ>` | 残る（付け替え） | **拒否**（WF401） | 同上 |
+| M5 | `git format-patch` + `git am` | 残る | **拒否**（`am` が WF401）。`format-patch` は `_SC_GIT_READ_SUBCMDS` にも無いので `unknown` → WF204 | 同上、`scope.sh:36` |
+| M6 | 成果物のファイルをコピーして `commit.sh` でコミットし直す | **残らない**（サブブランチの履歴は捨てる） | **通る**。`cp` は `_SC_READ_ONLY_CMDS` に無いので `unknown` → WF204 だが、`Read` + `Write` ツールなら `allow.write` の範囲内で通る | `scope.sh:31`、`workflow-guard` の書き込み判定 |
+
+**帰結。** 現行の機構が AI に通す合流の道は実質 **M1（作業中 0 枚のときだけ）と M6 の 2 つ**である。M6 は履歴を捨てるので、チケットの状態遷移コミット（feature-10 では全コミットの 68%）を作り直すことになり、`ticket.sh` を経由しない手作業のファイル移動になる — **`ticket.sh` は「手動で動かさない」ことを前提に置いている**（`ticket.sh:214-215` の TK004「手動で動かさず ticket.sh で扱う」）ので、M6 は機構の前提と正面から衝突する。
+
+**M1 が「素通りする」ことを利点と読んではいけない。** DDR `i0004-07` の決定は次のとおりで、**ブランチ間の統合を拒否できることを明示的な利点として挙げている**。
+
+> `git merge` は例外として拒否しない。default ブランチの取り込み（`git merge origin/<default>`）は `00-workflow-issue-mr-driven` の手順に組み込まれており、`workflow-guard` の `merge-base` 分類で「取り込みに限る」統制を行う。
+
+> 取り込み以外の `merge`（ブランチ間の統合）は `merge-base` 分類で `origin/<default>` 以外を拒否できる
+
+つまり **M1 が作業中 0 枚のときに通るのは、`workflow-guard` の「作業中チケットが無ければ何もしない」という制御方式 1 の帰結であって、`merge` を許した設計判断ではない**。並列を採るなら、①`merge-base` の定義を「合流も含む」に広げる ②合流専用の提供コマンドを足す ③合流は人間だけが行う、のいずれかを明示的に選ぶ必要がある（e33 でコストを比べた）。
+
+### e29. 過去 issue の実データからの衝突件数の見積もり（コマンドと出力）△注意
+
+**(1) チケットの移動（rename）の件数。**
+
+```
+git -C <本流> log --all --diff-filter=R --name-status --format='' -- wip/10_tickets/ | grep -c '^R'
+→ 235
+
+git -C <本流> log --all --diff-filter=R --name-status --format='' -- wip/10_tickets/ \
+  | awk -F'\t' '/^R/{ split($2,a,"/"); split($3,b,"/"); print a[3]" -> "b[3] }' | sort | uniq -c | sort -rn
+→ 133 00_todo -> 10_doing
+   94 10_doing -> 20_done
+    6 10_doing -> 30_cancelled
+    2 00_todo -> 20_done
+```
+
+**(2) ブランチ（= issue）ごとの内訳。** `base=$(git merge-base main <branch>)` を起点にした。
+
+| ブランチ | チケット枚数 | rename 件数 | コミット総数 |
+|---|---|---|---|
+| `feature-1-workflow-requirements` | 0 | 0 | 65 |
+| `feature-4-workflow-basic-design` | 0 | 0 | 15 |
+| `feature-6-workflow-foundation` | 39 | 36 | 109 |
+| `feature-8-requirements-doc-standardize` | 0 | 0 | 0 |
+| `feature-9-hook-bodies-settings` | 39 | 67 | 232 |
+| `feature-10-task-skills-agents-finalize` | 57 | 104 | 247 |
+| `feature-50-worktree-parallel-tickets`（本 issue、実施中） | 9 | 9 | 25 |
+
+`feature-1` / `feature-4` が 0 件なのは、チケット運用（`wip/10_tickets/`）を導入する前の issue だからである（`feature-8` はコミットが 0 件で、`feature-9` の途中から分岐した名前だけのブランチ）。したがって**代表値には直近の完了 issue `feature-10` を使う**。
+
+**(3) `feature-10` の詳細（見積もりの基礎）。**
+
+```
+git -C <本流> log --diff-filter=R --name-status --format='' <base>..feature-10 -- wip/10_tickets/ \
+  | awk -F'\t' '/^R/{split($2,a,"/");split($3,c,"/"); print a[3]"->"c[3]}' | sort | uniq -c
+→ 56 00_todo->10_doing
+   45 10_doing->20_done
+    3 10_doing->30_cancelled
+
+git -C <本流> log --diff-filter=R --name-status --format='@@%h' <base>..feature-10 -- wip/10_tickets/ \
+  | awk '/^@@/{if(n>0)print n; n=0; next} /^R/{n++} END{if(n>0)print n}' | sort | uniq -c
+→ 104 1        # 1 コミットあたりの rename はちょうど 1 件（104 コミットすべて）
+
+git -C <本流> log --format='%s' <base>..feature-10 | grep -o '^chore: チケット [0-9]* \(に着手\|を完了\|を作成\|を取り消し\)' | sed 's/[0-9]\{4\}/NNNN/' | sort | uniq -c
+→ 56 chore: チケット NNNN に着手
+   56 chore: チケット NNNN を作成
+    3 chore: チケット NNNN を取り消し
+   53 chore: チケット NNNN を完了
+
+git -C <本流> rev-list --count <base>..feature-10
+→ 247
+```
+
+**1 チケットあたりの rename 件数は 2 件**（`00_todo→10_doing` と `10_doing→20_done`）。完了に至ったチケット 45 枚に対し rename が 45 + 56 = 101、取り消し 3 を足して 104 で一致する。**状態遷移コミットは 168 件で、全 247 コミットの 68% を占める。**
+
+**(4) 完了コミットの 15% は rename として検出されない。** 完了コミットは 53 件だが `10_doing→20_done` の rename は 45 件で、差の **8 件は delete + add として現れる**。原因は `ticket-check.sh` の未コミット検査が**チケットファイル自身を除外している**こと（`ticket-check.sh:62` の `awk -v p="${path#./}" 'substr($0, 4) != p'`）で、**作業ログの追記が完了コミットに相乗りする**ためである。実例:
+
+```
+git -C <本流> show --stat --format='%h %s' 21a89e5
+→ 21a89e5 chore: チケット 0009 を完了
+   wip/10_tickets/10_doing/0009-investigation.md | 63 ------
+   wip/10_tickets/20_done/0009-investigation.md  | 95 ++++++++++
+
+git -C <本流> show --name-status -M20% --format='' 21a89e5
+→ D  wip/10_tickets/10_doing/0009-investigation.md
+   A  wip/10_tickets/20_done/0009-investigation.md   # -M20% でも rename にならない
+```
+
+これは合流時の**衝突の型**を変える。rename として検出されれば rename/rename の判定に乗るが、delete + add だと「片方が消して片方が足した」形になり、`git merge` の rename 検出の閾値（既定 50%）に依存する。`.gitattributes` が LF を固定しているのは `*.sh` / `*.tsv` / `*.json` / `*.html` の 4 拡張子だけで **`*.md` は含まれない**ので、行末の混在も検出を揺らす要因になる。
+
+**(5) 同一レポートへの追記回数。** 現行の運用（1 タスク 1 レポート）で最も積み上がったのは `feature-10` の 2 本である。
+
+```
+git -C <本流> log --name-only --format='' <base>..feature-10 -- 'wip/30_reports/*.md' | sed '/^$/d' | sort | uniq -c | sort -rn
+→ 15 wip/30_reports/0024-ai-asset-implementation.md
+   12 wip/30_reports/0011-ai-asset-design.md
+    7 wip/30_reports/0050-ai-asset-implementation.md
+    6 wip/30_reports/0006-investigation.md
+    5 wip/30_reports/0005-investigation.md
+    5 wip/30_reports/0004-investigation.md
+   （以下省略。1 回だけのものは、1 チケット 1 レポートだった旧運用の名残）
+```
+
+**同一ファイルへの追記は最大 15 回**、現行の運用に沿ったものは 5〜15 回の範囲にある。本レポート（`0004-investigation.md`）はチケット 0004・0005・0006 の 3 コミットで、0007 が 4 回目である。
+
+**(6) 1 回の追記が触る行の位置。** `git show <sha> -U0` の hunk ヘッダを数えた。
+
+```
+git -C <本流> show 9c201fc -U0 --format='' -- wip/30_reports/0004-investigation.md  | grep -c '^@@'  → 14
+git -C <本流> show 9929a17 -U0 --format='' -- wip/30_reports/0004-investigation.md  | grep -c '^@@'  → 14
+git -C <本流> show 9c201fc -U0 --format='' -- wip/30_reports/0004-investigation.html | grep -c '^@@' → 17
+git -C <本流> show 9929a17 -U0 --format='' -- wip/30_reports/0004-investigation.html | grep -c '^@@' → 17
+```
+
+内訳（0006 の追記 `9929a17` の hunk ヘッダ）:
+
+| ファイル | 同一行の**書き換え** | **挿入**のみ |
+|---|---|---|
+| `.md` | 4 行（`@@ -3,2 +3,2 @@` = `title` と `description`、`@@ -6 +6 @@` = `keywords`、`@@ -9 +9 @@` = H1 見出し） | 10 か所 |
+| `.html` | 9 行（`@@ -130 +130 @@` = `<h1 id="title">`、`@@ -133,3 +133,3 @@` = chip の件数 3 行、`@@ -184 +184 @@` = 「チケット」欄、`@@ -197,3 +197,3 @@` = kpi の件数 3 行、`@@ -201 +201 @@` = 件数の注記） | 12 か所 |
+
+**つまり 1 対のレポートに追記するたび、md 4 行 + HTML 9 行 = 13 行が必ず同じ行の書き換えになる。** 件数タイル（◎良 / △注意 / ✕問題）とサマリの積み上げ、表題の広げ方が、そういう作りだからである。
+
+**(7) 挿入点も重なる。** 0005 の追記（`9c201fc`）が新しく足した行の範囲は、`git diff 199fd98 9c201fc -U0` の新側で `+31,12` / `+48,3` / `+57,4` / `+67,5` / `+82,5` / `+93,4` / `+490,286` / `+791,15` / `+818,8` / `+835,5` / `+851,5` の 11 か所。0006 の追記（`9929a17`）の挿入点（`9c201fc` 座標）は 42 / 50 / 60 / 71 / 87 / 97 / 775 / 806 / 826 / 840 / 855 の 11 か所である。突き合わせると:
+
+| 0006 の挿入点 | 0005 が足した範囲との関係 | 共通の基点から見た位置 |
+|---|---|---|
+| 42 / 50 / 60 / 71 / 775 / 855 | **0005 の block の最終行**（31-42 / 48-50 / 57-60 / 67-71 / 490-775 / 851-855） | **同一の挿入点**（6 か所） |
+| 87 / 97 / 806 / 826 / 840 | 0005 の block（82-86 / 93-96 / 791-805 / 818-825 / 835-839）の**直後の 1 行**の後 | 1 行だけ離れた挿入点（5 か所） |
+
+**同一の挿入点 6 か所は、両側が同じ位置に別の内容を足す形なので、3-way マージでは順序を決められず衝突する見込み**である。1 行離れた 5 か所は git のマージ規則（変更範囲の重なり）次第で、自動で解ける可能性がある。**この判定は `git merge` を実行して確かめていない**（実行手段が無い。「確かめられなかったこと」を参照）ので、実測手順 D3 に落とした。
+
+**(8) 見積もりのまとめ（1 タスクを 2 並列で 1 チケットずつ実施し、タスクの切れ目で合流する場合）。**
+
+| 対象 | 自動で解ける | 手で解く | 根拠 |
+|---|---|---|---|
+| `wip/10_tickets/` の rename（1 チケット 2 件 × 2 = 4 件） | 4 件 | **0 件** | チケットごとに別ファイル。同じチケットを 2 つの作業ツリーで動かさない限り、rename の対象が重ならない |
+| レポート `.md` の同一行の書き換え | 0 件 | **4 行** | (6) |
+| レポート `.html` の同一行の書き換え | 0 件 | **9 行** | (6) |
+| レポート `.md` の挿入点 | 5 か所（見込み） | **6 か所**（見込み） | (7) |
+| レポート `.html` の挿入点 | 同様の比（12 か所中） | 見込み **6〜7 か所** | (6)(7)。HTML は md と同じ節構成に追記するため同じ形になるが、hunk 単位の突き合わせは行っていない |
+| チケットの採番 | 0〜1 件 | **0〜1 件** | 種類が同じなら add/add で 1 件、違えば衝突せず**番号が重複したまま通る**（e30 の (1)。こちらのほうが悪い） |
+| `logs/` の進行状態 | — | — | `.gitignore` されており git の合流の対象外。作業ツリーごとに分かれたまま（0005 の e9・e10） |
+
+**合流 1 回あたり、手で解く箇所はおよそ 25 前後**（md 4 行 + HTML 9 行 + 挿入点 12〜13 か所）。回数は「合流の回数」に比例し、チケットごとに合流するなら `feature-10` 規模（57 枚）では数百箇所になる。**タスクの切れ目でだけ合流すれば、`feature-10` のタスク数（種類の切り替わり）ぶんに抑えられる。**
+
+### e30. 採番・レポート追記・`ticket.sh` / `commit.sh` の状態遷移コミットの、並列時の衝突判定 ✕問題
+
+計画書が名指しした 4 つを 1 つずつ判定した。
+
+| # | 対象 | 並列時に衝突するか | 根拠（ファイル:行） |
+|---|---|---|---|
+| 1 | `wip/10_tickets/` の**連番の採番** | **衝突する（しかも黙って通る場合がある）** | `ticket.sh:151-159` は `for f in "$TICKETS"/*/[0-9][0-9][0-9][0-9]-*.md` で**自分の作業ツリーだけ**を走査して `max + 1` を採る。他の作業ツリーも他のブランチも見ない。2 つの worktree が同時に `create` すると同じ番号になり、**種類が同じなら同名ファイル（add/add で衝突して人が気づく）／種類が違えば別名ファイル（`0011-design.md` と `0011-investigation.md`）で衝突せずに合流し、番号だけが重複する**。重複すると `find_ticket`（`ticket.sh:50-59`）が `$TODO → $DOING → $DONE → $CANCELLED` の順で先に当たった 1 枚を返すため、`ticket.sh start 0011` がどちらを着手するかは glob の順（辞書順）で決まる |
+| 2 | `wip/30_reports/` の**同一ファイルへの追記** | **必ず衝突する** | 1 回の追記が md 4 行・HTML 9 行を**同じ行で書き換える**（e29 の (6)）。表題・件数タイル（chip / kpi）・「チケット」欄・`description` / `keywords` はレポートが 1 本である以上、追記のたびに必ず更新される。加えて挿入点も 6 か所が一致する（e29 の (7)）。**`10-task-investigation-exec` の「1 タスクにつきレポートは 1 つ」「チケットごとにレポートを分けない」という指示が、そのまま並列時の衝突源になっている** |
+| 3 | **`ticket.sh` の状態遷移コミット** | **ファイルとしては衝突しない。ただし合流後に前提が壊れる** | 移動は `mv "$T_PATH" "$new"`（`ticket.sh:232` / `:263` / `:287`）でチケット 1 枚ごとに閉じており、`feature-10` では **104 コミットすべてが 1 コミット 1 rename** だった（e29 の (3)）。別のチケットを動かす限り rename の対象が重ならないので git は自動で合流する。**壊れるのは合流後の状態**で、双方が作業中チケットを持ったまま合流すると `10_doing/` が 2 枚になる（e31） |
+| 4 | **`commit.sh` の状態遷移コミット**（`ticket.sh` が内部で呼ぶ `do_commit`） | **衝突しない。ただし合流の操作は `commit.sh` を通らない** | `commit.sh` は対象パスを明示して `git add` → `git commit -- <パス>` するだけ（`commit.sh:133-140, 161-176`）で、ブランチも作業ツリーも見ない。detached HEAD でも動く（ブランチ名の検査は `push.sh` にしか無い）。**問題は逆側**で、`git merge` が作るマージコミットは `commit.sh` のメッセージ規約検査を通らない。DDR `i0004-07` は「マージコミットのメッセージは git 生成を受容する（`commit.sh` の規約検査を経ない唯一の経路として共通仕様 §13 に明記）」と、**`origin/<default>` の取り込みに限って**この例外を認めている。合流のためのマージコミットは、その例外の外にある |
+
+**(1) の重複が最も悪い理由。** 2 と 3 は衝突として**目に見える**（マージが止まる）が、1 の「種類が違えば衝突しない」経路は**合流が成功したように見えて、番号が重複したチケットが 2 枚並ぶ**。以後 `ticket.sh` の `find_ticket` は先勝ちで片方だけを扱い、`boundary.sh` の `B_TASK_TICKETS`（`boundary.sh:88`）は番号だけを積むので **同じ番号が 2 回並んだ一覧**がレビュー依頼のコメントに載る。**気づく機会が無い。**
+
+### e31. 「作業中は常に 1 枚」の前提と合流の関係 △注意
+
+DDR `i0001-23` が並列を却下した最大の理由は「WIP リミット（同時に作業中のチケットは 1 枚）と両立しない」だった。worktree で分ければ**作業ツリーごとには**両立するが、**合流した瞬間に 1 つの作業ツリーに 2 枚が並ぶ**。何が起きるかを実装で確かめた。
+
+| 箇所 | 作業中が 2 枚のときの振る舞い | 根拠 |
+|---|---|---|
+| `ticket.sh start` | **拒否**。`TK002「作業中のチケットが既にある（…）。先に complete か cancel する」` | `ticket.sh:210-213` |
+| `ticket.sh next` | **`DOING_FILES[0]` だけを `current` として返す**（2 枚目は出力に現れない） | `ticket.sh:307-313` |
+| `hook_doing_ticket` | `files[0]` を `REPLY` に、枚数を `HOOK_DOING_COUNT` に置く | `hook-common.sh:474-483` |
+| `workflow-guard` | **WF207 で拒否**。「作業中チケットが N 枚ある（…）。1 枚だけの状態でしか判定できないので…1 枚を残して他を未着手に戻すこと」。**ただし提供コマンドだけは通す**（`__wg_all_provided` が真なら `hook_record allow` で抜ける） | `workflow-guard.sh:127-141` |
+| `workflow-diff-check` | **黙って抜ける**（`log_debug` に落とすだけで、利用者には何も出ない） | `workflow-diff-check.sh:44-47` |
+| `subagent-stop-check` | 一覧（WF811）と未コミット（WF812）は出すが、**許可範囲の判定（WF813）はしない** | `subagent-stop-check.sh:106-110` |
+| `boundary.sh scan_tickets` | `B_AT_BOUNDARY` は `doing` が 0 枚のときだけ `true`。2 枚なら**切れ目と判定されない**ので、レビュー依頼も skip もできない | `boundary.sh:96-106` |
+
+**したがって「合流はタスクの切れ目（作業中 0 枚）で行う」という制約を置けば、この問題は起きない。** 逆に、チケットの途中で合流すると WF207 が**提供コマンド以外のすべての操作を止める**ので、復旧には人が `ticket.sh` で片方を未着手に戻すしかない（そして戻すと作業ログと `base_sha` が失われる）。
+
+**もう 1 つ、合流の順序が `boundary.sh` の切れ目判定を狂わせる経路がある。** `scan_tickets` は完了群を**番号の降順に見て、末尾から同じ種類が続く範囲**を「最後のタスク」とする（`boundary.sh:83-93`）。並列で**種類の違うチケットを同時に完了させて合流すると、完了群が `0011-investigation / 0012-design / 0013-investigation` のように交互になり得る**。このとき最後のタスクは `0013` の 1 枚だけと判定され、**`0011` はどのタスクの切れ目にも含まれずレビューを一度も受けないまま通過する**。並列を採るなら、この判定を「番号の連続」から「種類のまとまり」へ作り直す必要がある。
+
+**差分の基準点（`base_sha`）については、DDR `i0001-23` の懸念は worktree で分ければ解消する。** `workflow-diff-check` は `git -C "$HOOK_WORKTREE" diff --name-status "$__dc_base"`（`workflow-diff-check.sh:262`）で自分の作業ツリーの差分だけを見るので、別 worktree の変更は**そもそも見えない**。ただし合流後に作業中チケットが残っていると、その `base_sha` は合流前の commit を指したままなので、**相手の worktree の変更が全部「自分の許可範囲外の差分」として現れる**。ここでも「合流は切れ目で」が効く。
+
+### e32. DDR `i0001-23` の却下文の再評価 △注意
+
+対象は「却下した案」の 3 行目である。
+
+> **並列時だけ別ブランチ・別作業ツリーに分ける**: 分離は強いが、1 issue = 1 ブランチ = 1 MR の原則と衝突し、統合のコストが利得を上回る
+
+これを 3 つの主張に分けて判定した。
+
+| # | 主張 | 判定 | 根拠 |
+|---|---|---|---|
+| D-1 | **「分離は強い」** | **今も成り立つ（むしろ強くなった）** | 作業ツリーが分かれれば `.git/index` も `wip/` も `logs/` も分かれる（0005 の e9・e15）。加えて、DDR 執筆時には存在しなかった Claude Code の隔離強制（File edits 検査）が、**0004 の e5 で見つかった「作業ツリーをまたぐ絶対パスの書き込みが進行状態ファイル保護をすり抜ける」穴を外から塞ぐ**（0006 の e22）。分離の強さは当時の想定より上がっている |
+| D-2 | **「1 issue = 1 ブランチ = 1 MR の原則と衝突し」** | **成り立たない** | ①原則の正文（`00_requirement/自己改善ワークフロー機構.md:163`）は「1 issue = 1 ブランチ = 1 MR。1 セッションが同時に扱う MR は 1 つ」であり、**ローカルの中間ブランチを禁じていない**。サブブランチを push しなければ MR は増えない（`20-common-step-feature-mr` の「1 ブランチ = 1 MR」も、MR を作る対象は feature ブランチだけである） ②**同じ前提条件の次の行（:164）が「同一 clone 上での並行セッションは想定しない。並行して作業する場合は git worktree または別の clone を使う」と、worktree を明示的に許している** ③「MR は squash merge され、ブランチ上の作業領域（`wip/`）の履歴は main に残らない」（:161）ので、合流のマージコミットが正史に残らない。**衝突するのは原則ではなく、原則の下で動く機構の実装（`scope.sh` の `merge` 分類・`ticket.sh` の採番・レポート 1 本の運用）である** |
+| D-3 | **「統合のコストが利得を上回る」** | **条件付きで成り立つ（コスト側の内訳が当時の想定と違う）** | コストは e25 の 3 分類で測った。**① ファイルの衝突は当時想定されたより小さい**（`wip/10_tickets/` は 0 件、レポートは 1 合流あたり手作業 25 箇所前後）。**② 合流の操作が機構の設計意図に反する**（DDR `i0004-07` が「取り込み以外の `merge` を拒否できる」ことを利点に挙げている）。**③ 合流後の前提の破れ**（WF207・`scan_tickets` の取りこぼし）は、合流をタスクの切れ目に限れば消える。したがって「上回る」は**合流の頻度と、②に手を入れるかどうかで反転し得る**。ただし**利得の側を測る材料が無い**（過去 issue の所要時間は `finalize.sh` の片付けで `wip/` ごと消えている）ので、**「上回る／下回る」を数値で言えるのはコスト側だけ**である。この非対称は保留 P1 の判断材料としてそのまま残す |
+
+**もとの指摘（DDR の「背景」にある敵対的レビュー指摘 A-1）についても、worktree の下でどうなるかを判定した。** 却下文そのものではないが、却下の土台なので併せて見た。
+
+| # | 背景の主張 | worktree で分けたときの判定 | 根拠 |
+|---|---|---|---|
+| B-1 | 「WIP リミットにより 2 枚目の着手が拒否されて並列そのものが成立しない」 | **成り立たない**（作業ツリーが分かれれば `10_doing/` も分かれるので、各々が 1 枚を持てる）。ただし**合流時に復活する**（e31） | `ticket.sh:210-213` が見るのは `$DOING` = 自分の作業ツリー。`hook_doing_ticket` が見るのも `$HOOK_WORKTREE/wip/10_tickets/10_doing/` |
+| B-2 | 「フックはステートレスなので、ある操作がどのチケットの宣言で判定されるべきかの帰属情報が無い」 | **成り立たない**。作業ツリーが帰属そのものになる（1 作業ツリー = 1 作業中チケット）。**帰属モデルを要件化しなくても、`cwd` から解決される `HOOK_WORKTREE` が帰属を決める**（0004 の e1） | `hook-common.sh:319-331, 369` |
+| B-3 | 「差分検知の『着手時点の基準点』も並列では重なり合い、違反の誤帰属が起きる」 | **成り立たない（作業中は）／成り立つ（合流後にチケットが残っていれば）** | `workflow-diff-check.sh:262` の `git -C "$HOOK_WORKTREE" diff … "$__dc_base"` は自分の作業ツリーしか見ない。合流後については e31 |
+
+**まとめると、DDR `i0001-23` の決定（並列の廃止）を支えていた 3 つの技術的理由（B-1〜B-3）は、worktree による分離のもとでは 2.5 個が成り立たなくなる。** 残るのは「合流のコスト」（D-3）と、DDR の「理由」に書かれた**統制の単純さ**（帰属モデルを作らずに済む）である。後者は worktree が帰属を与えるので理由としては弱まるが、**「作業ツリーが帰属である」ことを機構のどこにも書いていない**現状では、書き足す作業がそのまま新しい統制の複雑さになる。**この差し引きは調査では決めない。**
+
+### e33. 合流手順の選択肢とコスト（受け入れ条件 A6 の材料）◎良
+
+A6「合流手順が定まっている」の**手順そのものは決めない**（0010 の AI アセット設計）。ここでは選択肢と、各々のコストを並べる。
+
+| # | 合流手順の案 | 誰が合流するか | 機構への変更 | 1 合流あたりの手数 | 残るリスク |
+|---|---|---|---|---|---|
+| J1 | **人間が合流する**（AI は worktree で作業してコミットするだけ。切れ目で人が `git merge` して衝突を解く） | 人間 | **無し**（現行のまま） | 人間: `merge` 1 回 + 衝突解消 25 箇所前後 + `git worktree remove` | 並列の利得を人間の手数が相殺する。合流の頻度が上がるほど不利。**人がレポートの衝突を解く = 内容の判断を人がすることになる**（機械的に解けない） |
+| J2 | **`scope.sh` の `merge` 分類を「ローカルブランチの合流」まで広げる**（`merge-base` の意味を変えるか、新分類 `merge-local` を足す） | AI | `scope.sh:392-393`、`scope-limits.json` の `ops`、DDR `i0004-07` の決定の見直し、既存テスト（`test_scope.sh`） | AI: `merge` 1 回 + 衝突解消。人間: 0 | **`origin/<default>` 以外の merge を拒否できる」という統制を明示的に手放す**ことになる。マージコミットのメッセージが `commit.sh` の規約検査を通らない経路が増える |
+| J3 | **合流専用の提供コマンド（`merge.sh`）を足す** | AI（コマンド経由） | 新規スクリプト 1 本 + 仕様 + テスト。`scope.sh` は `provided` 分類でそのまま通る | AI: `merge.sh` 1 回。衝突解消は AI が行うが、**コマンドが「解けない衝突は人へ返す」判定を持てる** | 提供コマンドが 1 本増える（DDR `i0004-07` が却下した案そのもの。ただし当時の文脈は「取り込み」で、合流ではない）。衝突解消は対話が要るのでスクリプトに閉じ込められない |
+| J4 | **合流しない**（成果物を worktree から本流へコピーして `commit.sh` で積み直す。M6） | AI | 無し | AI: ファイルのコピー + `commit.sh`。ただし**チケットの移動を手で行うことになり `ticket.sh` の前提（TK004「手動で動かさず ticket.sh で扱う」）に反する** | 履歴が失われる。`base_sha` が意味を失う。**`ticket.sh` を迂回する運用を常態化させる** |
+| J5 | **衝突源そのものを減らす**（レポートを「1 タスク 1 本」から「1 チケット 1 本 + タスクの索引 1 本」に変える） | — | `10-task-*-exec` の共通手順（レポートの積み上げ規約）と `20-common-step-report-view` のテンプレートの変更 | 合流の衝突が**レポートについてはほぼ 0** になる（別ファイルになるため） | **旧運用への逆戻り**（`feature-10` の前半がその形で、「レビュアーが 1 つのタスクの結論を読むのに複数のファイルを開くことになる」という理由で今の形になった）。索引の更新が新しい衝突源になる |
+| J6 | **合流の単位をタスクの切れ目に固定する**（J1〜J5 のどれと組んでもよい制約） | — | `00-workflow-issue-mr-driven` の切れ目の手順に「合流」を足す | 合流回数が「タスク数」に減る（`feature-10` なら 57 → 10 前後） | 並列できる幅がタスク内に閉じる。タスクをまたぐ並列（調査と設計を同時に）はできない |
+
+**コストの主要因は「合流の回数」である。** 1 合流あたり手作業 25 箇所前後という見積もり（e29 の (8)）は、チケットごとに合流すると `feature-10` 規模で 1000 箇所を超え、タスクの切れ目に限れば 250 箇所前後に収まる。**J6 は他のどの案とも組めるので、まず J6 を前提に置いてから J1〜J5 を選ぶのが素直である**（これは順序の提案であって決定ではない）。
+
+**A6 が「定まっている」と言えるために、0010 が決める必要があるのは次の 5 点である。**
+
+1. 合流の単位（チケットごと / タスクの切れ目 / issue の最後）
+2. 合流の実行者（人間 / AI / 提供コマンド）と、それに応じた `scope.sh` の分類の手当て
+3. 衝突が出たときの解消の担当（レポートの内容の衝突は誰が判断するか）
+4. サブブランチと worktree の後始末（`git worktree remove` は AI から実行できない。ref をいつ消すか）
+5. 合流したことをどこに記録するか（`decisions.jsonl` に `cwd` も `agent_id` も無いので、どの作業ツリーの成果かを後から追えない — 0006 の e19）
+
+### e34. 実測手順（観点 D。人間が実行する。コマンド列 + 予測）◎良
+
+**前提**
+
+- 実行は**人間**が行う。`git worktree` / `git merge` / `git merge-tree` / `cd` はいずれも `scope.sh` の分類に無く WF204 で拒否される
+- 実行結果は **`wip/tmp/worktree-probe/`** に置く（0004 の e8・0005 の e16・0006 の e24 と同じ置き場。`.gitignore` 対象）
+- **D1〜D3 は 0004 の実測手順 P0（W1 / W2 の作成）と独立に実行できる。** D4 は 0006 の C1 の後に行う
+- 後始末: 作った worktree は `git worktree remove`、作ったブランチは `git branch -D`、作った一時ファイルは削除する。**本流の `wip/` と `logs/` には触れない**
+
+**D1. 同一ブランチ制約の実文言を取る**
+
+```bash
+MAIN=/c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow
+OUT="$MAIN/wip/tmp/worktree-probe"; mkdir -p "$OUT"
+cd "$MAIN"
+# 現在のブランチ（= 本流が checkout 済み）を、別の作業ツリーで開こうとする
+git worktree add ../probe-same feature-50-worktree-parallel-tickets > "$OUT/d1.txt" 2>&1
+echo "exit=$?" >> "$OUT/d1.txt"
+git worktree list >> "$OUT/d1.txt" 2>&1
+```
+
+予測: 非 0 で終了し、`fatal:` で始まる 1 行が出る。文言は「`'feature-50-worktree-parallel-tickets' is already used by worktree at '<本流のパス>'`」の形（**この文字列そのものは公式ドキュメントに無いので、ここで初めて確定する**）。`git worktree list` には本流 1 行だけが残る。
+外れたとき: 成功してしまうなら、この環境の git は G1 の safeguard を持っていない（`git --version` を併記して残す）。その場合、案 3（`--force`）と案 2 の差が消えるので e27 の表を書き換える必要がある。
+
+**D2. `--force` で同じブランチを共有したときに何が起きるか**
+
+```bash
+cd "$MAIN"
+git worktree add --force ../probe-force feature-50-worktree-parallel-tickets > "$OUT/d2.txt" 2>&1
+cd ../probe-force && git branch --show-current >> "$OUT/d2.txt" 2>&1
+git log --oneline -1 >> "$OUT/d2.txt" 2>&1
+# 本流の側で 1 コミット進める（提供コマンドで。空コミットでよい）
+cd "$MAIN" && bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "chore: 実測用の空コミット" --allow-empty >> "$OUT/d2.txt" 2>&1
+# 共有している側から見え方を確かめる
+cd ../probe-force
+git status --porcelain >> "$OUT/d2.txt" 2>&1
+git log --oneline -1 >> "$OUT/d2.txt" 2>&1
+cd "$MAIN"
+```
+
+予測: `probe-force` 側の `git branch --show-current` は `feature-50-worktree-parallel-tickets`（本流と同じ）。本流が 1 コミット進めた後、`probe-force` の `git log --oneline -1` は**新しいコミットを指す**（ref を共有しているため）が、作業ツリーの中身は古いままなので `git status --porcelain` に**大量の差分**が出る。
+外れたとき: `git status` が空なら ref が共有されていないので、案 3 の評価（「一方の commit が他方を壊す」）が誤りになる。
+**注意: この実測の後は必ず `git worktree remove --force ../probe-force` で片付ける。** 空コミットは本流に残るので、残したくないなら D2 を飛ばす。
+
+**D3. 並列の追記を実際に合流させて、衝突の実件数を数える**
+
+本レポートの実際の履歴を使って、0005 の追記と 0006 の追記を「並列に行われたもの」として合流させる。**本流のブランチには触れない**（一時ブランチだけを使う）。
+
+```bash
+cd "$MAIN"
+BASE=199fd98   # 0004（観点 A）まで
+A=9c201fc      # 0005（観点 B）の追記
+B=9929a17      # 0006（観点 C）の追記
+# B の変更を BASE の上に載せ直した木を作る（= A と B が並列だった場合の一方）
+git worktree add --detach ../probe-merge "$BASE" > "$OUT/d3.txt" 2>&1
+cd ../probe-merge
+git checkout -b probe-b >> "$OUT/d3.txt" 2>&1
+git diff "$A" "$B" -- wip/30_reports/0004-investigation.md wip/30_reports/0004-investigation.html \
+  | git apply --3way >> "$OUT/d3.txt" 2>&1
+git add -A && git -c user.name=probe -c user.email=probe@example.com commit -m "probe: 0006 の追記だけを BASE の上に載せる" >> "$OUT/d3.txt" 2>&1
+# A（0005 の追記）を合流させる
+git -c merge.conflictStyle=diff3 merge "$A" >> "$OUT/d3.txt" 2>&1
+echo "exit=$?" >> "$OUT/d3.txt"
+echo "--- conflict markers ---" >> "$OUT/d3.txt"
+grep -c '^<<<<<<<' wip/30_reports/0004-investigation.md  >> "$OUT/d3.txt" 2>&1
+grep -c '^<<<<<<<' wip/30_reports/0004-investigation.html >> "$OUT/d3.txt" 2>&1
+git status --porcelain >> "$OUT/d3.txt" 2>&1
+cd "$MAIN"
+```
+
+予測: `git merge` は非 0 で終わり、`CONFLICT (content)` が md と HTML の 2 ファイルに出る。conflict marker の数は **md が 6〜10 件、HTML が 8〜13 件**（同一行の書き換え md 4 行 + HTML 9 行が近接して 1 つの marker にまとまるため、行数より少なくなる）。`wip/10_tickets/` には 1 件も出ない。
+外れたとき: 衝突が 0 件なら、git は「同じ位置への両側の挿入」を自動で解いていることになり、e29 の (7) と (8) の見積もりを下げる（合流コストの評価が変わり、D-3 の判定が「成り立たない」に寄る）。逆に marker が 20 件を超えるなら見積もりが甘く、J5（衝突源を減らす）の優先度が上がる。
+後始末: `git worktree remove --force ../probe-merge`、`git branch -D probe-b`。
+
+**D4. サブエージェント worktree の成果が、終了後にどこに残るか**
+
+0006 の実測 C1（`isolation: worktree` の probe）を、**ファイルを 1 つ作らせる形**にして再実行する（`probe-isolated.md` の本文に「`wip/tmp/probe-artifact.txt` に 1 行書き、`git status --porcelain` を貼ること」を足す）。サブエージェントの終了後、本流で次を実行する。
+
+```bash
+cd "$MAIN"
+git worktree list > "$OUT/d4.txt" 2>&1
+git for-each-ref --format='%(refname:short) %(objectname:short) %(committerdate:iso)' refs/heads >> "$OUT/d4.txt" 2>&1
+ls -la .claude/worktrees/ >> "$OUT/d4.txt" 2>&1
+git log --oneline --all --not main -20 >> "$OUT/d4.txt" 2>&1
+git status --porcelain >> "$OUT/d4.txt" 2>&1
+```
+
+予測: `refs/heads` に `worktree-<名前>` が現れ、`.claude/worktrees/<名前>/` が残る（公式 S7「a worktree with changes stays on disk」）。`git status --porcelain` に `?? .claude/worktrees/` が出る（0006 の e21）。`git log --all --not main` にサブエージェントのコミットが現れ、**`feature-50-…` には 1 件も入っていない**（自動では合流しない）。
+外れたとき: `worktree-<名前>` が無いなら、Claude Code が終了時に ref ごと片付けている。そのときは**未合流の成果が失われる**ことを意味するので、合流手順は「サブエージェントの終了前に本流へ書き戻す」形に限定される（J1〜J3 が全部使えなくなり、J4 だけが残る）。
+後始末: `git worktree remove --force .claude/worktrees/<名前>` と `git branch -D worktree-<名前>`。
+
+**D5. 採番の重複が本当に黙って通るか**
+
+```bash
+cd "$MAIN"
+# 2 つの作業ツリーを feature ブランチのサブブランチとして作る
+git worktree add -b probe-wt1 ../probe-wt1 feature-50-worktree-parallel-tickets > "$OUT/d5.txt" 2>&1
+git worktree add -b probe-wt2 ../probe-wt2 feature-50-worktree-parallel-tickets >> "$OUT/d5.txt" 2>&1
+cd ../probe-wt1 && bash .claude/skills/20-common-step-ticket/scripts/ticket.sh create investigation \
+  --title "probe1" --purpose "probe" --dod "probe" >> "$OUT/d5.txt" 2>&1
+cd ../probe-wt2 && bash .claude/skills/20-common-step-ticket/scripts/ticket.sh create design \
+  --title "probe2" --purpose "probe" --dod "probe" >> "$OUT/d5.txt" 2>&1
+cd ../probe-wt1 && git merge probe-wt2 >> "$OUT/d5.txt" 2>&1
+echo "exit=$?" >> "$OUT/d5.txt"
+ls -1 wip/10_tickets/00_todo/ >> "$OUT/d5.txt" 2>&1
+bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next >> "$OUT/d5.txt" 2>&1
+cd "$MAIN"
+```
+
+予測: 両方の `create` が**同じ番号**（本レポート作成時点なら `0011`）を採り、ファイル名は `0011-investigation.md` と `0011-design.md` になる。`git merge` は**衝突せずに成功**し、`00_todo/` に `0011-` が 2 枚並ぶ。`ticket.sh next` は辞書順で先の `0011-design.md` を返す（`next` の JSON の `type` が `design` になる）。
+外れたとき: 番号がずれるなら `ticket.sh` の採番が作業ツリー外も見ていることになり、e30 の (1) の判定が変わる。`git merge` が衝突するなら、番号の重複は目に見える形で止まる（悪さが 1 段下がる）。
+後始末: `git worktree remove --force ../probe-wt1 ../probe-wt2`、`git branch -D probe-wt1 probe-wt2`、`wip/10_tickets/00_todo/0011-*.md` を消す（**本流には作らない**ので、本流の `wip/` は触らない）。
+
+**注意（全 D 共通）**: `wip/tmp/` は `.gitignore` 対象なので出力は追跡されない。`git status --porcelain` に `?? ../probe-*` が出ないこと（作業ツリーはリポジトリの外に作る）を各手順の最後に確認する。**`push.sh` は実測の途中で実行しない**（0006 の e24 の C5 と同じ理由）。
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -1097,6 +1541,19 @@ git -C "$MAIN" worktree list >> "$MAIN/wip/tmp/worktree-probe/c5-status.txt" 2>&
 | （0006）公式の出典が 4 URL・18 引用ある | e18 の表が **18 行**、URL は `sub-agents` / `worktrees` / `hooks` / `agents` の **4 本**、取得日はすべて 2026-09-04 |
 | （0006）DDR `i0009-55` の引用が一次資料に実在する | `hooks` ページの Note が DDR の引用文（`hooks.md:598-601`）と**同じ文言**（e18 の S15） |
 
+| （0007）ブランチ構成の選択肢が 3 案以上あり、成立可否・合流手順・衝突の種類が並んでいる | e27 の表は **4 行**（detached HEAD / サブブランチ + 合流 / `--force` / 別 clone）。列は「成立可否」「合流手順」「衝突の種類」「成立可否の根拠」で、**4 行すべてに `ファイル:行` か公式の引用 ID がある** |
+| （0007）同一ブランチ制約の根拠が公式の記述である | e26 の表が **6 行**（`git-worktree` 5 件 + `git-checkout` 1 件）。URL は `git-scm.com/docs/git-worktree` と `git-scm.com/docs/git-checkout` の **2 本**、取得日はすべて 2026-09-05 |
+| （0007）衝突件数の見積もりに、使ったコマンドとその出力が添えられている | e29 の (1)〜(7) にコマンド **13 本**とその出力を貼った（`grep -n 'git -C <本流>'` で数えた行数 14 のうち、実施条件の 1 行を除く 13 行）。内訳は `git log --all --diff-filter=R` 2 / `feature-10` の集計 4 / `git show --stat` と `--name-status -M20%` 2 / `git log --name-only` 1 / `git show -U0 \| grep -c '^@@'` 4 |
+| （0007）rename の総件数 | `git log --all --diff-filter=R --name-status --format='' -- wip/10_tickets/ \| grep -c '^R'` = **235**。内訳の合計 133 + 94 + 6 + 2 = **235** で一致 |
+| （0007）`feature-10` の内訳が総数と合う | rename **104** = `00_todo→10_doing` 56 + `10_doing→20_done` 45 + `10_doing→30_cancelled` 3。状態遷移コミット **168** = 作成 56 + 着手 56 + 完了 53 + 取り消し 3。全コミット **247** |
+| （0007）1 コミットあたりの rename 件数 | `awk` による分布の集計の出力が **`104 1` の 1 行**（104 コミットすべてが 1 件） |
+| （0007）計画書が名指しした 4 対象すべてに判定がある | e30 の表は **4 行**（採番 / レポートの追記 / `ticket.sh` の状態遷移 / `commit.sh` の状態遷移）。各行に「衝突するか」と `ファイル:行` の根拠がある |
+| （0007）DDR `i0001-23` の却下文の主張それぞれに判定がある | e32 の 1 つ目の表が **3 行**（D-1「分離は強い」= 今も成り立つ / D-2「1 issue = 1 ブランチ = 1 MR の原則と衝突し」= 成り立たない / D-3「統合のコストが利得を上回る」= 条件付きで成り立つ）。2 つ目の表（背景の指摘 B-1〜B-3）も **3 行** |
+| （0007）合流手段の可否が全件判定されている | e28 の表が **6 行**（M1〜M6）。各行に「現行の機構での可否」と `ファイル:行` の根拠がある |
+| （0007）合流手順の選択肢が並んでいる（A6 の材料） | e33 の表が **6 行**（J1〜J6）。列は「誰が合流するか」「機構への変更」「1 合流あたりの手数」「残るリスク」。加えて「0010 が決める必要があるのは次の 5 点」を列挙した |
+| （0007）実測手順が「コマンド列 + 予測 + 外れたとき + 後始末」の形で揃っている | e34 の D1〜D5 の **5 件**すべてに、コマンドブロック・予測・外れたとき・後始末がある |
+| （0007）観点 D が読み取りだけで完結していない箇所を残課題に落とした | 「確かめられなかったこと」に 0007 の行が **5 件**、「残課題」に 0007 の行が **5 件** |
+
 ## 設計への反映
 
 | # | 反映すること | 引き取り先 |
@@ -1125,6 +1582,16 @@ git -C "$MAIN" worktree list >> "$MAIN/wip/tmp/worktree-probe/c5-status.txt" 2>&
 | 21 | （0006）`task-executor.md` の frontmatter は `name` / `description` / `tools` / `model` の 4 個で、公式が定義するフィールドのうち `isolation` のほか `skills` / `maxTurns` / `permissionMode` / `disallowedTools` / `effort` / `background` などを使っていない。並列の可否とは別に、エージェント定義の見直しの余地がある（本チケットでは調べていない） | 0010（材料として） |
 | 22 | （0006）サブエージェント worktree は `worktree-<名前>` という**別ブランチ**に成果を積み、終了時に自動では合流しない（S7）。1 issue = 1 ブランチ = 1 MR を保つなら合流の手順が要る。合流コストの見積もりは観点 D の担当 | 0007（観点 D）／0010 |
 
+| 23 | （0007）`ticket.sh` の採番が自分の作業ツリーしか見ない（`ticket.sh:151-159`）。並列を採るなら、①番号を作業ツリーに閉じない採り方（issue 番号 + 作業ツリー識別子の複合キー、ULID など）②採番を本流に一本化する（合流の直前に振り直す）③番号の重複を検知する検査を `ticket.sh` か合流の手順に足す、の 3 系統の候補がある。**種類が違うと衝突せずに重複したまま通る**のが最も危ない（e30 の (1)） | 0010（AI アセット設計計画） |
+| 24 | （0007）レポートの「1 タスク 1 本に積み上げる」運用が、そのまま並列時の衝突源になっている（追記のたびに md 4 行 + HTML 9 行を同じ行で書き換える。e29 の (6)）。**この運用は `10-task-investigation-exec` の共通手順が明示的に定めたもの**（「チケットごとにレポートを分けない」）なので、並列を採るなら共通手順の側を見直すか、衝突を受け入れて解消の担当を決めるかを選ぶ（e33 の J5） | 0010／AI アセット設計（共通ステップの文面） |
+| 25 | （0007）`scope.sh` の `merge` の分類が「引数に `origin/*` があるか」だけで決まる（`scope.sh:392-393`）。`git merge origin/feature-なんとか` も `merge-base` になるので、**取り込みに限る統制になっていない**。一方でローカルブランチの合流は一律 `unknown` に落ちる。観点 E（0008）の穴の一覧に載せ、塞ぎ方の案には「合流を通すか通さないか」を含める | 0008／0010 |
+| 26 | （0007）`workflow-guard` の制御方式 1（作業中チケットが 0 枚なら何もしない。`workflow-guard.sh:47-49`）が、**タスクの切れ目ではあらゆる `git` 操作を素通しする**。合流を切れ目で行う運用にすると、この素通しに乗ることになる。意図した緩和なのか穴なのかを仕様で明示する必要がある（DDR `i0004-07` の「拒否できる」という記述と噛み合っていない） | 0010／0008 |
+| 27 | （0007）`boundary.sh` の `scan_tickets` が「完了群の末尾から同じ種類が続く範囲」でタスクを切る（`boundary.sh:83-93`）。並列で種類の違うチケットを交互に完了させると**タスクを取りこぼしてレビューを受けないチケットが出る**（e31）。並列を採るなら、タスクの範囲を「番号の連続」ではなくチケット側の情報（`ticket_type` のまとまり、あるいはタスク ID）で決める必要がある | 0010／AI アセット実装 |
+| 28 | （0007）`ticket-check.sh:62` の未コミット検査がチケットファイル自身を除外するため、**完了コミットに作業ログの追記が相乗りし、rename 検出が外れる**（`feature-10` の完了 53 件中 8 件。e29 の (4)）。合流時の衝突の型が変わるだけでなく、`git log --diff-filter=R` による運用の観測も歪む。`.gitattributes` に `*.md` の行末指定が無いことも同じ方向に効く | 0010（合流手順の前提として）／保留 P2 |
+| 29 | （0007）`push.sh` が detached HEAD を CP007 で拒否する（`push.sh:67-68`）。これは**正しい振る舞い**だが、`boundary.sh:467` の `git rev-list "origin/$br..HEAD"` は `br` が `HEAD` のとき `origin/HEAD`（既定ブランチ）と比較して**誤った「未 push」判定**を出す。detached HEAD を採らないなら実害は無いが、防御の粒度が 2 か所で揃っていない | 0010／保留 P2 |
+| 30 | （0007）**合流したことを記録する場所が無い**。`decisions.jsonl` に `cwd` も `agent_id` も無く（0006 の e19）、`logs/` は作業ツリーごとに分かれる（0005 の e9）。並列を採るなら「どの作業ツリーのどのチケットの成果を、いつ、どこへ合流したか」を残す先を決める必要がある（e33 の 5 点目） | 0010 |
+| 31 | （0007）`git branch -d` / `-D` が `scope.sh` の `_SC_GIT_READ_SUBCMDS` の `branch` に当たって **`read` に分類される**（`scope.sh:36`）。合流後の後始末には都合がよいが、**ブランチを消す操作が読み取り扱いになっている**のは分類の穴である（`git worktree remove` は `unknown` で拒否されるのに、ref の削除は通る）。観点 E の一覧に載せる | 0008／0010 |
+
 ## 想定と異なった点
 
 | 計画時の見込み | 実際 | どう扱ったか |
@@ -1145,6 +1612,14 @@ git -C "$MAIN" worktree list >> "$MAIN/wip/tmp/worktree-probe/c5-status.txt" 2>&
 | （0006）`decisions.jsonl` から「サブエージェント実行時の `cwd` の実値」を拾えると見込んでいた（調査計画書の「対象と方法」の観点 C 行） | **`cwd` は記録されていない**（キーは 10 個）。拾えるのは `session_id` と、記録がどのファイルに落ちたかだけだった | 拾えるもので代えた。`session_id` の一致からサブエージェントがセッションを共有することを示し（e19）、`cwd` そのものは実測 C2 に落とした。記録側の不足は設計への反映 16 に上げた |
 | （0006）0004 の実測手順 P2 の識別子 W1（`main` を基点にした作業ツリー = チケット 0 枚）は、あくまで実測を切り分けるための人工物だと見込んでいた | **既定設定のサブエージェント worktree そのもの**だった（分岐元が既定ブランチだから）。P2 の「W1 だけ無音」という予測は、そのまま「隔離サブエージェントでは機構が無音になる」という予測でもある | e20 で両者を結びつけた。0009 で P2 と C1 の結果を並べて読む |
 | （0006）Claude Code 側に worktree 隔離の強制があるとは想定していなかった | 隔離中は 4 つの検査が掛かり、うち File edits の検査が **0004 の e5（作業ツリーをまたぐ絶対パス書き込み）を外から塞ぐ**。一方で command shape の検査は無効化できず、本プロジェクトのヒアドキュメント運用に正面から当たる | e22 に表として整理し、追い風と逆風を分けて書いた |
+
+| （0007）調査計画書は合流コストを「`wip/10_tickets/` のファイル移動による衝突」として見積もることを求めていた（観点 D の問いと「成果物の形」） | **`wip/10_tickets/` の衝突は 0 件だった。** チケットごとに別ファイルで、1 コミット 1 rename（`feature-10` の 104 コミットすべて）なので、別のチケットを動かす限り重ならない。実際に効いたのは**レポート 1 対への追記**（同一行 13 行）と**採番の重複**だった | 観点は書き換えず、e30 で 4 対象すべてを判定したうえで、重心を e29 の (6)(7) と e30 の (1) に置いた |
+| （0007）却下文の「1 issue = 1 ブランチ = 1 MR の原則と衝突し」は、今も成り立つ側だろうと見込んでいた（起動プロンプトも「この理由が今も成り立つかを判定できる形にする」ことを主眼に置いていた） | **成り立たない。** 原則の正文が禁じているのは MR を増やすことで、ローカルの中間ブランチではない。しかも**同じ前提条件の次の行（`:164`）が「並行して作業する場合は git worktree または別の clone を使う」と worktree を明示的に許していた** | e32 の D-2 として判定し、根拠を 3 つ（原則の正文 / `:164` の許可 / squash merge で中間履歴が残らないこと）並べた。読み方の承認は ◆ に上げた |
+| （0007）合流コストの主体はファイルの衝突だろうと見込んでいた | **主体は「合流という操作を機構が想定していないこと」だった。** `cherry-pick` / `rebase` / `am` は WF401 で拒否され、`git merge <ローカルブランチ>` は `unknown` で WF204。**AI に通る道は「作業中 0 枚のときの `git merge`」と「ファイルをコピーして `commit.sh`」の 2 つだけ**で、前者は DDR `i0004-07` が「拒否できる」と書いた統制の抜けに乗る形になる | コストを 3 分類（ファイル / 操作 / 合流後の前提）に分け直し、e25 の 2 つ目の表で大きさを並べた |
+| （0007）`git merge` は機構が一律に拒否すると見込んでいた（0006 の e22 の「git リダイレクト検査」と同じ扱いだと思っていた） | **`block-direct-git` は `merge` と `stash` を明示的に対象外にしている**（`block-direct-git.sh:35-36`、DDR `i0004-07`）。拒否しているのは `workflow-guard` 側で、しかも**作業中チケットが 0 枚なら素通りする** | e28 の M1 として「条件付きで通る」と書き、通ることが設計判断ではないこと（DDR の文面）を併記した |
+| （0007）チケットの状態遷移コミットは「純粋な rename」だと見込んでいた | **完了コミット 53 件中 8 件（15%）が rename として検出されない。** `ticket-check.sh:62` の未コミット検査がチケットファイル自身を除外するため、**作業ログの追記が完了コミットに相乗りする**（実例は 63 行削除 / 95 行追加で、`-M20%` でも rename にならない） | e29 の (4) に実例つきで書き、合流時の衝突の型が変わることを設計への反映 28 に上げた |
+| （0007）衝突の件数は `git merge` を試して数えるつもりでいた | **3-way マージを実行する手段が 1 つも無い。** `merge` は `unknown`、`merge-tree` は `_SC_GIT_READ_SUBCMDS` に無く、`diff3` は `_SC_READ_ONLY_CMDS` に無い。読み取りだけで数えるには「過去の追記の hunk 位置を共通の基点に写す」しかなかった | 静的な方法に切り替えて (6)(7) を出し、実件数の確定は実測手順 D3 に落とした。◇ に「実行していない」ことを明記した |
+| （0007）`isolation: worktree` の worktree は、ブランチ構成の第 5 の案として別に立てるつもりでいた | `worktree-<名前>` は `git worktree add <path>`（引数省略）が作るブランチ（`$(basename <path>)`）と**同じ性質**で、案 2 の具体形だった | e27 の案 2 の欄に併記し、「隔離を採る = 案 2 の合流手順を決める」と書いた |
 
 ## 残課題
 
@@ -1169,3 +1644,8 @@ git -C "$MAIN" worktree list >> "$MAIN/wip/tmp/worktree-probe/c5-status.txt" 2>&
 | R17 | （0006）`.worktreeinclude` で `logs/` を worktree へ複製したときに、進行状態（`merge-state.json` / `mr.json` / `review-state.json`）が二重になって何が起きるか。0005 の e13 は「残るほうが壊れる」と結論しているので、複製は 0005 が挙げた 3 件をそのまま worktree にも持ち込む | 0010（調査計画書の保留 P2） |
 | R18 | （0006）e20 を受け入れ条件 A1 の「動かない箇所」に載せるか、A4（並列採否）の材料に留めるか。0004 の R6・0005 の R10 と同じ種類の判断 | 0009／0010（人間の判断） |
 | R19 | （0006）並列の単位が「1 issue 内のチケット」ではなく「人間のセッション」になった場合（A2 / A3）、issue #50 の受け入れ条件 A4 に対する答えは「1 issue 内の並列は採らない」になる。その場合でも A1（worktree 上の健全性）は必要なのでフェーズ列は変わらない見込みだが、AI アセット設計の対象範囲は狭まる | 0010 |
+| R20 | （0007）**並列の利得（所要時間の短縮幅）を測る材料が無い。** チケットの `started_at` / `completed_at` は記録されているが、完了した issue の `wip/` は `finalize.sh` の片付けで消えており、`git show` で復元しないと読めない。しかも直列で実施した時間しか無く、並列にしたときの短縮幅は推定になる。**「統合のコストが利得を上回る」（DDR `i0001-23`）はコスト側しか数値で言えていない**（e32 の D-3）。0010 で保留 P1 を決めるとき、この非対称を明示したうえで判断するか、`git show` で過去の `started_at` / `completed_at` を掘って利得側の目安を作るかを選ぶ必要がある | 0009 / 0010 |
+| R21 | （0007）合流時の**衝突の実件数**（conflict marker の数）。読み取りだけでは「同一行の書き換え 13 行は確実」「同一の挿入点 6 か所は衝突する見込み」までしか言えない。3-way マージを実行する手段が機構に無い（`merge` / `merge-tree` / `diff3` がすべて分類外） | 0009（実測手順 D3）／人間 |
+| R22 | （0007）**サブエージェント worktree の `worktree-<名前>` ブランチが終了後にいつまで残るか。** ref ごと消えるなら未合流の成果が失われ、合流手順は「終了前に本流へ書き戻す」形（J4）に限定される。公式は worktree ディレクトリの sweep には触れるが ref には触れていない | 0009（実測手順 D4）／0010 |
+| R23 | （0007）**合流の実行者を誰にするか**（e33 の J1〜J6）。J2（`scope.sh` の分類を広げる）を選ぶと DDR `i0004-07` の決定を部分的に覆すことになり、J3（`merge.sh` を足す）は同 DDR が却下した案に戻ることになる。どちらも「当時の判断を、worktree という新しい前提のもとで見直す」形の決定なので、**DDR を上書きする新しい DDR が要る** | 0010（AI アセット設計計画）／AI アセット設計 |
+| R24 | （0007）**採番の重複が「衝突せずに通る」経路をどう塞ぐか**（e30 の (1)）。番号を作業ツリーに閉じない採り方にするのか、合流の手順で検査するのか。前者はチケットの命名規則（`<4 桁>-<種類>.md`）と `find_ticket` / `boundary.sh` の番号の扱いに波及し、後者は合流を機構が担うこと（J2 / J3）を前提にする | 0010 |

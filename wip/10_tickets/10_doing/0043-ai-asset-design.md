@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの敵対的レ
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T15:25:20+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "e75feea"
 ---
 
 # 0043 フックと提供コマンドの仕様に書き戻す

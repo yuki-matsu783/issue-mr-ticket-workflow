@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0050- AI アセット実装・テスト結果 — 仕様に本体を追随させる</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 5</span>
+    <span class="chip good">◎良 6</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -148,6 +148,7 @@
           <li><a href="#f3"><span class="mk good">◎</span> 3. BD006 / FN004 に分けた</a></li>
           <li><a href="#f4"><span class="mk good">◎</span> 4. BD-T19 / FN-T18 を足した</a></li>
           <li><a href="#f5"><span class="mk good">◎</span> 5. SKILL.md 8 本を追随させた</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 共通ステップ 6 本 + ルールを追随させた</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -170,9 +171,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。<b>0051 まで（S2: 中核）</b>: 提供コマンド 2 本の引数・環境の誤りを <code>BD006</code> / <code>FN004</code> に分け、テスト <code>BD-T19</code> / <code>FN-T18</code> を足した。<b>0052 まで（S3: スキル）</b>: ワークフロー・タスクスキル 8 本の SKILL.md に、仕様が足した手順・規約の要約 24 項目を写した。</p>
+  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。<b>0051 まで（S2: 中核）</b>: 提供コマンド 2 本の引数・環境の誤りを <code>BD006</code> / <code>FN004</code> に分け、テスト <code>BD-T19</code> / <code>FN-T18</code> を足した。<b>0052 まで（S3: スキル）</b>: ワークフロー・タスクスキル 8 本の SKILL.md に、仕様が足した手順・規約の要約 24 項目を写した。<b>0053 まで（S4: 共通ステップ）</b>: 作法系の共通ステップスキル 6 本とルール 1 本を追随させ、<code>.claude/skills/</code> 全体で「承認が欲しい」が 0 件になった。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>5</b><span>◎良</span></li>
+    <li class="kpi good"><b>6</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -199,6 +200,7 @@
         <li><a href="#f3">番号は末尾に足し</a>、既存の <code>BD001</code>〜<code>BD005</code> / <code>FN001</code>〜<code>FN003</code> を振り直していない</li>
         <li><a href="#f4">引数・環境の誤りのテスト</a>は原因ごとに ID を分けず、1 つの ID に 3 原因を並べた</li>
         <li><a href="#f5">SKILL.md には要約だけを書き</a>、正は仕様書という関係を崩していない</li>
+        <li><a href="#f6">共通ステップ 6 本 + ルール 1 本</a>も同じ写し方で、新しい規約はここで作っていない</li>
       </ul>
     </div>
   </div>
@@ -309,6 +311,34 @@ run-tests.sh --filter '*test_finalize*'
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">共通ステップスキル 6 本とルール 1 本を仕様に追随させた <span class="chip good">◎良</span> <span class="basis">根拠: 各仕様書（ルールは要件）の該当節</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象</th><th>足した内容</th><th>仕様（ルールは要件）の該当箇所</th></tr></thead>
+        <tbody>
+          <tr><td><code>20-common-step-report-view</code></td><td>テンプレートは Read + Write で書き出す（<code>cp</code> は WF205）/ 節の行き先は対応表で決める / md と HTML の突き合わせを独立した手順に / 同じ対象を指す 2 つの数 / 内訳を添える / 累積は 1 か所 / 視覚語彙の ◇ を「判断が欲しい」に</td><td>処理フロー 2、「OUT ひな形の節 → HTML の節」の表、処理フロー 5 の但し書き 3 件、OUT ひな形の視覚語彙</td></tr>
+          <tr><td><code>20-common-step-requirement</code></td><td>セルフレビューを 16 項目に / 受け入れ基準を足したら図の更新要否を判断する / 数にはそれを出したコマンドを添える</td><td>セルフレビュー項目 15・16、「数の書き方」</td></tr>
+          <tr><td><code>20-common-step-spec</code></td><td>eval の表は <code>## テスト観点（eval）</code> の階層に揃える / 提供コマンドの識別子表に「引数・環境の誤り」の番号を 1 つ置く（末尾に足す・原因ごとに分けない）/ 番号で参照する記述は名前でも辿れるようにする</td><td>種別ごとの節構成の但し書き、識別子の規約、処理フロー 8</td></tr>
+          <tr><td><code>20-common-step-shell-script</code></td><td>1 本を 120 秒に収める（ケースごとにコミットしない・外部プロセスを増やさない）/ 負のコントロールは環境が変わっても落ちるか / <code>jq</code> に渡す前に JSON か検査する / 1 回の <code>jq</code> は 1 行 1 値</td><td>「テストの書き方（規約）」の 5 項目</td></tr>
+          <tr><td><code>20-common-step-ai-asset-creator</code></td><td>標準構成は「持てるもの」の一覧（空のディレクトリを作らない）/ eval の要否は <code>20-common-step-spec</code> の決定に従う / 移設の完了条件 3 つ / 参照更新の作法 3 項目</td><td>処理フロー 2 の但し書き 2 件、「移設の完了条件」、「参照更新の作法」</td></tr>
+          <tr><td><code>20-common-step-feature-mr</code></td><td>ブランチ作成を <code>--no-track</code> 付きにし、外さない理由を添えた</td><td>処理フロー 3 の但し書き</td></tr>
+          <tr><td><code>.claude/rules/work-defaults.md</code></td><td>既定のモデルで敵対的レビュアーを起動できないときの代替の決め方（実行者と別であればよい・実施回数は消費・モデル名を記録）</td><td>要件 <code>rules/work-defaults</code> の例外フロー</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>grep -rn '承認が欲しい' .claude/skills/
+=&gt; 0 行</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>視覚語彙の言い換えは <code>assets/</code>（S1）と SKILL.md（S4）の両方が揃って完了した。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -328,6 +358,9 @@ run-tests.sh --filter '*test_finalize*'
       <tr><td>既存の <code>BD-T03</code> / <code>BD-T09</code> / <code>BD-T16</code> / <code>FN-T02</code> / <code>FN-T10</code> が期待値を変えずに通る</td><td>上の 2 本に含まれて全通過（期待値の編集は無し）</td></tr>
       <tr><td>SKILL.md 8 本のプレースホルダ</td><td>書き残しは 0 件。3 本に残る二重波括弧は「DoD の型」のひな形として意図的に置いているもので、このチケットで増やしていない</td></tr>
       <tr><td>SKILL.md 8 本の frontmatter</td><td>8 本とも <code>---</code> で始まり <code>name</code> と <code>description</code> を持つ（変更していない）</td></tr>
+      <tr><td><code>grep -rn '承認が欲しい' .claude/skills/</code>（S4 の締め）</td><td>0 行</td></tr>
+      <tr><td>共通ステップ 6 本 + ルール 1 本のプレースホルダ</td><td>書き残しは 0 件。4 か所に残る二重波括弧は、プレースホルダの記法そのものを説明する地の文</td></tr>
+      <tr><td>共通ステップ 6 本 + ルール 1 本の frontmatter</td><td>7 本とも <code>---</code> で始まる（<code>20-common-step-report-view</code> は <code>description</code> の本文だけ手順に合わせて直した）</td></tr>
     </tbody>
   </table>
   </div>
@@ -336,7 +369,7 @@ run-tests.sh --filter '*test_finalize*'
 <section id="next" data-required>
   <h2>設計への反映</h2>
   <ol>
-    <li><code>20-common-step-report-view/SKILL.md</code> の視覚語彙の 1 行を「判断が欲しい」に追随させる → S4（0053）</li>
+    <li><code>20-common-step-report-view/SKILL.md</code> の視覚語彙の 1 行を「判断が欲しい」に追随させる → S4（0053）で反映済み</li>
     <li><code>00-workflow-issue-mr-driven/SKILL.md</code> の「BD001〜BD005」を <code>BD006</code> まで含む表記に直す → S3（0052）で反映済み</li>
     <li><code>10-task-overall-summary/SKILL.md</code> の「FN001〜FN003」を <code>FN004</code> まで含む表記に直す → S3（0052）で反映済み</li>
   </ol>
@@ -349,6 +382,7 @@ run-tests.sh --filter '*test_finalize*'
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
       <tr><td>0050 の DoD の「<code>grep -rn '承認が欲しい' .claude/skills/</code> が 0 件」はこのステップで達成できる</td><td>SKILL.md にも 1 件あり、そのファイルは S4 の許可範囲</td><td>DoD をこのステップの担当（<code>assets/</code>）に絞り、<code>.claude/skills/</code> 全体での 0 件は S5（0054）の DoD が確かめる形にした</td></tr>
+      <tr><td>S4 で直すのは仕様が新しく足した規約だけ</td><td><code>20-common-step-ai-asset-creator/SKILL.md</code> の eval 定義の手順が <code>cp</code> でテンプレートを複製する形のままだった</td><td>同じ許可範囲のファイルで、S4 が写した「テンプレートは Read + Write」と同じ誤りなので、その場で直した</td></tr>
     </tbody>
   </table>
   </div>

@@ -9,7 +9,7 @@ allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
 started_at: "2026-09-04T14:45:36+09:00"
-completed_at: ""
+completed_at: "2026-09-04T14:55:52+09:00"
 base_sha: "d5c40ed"
 ---
 

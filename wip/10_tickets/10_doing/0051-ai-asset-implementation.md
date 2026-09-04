@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "提供コマンド 2 本は中核�
 allow:
   write: [".claude/skills/00-workflow-issue-mr-driven/scripts/**", ".claude/skills/10-task-overall-summary/scripts/**", "wip/**", "logs/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-04T17:16:09+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "ec27dbf"
 ---
 
 # 0051 提供コマンド 2 本の引数・環境の誤りの識別子を分ける（S2・中核）

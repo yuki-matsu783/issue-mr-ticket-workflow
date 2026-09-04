@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0024- AI アセット実装・テスト結果 — 機構の実体を作る</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 3</span>
+    <span class="chip good">◎良 4</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -146,6 +146,7 @@
           <li><a href="#f1"><span class="mk good">◎</span> 1. テンプレート実体 15 件</a></li>
           <li><a href="#f2"><span class="mk good">◎</span> 2. boundary.sh とテスト 13 件</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. finalize.sh と完了検査の共有</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. フックの追随と注入・テスト 10 件</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -168,9 +169,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -338,6 +339,35 @@
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">フックを新しい置き場に追随させ、注入とテスト 10 件を実装した（S4・中核） <span class="chip good">◎良</span> <span class="basis">根拠: <code>SE-T01</code>〜<code>SE-T10</code>（45 アサーション）と <code>WE-T10</code> が PASS</span></h3>
+      <p>提供コマンドの置き場を仕様側に確定した決定（DDR <code>i0010-01</code>）に、実装済みのフックを追随させた。あわせて <code>boundary.sh</code> が無いために 3/3 へ送られていたテスト 10 件を実装した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>ファイル</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>session-start.sh:64</code></td><td><code>boundary.sh</code> のパス（<strong>中核</strong>。取り違えると現在地が一切注入されない）</td></tr>
+          <tr><td>2・3</td><td><code>workflow-state-guard.sh:40, 43</code></td><td>案内文の 2 行</td></tr>
+          <tr><td>4〜7</td><td><code>test_workflow_entry.sh</code> / <code>test_workflow_state_guard.sh</code></td><td>期待値が置き場に依存するテストの入力 4 行</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><strong>注入の整形（制御方式 4〜11）を実装した</strong>。<code>session-start.sh</code> はこれまで <code>boundary.sh</code> の出力を取るところまでで止まっていた。判定は <code>boundary.sh status --offline</code> に委ねたまま、整形だけを足した。</p>
+      <ul>
+        <li>1 項目 1 行の 6 行（ブランチ / MR / チケット / 現在地 / 次に読み込むスキル / マージ前作業）</li>
+        <li><code>position</code> の 5 値をそれぞれの日本語に対応づけ、<code>requested</code> には「応答を終える」を添える</li>
+        <li>チケットも MR も無ければ 2 行だけ、チケットがあり MR が無ければ「全体計画の途中」（現在地と次に読み込むスキルの両方を揃える）</li>
+        <li>MR 未記録の feature ブランチは <code>WF703</code>、スキルが存在しなければ <code>WF704</code>、8 KB 超は切り詰めずに先頭へ警告</li>
+      </ul>
+      <p><strong>破損の検出は <code>boundary.sh</code> を呼ぶ前に置いた</strong>。<code>boundary.sh status</code> は壊れた記録を実態から再導出して<strong>書き戻す</strong>ので、呼んだ後では破損が見えず <code>WF702</code> を出せない。テスト（<code>SE-T05</code> 前半）がこの順序を固定する。</p>
+      <p><strong><code>before_request</code> の条件を 1 つ絞った</strong>。完了したチケットが 1 枚も無い状態でも「切れ目」と判定されるため、<code>merge_prep</code> に到達できなかった。「レビューを依頼する対象がある」ことを条件に加えて、チケットが 0 枚のときは <code>merge_prep</code> / <code>none</code> に落ちるようにした（<code>SE-T04</code> が固定する）。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><code>SE-T01</code>〜<code>SE-T10</code> の 10 件（45 アサーション）と <code>WE-T10</code>（<code>boundary.sh</code> の <code>position</code> と継続条件の一致）が通る。<code>SE-T10</code> は新しい置き場と旧い置き場の両方を実際に踏み、後者では注入されず記録の理由が「不在」になることを確かめる。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -352,10 +382,12 @@
       <tr><td>名前の食い違い</td><td>0 件。<code>attachment-comment.template.md</code> は現行仕様に無く、<code>summary-section.template.md</code> として作った</td></tr>
       <tr><td><code>boundary.sh</code> の機械テスト</td><td><code>BD-T01</code>〜<code>BD-T13</code> の 13 件・アサーション 74 件が PASS（<code>run-tests.sh --filter '*test_boundary*'</code> → <code>OK: 1 本 / 13 件</code>）</td></tr>
       <tr><td><code>boundary.sh</code> の終了コード</td><td>成功 0 / 前提未充足 1（BD001〜BD005）/ 引数・環境の誤り 2。最終行は <code>OK:</code> または <code>BDxxx:</code></td></tr>
-      <tr><td>全件テスト（回帰）</td><td>0026 の時点で <code>OK: 27 本 / 187 件</code>。27 ファイルすべて PASS（完了検査の切り出しの後も <code>test_ticket.sh</code> が 117 アサーション全通過）</td></tr>
+      <tr><td>全件テスト（回帰）</td><td>0027 の時点で <code>OK: 27 本 / 196 件</code>。27 ファイルすべて PASS、失敗 0・アサーション 2,247 件（<code>--timeout 300</code>。既定の 120 秒では <code>test_workflow_guard.sh</code> だけが TIMEOUT する）</td></tr>
       <tr><td><code>finalize.sh</code> の機械テスト</td><td><code>FN-T01</code>〜<code>FN-T09</code> の 9 件・アサーション 38 件が PASS。実行時間 44 秒</td></tr>
       <tr><td>完了検査の二重実装</td><td>0 件。<code>ticket.sh</code> と <code>finalize.sh</code> が同じ <code>ticket_check_completion</code> を source する</td></tr>
-      <tr><td>テスト ID の総数</td><td>165 → 178（<code>BD-T</code> 13 件）→ <strong>187</strong>（<code>FN-T</code> 9 件）</td></tr>
+      <tr><td>フックの追随</td><td><code>.claude/hooks/boundary.sh</code> / <code>.claude/hooks/finalize.sh</code> を指す実行時の参照は 0 件（残るのは仕様の過渡期記述・DDR・SE-T10 の意図的な旧パス）</td></tr>
+      <tr><td>注入の機械テスト</td><td><code>SE-T01</code>〜<code>SE-T10</code> の 10 件・アサーション 45 件が PASS。<code>WE-T10</code>（<code>position</code> と継続条件の一致）は <code>test_workflow_entry.sh</code> 75 件に含まれる</td></tr>
+      <tr><td>テスト ID の総数</td><td>165 → 178（<code>BD-T</code> 13 件）→ 187（<code>FN-T</code> 9 件）→ <strong>196</strong>（<code>SE-T</code> を 3 件から 10 件へ ほか）</td></tr>
     </tbody>
   </table>
   </div>
@@ -388,6 +420,8 @@
     <li><strong>R2</strong>: 旧ワークフロー由来の <code>00-workflow-issue-mr-driven/assets/issue-addendum.template.md</code> と <code>issue-notify.template.md</code> が残っている。引き取り先: S8（0031）</li>
     <li><strong>R3</strong>: <code>boundary.sh</code> の引数・環境の誤りに専用の識別子が無い（<code>BD001</code>〜<code>BD005</code> に該当なし）。他の提供コマンドは <code>TK008</code> / <code>CP007</code> / <code>RV008</code> を持つ。暫定で <code>BD001</code> を終了コード 2 で使っている。引き取り先: フィードバック計画（0033）→ 設計反映</li>
     <li><strong>R4</strong>: <code>boundary.sh</code> の GitLab 経路（<code>glab api discussions</code> / <code>approval_state</code>）は fixture でも実機でも未検証。テストは GitHub 経路だけを通っている。引き取り先: フィードバック計画（0033）</li>
+    <li><strong>R5</strong>: 仕様の「現行アセットとの差分（実装時に追従が要る箇所）」の表と、<code>session-start</code> 仕様の「実装フェーズで直す」の記述が、直し終わった今も残っている。過渡期の説明なので正史から落としたい。引き取り先: 設計反映</li>
+    <li><strong>R6</strong>: <code>boundary.sh</code> の <code>before_request</code> の条件に「完了したチケットがある」を足した。仕様の「切れ目の判定（正）」はこの条件を書いていない（書かないと <code>merge_prep</code> に到達できない）。引き取り先: 設計反映</li>
   </ul>
 </section>
 

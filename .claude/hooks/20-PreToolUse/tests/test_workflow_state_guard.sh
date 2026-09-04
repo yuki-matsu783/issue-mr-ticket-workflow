@@ -114,8 +114,8 @@ case_ready() {
 case_provided() {
   assert_eq "SG-T05" "allow" "$(tc 'bash .claude/skills/20-common-step-ticket/scripts/ticket.sh start 0003')"
   assert_eq "SG-T05" "allow" "$(tc 'bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003')"
-  assert_eq "SG-T05" "allow" "$(tc 'bash .claude/hooks/finalize.sh release')"
-  assert_eq "SG-T05" "allow" "$(tc 'bash .claude/hooks/boundary.sh request --body-file x.md')"
+  assert_eq "SG-T05" "allow" "$(tc 'bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release')"
+  assert_eq "SG-T05" "allow" "$(tc 'bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh request --body-file x.md')"
 }
 
 # ---- SG-T06: opaque ----

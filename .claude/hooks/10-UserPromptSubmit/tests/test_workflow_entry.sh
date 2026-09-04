@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# test_workflow_entry.sh — workflow-entry.sh のテスト（仕様のテスト ID: WE-T01〜WE-T09, WE-T11）
+# test_workflow_entry.sh — workflow-entry.sh のテスト（仕様のテスト ID: WE-T01〜WE-T11）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*workflow_entry*'
-# WE-T10（boundary.sh status --offline との一致）は 3/3（issue #10）へ送る。DDR i0009-04
 # テストは set -e を使わない（終了コードは judge が取る）
 set -uo pipefail
 
@@ -22,6 +21,17 @@ cp "$SRC/10-UserPromptSubmit/workflow-entry.sh" "$TMP_REPO/.claude/hooks/10-User
 cp "$SRC/lib/hook-common.sh" "$SRC/lib/cmdpos.sh" "$TMP_REPO/.claude/hooks/lib/"
 cp "$SK/logger.sh" "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
 cp "$SRC/config/entry-skills.txt" "$TMP_REPO/.claude/hooks/config/"
+# WE-T10 は boundary.sh status --offline と突き合わせるので、提供コマンド一式も置く
+mkdir -p "$TMP_REPO/.claude/skills/20-common-step-ticket/scripts" "$TMP_REPO/.claude/skills/20-common-step-ticket/assets" \
+         "$TMP_REPO/.claude/skills/20-common-step-commit-push/scripts" "$TMP_REPO/.claude/skills/20-common-step-commit-push/assets" \
+         "$TMP_REPO/.claude/skills/00-workflow-issue-mr-driven/scripts"
+cp "$SK"/*.sh "$TMP_REPO/.claude/skills/20-common-step-shell-script/scripts/"
+cp "$LOGGER_ROOT"/.claude/skills/20-common-step-ticket/scripts/*.sh "$TMP_REPO/.claude/skills/20-common-step-ticket/scripts/"
+cp "$LOGGER_ROOT"/.claude/skills/20-common-step-ticket/assets/ticket.template.md "$TMP_REPO/.claude/skills/20-common-step-ticket/assets/"
+cp "$LOGGER_ROOT"/.claude/skills/20-common-step-commit-push/scripts/*.sh "$TMP_REPO/.claude/skills/20-common-step-commit-push/scripts/"
+cp "$LOGGER_ROOT"/.claude/skills/20-common-step-commit-push/assets/exclude-patterns.txt "$TMP_REPO/.claude/skills/20-common-step-commit-push/assets/"
+cp "$LOGGER_ROOT"/.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh "$TMP_REPO/.claude/skills/00-workflow-issue-mr-driven/scripts/"
+cp "$SRC/config/task-types.tsv" "$TMP_REPO/.claude/hooks/config/"
 TMP_HOOK="$TMP_REPO/.claude/hooks/10-UserPromptSubmit/workflow-entry.sh"
 ENTRY="$TMP_REPO/logs/sessions/s1/entry.json"
 
@@ -140,8 +150,8 @@ case_continuation() {
 
   # マージ前作業中は提供コマンドの再実行だけ通る
   printf '{"state":"cleaned"}\n' > "$TMP_REPO/logs/merge-state.json"
-  assert_eq "WE-T06" "allow" "$(bashcmd 'bash .claude/hooks/finalize.sh release')"
-  assert_eq "WE-T11" "allow" "$(bashcmd 'bash .claude/hooks/boundary.sh status')"
+  assert_eq "WE-T06" "allow" "$(bashcmd 'bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release')"
+  assert_eq "WE-T11" "allow" "$(bashcmd 'bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh status')"
   assert_eq "WE-T06" "WF101" "$(write)"
   assert_eq "WE-T06" "WF101" "$(bashcmd 'ls -la')"
   # 宣言済みなら Write も通る
@@ -231,6 +241,78 @@ case_misc() {
   rm -f "$TMP_REPO/wip/10_tickets/10_doing/0001-x.md"
 }
 
+# ---- WE-T10: 継続条件の判定が boundary.sh status --offline の position と食い違わない ----
+# フックは毎ツール呼び出しのホットパスなので boundary.sh を起動せず同じファイルを直接読む。
+# 両者が同じ入力に対して同じ結論になることをここで固定する。
+case_boundary_agreement() {
+  local B="$TMP_REPO/.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh"
+  local pos
+  mk_ticket() { # $1=番号 $2=種類 $3=置き場
+    mkdir -p "$TMP_REPO/wip/10_tickets/$3"
+    cat > "$TMP_REPO/wip/10_tickets/$3/$1-$2.md" <<TICKETEOF
+---
+type: ticket
+ticket_type: $2
+predecessors: []
+executor: main
+human_review: {required: false, reason: "テスト"}
+adversarial_review: {required: false, reason: "テスト"}
+allow:
+  write: ["wip/**"]
+  ops: ["read"]
+started_at: ""
+completed_at: ""
+base_sha: ""
+---
+
+# $1 テスト
+TICKETEOF
+  }
+  bpos() { (cd "$TMP_REPO" && bash "$B" status --offline 2>/dev/null) | tl_jq -r '.position'; }
+
+  # 作業中のチケットがある → in_task。宣言なしのツール呼び出しを通す
+  reset_all
+  prompt '何かして' > /dev/null
+  mk_ticket 0004 investigation 10_doing
+  pos="$(bpos)"
+  assert_eq "WE-T10" "in_task" "$pos"
+  assert_eq "WE-T10" "allow" "$(write)"
+
+  # 完了だけがあり次が別の種類 → before_request。同じく通す
+  reset_all
+  prompt '何かして' > /dev/null
+  mk_ticket 0003 investigation 20_done
+  mk_ticket 0005 design-plan 00_todo
+  pos="$(bpos)"
+  assert_eq "WE-T10" "before_request" "$pos"
+  assert_eq "WE-T10" "allow" "$(write)"
+
+  # チケットが無く review-state が requested → requested。継続として通す
+  reset_all
+  prompt '何かして' > /dev/null
+  printf '{"mr":13,"boundary":{"task_type":"investigation","tickets":["0003"],"last_done":"0003"},"state":"requested"}\n' \
+    > "$TMP_REPO/logs/review-state.json"
+  assert_eq "WE-T10" "allow" "$(write)"
+  rm -f "$TMP_REPO/logs/review-state.json"
+
+  # チケットも記録も無い → none。宣言が無ければ拒否する
+  reset_all
+  prompt '何かして' > /dev/null
+  pos="$(bpos)"
+  assert_eq "WE-T10" "none" "$pos"
+  assert_eq "WE-T10" "WF101" "$(write)"
+
+  # マージ前作業中 → merge_prep。提供コマンドの再実行だけが宣言なしで通り、素のツール呼び出しは通らない
+  reset_all
+  prompt '何かして' > /dev/null
+  printf '{"issue":12,"mr":13,"state":"cleaned"}\n' > "$TMP_REPO/logs/merge-state.json"
+  pos="$(bpos)"
+  assert_eq "WE-T10" "merge_prep" "$pos"
+  assert_eq "WE-T10" "WF101" "$(write)"
+  assert_eq "WE-T10" "allow" "$(bashcmd 'bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release')"
+  rm -f "$TMP_REPO/logs/merge-state.json"
+}
+
 case_reset
 case_declared
 case_deny_targets
@@ -242,4 +324,5 @@ case_broken
 case_session
 case_mcp
 case_misc
+case_boundary_agreement
 finish

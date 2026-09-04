@@ -339,7 +339,7 @@ cmd_status() {
   case "$ms" in started|recorded|linked|cleaned|pushed) merge_running=1 ;; esac
   if [ "$eff" = "requested" ]; then pos="requested"
   elif [ -n "$B_CURRENT" ]; then pos="in_task"
-  elif [ "$B_AT_BOUNDARY" = "true" ] && [ "$eff" = "none" ]; then pos="before_request"
+  elif [ "$B_AT_BOUNDARY" = "true" ] && [ "$eff" = "none" ] && [ -n "$B_LAST_DONE" ]; then pos="before_request"
   elif [ "$eff" = "completed" ] || [ "$eff" = "skipped" ]; then pos="completed"
   elif [ -z "$B_CURRENT" ] && [ -z "$B_NEXT" ] && [ "$merge_running" -eq 1 ]; then pos="merge_prep"
   fi

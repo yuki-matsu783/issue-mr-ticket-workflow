@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの敵対的レ
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-04T16:32:39+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "169e5c2"
 ---
 
 # 0048 敵対的レビュー（設計フェーズ）の指摘 8 件を反映する

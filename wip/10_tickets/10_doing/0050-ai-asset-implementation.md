@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まず、機械テス
 allow:
   write: [".claude/skills/20-common-step-report-view/assets/**", ".claude/skills/10-task-feedback-plan/assets/**", "wip/**", "logs/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-04T17:07:51+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "357cd80"
 ---
 
 # 0050 テンプレート 3 件を仕様に追随させる（S1）

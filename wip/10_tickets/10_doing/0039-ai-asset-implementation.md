@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装フェーズの敵対的レ
 allow:
   write: [".claude/skills/10-task-overall-summary/**", ".claude/skills/00-workflow-issue-mr-driven/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T14:10:31+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "44bee00"
 ---
 
 # 0039 S14 提供コマンドの残り 4 件（敵対的レビュー 2 回目の指摘）

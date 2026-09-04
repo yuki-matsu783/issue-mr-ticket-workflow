@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "設計フェーズの締め。0043
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T16:02:39+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "7981ec1"
 ---
 
 # 0046 アセット作成の作法とルールに書き戻し、DDR を残す

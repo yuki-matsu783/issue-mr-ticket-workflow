@@ -131,7 +131,7 @@
 
   <p class="counts" id="counts" data-required>
     <span class="chip good">◎良 22</span>
-    <span class="chip warn">△注意 20</span>
+    <span class="chip warn">△注意 21</span>
     <span class="chip stop">✕問題 11</span>
   </p>
 
@@ -210,7 +210,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）／0008（観点 E）／0009（観点 F）</dd></div>
+    <div><dt>チケット</dt><dd>0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）／0008（観点 E）／0009（観点 F）／0011（敵対的レビューの訂正）</dd></div>
     <div><dt>作成日</dt><dd>2026-09-04</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -225,12 +225,13 @@
   <p class="lead">0007 まで（観点 A・B・C・D）。観点 D の答えは「<b>保ったまま使える</b>。git の同一ブランチ制約は『サブブランチを切って後で合流する』形で回避でき、MR は squash merge なので中間の履歴は <code>main</code> に残らない。合流コストの主体はファイルの衝突ではなく、①機構が『ブランチ間の合流』を設計として拒否していること（<code>git merge &lt;ローカルブランチ&gt;</code> は <code>unknown</code> → WF204、<code>cherry-pick</code> / <code>rebase</code> / <code>am</code> は WF401）と、②1 タスク 1 レポートの積み上げが追記のたびに md 4 行 + HTML 9 行を必ず同じ行で書き換えることにある」。<code>wip/10_tickets/</code> の衝突は <b>0 件</b>（チケットごとに別ファイル。<code>feature-10</code> の 104 コミットすべてが 1 コミット 1 rename）。DDR <code>i0001-23</code> の却下文は「分離は強い」= 今も成り立つ、「1 issue = 1 ブランチ = 1 MR の原則と衝突し」= <b>成り立たない</b>、「統合のコストが利得を上回る」= 条件付きで成り立つ、と判定した。表題は 0007 で観点 A・B・C・D を含む形に広げた。</p>
   <p class="lead">0008 まで（観点 A・B・C・D・E）。観点 E の答えは「<b>穴は 4 層あり、git サブコマンドの白名簿（<code>_SC_GIT_READ_SUBCMDS</code>）はそのうち 1 層にすぎない。しかも穴は『通らない』方向だけでなく『通ってしまう』方向にもあり、後者は <code>read</code> 分類のまま任意コマンドを実行できるところまで開いている</b>」。L1: <code>git-core</code> の実体から取った <b>174</b> サブコマンドと白名簿 <b>29</b> 件の突き合わせで <b>145 件</b>が <code>unknown</code>（<code>checkout</code> / <code>switch</code> / <code>worktree</code> / <code>merge-tree</code> / <code>stash</code> を含む）。L2: <code>decisions.jsonl</code> の WF204 <b>62 件</b>の実行体別集計で <code>cd</code> <b>22</b> / <code>bash</code> <b>11</b> / <code>git</code> <b>7</b>。L3: <code>cmdpos.sh</code> の正規化が実行体を取り違える <b>2 件</b>（二重引用符の中の <code>$(( ))</code> と <code>$( )</code> / プロセス置換。本チケットで 4 回再現）。L4: <code>read</code> に分類されるのに状態を変えられる<b>逆向きの穴 5 件</b>（<code>branch -d</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output</code> / <code>-c diff.external</code>）。塞ぎ方は 5 案（A〜E）を 6 観点で比較し、<b>採用は決めていない</b>。表題は 0008 で観点 A・B・C・D・E を含む形に広げた。</p>
   <p class="lead">0009 まで（観点 A・B・C・D・E・F）。観点 F の答えは「<b>読み取りだけで出した結論のうち、実測が届いた範囲は 1 件を除いてすべて当たった。外れた 8 件のうち 6 件は前提のずれで結論を覆さない。結論に効く不一致は D3（合流の衝突件数の見積もりの下振れ）1 件だけ。ただし実測の設計そのものに欠陥があり、観点 A の中心の問いは判定不能のまま残った</b>」。予測 <b>74 項目</b>の内訳は 一致 <b>45</b> / 不一致 <b>8</b> / 判定不能 <b>6</b> / 未取得 <b>11</b> / 予測外 <b>4</b>。<b>実測で確定した重い結論</b>は <a href="#f5">f5</a> の保護漏れ・<a href="#f30">f30</a> の採番重複・<a href="#f10">f10</a> の条件①・<code>scope_classify</code> の分類 13 項目。<b>判定不能 6 件</b>は実行時点でどのツリーにも作業中チケットが 0 枚で負のコントロールまで無音になったため（<a href="#f48">f48</a>）。<b>予測外の不具合 2 件</b>は <code>LOGGER_NAME</code> の子プロセスへの漏れ（本流でも起きている）と、<code>logs/mr.json</code> が無いときの <code>session-start</code> の現在地の誤導出（<a href="#f49">f49</a>）。受け入れ条件 A1 の「動かない箇所」は <b>7 件</b>（<a href="#f51">f51</a>）、A4 の材料は「並列を採るなら必ず直す 7 件」と「採らなくても直すべき 9 件」に分けた（<a href="#f52">f52</a>）。<b>保留 P1 の採否は決めていない</b> — コスト側は 8 項目そろい 5 項目が実測で確定したが、<b>利得側の材料は実測後も 1 つも無い</b>（<a href="#f53">f53</a>）。過去の節には「【0009 の実測】…」の引用ブロックを 1 行足しただけで、本文は書き換えていない。表題は 0009 で観点 F を含む形に広げた。</p>
+  <p class="lead">0011 まで（観点 A・B・C・D・E・F + 敵対的レビューの指摘への対応）。<b>0011 は新しい調査をしていない。</b>敵対的レビューが返した 10 件の指摘について実体を数え直し、既存の記述との食い違いを <b><a href="#f54">f54</a> の訂正表 1 つに集約</b>した（訂正 <b>23 件</b> = 指摘に対応する 20 件 + 0011 で新たに見つけた 3 件。<b>指摘のうち 1 件は数え直しの結果誤りだったので訂正していない</b>）。最も重いのは<b>帰属の誤り</b>で、「<code>cd</code>（本 issue で 22 回）」の 22 件のうち<b>本 issue のセッションは 10 件だけ</b>、<code>read</code> / <code>set</code> / <code>sleep</code> は本 issue では <b>0 件</b>だった。<b>A1 の「動かない箇所 7 件に確定」は過大</b>で、実測で確定 5 件 / 部分実測 1 件 / <b>判定不能 1 件（A1-6 = 観点 A の中心の問い）</b>。予測との突き合わせ表は <b>74 行ではなく 75 行</b>で、内訳は 一致 <b>43</b> / 不一致 <b>10</b> / 判定不能 <b>6</b> / 未取得 <b>11</b> / 予測外 <b>5</b>。予測表の入力数は <b>26 ではなく 24</b>、E2 の一致は <b>12 行（16 入力）</b>。基本コマンドの語数は <b>40 / 28 / 7 = 75（穴 67）</b>。根拠の行番号は <b>15 か所</b>ずれていた。<b>0009 の作業ログの訂正は WF303 で拒否された</b>ので、差し替え文面を <a href="#f54">f54</a> に残した（残課題 R44）。過去の節には「【0011 の訂正】…」の引用ブロックを足しただけで、本文は書き換えていない。</p>
   <ul class="kpis">
     <li class="kpi good"><b>22</b><span>◎良</span></li>
-    <li class="kpi warn"><b>20</b><span>△注意</span></li>
+    <li class="kpi warn"><b>21</b><span>△注意</span></li>
     <li class="kpi stop"><b>11</b><span>✕問題</span></li>
   </ul>
-  <p class="note">件数はタスク全体の合計（0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件、0008 が ◎4 / △2 / ✕4 = 10 件、0009 が ◎3 / △3 / ✕3 = 9 件、合計 53 件）。他の節はこの数を指す。</p>
+  <p class="note">件数はタスク全体の合計（0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件、0008 が ◎4 / △2 / ✕4 = 10 件、0009 が ◎3 / △3 / ✕3 = 9 件、0011 が ◎0 / △1 / ✕0 = 1 件、合計 54 件）。他の節はこの数を指す。</p>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
       <p class="label">◆特に見てほしい</p>
@@ -1437,6 +1438,7 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
     <li class="tl-item">
       <span class="tl-dot good">35</span>
       <h3 id="f35">観点 E の答え — 穴は「git サブコマンドの白名簿が短い」ことだけではなく、4 層に分かれる <span class="chip good">◎良</span> <span class="basis">根拠: scope.sh:31, 35, 36, 370-419 / cmdpos.sh:42, 48, 55, 129-136, 315-318 / workflow-guard.sh:387-443 / decisions.jsonl</span></h3>
+      <div class="box warn"><p class="label">【0011 の訂正】</p><p>L2 行の「<code>cd</code>（本 issue で 22 回）」は<b>帰属の誤り</b>。正しくは「全記録 22 回（うち本 issue のセッション <code>595e717b</code> は 10 回）」（<a href="#f54">f54</a> の C4・f54-3）。<b>L2 行の「候補 95 件中 75 件」は誤りではない</b>（f54-7）。</p></div>
       <p>観点 E の答えは <b>「穴は 4 層あり、git サブコマンドの白名簿（<code>_SC_GIT_READ_SUBCMDS</code>）はそのうち 1 層にすぎない。しかも穴は『通らない』方向だけでなく『通ってしまう』方向にもあり、後者は <code>read</code> 分類のまま任意コマンドを実行できるところまで開いている」</b>。</p>
       <div class="tablewrap">
       <table>
@@ -1518,6 +1520,7 @@ write-tree</code></pre>
     <li class="tl-item">
       <span class="tl-dot stop">37</span>
       <h3 id="f37">L2: <code>_SC_READ_ONLY_CMDS</code> に無いために <code>unknown</code> に落ちる基本コマンド <span class="chip stop">✕問題</span> <span class="basis">根拠: decisions.jsonl の WF204 62 件の実行体別集計 / scope.sh:31, 35 / cmdpos.sh:42, 48, 55 / usr/bin の実在確認</span></h3>
+      <div class="box warn"><p class="label">【0011 の訂正】3 点</p><p>①f37-1 の表は<b>3 つのセッションの合算</b>で、本 issue（<code>595e717b</code>）は 62 件中 22 件（<code>cd</code> は 22 件中 10 件）②内訳「本来通すべき 44 / 意図どおり 5 / 誤分類 13」は時点が混ざっており、62 件時点では <b>47 / 5 / 10</b> ③f37-2 の「この issue で実際に困ったのは 4 語」は誤りで、<b><code>read</code> <code>set</code> <code>sleep</code> は本 issue では 0 件</b>。<b>f37-2 の機械照合の値（40 / 28 / 7、<code>-none-</code> 75、穴 67）は正しい</b>（<a href="#f54">f54</a> の C5・C6・C16、f54-3・f54-4・f54-7）。</p></div>
       <p><b>集計の時点</b>: 下の表は <code>2026-09-05T01:06</code> 時点の <b>62 件</b>である。本チケットはその後さらに 5 件（<code>hook-common.sh</code> / <code>-v</code> / <code>read</code> / <code>_</code> / <code>none.txt</code>）を踏んだので、提出時点の総数は <b>67 件</b>になる。表は集計時点のまま残す。</p>
       <div class="tablewrap">
       <table>
@@ -1762,6 +1765,7 @@ EOF</code></pre>
     <li class="tl-item">
       <span class="tl-dot warn">45</span>
       <h3 id="f45">観点 F の答え — 予測 74 項目のうち 45 が一致、8 が不一致、6 が判定不能、11 が未取得、4 が予測外<span class="chip warn">△注意</span> <span class="basis">根拠: wip/tmp/worktree-probe/ の出力 26 件 / f46 の突き合わせ表</span></h3>
+      <div class="box warn"><p class="label">【0011 の訂正】4 点</p><p>①内訳は <b>75 項目・一致 43 / 不一致 10 / 判定不能 6 / 未取得 11 / 予測外 5</b> ②「静的読解 13 項目が 13 件とも一致」は <b>12 行（16 入力）が一致</b> ③「外れた 8 件のうち 6 件は前提のずれ」は <b>5 件</b> ④「A1 の動かない箇所は 7 件に確定」は過大で、<b>実測で確定 5 / 部分実測 1 / 判定不能 1</b>（<a href="#f54">f54</a> の C7・C10・C12・C13、f54-5・f54-6）。</p></div>
       <p>問い「人間が実行した実測の結果は、A〜D の予測と一致するか」への答えは <b>「読み取りだけで出した結論のうち、実測が届いた範囲は 1 件を除いてすべて当たった。外れた 8 件のうち 6 件は『予測を書いた時点と実行した時点で作業ツリーの中身が変わっていた』ことによる前提のずれで、結論を覆さない。結論に効く不一致は D3（合流の衝突件数の見積もりの下振れ）1 件だけである。ただし実測の設計そのものに欠陥があり、観点 A の中心の問い（<code>workflow-guard</code> と <code>workflow-diff-check</code> が worktree 側で数えるか）は 6 項目が判定不能のまま残った」</b>。</p>
       <ul>
         <li><b>一致 45 件</b>。重かった 5 件は ①<code>__hc_resolve_worktree</code> が 6 パスすべてを予測どおりに解決し参考ディレクトリが本流に倒れる（P1。DDR <code>i0009-64</code> の対策が実環境で効く）②<b>作業ツリーをまたぐ絶対パスの書き込みが <code>workflow-state-guard</code> をすり抜ける</b>（P3。<a href="#f5">f5</a> の ✕問題が確定）③<code>__ss_load</code> が <code>cwd</code> を見ない（B1-3。<a href="#f10">f10</a> の条件①が確定）④<b>採番の重複が衝突せずに合流する</b>（D5。<a href="#f30">f30</a> の (1) が確定）⑤<code>scope_classify</code> の静的読解 13 項目が <b>13 件とも一致</b>（E2。最優先だった X5 も当たった）</li>
@@ -1777,6 +1781,7 @@ EOF</code></pre>
     <li class="tl-item">
       <span class="tl-dot good">46</span>
       <h3 id="f46">予測 / 実測 / 判定の 3 列表（0004〜0008 の実測手順 全 74 項目）<span class="chip good">◎良</span> <span class="basis">根拠: wip/tmp/worktree-probe/ の出力ファイル 26 件</span></h3>
+      <div class="box warn"><p class="label">【0011 の訂正】表は 75 行になる</p><p>#24（P6-5）と #26（P7-2）は他の行と同じ基準では「不一致」で、<code>e2-result.txt</code> の 16 行目（<code>for f in a b; do echo "$f"; done</code>）が<b>どの行にも無かった</b>（追加する行は <a href="#f54">f54</a> の #74a）。訂正後の内訳は <b>一致 43 / 不一致 10 / 判定不能 6 / 未取得 11 / 予測外 5 = 75</b>。#73 の「予測表の 26 入力」は <b>24 入力</b>（f54 の C8・C9・C10・C11・C21）。</p></div>
       <p>判定の値は 4 つ。<b>一致</b>（予測どおり）／<b>不一致</b>（実測が予測と違う）／<b>判定不能</b>（実測は取れたが前提が崩れて真偽を分けられない）／<b>未取得</b>（実行されていない）。予測表に無かった観測は「予測外」として <a href="#f49">f49</a> で扱う。出力の列は <code>wip/tmp/worktree-probe/</code> 配下のファイル名。</p>
       <div class="tablewrap">
       <table>
@@ -1865,6 +1870,7 @@ EOF</code></pre>
     <li class="tl-item">
       <span class="tl-dot warn">47</span>
       <h3 id="f47">不一致 8 件の原因（実測の出力つき）<span class="chip warn">△注意</span> <span class="basis">根拠: 00-setup.txt / 06-session-start.txt / d1.txt / d3.txt / d5.txt / ticket.sh:327</span></h3>
+      <div class="box warn"><p class="label">【0011 の訂正】</p><p>冒頭の「3 つの型」は誤りで、実際は <b>(1)〜(6) の 6 つ</b>に分けている（8 件の割り付け自体は正しい）。「前提のずれ」に当たるのは (1)(2)(4)(5) の <b>5 件</b>で、f45 の「6 件」は誤り（<a href="#f54">f54</a> の C13・C22）。</p></div>
       <p>不一致は 3 つの型に分かれる。<b>(1)(2)(4)(5)(6) は「予測を書いた時点と実測を実行した時点で対象が変わっていた」ことによるもので、機構の読みが誤っていたわけではない。</b>結論に効くのは (3) だけである。</p>
       <p><b>(1) 予測の陳腐化 — W2 の中身が変わっていた（#4・#22）。</b><a href="#f8">f8</a> の e8 は「<code>W2</code>（<code>HEAD</code> 基点）は 0004 が <code>10_doing</code> にある」と書いたが、実測が走ったのは 0008 完了後の <code>9cb7269</code> で、0004〜0008 がすべて <code>20_done</code> にあり <code>10_doing</code> は空である。</p>
       <pre><code>== doing in W1
@@ -1963,6 +1969,7 @@ git status --porcelain    # 空であること。本流の wip/ と logs/ には
     <li class="tl-item">
       <span class="tl-dot warn">50</span>
       <h3 id="f50">訂正 — 実測が覆した / 補強した 0004〜0007 の結論<span class="chip warn">△注意</span> <span class="basis">根拠: f46 の突き合わせ表 / f47 の原因分析</span></h3>
+      <div class="box warn"><p class="label">【0011 の訂正】</p><p>この表の <code>f36〜f41（分類の穴）</code> 行の「E2 の 13 項目が 13 件とも一致」は <b>12 行（16 入力）が一致</b>が正しい（#70 は予測表に無い人間の追加で予測外）。「訂正なし。確定」という結論自体は変わらない（<a href="#f54">f54</a> の C12・f54-6）。<b>0011 の訂正は f54 に集めた</b>（本節は 0009 の訂正）。</p></div>
       <p><b>過去の節は書き換えない</b>（<code>10-task-investigation-exec</code> の「積み上げたレポートはその時点の記録」）ため、訂正はここに集める。該当する節には「【0009 の実測】…」の引用ブロックを 1 つだけ足し、本文は当時のまま残した（md 側 8 節）。</p>
       <div class="tablewrap">
       <table>
@@ -1987,6 +1994,7 @@ git status --porcelain    # 空であること。本流の wip/ と logs/ には
     <li class="tl-item">
       <span class="tl-dot stop">51</span>
       <h3 id="f51">受け入れ条件 A1 の「動かない箇所」一覧（ファイル・行・症状・実測の出力）<span class="chip stop">✕問題</span> <span class="basis">根拠: wip/tmp/worktree-probe/ の出力 / f5 / f49 / e2-result.txt</span></h3>
+      <div class="box warn"><p class="label">【0011 の訂正】2 点</p><p>①「<b>動かない箇所は 7 件</b>（うち 5 件は実測で確定）」は過大。下の表の「根拠の強さ」列に従うと <b>実測で確定 5 件（A1-1〜A1-5）/ 部分実測 1 件（A1-7）/ 判定不能 1 件（A1-6）</b> で、<b>A1-6 は観点 A の中心の問いそのもの</b>である ②2 つ目の表の「静的読解の 13 項目が 13 件とも一致」は <b>12 行（16 入力）が一致</b>（<a href="#f54">f54</a> の C7・C12、f54-5・f54-6）。</p></div>
       <p>受け入れ条件 A1 は「worktree 上で機構（フック・提供コマンド・<code>boundary.sh</code>）が健全に動くことが実測で確かめられ、動かない箇所があれば直っている」。<b>動かない箇所は 7 件</b>で、うち <b>5 件は実測の出力を根拠に確定</b>、2 件は実測が届かず静的読解のまま残る。</p>
       <div class="tablewrap">
       <table>
@@ -2099,6 +2107,203 @@ git status --porcelain    # 空であること。本流の wip/ と logs/ には
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot warn">54</span>
+      <h3 id="f54">訂正 — 0011（敵対的レビューの指摘 10 件の数え直し）<span class="chip warn">△注意</span> <span class="basis">根拠: decisions.jsonl / wip/tmp/worktree-probe/ の生出力 / workflow-guard.sh・scope.sh の実体</span></h3>
+      <p><b>この節の位置づけ</b>: 0011 は新しい調査をしていない。敵対的レビュー（<code>claude-fable-5-1</code>）が返した 10 件の指摘について、<code>logs/hooks/decisions.jsonl</code>・<code>wip/tmp/worktree-probe/</code> の生出力・コードの実体を<b>自分で数え直し</b>、既存の記述との食い違いを訂正する。<b>過去の節は書き換えず、訂正はこの節に集める</b>（<a href="#f50">f50</a> と同じ作法）。数え直しの結果、指摘の側が誤っていた点は最後の表に書いた。</p>
+
+      <p class="note"><b>f54-0. 数え直しの基準時点</b> — <code>decisions.jsonl</code> は AI 自身の作業でも増えるので、時点を固定しないと件数が合わない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>時点</th><th>WF204 の総数</th><th>備考</th></tr></thead>
+        <tbody>
+          <tr><td><code>2026-09-05T01:06</code>（f37-1 の集計時点）</td><td><b>62</b></td><td>f37-1 の表はこの時点</td></tr>
+          <tr><td>0008 完了時（レポート提出時点）</td><td><b>67</b></td><td>f37-1 の注記「提出時点 67 件」はこの時点</td></tr>
+          <tr><td>0009 完了時</td><td><b>69</b></td><td>0009 が <code>cd</code> を 2 件足した</td></tr>
+          <tr><td>0011 の数え直し時</td><td><b>72</b></td><td>0011 自身が 3 件足した（<code>cd</code> 1 / <code>_</code> 2）。<b>以下の数え直しは 69 件目までを対象とする</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p class="note"><b>f54-1. 訂正の一覧（どの節のどの記述を、どう訂正したか）</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>指摘</th><th>対象の節</th><th>当時の記述</th><th>訂正後</th></tr></thead>
+        <tbody>
+          <tr><td>C1</td><td>1</td><td>「実施条件」の 0009 行</td><td>「<code>cd</code> を含むコマンドが WF204 で <b>1 回</b>拒否された」</td><td><b>2 回</b>（<code>03:30:38</code> と <code>03:56:12</code>）。<code>ticket=0009-investigation.md</code> かつ <code>deny</code> は 2 行（8259・8391 行目）</td></tr>
+          <tr><td>C2</td><td>1</td><td>「検証の結果」の 0009 行</td><td>「唯一の deny は <code>cd</code> の WF204 <b>1 件</b>」</td><td><b>2 件</b>。<code>git worktree</code> / <code>checkout</code> / <code>switch</code> / <code>merge</code> の実行記録が無いという結論は変わらない</td></tr>
+          <tr><td>C3</td><td>1</td><td>チケット <code>0009-investigation.md</code> の作業ログ</td><td>「<b>WF204 が 1 回</b>」</td><td>2 回。<b>機構（WF303）に拒否されたため 0011 では書き換えられていない</b>。差し替え文面は下の f54-2</td></tr>
+          <tr><td>C4</td><td>2</td><td>f35 の L2 行</td><td>「<code>cd</code>（本 issue で <b>22 回</b>）」</td><td>「<b>全記録 22 回（うち本 issue のセッション <code>595e717b</code> は 10 回）</b>」</td></tr>
+          <tr><td>C5</td><td>2</td><td>f37-1 の表の <code>cd</code> 行の備考</td><td>22 件すべてが本 issue の実績と読める書き方</td><td><code>session_id</code> / <code>ticket</code> で分けた集計（f54-3）に置き換える。<b>62 件は本 issue 22 件 + 別セッション 40 件</b></td></tr>
+          <tr><td>C6</td><td>2</td><td>f37-2 の「この issue で実際に困ったのは 4 語」</td><td><code>cd</code>（22 回）・<code>read</code>（2 回）・<code>set</code>（1 回）・<code>sleep</code>（2 回）</td><td>本 issue の 62 件時点の実績は <code>cd</code> 10 / <code>bash</code> 5 / <code>git</code> 3 / 誤分類 4 で、<b><code>read</code> <code>set</code> <code>sleep</code> は 0 件</b></td></tr>
+          <tr><td>C7</td><td>3</td><td>f45 / サマリ（0009）/ f51 / f53 / frontmatter</td><td>「A1 の『動かない箇所』は <b>7 件に確定</b>」</td><td><b>実測で確定 5 件 + 部分実測 1 件（A1-7）+ 判定不能 1 件（A1-6）</b>。「7 件に確定」は使わない</td></tr>
+          <tr><td>C8</td><td>4</td><td>f46 の #24（P6-5 <code>cwd=MAIN</code>）</td><td>判定「一致」</td><td><b>不一致</b>（予測 3 要素のうち MR #51 だけが一致。チケット行は #22 と同源、issue #50 は出力に現れない）</td></tr>
+          <tr><td>C9</td><td>5</td><td>f46 の #26（P7-2 本流の <code>logs/sh</code> の更新時刻）</td><td>判定「一致」</td><td><b>不一致（部分一致 3/5 本）</b>。<code>hook-workflow-guard.log</code>（Sep 5 01:47）と <code>hook-workflow-diff-check.log</code>（Sep 4 10:55）が <code>03:25</code> に更新されていない。<b>f48 の判定不能を裏付ける観測</b></td></tr>
+          <tr><td>C10</td><td>4・5</td><td>f46 の内訳行 / f45 / 「検証の結果」</td><td>一致 45 / 不一致 8 / 判定不能 6 / 未取得 11 / 予測外 4 = <b>74</b></td><td><b>一致 43 / 不一致 10 / 判定不能 6 / 未取得 11 / 予測外 5 = 75</b></td></tr>
+          <tr><td>C11</td><td>6</td><td>「確かめられなかったこと」/ f46 の #73 / 「設計への反映」47 / チケット 0009</td><td>「予測表の <b>26 入力</b>」</td><td><b>24 入力</b>。実測の 18 行は <b>予測表由来 16 + 人間の追加 2</b>、未実行は 8</td></tr>
+          <tr><td>C12</td><td>7</td><td>f45 / f50 / f51 / サマリ（0009）/ frontmatter</td><td>「静的読解 <b>13 項目が 13 件とも一致</b>」</td><td><b>E2 の 12 行（16 入力）が一致</b>。#70 は予測表に無い人間の追加なので予測外</td></tr>
+          <tr><td>C13</td><td>7</td><td>f45</td><td>「外れた 8 件のうち <b>6 件</b>は前提のずれ」</td><td><b>5 件</b>（f47 の (1) 2 件 + (2)(4)(5) 各 1 件）</td></tr>
+          <tr><td>C14</td><td>8</td><td>サマリ（0008）</td><td>「シェル組み込み <b>33 語</b>と実在する外部コマンド 28 語」</td><td>「シェル組み込み・予約語 <b>40 語</b> / 実在する外部 <b>28 語</b> / <code>usr/bin</code> に無い <b>7 語</b> = <code>-none-</code> <b>75 語</b>」</td></tr>
+          <tr><td>C15</td><td>8</td><td>「想定と異なった点」の 0008 行</td><td>「基本コマンドで <b>61 語</b>」</td><td>「基本コマンドで <b>75 語</b>（うち穴と呼べるのは <b>67 語</b>）」</td></tr>
+          <tr><td>C16</td><td>9</td><td>f37-1 の内訳文</td><td>「本来通すべき <b>44</b> / 意図どおり 5 / 誤分類 <b>13</b> = 62」</td><td><b>本来通すべき 47 / 意図どおり 5 / 誤分類 10 = 62</b>。「<code>git</code> 7 の一部」は差し引きで作った数で表のどの行にも対応しない</td></tr>
+          <tr><td>C17</td><td>10</td><td>サマリ（0006）/ f5 / f8 の P2 / f20（<b>4 か所</b>）</td><td><code>workflow-guard.sh:59</code></td><td><b><code>:50</code></b></td></tr>
+          <tr><td>C18</td><td>10</td><td>f5（1 か所）</td><td><code>__wg_rel</code>（<code>workflow-guard.sh:70-96</code>）</td><td><b><code>:63-88</code></b></td></tr>
+          <tr><td>C19</td><td>10</td><td>サマリ（0007）/ f28 の M1（<b>2 か所</b>）</td><td><code>workflow-guard.sh:49</code> / <code>:47-49</code></td><td><b><code>:50</code></b> / <b><code>:47-50</code></b></td></tr>
+          <tr><td>C20</td><td>10</td><td>サマリ（0007）/「確かめられなかったこと」/ f27（2 か所）/ f28（2 か所）/ f33 の J2 / 残課題 25（<b>8 か所</b>）</td><td><code>scope.sh:392-393</code>（<code>merge</code> の分類）</td><td><b><code>scope.sh:395-396</code></b>（<code>:392-393</code> は <code>config</code> の分岐）</td></tr>
+          <tr><td>C21</td><td><b>0011 で発見</b></td><td>f46 の E2 の行</td><td><code>for f in a b; do echo "$f"; done</code>（<code>e2-inputs.txt</code> 16 行目・実測 <code>read read read</code>）が<b>表のどの行にも無い</b></td><td>表に 1 行足す（f54-6 の #74a）。E2 は <b>15 行・26 入力</b>、表全体は <b>75 行</b>になる</td></tr>
+          <tr><td>C22</td><td><b>0011 で発見</b></td><td>f47 の冒頭</td><td>「不一致は <b>3 つの型</b>に分かれる」</td><td>実際は <b>(1)〜(6) の 6 つ</b>（8 件の割り付け自体は正しい）</td></tr>
+          <tr><td>C23</td><td><b>0011 で発見</b></td><td>f37-2 の外部コマンド 28 語</td><td><code>perl</code> が「仕様が意図的に除外」と注記されながら 28 語の側に数えられている</td><td>数え方はそのままでよい（後段の検算で 8 語を引いて穴 67 としている）。<b>28 語を「穴の件数」として引用するときは 1 語ずれる</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <p class="note"><b>f54-2. 0009 の WF204 は 2 件（指摘 1）</b> — 0009 の期間（<code>03:30:30</code>〜<code>04:09:32</code>）に収まる <code>deny</code> は 2 件で、どちらも WF204・<code>cd</code>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>時刻</th><th><code>target</code>（記録のまま。80 文字で切れている）</th><th>何を実行しようとしたか</th><th>どう言い換えて進めたか</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>03:30:38</code></td><td><code>cd "&lt;ルート&gt;" &amp;&amp; sed -n '471,620p'</code></td><td>レポートの 471〜620 行を読む（<b>提供コマンドではない。読み取りの <code>sed</code></b>）</td><td>8 秒後（<code>03:30:46</code>）に <code>sed -n '471,620p' "&lt;ルート&gt;/wip/30…"</code> と <b><code>cd</code> を落として絶対パスで</b>実行し allow</td></tr>
+          <tr><td>2</td><td><code>03:56:12</code></td><td><code>cd "&lt;ルート&gt;" 2&gt;/dev/null; bash .c…</code></td><td><b>提供コマンド <code>check-html.sh</code> の起動</b>。7 秒後の allow 記録が <code>pwd; bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30…</code> であることから同定した</td><td><code>03:56:19</code> に <b><code>cd</code> を <code>pwd</code> に替え、提供コマンドはルート相対表記のまま</b>実行し allow</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b><code>2&gt;/dev/null</code> は迂回になっていない。</b> <code>workflow-guard</code> は PreToolUse で段を分類して拒否するので、この行は 1 文字も実行されていない。言い換え後の形も、拒否の理由である <code>cd</code> の段を消しただけで宣言の範囲を広げていない。<b>0009 の作業ログの「迂回せず」という記載自体は 2 件とも正しい。</b></p>
+      <div class="box warn">
+        <p class="label">チケット 0009 の作業ログは 0011 では直せなかった（機構が拒否した）</p>
+        <p><code>wip/10_tickets/20_done/0009-investigation.md</code> を書き換えようとしたところ <b><code>workflow-state-guard</code> が WF303（完了の置き場にあるチケットは触らない）で拒否した</b>。起動プロンプトは「状態を戻すのではなく作業ログの誤りの訂正なので行ってよい」としていたが、<b>機構はこの区別を持っていない</b>ので、迂回せず差し替え文面をここに残す（適用の判断は人間。残課題 R44）。</p>
+        <p>差し替える文面（<code>- **WF204 が 1 回**（…）</code> の 1 行と置き換える）: 「<b>WF204 が 2 回</b>（0011 の訂正）。①<code>03:30:38</code> は <code>cd "&lt;ルート&gt;" &amp;&amp; sed -n '471,620p'</code> で、8 秒後に <code>cd</code> を落とした絶対パスの <code>sed</code> に打ち直して通した。②<code>03:56:12</code> は <code>cd "&lt;ルート&gt;" 2&gt;/dev/null; bash .c…</code> で、起動しようとしたのは提供コマンド <code>check-html.sh</code>。<code>03:56:19</code> に <code>pwd; bash .claude/skills/…/check-html.sh …</code> と打ち直して通した。③<code>2&gt;/dev/null</code> は拒否が実行前なので迂回になっていない。④迂回せず、以後はすべて絶対パス（またはルート相対）で読んだ」。<b>あわせて同じチケットの「<code>e2-inputs.txt</code> が予測表 26 入力のうち 18 しか含まず」の <code>26</code> も <code>24</code> に直す必要がある</b>（C11）。</p>
+      </div>
+
+      <p class="note"><b>f54-3. <code>cd</code> 22 件の帰属（指摘 2）</b> — 62 件時点の <code>cd</code> 22 件を <code>session_id</code> と <code>ticket</code> で割る。<b>本 issue（#50）のセッションは <code>595e717b</code> の 10 件だけ</b>で、残り 12 件は前 issue のセッション（チケット番号は issue ごとに 0001 から振り直されるので番号だけでは区別できない）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th><code>session_id</code></th><th>帰属</th><th><code>ticket</code></th><th>件数</th></tr></thead>
+        <tbody>
+          <tr><td><code>595e717b</code></td><td><b>本 issue #50</b></td><td><code>0001-overall-plan</code> 1 / <code>0003-investigation-plan</code> 2 / <code>0004</code> 1 / <code>0005</code> 1 / <code>0006</code> 2 / <code>0007</code> 1 / <code>0008</code> 2</td><td><b>10</b></td></tr>
+          <tr><td><code>7d007b19</code></td><td>前 issue #10</td><td><code>0003-investigation</code> / <code>0010-investigation</code> / <code>0016</code> / <code>0021</code> / <code>0042</code> / <code>0046</code> 各 1</td><td>6</td></tr>
+          <tr><td><code>843ef779</code></td><td>前 issue #10（別セッション）</td><td><code>0031-ai-asset-implementation</code> 1 / <code>0039-ai-asset-design</code> 5</td><td>6</td></tr>
+          <tr><td colspan="3"><b>合計</b></td><td><b>22</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">WF204 全体を同じ軸で割ると次のとおり（62 件時点）。<b>f37-1 の表は 3 つのセッションの合算である。</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>実行体</th><th>全記録</th><th>本 issue（<code>595e717b</code>）</th><th>別セッション</th></tr></thead>
+        <tbody>
+          <tr><td><code>cd</code></td><td>22</td><td><b>10</b></td><td>12</td></tr>
+          <tr><td><code>bash</code></td><td>11</td><td><b>5</b></td><td>6</td></tr>
+          <tr><td><code>git</code></td><td>7</td><td><b>3</b></td><td>4</td></tr>
+          <tr><td><code>_</code></td><td>4</td><td><b>2</b></td><td>2</td></tr>
+          <tr><td><code>python</code> / <code>python3</code> / <code>perl</code></td><td>5</td><td><b>0</b></td><td>5</td></tr>
+          <tr><td><code>sleep</code></td><td>2</td><td><b>0</b></td><td>2</td></tr>
+          <tr><td><code>read</code></td><td>2</td><td><b>0</b></td><td>2</td></tr>
+          <tr><td><code>set</code></td><td>1</td><td><b>0</b></td><td>1</td></tr>
+          <tr><td><code>exit</code> / <code>break</code></td><td>2</td><td><b>0</b></td><td>2</td></tr>
+          <tr><td>誤分類の産物（<code>n+1</code> / <code>r-1</code> / <code>end-start</code> / <code>and</code> ほか）</td><td>6</td><td><b>2</b></td><td>4</td></tr>
+          <tr><td><b>合計</b></td><td><b>62</b></td><td><b>22</b></td><td><b>40</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>67 件時点（提出時点）の本 issue 分は <b>27 件</b>、69 件時点（0009 完了時）は <b>29 件</b>（<code>cd</code> が 12 に増える）。<b>穴の大きさの評価は変わらない</b>（<code>cd</code> が <code>_SC_READ_ONLY_CMDS</code> に無い事実はセッションに依存しない）。変わるのは<b>「本 issue の作業でどれだけ困ったか」という体感の根拠の重み</b>で、f37-2 の「実際に困った 4 語」は<b>塞ぐ優先順位の材料としては使えない</b>。</p>
+
+      <p class="note"><b>f54-4. 62 件時点の内訳の引き直し（指摘 9）</b> — f37-1 の「本来通すべき 44 / 意図どおり 5 / 誤分類 13」は、<b>誤分類の 13 が提出時点（67 件）の数</b>で表の 62 件時点と混ざっている。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>区分</th><th>62 件時点</th><th>内訳</th></tr></thead>
+        <tbody>
+          <tr><td>意図どおり落とした（仕様 §8 が明示的に除外）</td><td><b>5</b></td><td><code>python</code> 3 / <code>python3</code> 1 / <code>perl</code> 1</td></tr>
+          <tr><td>誤分類（実行体ではない語が実行体として読まれた）</td><td><b>10</b></td><td><code>_</code> 4 + <code>n+1</code> / <code>r-1</code> / <code>end-start</code> / <code>and</code> / <code>の機械テスト_…</code> / <code>0031-ai-asset-implementation.md</code> の 6</td></tr>
+          <tr><td>残り（＝本来通すべきだったもの）</td><td><b>47</b></td><td><code>cd</code> 22 + <code>bash</code> 11 + <code>git</code> 7 + <code>sleep</code> 2 + <code>read</code> 2 + <code>set</code> 1 + <code>exit</code>/<code>break</code> 2</td></tr>
+          <tr><td><b>合計</b></td><td><b>62</b></td><td>47 + 5 + 10 = 62</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>「<code>git</code> 7 の一部」は<b>差し引きで 44 を作るために置かれた数</b>で、f36-2 の表のどの行にも対応していない。ただし <code>git checkout -b …</code> の <b>2 件</b>は状態を変える操作で宣言も無いので「本来通すべき」とは言い切れず、外すなら <b>45</b>。<b>どちらを使うかは 0010 の判断に委ねる。</b>提出時点（67 件）で引き直すなら 意図どおり 5 / 誤分類 13 / 残り 49 = 67。</p>
+
+      <p class="note"><b>f54-5. 受け入れ条件 A1 の 7 件の性質（指摘 3）</b> — f51 の表は最初から「根拠の強さ」の列に 3 種類の値を持っている。「7 件に確定」という要約がその区別を潰していた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>箇所</th><th>f51 の「根拠の強さ」</th><th>性質</th></tr></thead>
+        <tbody>
+          <tr><td>A1-1〜A1-5</td><td>誤導出 / 保護漏れ / <code>logs/</code> 非複製 / <code>LOGGER_NAME</code> の漏れ / worktree 操作が既定拒否</td><td>実測で確定</td><td><b>実測で確定（5 件）</b></td></tr>
+          <tr><td>A1-6</td><td>両フックが worktree 側のチケットで判定するか（<b>観点 A の中心の問い</b>）</td><td>静的読解 + 部分実測</td><td><b>判定不能（1 件）</b>。f51 自身が「<b>『動かない箇所ではない』と言い切れない</b>」と書いており、実測は f48 のとおり判定不能</td></tr>
+          <tr><td>A1-7</td><td>サブエージェント worktree が既定ブランチから切られる</td><td>部分実測</td><td><b>部分実測（1 件）</b>。前半は実測済み、後半（分岐元が既定ブランチ）は C1・C4 が<b>未取得</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>「動かない箇所が 7 件ある」という要約は、実は中心の問い（A1-6）が未確定であることを覆い隠す。</b> 0010 が A1 の対応範囲を決めるときは、A1-6 を「直す対象」ではなく<b>「まず確かめる対象」（残課題 R31）</b>として扱う必要がある。</p>
+
+      <p class="note"><b>f54-6. E2 の入力数・一致件数・表から漏れていた 1 行（指摘 6・7）</b> — 予測表（f44）のヒアドキュメントは <b>24 行</b>。26 ではない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>区分</th><th>行数</th><th>中身</th></tr></thead>
+        <tbody>
+          <tr><td>予測表由来（文言は一部変わっているが同じ入力）</td><td><b>16</b></td><td><code>cd /tmp</code> / <code>git worktree list</code> / <code>add</code> / <code>checkout -b</code> / <code>switch</code> / <code>merge-tree</code> / <code>stash list</code> / <code>branch -d</code> / <code>merge origin/main</code> / <code>merge &lt;ローカル&gt;</code> / <code>merge --abort</code> / <code>-c diff.external=… diff</code> / <code>bash wip/tmp/x.sh</code> / <code>bash &lt;絶対パス&gt;/…/ticket.sh next</code> / <code>echo "$(( 1 + 1 ))"</code> / <code>diff3 a b c</code></td></tr>
+          <tr><td>人間の追加（予測表に無い。負のコントロール）</td><td><b>2</b></td><td><code>bash .claude/skills/…/ticket.sh next</code>（→ <code>provided</code>）／<code>for f in a b; do echo "$f"; done</code>（→ <code>read read read</code>）</td></tr>
+          <tr><td><b>実行された合計</b></td><td><b>18</b></td><td>—</td></tr>
+          <tr><td>予測表のうち落ちたもの</td><td><b>8</b></td><td><code>git version</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output=</code> / <code>merge origin/feature-49-x</code> / <code>while read w; …</code> / <code>sed -n "$(…),+2p" …</code> / <code>sleep 1</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>24 − 16 = 8</b> で「8 入力が未取得」という結論そのものは正しい。誤っていたのは母数の 26 だけである。<b>一致件数</b>は、#70 を f46 自身が「予測表に無い（人間が足した）」「予測外」と書いているので <b>12 行（16 入力）</b>。<b>「予測を書いた分は全部当たった」と「実行した分は全部当たった」は別のことである。</b></p>
+      <p class="note"><b>表から漏れていた 1 行</b>（0011 で新たに見つけた）。<code>e2-inputs.txt</code> の 16 行目は <code>e2-result.txt</code> で分類されているのに、f46 の 74 行のどこにも現れない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>項目</th><th>予測</th><th>実測</th><th>判定</th><th>出力</th></tr></thead>
+        <tbody>
+          <tr><td>74a</td><td>E2-15 <code>for f in a b; do echo "$f"; done</code>（ループ本体が組み込みでない場合）</td><td>予測表に無い（人間が負のコントロールとして足した）</td><td><b><code>read read read</code></b>（<code>for</code> は <code>_SC_SHELL_KEYWORDS</code>、<code>do</code> / <code>done</code> は透過）</td><td>予測外（f37 末尾の「<b>ふつうのループは通る</b>」の裏取り）</td><td><code>e2-result.txt</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>これで <b>E2 は 15 行・26 入力</b>（実行 18 + 未実行 8）、<b>表全体は 75 行</b>になり、内訳は <b>一致 43 / 不一致 10 / 判定不能 6 / 未取得 11 / 予測外 5</b>。<b>不一致 8 件の型</b>は f47 の割り付け（(1) が #4・#22、(2) が #49、(3) が #52・#53、(4) が #36、(5) が #48、(6) が #58）から、<b>前提のずれ 5 件 / 見積もりの下振れ 2 件 / 副予測の外れ 1 件</b>で、f45 の「6 件」は誤り。</p>
+
+      <p class="note"><b>f54-7. 基本コマンドの語数（指摘 8）</b> — 語の列挙を 1 語ずつ数え直した結果、<b>f37-2 の機械照合の値が正しい</b>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>群</th><th>数え直し</th><th>f37-2 の記載</th><th>サマリ（0008）の記載</th></tr></thead>
+        <tbody>
+          <tr><td>シェル組み込み・予約語で <code>unknown</code></td><td><b>40</b></td><td>40</td><td><b>33（誤り）</b></td></tr>
+          <tr><td>外部コマンドで <code>unknown</code>（<code>usr/bin</code> に実在）</td><td><b>28</b></td><td>28</td><td>28</td></tr>
+          <tr><td><code>usr/bin</code> に無い</td><td><b>7</b></td><td>7</td><td>記載なし</td></tr>
+          <tr><td><code>-none-</code> 合計</td><td><b>75</b></td><td>75</td><td><b>61（= 33 + 28。誤り）</b></td></tr>
+          <tr><td>一覧にある（READ 6 / PREFIX 3 / WRITECMD 9 / OPAQUE 2）</td><td><b>20</b></td><td>20</td><td>—</td></tr>
+          <tr><td>候補の総数</td><td><b>95</b></td><td>95</td><td>95</td></tr>
+          <tr><td>実際に穴と呼べるもの（8 語を引く）</td><td><b>67</b></td><td>67</td><td>—</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>40 + 28 + 7 + 20 = 95、75 + 20 = 95 で検算が合う。<b>f35 の「候補 95 件中 75 件」も正しい。</b> 誤っているのはサマリ（0008）の 33 と「想定と異なった点」の 61 の 2 か所だけ。</p>
+
+      <p class="note"><b>f54-8. 根拠の行番号（指摘 10）</b> — 実体を確認した。<b>指摘の 3 種はいずれも正しく、出現箇所は指摘が数えた 4 か所より多い</b>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>記述</th><th>実体</th><th>出現数</th><th>出現箇所</th><th>実体の中身</th></tr></thead>
+        <tbody>
+          <tr><td><code>workflow-guard.sh:59</code></td><td><b><code>:50</code></b></td><td>4</td><td>サマリ（0006）／f5／f8 の P2／f20 の表</td><td><code>:50</code> が <code>[[ -n "$__WG_NAME" ]] || exit 0</code>。<code>:48</code> が <code>hook_doing_ticket</code>、<code>:49</code> が <code>__WG_NAME="$REPLY"</code></td></tr>
+          <tr><td><code>workflow-guard.sh:49</code> / <code>:47-49</code></td><td><b><code>:50</code></b> / <b><code>:47-50</code></b></td><td>2</td><td>サマリ（0007）／f28 の M1</td><td>同上</td></tr>
+          <tr><td><code>__wg_rel</code>（<code>workflow-guard.sh:70-96</code>）</td><td><b><code>:63-88</code></b></td><td>1</td><td>f5</td><td>関数定義は <code>:63</code> の <code>__wg_rel() {</code> から <code>:88</code> の <code>}</code> まで。<code>:84</code> が WF209 の <code>hook_deny</code></td></tr>
+          <tr><td><code>scope.sh:392-393</code>（<code>merge</code> の分類）</td><td><b><code>:395-396</code></b></td><td>8</td><td>サマリ（0007）／「確かめられなかったこと」／f27（2 か所）／f28 の M1・M2／f33 の J2／残課題 25</td><td><code>:395-396</code> が <code>elif [[ "$sub" == merge ]]</code> の分岐。<b><code>:392-393</code> は <code>config</code> の分岐</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>正しく書けている箇所</b>（訂正不要）: f37・f42 の <code>:63-88</code>、f41 とサマリ（0008）の <code>scope.sh:395-396</code>、<code>workflow-guard.sh:48-50</code>。<b>同じレポートの中で正しい表記と誤った表記が混在している</b>（残課題 R42）。</p>
+
+      <p class="note"><b>f54-9. 指摘と数え直しが食い違った点</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>指摘の記述</th><th>数え直しの結果</th><th>扱い</th></tr></thead>
+        <tbody>
+          <tr><td>指摘 3「静的読解のみ 1 件 + 判定不能 1 件」</td><td>f51 の列では A1-6 が「静的読解 + 部分実測」、A1-7 が「部分実測」。<b>どちらも「静的読解のみ」ではない</b></td><td>分類の名前を f51 の列の値に合わせた。「7 件に確定は過大」という趣旨はそのまま採った</td></tr>
+          <tr><td>指摘 6「同じ 26 がレポート 4 か所とチケット 0009 にある」</td><td>レポートは <b>3 か所</b> + チケット 1 か所 = 合計 4 か所</td><td>「レポート 3 か所 + チケット 1 か所」として C11 に書いた</td></tr>
+          <tr><td>指摘 8「f35 は『候補 95 件中 75 件』（3 系統目）」</td><td><b>f35 の 75 は f37-2 の機械照合と一致しており誤りではない</b></td><td>f35 は訂正しない。誤りはサマリの 33 / 61 の 2 か所だけ</td></tr>
+          <tr><td>指摘 10「行番号が実体と合わない箇所が 4 つ」</td><td>種類は 3 種だが、<b>出現箇所は 15 か所</b>（4 + 2 + 1 + 8）</td><td>f54-8 に出現箇所を全件挙げた</td></tr>
+          <tr><td>指摘 9「62 件時点では誤分類 10、本来通すべき 47」</td><td><b>そのとおり</b>（47 + 5 + 10 = 62）</td><td>ただし <code>git checkout -b</code> 2 件を「本来通すべき」に数えてよいかは別の判断が要る（f54-4）</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -2183,6 +2388,13 @@ git status --porcelain    # 空であること。本流の wip/ と logs/ には
       <tr><td>（0009）未取得の項目に理由と再実行手順がある</td><td>「確かめられなかったこと」に 0009 分を <b>11 行</b>追加し、全行に理由と引き取り先（R31〜R37）を書いた。再実行のコマンド列は <a href="#f48">f48</a> と残課題にある</td></tr>
       <tr><td>（0009）実測が 0004〜0008 の結論を覆したかの判定が全件ある</td><td><a href="#f50">f50</a> の表は <b>11 行</b>で、訂正が要る 5 行と「訂正なし」6 行を分けている</td></tr>
       <tr><td>（0009）実測を AI が実行していない</td><td>「実施条件（0009）」に明記。<code>decisions.jsonl</code> の本チケット分（<code>03:30:30</code> 以降）に <code>git worktree</code> / <code>checkout</code> / <code>switch</code> / <code>merge</code> の実行記録が無く、唯一の deny は <code>cd</code> の WF204 1 件</td></tr>
+      <tr><td>（0011）指摘 10 件がすべて数え直され、どれかの扱いに落ちている</td><td><a href="#f54">f54</a> の C1〜C23 が 23 行。指摘 1→C1・C2・C3、2→C4・C5・C6、3→C7、4→C8、5→C9、6→C11、7→C12・C13、8→C14・C15、9→C16、10→C17〜C20。C10 は 4・5 の帰結、C21〜C23 は 0011 で新たに見つけたもの。<b>訂正しなかった指摘（f35 の 75 件）は f54-9 に理由付きで書いた</b></td></tr>
+      <tr><td>（0011）数え直しの基準時点が固定されている</td><td>f54-0 に 4 時点（62 / 67 / 69 / 72 件）を明示。<b>0011 自身が 3 件（<code>cd</code> 1 / <code>_</code> 2）足していることも書いた</b></td></tr>
+      <tr><td>（0011）WF204 の件数が機械的に取れている</td><td><code>grep -c '"id":"WF204"' logs/hooks/decisions.jsonl</code> = 72（0011 の作業後）。<code>ticket=0009-investigation.md</code> かつ <code>deny</code> = <b>2 件</b>（8259・8391 行目）。<code>cd</code> 22 件の <code>session_id</code> 別 = 595e717b <b>10</b> / 7d007b19 6 / 843ef779 6</td></tr>
+      <tr><td>（0011）f37-2 の語数が 1 語ずつ数え直されている</td><td>40 + 28 + 7 + 20 = <b>95</b>、<code>-none-</code> 75 + 一覧にある 20 = <b>95</b> で、f37-2 の検算が両方合う（f54-7）</td></tr>
+      <tr><td>（0011）行番号が実体で確かめられている</td><td><code>workflow-guard.sh:50</code> = 早期 <code>exit 0</code>、<code>:63-88</code> = <code>__wg_rel</code> の定義全体、<code>scope.sh:395-396</code> = <code>merge</code> の分岐、<code>:392-393</code> = <code>config</code> の分岐。すべて実ファイルを読んで確認（f54-8）</td></tr>
+      <tr><td>（0011）過去の節を書き換えていない</td><td>追記したのは ①サマリの「0011 まで」段落 ②f54 の新設 ③f35・f37・f45・f46・f47・f50・f51 の冒頭に置いた<b>【0011 の訂正】ボックス 7 個</b> ④本表と「想定と異なった点」「残課題」への行追加。<b>本文の数値・文言は 1 つも書き換えていない</b></td></tr>
+      <tr><td>（0011）新しい調査をしていない</td><td>実行したのは <code>decisions.jsonl</code> / <code>wip/tmp/worktree-probe/</code> / <code>.claude/hooks/**</code> の読み取りだけ。<code>git worktree</code> / <code>git checkout -b</code> / <code>git switch</code> は 1 度も試していない</td></tr>
       <tr><td>（0009）実測の後始末が済んでいる</td><td><code>99-cleanup.txt</code> の 3 項目（<code>git status --porcelain</code> が空 / <code>git worktree list</code> が本流 1 行 / <code>probe-*</code> 無し）。本チケット着手時の <code>git status</code> もクリーン</td></tr>
     </tbody>
   </table>
@@ -2281,6 +2493,10 @@ git status --porcelain    # 空であること。本流の wip/ と logs/ には
       <tr><td>（0009）判定は「一致 / 不一致 / 未取得」の 3 値で足りると見込んでいた（チケットの DoD がその 3 値を指定していた）</td><td><b>「実測は取れたが前提が崩れて真偽を分けられない」ものが 6 件あり、3 値では表せなかった。</b>「不一致」に入れると <a href="#f6">f6</a> の D1 が根拠なく覆り、「一致」に入れると確かめていないものを確かめたことにしてしまう</td><td><b>判定不能</b>を足して 4 値にした。DoD の文言との差は ・ に上げて承認を仰いだ</td></tr>
       <tr><td>（0009）<code>workflow-guard</code> の識別力が失われたのは実測の実行順の問題だろうと見込んでいた</td><td><b>手順そのものの欠陥だった。</b><a href="#f8">f8</a> の P2 は <code>W2</code> を「<code>HEAD</code> 基点なら 0004 が作業中のはず」という<b>その時点のリポジトリの状態</b>に乗せており、手順の中で作業中チケットを作っていない。0008 完了後に実行すれば必ず崩れる</td><td><a href="#f48">f48</a> に再実行手順を書き、スキルの書き方の改善として設計への反映に上げた</td></tr>
       <tr><td>（0009）AI 側は <code>cd</code> の拒否をもう踏まないだろうと見込んでいた（0008 までで 22 回踏んでおり絶対パスで書く癖がついていた）</td><td><b>チケット着手の直後に 1 回踏んだ。</b>着手前は同じ形が通っていたためで、<code>workflow-guard.sh:48-50</code> が作業中 0 枚で抜けること（<a href="#f48">f48</a> で扱っている現象そのもの）を AI 自身の作業で踏んだ形になる</td><td>「実施条件（0009）」に記録した。<b>「チケットに着手した瞬間に通っていたコマンドが通らなくなる」ことは機構の説明として書かれていない</b>ので、設計への反映には上げずスコープ外の観察として作業ログに残した</td></tr>
+      <tr><td>（0011）敵対的レビューの 10 件は「本文の数値を直す」だけの作業だろうと見込んでいた</td><td><b>帰属（<code>session_id</code>）の誤りが 1 件（指摘 2）あり、これは数値の訂正ではなく「どのデータを根拠にしてよいか」の訂正だった。</b><code>cd</code> 22 件の 12 件は前 issue のセッションで、f37-2 の「この issue で実際に困った 4 語」は塞ぐ優先順位の材料として使えない</td><td>f54-3 に <code>session_id</code> / <code>ticket</code> 別の集計を置き、穴の大きさの評価（変わらない）と体感の根拠（変わる）を分けて書いた</td></tr>
+      <tr><td>（0011）指摘はすべて正しいと見込んでいた（確度 0.85 以上と添えられていた）</td><td><b>1 件は誤りだった</b>（指摘 8 が挙げた f35 の「候補 95 件中 75 件」は f37-2 の機械照合と一致していて正しい）。指摘 3 の分類名と指摘 6 の出現箇所も実体と少しずれていた</td><td><b>指摘のほうが誤っている点は直さず、f54-9 に根拠付きで並べた</b>。訂正するもの・しないものを分けて書いた</td></tr>
+      <tr><td>（0011）訂正の対象は指摘された 10 件だけだと見込んでいた</td><td><b>数え直す過程で 3 件見つかった。</b>①<code>e2-result.txt</code> の 16 行目が f46 の 74 行のどこにも無い ②f47 の「不一致は 3 つの型」は実際は 6 つ ③<code>workflow-guard.sh:49</code> / <code>:47-49</code> という表記も実体とずれている</td><td>f54-1 に C21〜C23 として足した。<b>表に載っていない対象を本文で足さない</b>ため、#74a は表の行の形で書いた</td></tr>
+      <tr><td>（0011）<code>decisions.jsonl</code> を読むだけなので機構に拒否されないと見込んでいた</td><td><b>3 回拒否された</b>（<code>cd</code> 1 回・<code>_</code> 2 回）。<code>_</code> の 2 回は f38 の X2 そのもので、<code>"$( … )"</code> の閉じ括弧の後ろの語が実行体になったために起きた。<b>訂正の作業そのものが、訂正の対象である不具合を再現した</b></td><td>迂回せず <code>cd</code> を落とし、<code>$( )</code> の入れ子を避けた形に書き直した。件数は f54-0 の 72 件に含めてある</td></tr>
     </tbody>
   </table>
   </div>
@@ -2329,6 +2545,10 @@ git status --porcelain    # 空であること。本流の wip/ と logs/ には
     <li><b>R38</b>（0009）<b>実測手順の書き方そのものの改善。</b>①負のコントロールが成立する前提を手順の中で作る ②数える対象を作る手順が数える対象そのものを混入させていないかを確認する ③その項目を飛ばすと何が確定しないかを項目ごとに書く。<b>本フェーズの実測はこの 3 つを守っていなかったために 28 項目のうち 6 項目が判定不能・1 項目が汚染・8 入力が黙って落ちた</b>。引き取り先: 0010（AI アセット設計）。</li>
     <li><b>R39</b>（0009）<b><code>LOGGER_NAME</code> の漏れと <code>session-start</code> の誤導出を、issue #50 の A1 で直すか保留 P2 の別 issue へ回すか。</b>N3 は worktree に固有なので A1 に残るのが自然だが、N1 は本流でも起きており無関係である。<b><a href="#f52">f52</a> の束 1 / 束 2 で材料は作ったが振り分けは決めていない</b>。引き取り先: 0010 / 人間の判断。</li>
     <li><b>R40</b>（0009）<b>保留 P1 を、利得側の材料が無いまま決めるかどうか。</b>実測を経てもコスト側の片側しか数値を持っていない（<a href="#f53">f53</a>）。<b>0010 は (a) 利得を測ってから決める / (b) 非対称を明示して決める / (c) 並列は採らず A1 だけ直す のどれを選ぶかを先に決める必要がある。(c) を選んでも束 2 の 1〜3 は残る</b>ので issue #50 の作業量はそれほど減らない。引き取り先: 0010 / 人間の判断。</li>
+    <li><b>R41</b>（0011）<b>A1-6（<code>workflow-guard</code> / <code>workflow-diff-check</code> が worktree 側のチケットで判定するか）が判定不能のまま</b>であることを踏まえて、0010 が受け入れ条件 A1 の対応範囲をどう決めるか。<b>「動かない箇所 7 件を直す」ではなく「まず A1-6 を確かめる（R31）→ 結果しだいで直す対象が増減する」という順序になる</b>（<a href="#f54">f54</a> の f54-5）。引き取り先: 0010 / R31 の再実行。</li>
+    <li><b>R42</b>（0011）<b>レポート・仕様で根拠を「ファイル:行」で引く作法の見直し。</b>本レポートは行番号を 15 か所ずらしていた（f54-8）。同じレポートの中で正しい表記と誤った表記が混在しており、<b>読み手はどちらが正かを判定できない</b>。候補は ①関数名・識別子・逐語引用を主にして行番号は補助にする ②引用時に <code>grep -n</code> の出力をそのまま残す ③レポートの検査に「行番号の引用が実体と一致するか」を足す（機械化できる）。引き取り先: 0010（<b>スキル・共通ステップの書き方の改善</b>）。</li>
+    <li><b>R43</b>（0011）<b>訂正の作業そのものが <code>cd</code> と <code>_</code>（f38 の X2）で 3 回 WF204 に落ちた</b>。読み取りだけの作業でも <code>"$( … )"</code> を含むワンライナーは踏む。<b>f42 の P-2 は L4 の逆向きの穴と同じくらい実務に効く</b>という観測を、塞ぎ方の採否（0010）の材料に加えるか。引き取り先: 0010。</li>
+    <li><b>R44</b>（0011）<b>完了済みチケットの作業ログに誤りが見つかったときに、それを直す手段が無い。</b><code>workflow-state-guard</code> の WF303 は「完了の置き場にあるチケットは触らない」を無条件に適用するので、<b>状態を戻す変更と作業ログの事実誤りの訂正を区別できない</b>。0011 は差し替え文面を f54-2 に置くに留めた。候補は ①人間が直す（現状の唯一の道）②<code>ticket.sh</code> に「作業ログの訂正」の口を足して提供コマンド経由でだけ許す ③訂正はチケットに戻さずレポート側に集約すると決めてスキルに明記する。引き取り先: 0010（<b>機構の設計判断</b>）/ 人間。</li>
   </ul>
 </section>
 

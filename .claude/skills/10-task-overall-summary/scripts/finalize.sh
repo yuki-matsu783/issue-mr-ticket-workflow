@@ -122,10 +122,12 @@ write_state() { # $1=state
   local base='{}'
   if [ -f "$MERGE_JSON" ]; then base="$(cat "$MERGE_JSON" 2>/dev/null || printf '{}')"; fi
   if ! printf '%s' "$base" | jq -e . >/dev/null 2>&1; then base='{}'; fi
+  # branch は boundary.sh が「この記録は今のブランチのものか」を見るために要る（書き手がここしかない）
   printf '%s' "$base" | jq --arg st "$1" --arg via "${OPT_EXTERNAL:+external}" --arg now "$now" --arg key "$key" \
-      --arg sha "$F_PRE_SHA" --arg mr "$F_MR" --arg iss "$F_ISSUE" '
+      --arg sha "$F_PRE_SHA" --arg mr "$F_MR" --arg iss "$F_ISSUE" --arg br "$(cur_branch)" '
       . + {state: $st,
            via: (if $via == "" then (.via // "cli") else $via end),
+           branch: (if $br == "" then (.branch // "") else $br end),
            mr: (if $mr == "" then .mr else ($mr | tonumber? // .mr) end),
            issue: (if $iss == "" then .issue else ($iss | tonumber? // .issue) end),
            pre_cleanup_sha: (if $sha == "" then .pre_cleanup_sha else $sha end)}
@@ -196,7 +198,8 @@ is_draft() {
       v="$(gh pr view "$F_MR" --json isDraft -q .isDraft 2>/dev/null | tr -d '\r')" || return 2 ;;
     gitlab)
       command -v glab >/dev/null 2>&1 || return 2
-      v="$(glab api "projects/:id/merge_requests/$F_MR" 2>/dev/null | jq -r '.draft // empty' | tr -d '\r')" || return 2 ;;
+      # `.draft // empty` は false も右辺に倒すので使わない（draft でない MR が「判定できない」になる）
+      v="$(glab api "projects/:id/merge_requests/$F_MR" 2>/dev/null | jq -r 'if has("draft") then (.draft | tostring) else "" end' | tr -d '\r')" || return 2 ;;
     *) return 2 ;;
   esac
   case "$v" in true) return 0 ;; false) return 1 ;; *) return 2 ;; esac
@@ -400,7 +403,15 @@ stage_cleanup() {
     # 拾わずに cleaned へ進めると、段階 6 の push が「未コミットの変更がある」で毎回落ちて
     # release では二度と先へ進めなくなる
     local -a pend=()
-    mapfile -t pend < <(git status --porcelain -- wip 2>/dev/null | sed 's/^...//' | sed 's|\\|/|g')
+    # -z（NUL 区切り）で読む。既定の porcelain v1 は空白や非 ASCII を含むパスを引用符と
+    # 8 進エスケープで包むので、そのまま渡すと commit.sh の存在確認に落ちる
+    local rec st path
+    while IFS= read -r -d '' rec; do
+      st="${rec:0:2}"; path="${rec:3}"
+      # 改名・複製は「新しいパス\0元のパス」の 2 レコードで来るので、続く 1 件を読み飛ばす
+      case "$st" in R*|C*) IFS= read -r -d '' _ || true ;; esac
+      pend+=("${path//\\//}")
+    done < <(git status --porcelain -z -- wip 2>/dev/null)
     if [ "${#pend[@]}" -gt 0 ]; then
       local out2
       if ! out2="$(bash "$COMMIT_SH" -m "chore: 作業領域を片付ける" "${pend[@]}" 2>&1)"; then

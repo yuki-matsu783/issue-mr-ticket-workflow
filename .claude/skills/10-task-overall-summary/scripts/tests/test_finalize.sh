@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_finalize.sh — finalize.sh のテスト（仕様のテスト ID: FN-T01〜09、敵対的レビューの指摘の反映で FN-T10〜16）
+# test_finalize.sh — finalize.sh のテスト（仕様のテスト ID: FN-T01〜09、敵対的レビューの指摘の反映で FN-T10〜17）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_finalize*'
 set -uo pipefail
 
@@ -345,6 +345,21 @@ run_cmd bash "$F" release
 assert_exit "FN-T13" 0
 assert_eq "FN-T13" "ready" "$(tl_jq -r '.state' logs/merge-state.json)"
 assert_eq "FN-T13" "" "$(git status --porcelain -- wip | tr '\n' ' ' | sed 's/ *$//')"
+
+# ================================================================ FN-T17
+# 片付けの再実行が、空白を含むパス（porcelain が引用符と 8 進エスケープで包む形）でも壊れない
+restore
+printf '\n## 完了検査\n\n通過。\n' >> wip/30_reports/0009-overall-summary.md
+mkdir -p wip/00_overall_plan
+printf 'x\n' > "wip/00_overall_plan/全体計画 メモ.md"
+git add -A >/dev/null 2>&1; git commit -q -m "chore: 完了検査を書き出す"; git push -q origin feature-x
+SHA17="$(git rev-parse HEAD)"
+printf '{"state":"linked","mr":1,"issue":10,"pre_cleanup_sha":"%s"}\n' "$SHA17" > logs/merge-state.json
+find wip -type f ! -name .gitkeep -exec rm -f {} +          # 削除だけ済ませてコミットしない
+run_cmd bash "$F" release
+assert_exit "FN-T17" 0
+assert_eq "FN-T17" "ready" "$(tl_jq -r '.state' logs/merge-state.json)"
+assert_eq "FN-T17" "" "$(git status --porcelain -- wip | tr '\n' ' ' | sed 's/ *$//')"
 
 # ================================================================ FN-T14
 # draft かどうか判定できないときは ready ではなく拒否側（pushed）に倒れ、段階 7 を実際に踏む

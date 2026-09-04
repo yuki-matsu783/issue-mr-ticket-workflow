@@ -101,6 +101,11 @@ reset_tickets() { rm -rf wip/10_tickets logs/review-state.json logs/review-histo
 DIRTY=0
 commit_all() { if [ "$DIRTY" = "1" ]; then git checkout -- . >/dev/null 2>&1; mark_pushed; DIRTY=0; fi; }
 st() { bash "$B" status --offline 2>/dev/null; }
+# 依頼時刻を固定する（時刻の比較を試すテストが実行環境のタイムゾーンに依存しないように）
+set_requested_at() { # $1=ISO8601
+  tl_jq --arg r "$1" '.requested_at = $r' logs/review-state.json > logs/review-state.json.tmp
+  mv logs/review-state.json.tmp logs/review-state.json
+}
 
 # ================================================================ BD-T01
 # at_boundary が doing あり / 同 type の todo 残り / type が変わる / todo 空 で期待どおり
@@ -385,23 +390,21 @@ printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[]},"revi
 printf '[]\n' > "$FIX/comments.json"
 run_cmd bash "$B" request --body-file wip/req.md
 assert_exit "BD-T14" 0
-RAT="$(tl_jq -r '.requested_at' logs/review-state.json)"
-AFTER="$(date -u -d "$RAT +1 second" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
-BEFORE="$(date -u -d "$RAT -1 hour" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
-if [ -n "$AFTER" ] && [ -n "$BEFORE" ]; then
-  cat > "$FIX/comments.json" <<CMTEOF
+# 依頼時刻をオフセットが 0 でない表記に固定する。実行環境が TZ=UTC だと、直そうとした
+# 辞書順の比較でも偶然通ってしまい、負のコントロールにならない。date -d への依存も消える
+set_requested_at "2026-09-04T21:00:00+09:00"
+AFTER="2026-09-04T12:00:01Z"    # 依頼の 1 秒後（同じ時点を UTC で書いたもの）
+BEFORE="2026-09-04T11:00:00Z"   # 依頼の 1 時間前
+cat > "$FIX/comments.json" <<CMTEOF
 [{"html_url":"https://github.com/acme/demo/pull/1#issuecomment-90",
   "body":"依頼の後に付いた指摘","created_at":"$AFTER","user":{"login":"reviewer"}},
  {"html_url":"https://github.com/acme/demo/pull/1#issuecomment-91",
   "body":"依頼より前の雑談","created_at":"$BEFORE","user":{"login":"reviewer"}}]
 CMTEOF
-  run_cmd bash "$B" complete
-  assert_exit "BD-T14" 0
-  assert_eq "BD-T14" "1" "$(tl_jq -r '[.findings[] | select(.kind == "comment")] | length' logs/review-state.json)"
-  assert_eq "BD-T14" "依頼の後に付いた指摘" "$(tl_jq -r '[.findings[] | select(.kind == "comment")][0].summary' logs/review-state.json)"
-else
-  pass "BD-T14"   # date -d が無い環境では時刻の作り分けができないので飛ばす
-fi
+run_cmd bash "$B" complete
+assert_exit "BD-T14" 0
+assert_eq "BD-T14" "1" "$(tl_jq -r '[.findings[] | select(.kind == "comment")] | length' logs/review-state.json)"
+assert_eq "BD-T14" "依頼の後に付いた指摘" "$(tl_jq -r '[.findings[] | select(.kind == "comment")][0].summary' logs/review-state.json)"
 
 # ================================================================ BD-T15
 # スレッドにも依頼時刻以降の絞り込みが掛かる（前の切れ目のスレッドが毎回再登場しない）
@@ -413,11 +416,10 @@ printf '[]\n' > "$FIX/comments.json"
 printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[]},"reviews":{"nodes":[]}}}}}\n' > "$FIX/graphql.json"
 run_cmd bash "$B" request --body-file wip/req.md
 assert_exit "BD-T15" 0
-RAT="$(tl_jq -r '.requested_at' logs/review-state.json)"
-AFTER="$(date -u -d "$RAT +1 second" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
-BEFORE="$(date -u -d "$RAT -1 hour" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
-if [ -n "$AFTER" ] && [ -n "$BEFORE" ]; then
-  cat > "$FIX/graphql.json" <<GQLEOF
+set_requested_at "2026-09-04T21:00:00+09:00"
+AFTER="2026-09-04T12:00:01Z"
+BEFORE="2026-09-04T11:00:00Z"
+cat > "$FIX/graphql.json" <<GQLEOF
 {"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[
   {"id":"t1","isResolved":true,"comments":{"nodes":[{"url":"u1","path":"a.ts","line":1,
     "body":"前の切れ目のスレッド","createdAt":"$BEFORE","author":{"login":"reviewer"}}]}},
@@ -425,13 +427,10 @@ if [ -n "$AFTER" ] && [ -n "$BEFORE" ]; then
     "body":"今回のスレッド","createdAt":"$AFTER","author":{"login":"reviewer"}}]}}
 ]},"reviews":{"nodes":[]}}}}}
 GQLEOF
-  run_cmd bash "$B" complete
-  assert_exit "BD-T15" 0
-  assert_eq "BD-T15" "1" "$(tl_jq -r '[.findings[] | select(.kind == "thread")] | length' logs/review-state.json)"
-  assert_eq "BD-T15" "今回のスレッド" "$(tl_jq -r '[.findings[] | select(.kind == "thread")][0].summary' logs/review-state.json)"
-else
-  pass "BD-T15"
-fi
+run_cmd bash "$B" complete
+assert_exit "BD-T15" 0
+assert_eq "BD-T15" "1" "$(tl_jq -r '[.findings[] | select(.kind == "thread")] | length' logs/review-state.json)"
+assert_eq "BD-T15" "今回のスレッド" "$(tl_jq -r '[.findings[] | select(.kind == "thread")][0].summary' logs/review-state.json)"
 printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[]},"reviews":{"nodes":[]}}}}}\n' > "$FIX/graphql.json"
 
 # ================================================================ BD-T16
@@ -486,6 +485,15 @@ printf '{"state":"ready","branch":"%s"}\n' "$BRANCH" > logs/merge-state.json
 run_cmd bash "$B" status --offline
 assert_exit "BD-T18" 1
 assert_eq "BD-T18" "BD005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
-rm -f logs/merge-state.json
+# MR 番号の突き合わせ（mr.json がある状態で .mr の分岐を実際に踏む）
+printf '{"host":"github","issue":10,"mr":35,"url":"https://github.com/acme/demo/pull/35"}\n' > logs/mr.json
+printf '{"state":"ready","mr":999,"branch":"%s"}\n' "$BRANCH" > logs/merge-state.json
+run_cmd bash "$B" status --offline
+assert_exit "BD-T18" 0
+printf '{"state":"ready","mr":35,"branch":"%s"}\n' "$BRANCH" > logs/merge-state.json
+run_cmd bash "$B" status --offline
+assert_exit "BD-T18" 1
+assert_eq "BD-T18" "BD005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+rm -f logs/merge-state.json logs/mr.json
 
 finish

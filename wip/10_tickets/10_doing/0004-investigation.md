@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の差分 3。フ�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T22:38:46+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9721416"
 ---
 
 # 0004 調査: worktree 上でのフックの作業ツリー解決と、WIP・宣言範囲・差分判定の健全性

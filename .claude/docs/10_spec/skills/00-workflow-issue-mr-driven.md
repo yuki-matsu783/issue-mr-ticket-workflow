@@ -123,6 +123,9 @@ bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh complete
 
 1. そのタスクに敵対的レビューを挟むかを決める: チケットの記載（人間レビュー要否と同じ欄の隣に書かれる敵対的レビュー要否）があればそれ、無ければ `rules/work-defaults.md` の既定。実施回数の上限はタスクごとに同ルールが持つ（既定 1 回）
 2. 要なら、`git diff <base>..HEAD` を `wip/tmp/adversarial-<n>.patch` に書き出す（`base` は前の切れ目の `head_sha`、無ければ開始コミット）。対象ファイルに効く成果物ルール（`.claude/rules/` の観点章）から観点を集め、`assets/adversarial-review-prompt.template.md` で `adversarial-reviewer` を Agent ツールで起動する（読み取り専用。10_spec/agents/adversarial-reviewer.md）。**起動の前にモデルを突き合わせる**: レビュー対象を作った実行者（完了したチケットの `executor`。メインエージェントが実施したタスクは自分のモデル）と、エージェント定義の `model` が同じなら、Agent ツールの `model` で別のモデルに差し替えて起動する（定義の固定値だけでは一致を防げない）。差し替えたときは手順 5 のコメントにそのモデル名を添える
+   - **起動プロンプトには現在のブランチ名を書く**。サブエージェントに渡される環境情報はセッション開始時点で固定されるので、ブランチを切り替えた後に起動したレビュアーは古いブランチ名を受け取る（issue #10 の 0009 で実測）
+   - **観点には「仕様書が求める必須節が実在するか」を必ず含める**（`20-common-step-spec` 仕様の種別ごとの節構成と対象の仕様書を突き合わせる）。節そのものの不在は、節の中身を見る観点では拾えない
+   - **既定のモデルが使えないとき**（API がエラーを返す・モデル名が無効）は、`rules/work-defaults.md` の「敵対的レビュアーのモデル」に従って代替を決める。実行者と別のモデルであることだけが要件で、上限回数は消費したものとして数える
 3. 返った指摘のうち `confidence >= 0.5` を採用し、一覧を `boundary.sh note --body-file` でマーカー付きの通常コメントとして MR に残す（人間の指摘と同列に扱う。インライン投稿は将来の拡張）
 4. 採用した指摘が 1 件以上 → 手順 4-4 と同じ要領で同じ種類の追加チケットを起こし（次の計画チケットの `predecessors` にも加える）、手順 2 へ戻る。上限回数に達した後の指摘は追加チケットにせず、レビュー依頼の「見てほしい点」に転記して人間に委ねる
 5. 0 件、または不要 → 手順 3 へ。実施の有無と件数は MR 本文の「変更点」の行に添える（`（敵対的レビュー: 指摘 2 件 → 追加チケット 0009）` / `（敵対的レビュー: 省略）`）。実行者と一致してモデルを差し替えたときは、そのモデル名も添える（`（敵対的レビュー: 実行者と同じモデルのため <モデル名> で実施）`）
@@ -193,26 +196,14 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 - 直接編集は `workflow-state-guard` が拒否する。`boundary.sh` 内部の書き換えだけが経路
 - 記録が無い・壊れている場合: `status` は作業領域と MR の実態から再導出して書き戻す（チケットの配置 → 切れ目、依頼コメントの有無 → `requested`。依頼コメントは本文先頭の固定マーカー `<!-- boundary:request <task_type>:<last_done> -->` で識別する）。再導出できない項目は `none` に倒す（拒否側）。再導出の途中で**矛盾**（同じ `<task_type>:<last_done>` のマーカーを持つ依頼コメントが 2 件以上、`merge-state.json` が `cleaned` 以降なのに `wip/` に成果物がある 等）を見つけたら `status` は BD005 で終了コード 1 を返し、人間が確認すべき点を列挙する（他のサブコマンドは `status` を内部で呼ぶため同じく止まる）
 
-### 現行アセットとの差分（実装時に追従が要る箇所）
-
-実装済みのフックは `boundary.sh` / `finalize.sh` が `.claude/hooks/` にある前提で書かれている。置き場を上記のとおり各スキルの `scripts/` に確定したので、実装フェーズで次の **7 行**を直す。`scope.sh` の提供コマンドの識別は両方の形を受け付けるため（`フック共通仕様` §7 の項目 8）機構の動作は変わらないが、案内文が存在しないパスを指したままになる。
-
-| # | ファイル:行 | 現行 | 直す形 |
-|---|---|---|---|
-| 1 | `.claude/hooks/00-SessionStart/session-start.sh:64` | `__se_boundary="$HOOK_WORKTREE/.claude/hooks/boundary.sh"` | `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh` |
-| 2 | `.claude/hooks/20-PreToolUse/workflow-state-guard.sh:40` | 案内文 `__SG_HOWTO_STATE` の `bash .claude/hooks/boundary.sh …` / `bash .claude/hooks/finalize.sh …` | 各スキルの `scripts/` のパス |
-| 3 | `.claude/hooks/20-PreToolUse/workflow-state-guard.sh:43` | 案内文 `__SG_HOWTO_READY` の `bash .claude/hooks/finalize.sh release` | `bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release` |
-| 4・5 | `.claude/hooks/10-UserPromptSubmit/tests/test_workflow_entry.sh:143, 144` | WE-T06 / WE-T11 の入力 `bash .claude/hooks/finalize.sh release` / `bash .claude/hooks/boundary.sh status` | 同上（テストの入力を新しいパスに） |
-| 6・7 | `.claude/hooks/20-PreToolUse/tests/test_workflow_state_guard.sh:117, 118` | SG-T05 の入力 2 行 | 同上 |
-
-**1 行目は中核**である。`session-start.sh` はセッション開始時の注入そのものを行うフックで、パスを取り違えると現在地が一切注入されなくなる（不在時は無出力で終了 0 に倒れるため、壊れたことに気づきにくい）。実装計画はこの 1 行に **SE-T10** をロックアウト対策として付ける（新しい置き場に `boundary.sh` を置いたときに注入され、旧い置き場だけに置いたときは注入されず `hook_record skip` の理由が「不在」になる）。**SE-T05 の後半（`jq` 不在で無出力）では代えられない**: `jq` の検査はスクリプト不在の分岐より後にあり、パスを取り違えたままでも同じ結果になる（どちらも無出力・終了 0）ので、パスの誤りを検出できない。4〜7 行目は**期待値が置き場に依存するテスト**なので、パスを変えるチケットと同じ許可範囲に入れる（申し送り 0038）。
-
 ### 切れ目の判定（正）
 
 - `at_boundary` = `10_doing/` が空 かつ（`ticket.sh next` の `next` が null または `next.type` ≠ `20_done/` の最大連番の type）。`next` は先行チケットが未完了のものを飛ばした最小連番（`20-common-step-ticket` 仕様）
 - `last_task` = `20_done/` の最大連番のチケットと同じ type で連続する完了チケット群。`review_required` = その中に人間レビュー要否が「要」のものが 1 枚でもある
 - `review.state` は `boundary.last_done` が現在の `last_task` の最大連番と一致するときだけ有効。一致しなければ（追加チケットが完了した等）`none` として扱う
-- `position`（上から順に最初に当たったもの）: 有効な `review.state` が `requested`（`--final` の全体まとめを含む。`current` があっても優先）→ `requested` / `current` あり → `in_task` / `at_boundary` かつ state none → `before_request` / completed または skipped → `completed` / チケット無しで `logs/merge-state.json` が `started`〜`pushed` → `merge_prep` / それ以外 → `none`
+- `position`（上から順に最初に当たったもの）: 有効な `review.state` が `requested`（`--final` の全体まとめを含む。`current` があっても優先）→ `requested` / `current` あり → `in_task` / `at_boundary` **かつ完了したチケットが 1 件以上ある** かつ state none → `before_request` / completed または skipped → `completed` / チケット無しで `logs/merge-state.json` が `started`〜`pushed` → `merge_prep` / それ以外 → `none`
+  - `merge-state.json` は**現在の MR・現在のブランチのものだけを見る**。記録の `mr` が現在の MR と違う、または `branch` が現在のブランチと違うときは無いものとして扱う（前の issue の残骸で毎回 `merge_prep` に倒れない）。`branch` の書き手は `finalize.sh` だけ（`10-task-overall-summary` 仕様）で、記録に `branch` が無い古い記録は `mr` の一致だけで判定する
+- `before_request` に「完了したチケットが 1 件以上ある」を含めるのは、**着手前（`20_done/` が空）の状態でも `at_boundary` が真になる**ため。この条件が無いと、チケットを 1 枚も終えていない時点で `before_request` に入り、`merge_prep`（片付けの再開）に到達できない
 
 ### 全体まとめの切れ目（`--final`）
 
@@ -253,6 +244,8 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
    - GitLab: `glab api --paginate projects/:id/merge_requests/<M>/discussions`（`resolvable && !resolved` を未解決とする。`notes[].body`・`position`）、`glab api projects/:id/merge_requests/<M>/approval_state`（変更要求に相当する `approved: false` の明示的な拒否は GitLab に無いため、未解決スレッドだけを止める条件にする）
    - 取得できなければ BD004（コマンドと出力）
 3. 機構が投稿したコメント（固定マーカー `<!-- boundary:request ... -->` / `<!-- boundary:note -->` / `<!-- boundary:usage -->` / `<!-- boundary:accept ... -->` を持つもの）だけを除外し（ログイン名では除外しない — AI はユーザーのトークンで投稿するため、レビュアーが同じアカウントだと人間の指摘まで消える）、`requested_at` 以降の指摘を `findings[]`（`kind: thread|review|comment`、`url`、`author`、`path`、`line`、`summary`、`resolved`）に整形する
+   - **時刻の比較は必ずエポック秒に直してから行う**。`requested_at` はローカルのオフセット表記（`+09:00`）で記録され、ホストが返す `created_at` / `submitted_at` は UTC の `Z` 表記なので、ISO 文字列のまま辞書順で比べると依頼直後の指摘が「依頼より前」と判定されて黙って落ちる
+   - **どちらかの時刻を読めなかった指摘は落とさず残す**（判定できないときは「依頼より後」側に倒す）。指摘を取りこぼすと人間のレビューが無かったことになるのに対し、余分に 1 件出しても人間が読んで捨てられるだけである
 4. 未解決スレッドがある、または最新のレビューが `CHANGES_REQUESTED`（GitHub）→ `--accept-unresolved` が無ければ BD003 で一覧を出力して止まる。`--accept-unresolved` があれば `accepted_unresolved` にスレッド ID と確認者を記録し、同じ内容を `<!-- boundary:accept <task_type>:<last_done> -->` 付きの通常コメントとして MR に投稿してから進む（`CHANGES_REQUESTED` は `--accept-unresolved` でも通さない — レビュアーが dismiss / approve するまで待つ）
 5. `state: completed`、`completed_at`、`findings` を記録し、直前の状態を `logs/review-history.jsonl` に追記する
 6. `findings` の JSON を出力し、`OK:` に件数（指摘 N 件 / 受け入れた未解決 M 件）を出力する
@@ -266,6 +259,9 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 | BD003 | 未解決スレッドあり / 変更要求あり | 該当スレッドの URL・位置・要旨の一覧。resolve を勧める文と `--accept-unresolved` の条件（変更要求は不可） |
 | BD004 | リモートの取得・投稿に失敗 | 実行したコマンドと出力。外部委任モードの案内（CLI が無い場合） |
 | BD005 | `status` の再導出で矛盾を検出（記録が壊れ、実態からも一意に決められない） | 見つかった矛盾（例: 同じ `<task_type>:<last_done>` のマーカーを持つ依頼コメントが 2 件 / `merge-state` が `cleaned` 以降なのに `wip/` に成果物がある）と、人間が確認すべき点 |
+| BD006 | **引数・環境の誤り**（終了コード 2） | 誤っている引数か、足りない環境（`jq` / `git` / CLI）と、正しい呼び方。前提未充足（BD001〜BD005・終了コード 1）とは別で、**呼び方そのものが成立していない**場合に使う |
+
+提供コマンドはどれも「引数・環境の誤り」の番号を 1 つ持つ（`ticket.sh` の `TK008`、`commit.sh` / `push.sh` の `CP007`、`check-html.sh` の `RV008` と同じ位置づけ。規約は `20-common-step-spec` 仕様）。番号は**末尾に足す**（既存の番号を振り直すと、テストの期待値・実装・レポートの記述が連動して壊れる。DDR `i0010-07`）。
 
 ### テスト観点
 
@@ -284,6 +280,11 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 | BD-T11 | 正常系 | `10_doing/` が overall-summary 1 枚のとき `request --final` / `skip --final` / `complete --final` が通り、`--final` 無しは BD001。`status.position` が `requested` になる |
 | BD-T12 | 異常系 | 同じキーのマーカー付き依頼コメントが 2 件あると `status` が BD005 で終了コード 1 |
 | BD-T13 | 正常系 | 追加チケットを次の計画チケットの predecessors に加えると `next` が追加チケットを返し、完了後に `last_task` が元の種類に戻る |
+| BD-T14 | 境界 | 依頼の 1 秒後のコメントが `findings` に入り、1 時間前のコメントが入らない（ローカルのオフセット表記と UTC の `Z` 表記を辞書順で比べない） |
+| BD-T15 | 境界 | スレッドにも依頼時刻以降の絞り込みが掛かる（前の切れ目のスレッドが毎回再登場しない） |
+| BD-T16 | 境界 | 複数項目のメッセージでも最終行は 1 行の `BD00x:`（一覧はその前に出る） |
+| BD-T17 | 正常系 | `status --offline` が `logs/review-state.json` を書き戻さない（不明を `none` として固めない） |
+| BD-T18 | 境界 | `logs/merge-state.json` の `mr` / `branch` が現在の MR・ブランチと違うとき無視する（前の issue の残骸で毎回止まらない） |
 
 ## テスト観点（eval）
 
@@ -333,6 +334,8 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 | 例外 [E3]: サブエージェントが報告を返さない → 状態確認して指示待ち | 手順 2-6 |
 | 例外 [E4]: タスク内の承認で却下 → その段階に留まる | 手順 2-5（タスクの結果報告に従う） |
 | 例外 [E5]: 次のタスクに対応するスキルが無ければ不整合として停止 | 手順 2-1 |
+| 例外 [E6]: 時刻を読めない指摘は落とさない | `complete` 3 の但し書き（エポック秒に直して比較し、読めなければ「依頼より後」に倒す）、BD-T14・BD-T15 |
+| 例外 [E7]: 呼び方が成立していないときは前提未充足と別に拒否する | BD006（終了コード 2）、Script 処理「終了コード」 |
 | 規約 1: フェーズ列の順序・対・必須フェーズ・種別の判定基準 | 「タスクの種類 → スキル名の対応表（正）」とフェーズ列のテンプレート |
 | 規約 2: やることが無いフェーズは省かず「対象なし」で即完了する | 対応表の注記（実現は各計画タスク仕様） |
 | 規約 3: ヘッドレスでタスク内の承認が要るときは報告して終了する | 手順 3-5・4-5、「実行形態ごとの扱い」 |
@@ -341,4 +344,6 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
 | 整合 3: リモートへの書き込みは切れ目か宣言された操作としてのみ | 手順 3、手順 1-1 |
 | 整合 4: 片付け後の push・draft 解除は拒否されず再宣言も要らない | `finalize.sh release` が内部で行う（`10-task-overall-summary` 仕様）。拒否しないのは `push.sh` の前チェック 4（commit-push 仕様）と `workflow-entry` の継続条件 `merge_prep`（entry 仕様）。再開の判定は手順 0-2 |
 | 整合 5: 敵対的レビューの起動・選別と投稿・上限・実行者と別のモデル | 手順 2a（1〜5。モデルの突き合わせは 2）、`10_spec/agents/adversarial-reviewer.md`「モデルの選び方」 |
-| 整合 6: チケット運用の手順を再掲しない | 禁止事項、参照ナレッジ |
+| 整合 6: 起動プロンプトにブランチ名・観点に必須節の実在 | 手順 2a（2 の但し書き 1・2） |
+| 整合 7: 既定のモデルで起動できないときの代替と回数の消費 | 手順 2a（2 の但し書き 3。`.claude/rules/work-defaults.md`「敵対的レビュアーのモデル」） |
+| 整合 8: チケット運用の手順を再掲しない | 禁止事項、参照ナレッジ |

@@ -91,9 +91,15 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 ## Script 処理
 
-`scripts/finalize.sh <subcommand>`。**実体の置き場は `.claude/skills/10-task-overall-summary/scripts/finalize.sh`**（このスキルが所有する提供コマンド。既存の 5 本と同じく、使うスキルの `scripts/` に置く）。起動は常にリポジトリルート相対表記で行う（`フック共通仕様` §7 の項目 8「提供コマンドの識別」）。実装済みのフックが `.claude/hooks/finalize.sh` を案内している 3 行（`workflow-state-guard.sh:40, 43` とテスト 2 行）は実装フェーズで直す（一覧は `00-workflow-issue-mr-driven` 仕様「現行アセットとの差分」）。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "state": "started" | "recorded" | "linked" | "cleaned" | "pushed" | "ready", "via": "cli" | "external", "pre_cleanup_sha": ..., "started_at": ..., "recorded_at": ..., "linked_at": ..., "cleaned_at": ..., "pushed_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
+`scripts/finalize.sh <subcommand>`。**実体の置き場は `.claude/skills/10-task-overall-summary/scripts/finalize.sh`**（このスキルが所有する提供コマンド。既存の 5 本と同じく、使うスキルの `scripts/` に置く）。起動は常にリポジトリルート相対表記で行う（`フック共通仕様` §7 の項目 8「提供コマンドの識別」）。進行状態は `logs/merge-state.json`（`{"issue": N, "mr": M, "branch": "<ブランチ名>", "state": "started" | "recorded" | "linked" | "cleaned" | "pushed" | "ready", "via": "cli" | "external", "pre_cleanup_sha": ..., "started_at": ..., "recorded_at": ..., "linked_at": ..., "cleaned_at": ..., "pushed_at": ..., "ready_at": ...}`）に記録し、直接編集はフックが拒否する。終了コード: 成功 0 / 未充足 1 / 引数・環境 2。
 
-`logs/merge-state.json` が無い・壊れている場合、release は状態を実態から再導出して書き戻してから続ける: `wip/` に成果物があり統括レポートに「完了検査」節が無い → 未実施（`started` の記録があっても前提検査からやり直す）/ `wip/` に成果物があり「完了検査」節はあるが本文に固定マーカー `<!-- finalize:linked <sha> -->` が無い → `recorded` / マーカーがある → `linked`（`sha` を `pre_cleanup_sha` として復元する）/ `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。**`linked` の判定に「リンク一覧の表があるか」を使わない**。表の骨格は `summary-section.template.md` が処理フロー 5 の時点で置くので、中身が空でも表は存在し、空の表を `linked` と誤判定するためである。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
+`branch` は「この記録が今のブランチのものか」を読む側（`boundary.sh status` の `merge_prep` 判定、`session-start` の「マージ前作業」の行）が要る項目で、**書き手は `finalize.sh` だけ**である。段階を記録するたびに現在のブランチ名で上書きし、ブランチ名が取れないとき（detached HEAD 等）は既存の値を残す。読む側は `branch` が現在のブランチと違う記録を自分のものとして扱わない。ログ: 共通 logger（`20-common-step-shell-script` の `scripts/logger.sh`。内部仕様は `10_spec/skills/20-common-step-shell-script.md`）を使う。使い分けは `rules/logger.md`。
+
+`logs/merge-state.json` が無い・壊れている場合、および `state` の値が既知の段階名（`started` / `recorded` / `linked` / `cleaned` / `pushed` / `ready`）のどれでもない場合、release は状態を実態から再導出して書き戻してから続ける（**未知の値を引数・環境の誤りとして終了 2 で止めない**。記録は直接編集できないので、止めると人間にも直す手段が残らない）: `wip/` に成果物があり統括レポートに「完了検査」節が無い → 未実施（`started` の記録があっても前提検査からやり直す）/ `wip/` に成果物があり「完了検査」節はあるが本文に固定マーカー `<!-- finalize:linked <sha> -->` が無い → `recorded` / マーカーがある → `linked`（`sha` を `pre_cleanup_sha` として復元する）/ `wip/` が空で HEAD が未 push → `cleaned` / push 済みで MR が draft → `pushed` / MR が draft でない → `ready`。**`linked` の判定に「リンク一覧の表があるか」を使わない**。表の骨格は `summary-section.template.md` が処理フロー 5 の時点で置くので、中身が空でも表は存在し、空の表を `linked` と誤判定するためである。`pre_cleanup_sha` を失った場合は、`wip/` を削除した片付けコミットの親を履歴から特定して再構成する（`logs/` を唯一の正にしない — `i0001-28`）。
+
+**draft かどうかの判定は 3 値で扱う**（`draft` / `draft でない` / `判定できない`）。CLI が無い・ホストが不明・API が失敗した・返った値が真偽値でない場合が「判定できない」で、これを「draft でない」と同じに畳むと、記録を失った環境で `ready` に倒れ、何も解除していないのに「解除した」と報告してしまう。**判定できないときは拒否側（`pushed`）に倒し、段階 7 を実際に実行する**。GitLab の応答から draft を読むときは、値が `false` のときに「キーが無い」と同じ扱いになる書き方（`.draft // empty` のような右辺への畳み込み）を使わず、キーの有無と値を分けて読む。
+
+判定できないときにどちらへ倒すかの原則は共通で、**「進んだことにする」側ではなく「もう一度やる」側に倒す**。段階の再実行は冪等だが、実行していない段階を済んだことにすると取り返せない。
 
 ### release
 
@@ -114,7 +120,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 
 `gh` / `glab` のどちらも使えない環境では、段階 4（本文のリンク一覧の更新）と段階 7（draft 解除）がリモートに書けない。この 2 段階だけを呼び出し元に代行させる:
 
-- 段階 4: `release --external --pr <M> --body-file <path>` を渡すと、スクリプトはリンク一覧と固定マーカーを組み立てて `<path>` に書き出し、`state` を `linked` にせずに終了 0 で戻る。呼び出し元が MCP ツール（`mcp__github__update_pull_request` 等）で本文を更新したあと、`release --external --pr <M> --linked` で再開する
+- 段階 4: `release --external --pr <M> --body-file <path>` を渡すと、スクリプトはリンク一覧と固定マーカーを組み立てて `<path>` に書き出し、`state` を `linked` にせずに終了 0 で戻る。呼び出し元が MCP ツール（`mcp__github__update_pull_request` 等）で本文を更新したあと、`release --external --pr <M> --linked` で再開する。**`--linked` は `state` が `recorded` のときだけ受け付け、それ以外（記録なしを含む）は FN001 で拒否する**。段階 4 を経ていない状態で受け付けると、前提検査・完了検査・書き出し・push を飛ばして段階 5 の片付け（`wip/` の全削除）に直行してしまうためである
 - 段階 7: 呼び出し元が MCP ツールで draft を解除したうえで `release --external --pr <M>` を実行すると、最終ゲートの検査だけを行って `state` を `ready` にする
 - `--external` は `logs/merge-state.json` に `via: "external"` を残す。`gh` 自身が確認する強度より劣ることを統括レポートに明記する。`curl` / `WebFetch` へ落とすことはしない（旧 SKILL.md が持っていた外部委任の経路を、`finalize.sh` の該当段階として引き取ったもの）
 
@@ -125,6 +131,7 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 | FN001 | release の前提未充足（初回検査） | 未充足の全件と、戻るべき手順（チケットの継続・レポート作成・本文最終化・push） |
 | FN002 | 全体まとめチケットの完了検査未充足 | ticket 仕様 TK003 と同じ列挙 |
 | FN003 | 最終ゲートの未充足（ベースの遅れ・衝突） | 遅れ・衝突の内容。取り込み（処理フロー 3）後に release を再実行すること |
+| FN004 | 引数・環境の誤り（終了コード 2） | 未知のサブコマンド・必須の引数の欠落・`jq` / `git` の不在。終了 1（未充足）と混ぜない |
 
 ### テスト観点
 
@@ -139,6 +146,14 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 | FN-T07 | 正常系 | 完了検査の結果（DoD 1 件ごとの合否と根拠）が、**`pre_cleanup_sha` が指すコミットの統括レポートに含まれている**（段階 3 が書き出しをコミットして push し、段階 4 がその HEAD を固定することを合わせて確かめる。書き出しだけを見て通さない。issue #10 追記 4） |
 | FN-T08 | 境界 | 記録を失った再導出で、本文にリンク一覧の**空の表**があるだけの状態が `linked` にならない（固定マーカー `<!-- finalize:linked <sha> -->` が無ければ `recorded` に倒れ、段階 4 をやり直す） |
 | FN-T09 | 正常系 | 段階 4 の本文書き換えが、`## 統括` 配下のリンク一覧の表の中身だけを置き換え、人間が添付したリンクと処理フロー 5 の要約を残す |
+| FN-T10 | 異常系 | 記録が無い状態の `--linked` が FN001 で止まり、`wip/` が片付けられない（段階 4 を経ていない `--linked` を受け付けない） |
+| FN-T11 | 境界 | `state` が既知の段階名でない値のとき、終了 2 で止まらず再導出して `ready` まで進む |
+| FN-T12 | 正常系 | 段階 3 のコミットは済んで push で落ちた後の再実行が、前提検査をやり直さず `recorded` へ到達する |
+| FN-T13 | 正常系 | 段階 5 が削除まで進んでコミットで落ちた後の再実行が、未コミットの削除を拾ってから `cleaned` にする |
+| FN-T14 | 境界 | draft か判定できないとき `ready` に倒れず `pushed` として段階 7 を実際に実行する |
+| FN-T15 | 境界 | 統括レポートの番号が全体まとめチケットの番号と違っても、種類名で探すフォールバックで見つかる |
+| FN-T16 | 境界 | DoD 節にチェックボックス行が 1 つも無くても、結果行（`OK:` / `FNxxx:`）を出さずに終わらない |
+| FN-T17 | 境界 | 片付けの再実行が、空白を含むパス（`git status --porcelain` が引用符とエスケープで包む形）でも壊れない |
 
 ## テスト観点（eval）
 
@@ -189,6 +204,9 @@ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release
 | 例外 4: ヘッドレスで別 issue 起票が要るときは起票せず進む | 処理フロー 2 の最終項（候補と本文案を統括レポートへ） |
 | 例外 5: ヘッドレスで衝突解消・draft 解除の判断が要るときは停止 | 処理フロー 3・9、FN003 後の取り込みは承認が要る |
 | 例外 6: HTML ビューの機械的検査の問題は解消してから進む | 処理フロー 4（`check-html.sh`）、release 段階 3（書き出し後の再検査） |
+| 例外 7: 呼び方が成立していないときは前提未充足と別に拒否する | FN004（終了コード 2）、Script 処理「終了コード」 |
+| 例外 8: 進行状態が読めない・未知の段階でも止まらず導き直す | 「記録が無い・壊れているときの再導出」（未知の値も終了 2 にしない）、FN-T11 |
+| 例外 9: 判定できない項目は「済んでいない」側に倒す | 「draft かどうかの判定は 3 値」（判定不能 → `pushed`）、`--linked` は `recorded` のときだけ、FN-T14・FN-T10 |
 | 規約 1: 全体まとめチケットのやってよいこと | 処理フロー 1（着手時の宣言）、禁止事項（`.claude/` 配下を書かない） |
 | 規約 2: 全体まとめチケットの完了条件の型と根拠の書き方 | 「全体まとめチケットの DoD の型」節（申し送り 0038） |
 | 規約 3: 人間レビュー要否は全体計画に従い既定は不要 | 処理フロー 8（方針が無ければ依頼せず進む） |

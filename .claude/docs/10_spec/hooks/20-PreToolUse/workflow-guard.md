@@ -48,7 +48,17 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 6. **実行ツール**: `cmdpos.sh` で実行位置のコマンド列を得て、セグメントごとに:
    - 提供コマンド → 許可。ただし引数にパスを取るもの（`commit.sh -m .. <files>`、`ticket.sh create` の出力先）は各パスに 5 と同じ判定を適用する
    - `opaque` / `degraded` → **deny WF209**（判定できなかったことを明記）
-   - リダイレクト（`>` `>>` `tee`）・`cp` `mv` `rm` `mkdir` `touch` `sed -i` 等でファイルを書く → **deny WF205**（Edit / Write を案内）。ただし対象が `wip/tmp/**` または `logs/**` なら許可
+   - リダイレクト（`>` `>>` `tee`）・`cp` `mv` `mkdir` `touch` `sed -i` 等で**ファイルを作る・更新する** → **deny WF205**（Edit / Write を案内）。ただし対象が `wip/tmp/**` または `logs/**` なら許可
+   - **削除だけを行う段**（実行体が `rm`、または `git` でサブコマンドが `rm`）→ 対象ごとに次を順に当てる。Edit / Write にファイルを消す手段が無いため、削除だけは宣言した範囲で許す（DDR `i0010-06`）
+     1. 対象を読み取れない（対象なし・クォートで潰れた `_`・`--pathspec-from-file`）→ **deny WF205**
+     2. 対象に**展開前の文字列**（`*` `?` `[` `{` `$` `` ` `` `~` `,`）を含む → **deny WF205**（展開後にどのパスになるか決まらない。`.claude/hooks/*` は glob として宣言の `.claude/hooks/**` に一致してしまう）
+     3. `common.protected` / `common.confirm` / `common.state_files` / `types[t].deny` / `types[t].confirm` のいずれかの glob が `<対象>/` で始まる（＝対象がディレクトリで、配下に消してはいけない範囲を含み得る）→ **deny WF205**
+     4. 対象が `common.state_files` に一致する → **deny WF205**（`logs/**` の中でもコマンドでは消させない）
+     5. 対象が `wip/tmp/**` または `logs/**` → 許可
+     6. `scope.sh` の判定順（共通仕様 §8）が `allow` を返し、**かつチケットの `allow.write` に明示されている** → 許可。`common.allow` だけで通る範囲（計画書・レポート・未着手チケット）は宣言が無ければ消せない
+     7. それ以外 → **deny WF205**
+   - `mv` は削除に当たらない（消すと作るの同時実行）。移設は「新しい場所に Write → 旧ファイルを `rm`」の 2 手で行う
+   - 削除だけの段にリダイレクトが付いていれば、その宛先には上の「作る・更新する」の判定を当てる（`rm a > b` の `b` は作成）
    - `READ_ONLY_CMDS` → 許可
    - `remote-read`（`gh` / `glab` の参照系）→ 許可
    - `remote-write:<種別>` → チケットの `allow.ops` にその種別があり、かつ `types[t].ops` にもある → 許可、無ければ **deny WF206**
@@ -113,6 +123,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | WG-T14 | 正常系 | `commit.sh -m .. <禁止範囲のファイル>` が WF201 |
 | WG-T16 | 異常系 | `scope-limits.json` を壊した状態でも `tool_name` と対象パスがメッセージに載った **WF210** が返る（stdout が空にならない）。同じ状態で `commit.sh` の実行・`wip/10_tickets/**` への Write・`scope-limits.json` 自身への Write（WF203）が**通る**（復旧経路が生きている）。`approvals.json` を壊した状態では WF202 の承認済み判定だけが効かなくなり、他の判定は動く |
 | WG-T15 | 正常系 | `curl https://example.com/x` は `web` を宣言した investigation で通り、宣言の無い design では WF204。`curl -o wip/tmp/x.md <url>` は通り、`curl -o .claude/settings.json <url>` と `curl -O <url>`（カレントに作る）は宣言があっても WF205。`wget <url>` は `-O -` でなければ WF205。`WebFetch` は matcher 外なのでこのフックに届かない（届かないことを登録表 HK-T01 で固定する） |
+| WG-T18 | 正常系・異常系 | **削除だけの段**（`rm` / `git rm`）は宣言した範囲でだけ通る。`.claude/hooks/**` を宣言した `ai-asset-implementation` で `rm .claude/hooks/20-PreToolUse/x.sh`・複数対象の `rm -f`・`git rm`・`git rm -r --cached <dir>/`・`rm wip/tmp/x` が **allow**。`rm apl/app/src/api/a.ts`（宣言外）・`git rm`（同）・`rm .claude/settings.json`（毎回確認）・`rm -rf .claude`（未記載）が **WF205**。作成・更新（`echo x > <file>`・`mv`・`cp`）は **WF205** のまま。対象を読めない `rm -f`（対象なし）・`git rm --pathspec-from-file` が **WF205**。**ディレクトリごとの削除**（`rm -rf .claude/hooks/config`・末尾 `/` 付き・`git rm -r .claude/hooks`・`rm -rf logs`）が **WF205**。**展開前の文字列**（`rm -rf .claude/hooks/*`・ブレース展開・`$X`・コンマ区切り・`~`）が **WF205**。**進行状態のファイル**（`rm logs/review-state.json`・`rm logs/mr.json`）が **WF205** で `rm logs/sh/*.log` は allow。宣言が空のチケット（`overall-plan`）は `wip/30_reports/a.md` を消せず `wip/tmp/a.txt` は消せる。リダイレクト先は削除と分けて判定する（`rm <許可> > .claude/hooks/out.txt` は WF205、`> wip/tmp/out.txt` は allow）。**作業中チケットが 0 枚のときはこのフックが何も判定しない**（WG-T01 と同じ） |
 | WG-T17 | 異常系 | **送信側は `web` を宣言しても通らない**: `curl -T a.md <url>`、`curl -d @a.md <url>`、`curl -F file=@a.md <url>`、`curl -X POST <url>`、`wget --post-file=a.md <url>`、`wget --method=PUT <url>` がすべて **WF206**。送信側でない `curl -X GET <url>` は（`web` の宣言があれば）通る。`wget --method=GET <url>` は **WF205** — `wget` は既定で URL の basename にファイルを作るので出力先ありの書き込みとして判定され（判定順は送信側 → 出力先 → `web`）、通るのは `-O -` を付けた形だけ（WG-T15 の「`wget <url>` は `-O -` でなければ WF205」と同じ扱い）。**出力先と URL の取り違えをしない**: `curl <url> -o wip/tmp/a`（URL が先）と `curl -o wip/tmp/a <url>`（出力先が先）がどちらも通り、`curl <url>`（出力先なし）が WF205 にならない |
 
 ## 要件との対応
@@ -133,6 +144,7 @@ keywords: [やってよいこと, 上限, scope-limits.json, 許可範囲, 禁�
 | メイン: コマンドは既定拒否・読み取り系 / 宣言した分類 / 提供コマンドだけ許可 | 制御方式 6 |
 | メイン: 提供コマンドは種類を問わず許可 | 制御方式 6 |
 | メイン: コマンドによる書き込みの拒否 | WF205 |
+| メイン: 削除だけのコマンドは宣言した範囲でのみ許可 | 制御方式 6 の削除の判定（1〜7）、WF205、WG-T18、DDR `i0010-06` |
 | メイン: 提供コマンドの引数パスに同じ判定 | 制御方式 6、WG-T14 |
 | メイン: リモート読み取りは許可 / 書き込みは宣言内のみ | 制御方式 6、WF206 |
 | メイン: コマンド位置の判定を共有 | `cmdpos.sh` |

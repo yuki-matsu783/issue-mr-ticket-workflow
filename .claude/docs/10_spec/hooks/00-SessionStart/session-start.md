@@ -36,7 +36,7 @@ keywords: [SessionStart, 現在地, 注入, boundary.sh status, offline, ブラ�
 
 1. 停止中 → 「機構は停止中（WORKFLOW_ENFORCE=0 / WORKFLOW_SESSION_START_ENFORCE=0）」の 1 行だけ出し、`disabled` を記録
 2. `logs/sessions/` の 7 日より古いディレクトリを削除する（失敗は無視）。frontmatter 索引の機構があれば非侵襲的に最新化する（導入前は何もしない）
-3. `boundary.sh status --offline` を実行する。**参照するパスは `$HOOK_WORKTREE/.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`**（提供コマンドはそれを使うスキルの `scripts/` に置く — `00-workflow-issue-mr-driven` 仕様「Script 処理」）。失敗（`jq` / `git` 不在・スクリプト不在）→ 何も出さずに終了 0。不在で無出力に倒れる経路は「壊れても気づきにくい」ので、`hook_record skip` に不在の事実を残す（現行実装の 64 行はこのパスが `.claude/hooks/boundary.sh` になっており、実装フェーズで直す — `00-workflow-issue-mr-driven` 仕様「現行アセットとの差分」の 1 行目）
+3. `boundary.sh status --offline` を実行する。**参照するパスは `$HOOK_WORKTREE/.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`**（提供コマンドはそれを使うスキルの `scripts/` に置く — `00-workflow-issue-mr-driven` 仕様「Script 処理」）。失敗（`jq` / `git` 不在・スクリプト不在）→ 何も出さずに終了 0。不在で無出力に倒れる経路は「壊れても気づきにくい」ので、`hook_record skip` に不在の事実を残す
 4. 注入テキストを組み立てる（各行 `- <項目>: <値>`。値が無い項目は「無し」）:
 
 ```
@@ -84,20 +84,18 @@ keywords: [SessionStart, 現在地, 注入, boundary.sh status, offline, ブラ�
 
 **接頭辞は `SE-T`**（旧 `SS-H`）。`run-tests.sh` が結果行から ID を抜き出す正規表現は `^(PASS|FAIL) ([A-Z]{2,6}-[TE][0-9]{2}[a-z]?)` で 3 文字目以降が `T` か `E` に限られるため、`SS-H*` は `--ids` の一覧にも重複検出にも現れない。`SS-T*` は `20-common-step-shell-script` の既存テストが使っているので、`SE-T` に変える（DDR i0009-08）。
 
-| テスト ID | 種別 | 固定する振る舞い | この issue で実施するか |
-|-----------|------|----------------|----------------|
-| SE-T01 | 正常系（機械） | チケットあり・MR あり・`requested` で、6 行の形式と「レビュー待ち」「応答を終える」が出る | **3/3 へ**（`boundary.sh` 依存） |
-| SE-T02 | 正常系（機械） | チケットも MR も無ければ 2 行だけ。default ブランチでも同じ | **3/3 へ**（同上） |
-| SE-T03 | 正常系（機械） | チケットあり・MR 無しで「全体計画の途中」と `10-task-overall-plan` | **3/3 へ**（同上） |
-| SE-T04 | 正常系（機械） | チケット無し・`merge-state.state=cleaned` で「マージ前作業中」と release の再実行 | **3/3 へ**（同上） |
-| SE-T05 | 異常系（機械） | `review-state.json` 破損で WF702 が該当行に出て他の行は出る（前半）。`jq` 不在で無出力・終了 0（後半） | 前半は **3/3 へ**、**後半はこの issue で実施**（`boundary.sh` に依らない） |
-| SE-T06 | 正常系（機械） | `source=compact` でも同じ内容。サブエージェントの開始では無出力 | **3/3 へ**（前半）。**後半（サブエージェントの開始で無出力）はこの issue で実施** |
-| SE-T07 | 境界（機械） | 8 KB 超で警告行が先頭に付き切り詰めない | **3/3 へ**（8 KB の注入テキストを作れないため） |
-| SE-T08 | 正常系（機械） | `boundary.sh status --offline` と同じ position を伝える（両者の結果を同じ入力で比較） | **3/3 へ**（本物との一致が観点なので偽実装では代えられない） |
-| SE-T09 | 正常系（機械） | CLI の有無・`GH_TOKEN` の有無で出力が変わらない | **3/3 へ**（`boundary.sh` が無いと両方とも無出力になり、空同士の比較で無意味に通る） |
-| SE-T10 | 正常系（機械） | `boundary.sh` を**新しい置き場**（`.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`）に置いたとき、その出力が注入される。同じものを**旧い置き場**（`.claude/hooks/boundary.sh`）だけに置いた場合は注入されず、`hook_record skip` の理由が「`boundary.sh` 不在」になる | **3/3 で実施**（置き場を変えるチケットのロックアウト対策。パスを実際に踏む） |
-
-**この issue で実施するのは SE-T05 の後半と SE-T06 の後半だけ**。理由は 0012 の WE-T10 と同じで、`boundary.sh`（3/3 で実装）が無い環境では「本物と一致するか」という観点が成立せず、偽実装で代えると観点そのものが失われるため。issue #9 の受け入れ条件 1 の「テストが通る」は、この issue で実装するフックのテストを指すと解釈する（DDR i0009-09）。
+| テスト ID | 種別 | 固定する振る舞い |
+|-----------|------|----------------|
+| SE-T01 | 正常系（機械） | チケットあり・MR あり・`requested` で、6 行の形式と「レビュー待ち」「応答を終える」が出る |
+| SE-T02 | 正常系（機械） | チケットも MR も無ければ 2 行だけ。default ブランチでも同じ |
+| SE-T03 | 正常系（機械） | チケットあり・MR 無しで「全体計画の途中」と `10-task-overall-plan` |
+| SE-T04 | 正常系（機械） | チケット無し・`merge-state.state=cleaned` で「マージ前作業中」と release の再実行 |
+| SE-T05 | 異常系（機械） | `review-state.json` 破損で WF702 が該当行に出て他の行は出る。`jq` 不在で無出力・終了 0 |
+| SE-T06 | 正常系（機械） | `source=compact` でも同じ内容。サブエージェントの開始では無出力 |
+| SE-T07 | 境界（機械） | 8 KB 超で警告行が先頭に付き切り詰めない |
+| SE-T08 | 正常系（機械） | `boundary.sh status --offline` と同じ position を伝える（両者の結果を同じ入力で比較） |
+| SE-T09 | 正常系（機械） | CLI の有無・`GH_TOKEN` の有無で出力が変わらない |
+| SE-T10 | 正常系（機械） | `boundary.sh` を**新しい置き場**（`.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh`）に置いたとき、その出力が注入される。同じものを**旧い置き場**（`.claude/hooks/boundary.sh`）だけに置いた場合は注入されず、`hook_record skip` の理由が「`boundary.sh` 不在」になる |
 
 ## 要件との対応
 

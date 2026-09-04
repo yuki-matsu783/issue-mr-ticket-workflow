@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation-plan
-predecessors: ["0046"]
+predecessors: ["0046", "0048"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "今回の実装は中核（フック本体・settings.json）を含まないため基準（不要）に戻す"}

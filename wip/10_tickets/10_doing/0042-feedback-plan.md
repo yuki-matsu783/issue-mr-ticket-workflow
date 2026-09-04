@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "敵対的レビューの指摘へ
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T15:04:26+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a1e73d5"
 ---
 
 # 0042 敵対的レビューの指摘 9 件をフィードバック計画に反映する

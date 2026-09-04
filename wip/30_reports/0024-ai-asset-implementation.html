@@ -131,7 +131,7 @@
 
   <p class="counts" id="counts" data-required>
     <span class="chip good">◎良 8</span>
-    <span class="chip warn">△注意 0</span>
+    <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
 
@@ -151,6 +151,7 @@
           <li><a href="#f6"><span class="mk good">◎</span> 6. 敵対的レビュー（1 回目・指摘 12 件）</a></li>
           <li><a href="#f7"><span class="mk good">◎</span> 7. タスクスキル 15 本とエージェント 2 本</a></li>
           <li><a href="#f8"><span class="mk good">◎</span> 8. ワークフロースキル 2 本の書き起こし</a></li>
+          <li><a href="#f9"><span class="mk warn">△</span> 9. eval 定義 19 本と旧資産の処遇</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -173,10 +174,10 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。<strong>0029（S6 スキル・エージェント）</strong>: <code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、エージェント定義 <strong>2 本</strong>を作った。計画型・実施型の共通手順は 2 本に集約し、残り 10 本は固有部分だけを書く。<strong>0030（S7 ワークフロースキル 2 本）</strong>: 旧名 83 件を置換ではなく<strong>新仕様からの書き起こし</strong>で解消した。2 本に残る旧名は 0 件。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。<strong>0029（S6 スキル・エージェント）</strong>: <code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、エージェント定義 <strong>2 本</strong>を作った。計画型・実施型の共通手順は 2 本に集約し、残り 10 本は固有部分だけを書く。<strong>0030（S7 ワークフロースキル 2 本）</strong>: 旧名 83 件を置換ではなく<strong>新仕様からの書き起こし</strong>で解消した。2 本に残る旧名は 0 件。<strong>0031（S8 eval 定義と旧資産の処遇）</strong>: eval 定義 <strong>19 本</strong>を作って <code>.claude/evals/</code> を 28 本にした。旧資産の<strong>削除は機構に経路が無く</strong>（WF205）、追加チケット 0036 へ移した。</p>
   <ul class="kpis">
     <li class="kpi good"><b>8</b><span>◎良</span></li>
-    <li class="kpi warn"><b>0</b><span>△注意</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
@@ -185,6 +186,7 @@
       <p class="sub">判断に困っている</p>
       <ul>
         <li><a href="#f2">e2</a>: <code>boundary.sh</code> の<strong>引数・環境の誤り</strong>に専用の識別子が無い。仕様の表は <code>BD001</code>〜<code>BD005</code> しか定義しておらず、他の提供コマンドが持つ <code>TK008</code> / <code>CP007</code> / <code>RV008</code> に相当する番号が欠けている。暫定で <code>BD001</code> を終了コード 2 で使った（残課題 R3）</li>
+        <li><a href="#f9">e9</a>: AI が <code>.claude/</code> 配下のファイルを削除する手段が機構に無い（<code>WF205</code> が <code>rm</code> / <code>mv</code> / <code>git rm</code> を一律に拒否し、許可は <code>wip/tmp/**</code> と <code>logs/**</code> だけ）。設計は変更対象に「削除」を含めているので、機構側を直す方針でユーザーの合意を得て 0036 を起こした。緩め方（許可範囲内の削除だけを通す）が妥当か見てほしい</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -430,6 +432,18 @@
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot warn">9</span>
+      <h3 id="f9">eval 定義 19 本を作り、旧資産の処遇で機構の穴が出た（S8） <span class="chip warn">△注意</span> <span class="basis">根拠: eval ID 111 件の突合は 0 件の取りこぼし。削除 5 ファイルは 0036 へ持ち越し</span></h3>
+      <p>0023 が仕様書に書いた eval の表を <code>.claude/evals/</code> に落とした。タスクスキル 15 + ワークフロースキル 2 + エージェント 2 = <strong>19 本</strong>で、既存 9 本と合わせて 28 本になった。旧 <code>evals/evals.json</code> 2 本は対応する <code>.claude/evals/*.md</code> へ移行し、移行先に旧名は 1 件も持ち越していない。</p>
+      <p><strong>eval ID の突合は機械で行った</strong>。<code>10_spec/</code> から抽出した eval ID 111 件と <code>.claude/evals/</code> から抽出した 123 件を <code>diff</code> で比べ、差が「ルール 4 本ぶんの 12 件だけ」であることを確かめた。仕様側の取りこぼしは 0 件である。全 19 本の「実行状況」は <strong>未実行（定義のみ）</strong>。</p>
+      <p><strong><code>work-defaults.md</code> に敵対的レビュアーの節を新設した</strong>。役割欄に「タスクの実行者ではなくレビュアー」と明記し、既定 <code>claude-fable-5-1</code>・上限 1 回・実行者と一致したときは起動側が差し替えることを書いた（残課題 R7・R9 の決着）。上の表に混ぜなかったのは、<code>type</code> の列に入らない行ができてモデル検査の比較対象を取り違えるためである。</p>
+      <div class="box warn">
+        <p class="label">注意</p>
+        <p><strong>旧資産の削除ができなかった</strong>。<code>rm</code> / <code>mv</code> / <code>git rm</code> は <code>WF205</code> が一律に拒否し、コマンドで書いてよいのは <code>wip/tmp/**</code> と <code>logs/**</code> だけ。Edit / Write ツールにファイルを消す手段は無いので、<strong>AI は <code>.claude/</code> 配下のアセットを削除できない</strong>。一方で AI アセット実装計画の仕様は変更対象に「削除」を含めており、設計と実装が食い違っている。ユーザーの判断で機構を直す追加チケット <strong>0036</strong> を起こし、削除 3 種 5 ファイルをそこへ移した。<code>issue-triage.md</code> は移設ではなく複製の状態で残っている。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -447,6 +461,7 @@
       <tr><td>全件テスト（回帰）</td><td>0027 の時点で <code>OK: 27 本 / 196 件</code>。27 ファイルすべて PASS、失敗 0・アサーション 2,247 件（<code>--timeout 300</code>。既定の 120 秒では <code>test_workflow_guard.sh</code> だけが TIMEOUT する）</td></tr>
       <tr><td><code>finalize.sh</code> の機械テスト</td><td><code>FN-T01</code>〜<code>FN-T09</code> の 9 件・アサーション 38 件が PASS。実行時間 44 秒</td></tr>
       <tr><td>完了検査の二重実装</td><td>0 件。<code>ticket.sh</code> と <code>finalize.sh</code> が同じ <code>ticket_check_completion</code> を source する</td></tr>
+      <tr><td>eval 定義の網羅</td><td><code>10_spec/</code> から抽出した eval ID 111 件が <code>.claude/evals/</code> 側にすべて現れる（差はルール 4 本ぶんの 12 件のみ）。ファイル数は 28（既存 9 + 新規 19）</td></tr>
       <tr><td>ワークフロースキルの旧名</td><td>2 本とも 0 件。<code>ワーク</code> の残りは <code>ワークスペース</code>（仕様の禁止事項の文言）だけで、<code>grep -noE "ワーク[^ス]"</code> は 0 件</td></tr>
       <tr><td>タスクスキルの網羅</td><td><code>task-types.tsv</code> の 5 列目 15 行と <code>.claude/skills/10-task-*/SKILL.md</code> を <code>diff</code> で突合し差分 0 行</td></tr>
       <tr><td>SKILL.md の frontmatter</td><td>15 本すべて <code>name</code> / <code>description</code> の 2 項目のみ（<code>type</code> / <code>title</code> / <code>tags</code> / <code>keywords</code> の混入 0 件）。テンプレート由来のプレースホルダの残り 0 件</td></tr>
@@ -488,6 +503,8 @@
     <li><strong>R4</strong>: <code>boundary.sh</code> の GitLab 経路（<code>glab api discussions</code> / <code>approval_state</code>）は fixture でも実機でも未検証。テストは GitHub 経路だけを通っている。引き取り先: フィードバック計画（0033）</li>
     <li><strong>R5</strong>: 仕様の「現行アセットとの差分（実装時に追従が要る箇所）」の表と、<code>session-start</code> 仕様の「実装フェーズで直す」の記述が、直し終わった今も残っている。過渡期の説明なので正史から落としたい。引き取り先: 設計反映</li>
     <li><strong>R6</strong>: <code>boundary.sh</code> の <code>before_request</code> の条件に「完了したチケットがある」を足した。仕様の「切れ目の判定（正）」はこの条件を書いていない（書かないと <code>merge_prep</code> に到達できない）。引き取り先: 設計反映</li>
+    <li><strong>R7</strong>: 旧資産 3 種 5 ファイル（テンプレート 2・<code>references</code> 1・<code>evals.json</code> 2）が残っている。<code>WF205</code> に削除の経路が無いため。<code>issue-triage.md</code> は移設ではなく複製の状態。引き取り先: 0036（S12）</li>
+    <li><strong>R8</strong>: AI アセット実装計画の仕様は変更対象に「削除」を含めるのに、機構に削除の経路が無い。0036 で機構を直したら <code>workflow-guard</code> の仕様にも「削除のみのコマンドは許可範囲で判定する」を入れる。引き取り先: 設計反映</li>
   </ul>
 </section>
 

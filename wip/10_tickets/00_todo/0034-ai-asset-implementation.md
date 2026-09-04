@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation
-predecessors: ["0032"]
+predecessors: ["0031"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "指摘の反映であり、2 回目の敵対的レビューを 0035 の完了後にまとめて行う"}

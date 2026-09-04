@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "workflow-guard は中核で、緩�
 allow:
   write: [".claude/hooks/20-PreToolUse/**", ".claude/skills/00-workflow-issue-mr-driven/**", ".claude/skills/00-workflow-quick-request/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T13:18:38+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "e1b2ee1"
 ---
 
 # 0036 S12 中核: 許可範囲内のファイル削除を通す（WF205）と旧資産の削除

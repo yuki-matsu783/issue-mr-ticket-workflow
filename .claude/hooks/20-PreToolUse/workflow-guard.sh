@@ -310,6 +310,34 @@ __wg_delete_targets() { # $1=セグメント番号 → 削除対象を REPLY_LIS
   return 0
 }
 
+# 対象の配下に「消してはいけない範囲」が入り得るか（ディレクトリごとの削除で子孫を巻き込ませない）。
+# glob は展開せず、文字列として `<対象>/` で始まるかだけを見る（判定できないものは拒否側に倒す）
+__wg_delete_covers_guarded() { # $1=ルート相対パス
+  local p="$1" g
+  for g in ${SC_COMMON_PROTECTED[@]+"${SC_COMMON_PROTECTED[@]}"} \
+           ${SC_COMMON_CONFIRM[@]+"${SC_COMMON_CONFIRM[@]}"} \
+           ${SC_COMMON_STATE_FILES[@]+"${SC_COMMON_STATE_FILES[@]}"} \
+           ${SC_TYPE_DENY[@]+"${SC_TYPE_DENY[@]}"} \
+           ${SC_TYPE_CONFIRM[@]+"${SC_TYPE_CONFIRM[@]}"}; do
+    [[ "$g" == "$p/"* ]] && return 0
+  done
+  return 1
+}
+
+# 削除してよいか。置き場（wip/tmp/** と logs/**）か、チケットが宣言した allow.write の内側だけを通す。
+# 宣言を必須にするのは、共通の許可範囲（計画書・レポート・未着手チケット）を削除に開かないため
+__wg_delete_ok() { # $1=ルート相対パス
+  local p="$1" g
+  # 進行状態のファイルは logs/ の中にあってもコマンドで消させない（書き換えと同じ扱い）
+  for g in ${SC_COMMON_STATE_FILES[@]+"${SC_COMMON_STATE_FILES[@]}"}; do scope_match "$g" "$p" && return 1; done
+  for g in "${__WG_CMD_WRITE_OK[@]}"; do scope_match "$g" "$p" && return 0; done
+  scope_resolve "$p"
+  [[ "$SC_DECISION" == allow ]] || return 1
+  (( ${#SC_DECL_WRITE[@]} )) || return 1
+  for g in "${SC_DECL_WRITE[@]}"; do scope_match "$g" "$p" && return 0; done
+  return 1
+}
+
 __wg_check_delete_targets() { # $1=セグメント番号
   local i="$1" t p
   if ! __wg_delete_targets "$i"; then
@@ -320,14 +348,18 @@ __wg_check_delete_targets() { # $1=セグメント番号
     if [[ "$t" == "_" ]]; then
       hook_deny WF205 "削除の対象を読み取れなかった（クォート等で潰れている）。消すファイルをパスでそのまま指定すること。" "$(__wg_cmd_head)"
     fi
+    # 展開前の文字列は、どのパスになるか決まらない（`.claude/hooks/*` が glob として宣言に一致してしまう）
+    if [[ "$t" == *'*'* || "$t" == *'?'* || "$t" == *'['* || "$t" == *'{'* \
+       || "$t" == *'$'* || "$t" == *'`'* || "$t" == *'~'* || "$t" == *','* ]]; then
+      hook_deny WF205 "削除の対象 $t は展開してからでないとパスが決まらない（glob・ブレース・変数・コンマ区切り）。消すファイルを 1 つずつ書くこと。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
     __wg_rel "$t"; p="$REPLY"
-    scope_resolve "$p"
-    case "$SC_DECISION" in
-      skip|allow) ;;
-      *)
-        hook_deny WF205 "$p を消そうとしているが、$(__wg_ticket_line)で書き換えてよい範囲の外（判定 $SC_STAGE）。コマンドで消せるのは宣言した allow.write の内側だけ。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
-        ;;
-    esac
+    if __wg_delete_covers_guarded "$p"; then
+      hook_deny WF205 "$p を丸ごと消すと、配下の保護範囲・毎回確認の範囲・進行状態のファイルまで巻き込む。中のファイルを 1 つずつ消すこと。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
+    if ! __wg_delete_ok "$p"; then
+      hook_deny WF205 "$p を消そうとしているが、$(__wg_ticket_line)が宣言した allow.write の外（判定 $SC_STAGE）。コマンドで消せるのは wip/tmp/** と logs/**、それに宣言した範囲だけ。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
   done
   return 0
 }

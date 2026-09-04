@@ -439,10 +439,32 @@ case_delete() {
   # 削除の対象が通っても、リダイレクト先は従来どおり置き場で見る
   assert_eq "WG-T18" "WF205" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh > .claude/hooks/out.txt')"
   assert_eq "WG-T18" "allow" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh > wip/tmp/out.txt')"
-  # 宣言に無いパスは、上限（types.allow）の内側でも消せない
+  # ディレクトリごとの削除は、配下に保護範囲・毎回確認・進行状態が入り得るなら通さない
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -rf .claude/hooks/config')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -rf .claude/hooks/config/')"
+  assert_eq "WG-T18" "WF205" "$(tc 'git rm -r .claude/hooks')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -rf logs')"
+  # 展開してからでないとパスが決まらない語は通さない
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -rf .claude/hooks/*')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -rf .claude/hooks/{x.sh,../settings.json}')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -rf .claude/hooks/$X')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh,.claude/settings.json')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm ~/x.sh')"
+  # 進行状態のファイルは logs/ の中でも消せない（置き場の許可より優先）
+  assert_eq "WG-T18" "WF205" "$(tc 'rm logs/review-state.json')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm logs/mr.json')"
+  assert_eq "WG-T18" "allow" "$(tc 'rm logs/sh/ticket.log')"
+  # 宣言に無いパスは、上限（types.allow）の内側でも共通の許可範囲でも消せない
   set_ticket 0003-implementation
   assert_eq "WG-T18" "allow" "$(tc 'rm apl/app/src/api/a.ts')"
   assert_eq "WG-T18" "WF205" "$(tc 'rm apl/app/src/other/b.ts')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm wip/10_tickets/00_todo/0011-x.md')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm wip/30_reports/a.md')"
+  assert_eq "WG-T18" "allow" "$(tc 'rm wip/tmp/a.txt')"
+  # 宣言が空のチケットは、置き場の外を消せない
+  set_ticket 0005-overall-plan
+  assert_eq "WG-T18" "WF205" "$(tc 'rm wip/30_reports/a.md')"
+  assert_eq "WG-T18" "allow" "$(tc 'rm wip/tmp/a.txt')"
   # 作業中チケットが無ければこのフックは何もしない（WG-T01 と同じ。削除の可否は入口ガードが見る）
   set_ticket
   assert_eq "WG-T18" "allow" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh')"

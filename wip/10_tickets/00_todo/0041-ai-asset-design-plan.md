@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-design-plan
-predecessors: ["0033"]
+predecessors: ["0033", "0042"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する。計画書は設計結果と一緒に見れば足りる（基準どおり）"}
 adversarial_review: {required: false, reason: "基準どおり（計画書は設計結果と一緒に見れば足りる）"}

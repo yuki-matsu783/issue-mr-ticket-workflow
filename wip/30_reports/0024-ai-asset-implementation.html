@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0024- AI アセット実装・テスト結果 — 機構の実体を作る</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 4</span>
+    <span class="chip good">◎良 6</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -147,6 +147,8 @@
           <li><a href="#f2"><span class="mk good">◎</span> 2. boundary.sh とテスト 13 件</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. finalize.sh と完了検査の共有</a></li>
           <li><a href="#f4"><span class="mk good">◎</span> 4. フックの追随と注入・テスト 10 件</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. RV009 の新設と CP-T08 の振り直し</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 敵対的レビュー（1 回目・指摘 12 件）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -169,9 +171,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi good"><b>6</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -365,6 +367,39 @@
       <div class="box ok">
         <p class="label">結論</p>
         <p><code>SE-T01</code>〜<code>SE-T10</code> の 10 件（45 アサーション）と <code>WE-T10</code>（<code>boundary.sh</code> の <code>position</code> と継続条件の一致）が通る。<code>SE-T10</code> は新しい置き場と旧い置き場の両方を実際に踏み、後者では注入されず記録の理由が「不在」になることを確かめる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5"><code>RV009</code> を新設し <code>CP-T08</code> の重複を振り直した（S5） <span class="chip good">◎良</span> <span class="basis">根拠: <code>RV-T08</code> が PASS・重複 ID の報告 0 件</span></h3>
+      <p><code>check-html.sh</code> の <code>RV008</code> が「引数・ファイル不正」と「<code>awk</code> が無い環境」の 2 つの原因を指していた。受け取った側の対処が違う（前者は呼び方を直す、後者は環境に <code>awk</code> を入れる）ので、環境の不備を <code>RV009</code> として分けた（DDR <code>i0010-05</code>）。</p>
+      <p>判定は <code>RV008</code> の 4 経路の後・検査に入る前に置き、<code>log_info "start"</code> より前で止める。ログに「start」だけが残って検査が始まったように見えるのを避けるためである。</p>
+      <p>テスト <code>RV-T08</code> は <code>awk</code> を外した PATH で終了 2・最終行 <code>RV009</code> を確かめ、<strong>同じ PATH に <code>awk</code> だけを足した正のコントロール</strong>で終了 0・<code>OK:</code> を確かめる。PATH を絞ったこと自体が原因という偽陽性を排除している。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><code>CP-T08</code> は <code>commit.sh</code> 側と <code>push.sh</code> 側の 2 ファイルに同じ ID があった。仕様どおり後から足した <code>push.sh</code> 側を <code>CP-T11</code> に振り直し、<code>run-tests.sh --ids</code> の重複 ID 報告が 0 件になることで確認した。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">敵対的レビュー（中核 3 枚まとめて 1 回目） <span class="chip good">◎良</span> <span class="basis">根拠: 指摘 12 件をすべて追加チケット 0034・0035 に落とした</span></h3>
+      <p>0026 で合意した読み替えのとおり、中核 3 枚（0025・0026・0027）の差分をまとめて 1 回でレビューした。対象は <code>509240b..HEAD</code> の 12 ファイル・2,334 行。レビュアーは読み取り専用（<code>Read</code> / <code>Glob</code> / <code>Grep</code>）で、経緯（コミット履歴・チケットの作業ログ・計画書）は渡していない。実行者（opus）と別のモデルで走らせた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>重大度</th><th>件数</th><th>主な内容</th></tr></thead>
+        <tbody>
+          <tr><td>高</td><td>4</td><td><code>requested_at</code> のローカル時刻と GitHub の UTC を辞書順で比べている / 片付けが削除してから記録する順序で再実行に耐えない / 記録段階の push 失敗から回復できない / <code>--linked</code> が状態を検査せずに段階を飛ばす</td></tr>
+          <tr><td>中</td><td>5</td><td>最終行の契約（<code>OK:</code> / <code>BD00x:</code>）が複数項目メッセージで崩れる / <code>status --offline</code> が不明を <code>none</code> として永続化する / スレッドが依頼時刻で絞られない / <code>logs/merge-state.json</code> が issue をまたいで残る / <code>is_draft</code> の判定不能が成功側に倒れる</td></tr>
+          <tr><td>低</td><td>3</td><td>統括レポート探索のフォールバックが到達しない / 未知の <code>state</code> で再導出に回らない / <code>set -e</code> 下のパイプで結果行を出さずに終わる経路</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>まとめの主張の抜き取り検証では、テスト件数・アサーション数・二重実装 0 件・旧い置き場への参照 0 件のすべてが「一致」だった。テスト ID 総数 196 件だけは、レビュアーがテストを実行できないため「確かめられない」。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>指摘は追加チケット <strong>0034</strong>（<code>boundary.sh</code> 5 件）と <strong>0035</strong>（<code>finalize.sh</code> 7 件）に落とし、0033（フィードバック計画）の先行チケットに加えた。実装フェーズの 2 回目の敵対的レビューは 0035 の完了後に 0028〜0035 の差分でまとめて行う。</p>
       </div>
     </li>
 

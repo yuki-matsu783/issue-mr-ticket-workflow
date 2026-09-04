@@ -245,7 +245,7 @@ MR 本文の「変更点」の行形式は手順 3-2 のとおり。
    - 取得できなければ BD004（コマンドと出力）
 3. 機構が投稿したコメント（固定マーカー `<!-- boundary:request ... -->` / `<!-- boundary:note -->` / `<!-- boundary:usage -->` / `<!-- boundary:accept ... -->` を持つもの）だけを除外し（ログイン名では除外しない — AI はユーザーのトークンで投稿するため、レビュアーが同じアカウントだと人間の指摘まで消える）、`requested_at` 以降の指摘を `findings[]`（`kind: thread|review|comment`、`url`、`author`、`path`、`line`、`summary`、`resolved`）に整形する
    - **時刻の比較は必ずエポック秒に直してから行う**。`requested_at` はローカルのオフセット表記（`+09:00`）で記録され、ホストが返す `created_at` / `submitted_at` は UTC の `Z` 表記なので、ISO 文字列のまま辞書順で比べると依頼直後の指摘が「依頼より前」と判定されて黙って落ちる
-   - **どちらかの時刻を読めなかった指摘は落とさず残す**（判定できないときは「依頼より後」側に倒す）。指摘を取りこぼすと人間のレビューが無かったことになるのに対し、余分に 1 件出しても人間が読んで捨てられるだけである
+   - **どちらかの時刻を読めなかった指摘は落とさず残す**（判定できないときは「依頼より後」側に倒す）。指摘を取りこぼすと人間のレビューが無かったことになるのに対し、余分に 1 件出しても人間が読んで捨てられるだけである（DDR `i0010-09`）
 4. 未解決スレッドがある、または最新のレビューが `CHANGES_REQUESTED`（GitHub）→ `--accept-unresolved` が無ければ BD003 で一覧を出力して止まる。`--accept-unresolved` があれば `accepted_unresolved` にスレッド ID と確認者を記録し、同じ内容を `<!-- boundary:accept <task_type>:<last_done> -->` 付きの通常コメントとして MR に投稿してから進む（`CHANGES_REQUESTED` は `--accept-unresolved` でも通さない — レビュアーが dismiss / approve するまで待つ）
 5. `state: completed`、`completed_at`、`findings` を記録し、直前の状態を `logs/review-history.jsonl` に追記する
 6. `findings` の JSON を出力し、`OK:` に件数（指摘 N 件 / 受け入れた未解決 M 件）を出力する

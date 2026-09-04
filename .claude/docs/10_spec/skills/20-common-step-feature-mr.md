@@ -37,7 +37,7 @@ feature ブランチと draft MR 作成の共通ステップの内部仕様。�
 
 ```bash
 git fetch origin
-git checkout -b feature-12-login-validation origin/main
+git checkout --no-track -b feature-12-login-validation origin/main
 bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "chore: #12 login-validation の作業を開始" wip/10_tickets/10_doing/0001-overall-plan.md
 bash .claude/skills/20-common-step-commit-push/scripts/push.sh
 gh pr create --draft --title "feat: ログイン検証の不備 (#12)" --body-file wip/tmp/mr-body.md
@@ -49,6 +49,7 @@ gh pr create --draft --title "feat: ログイン検証の不備 (#12)" --body-fi
 1. **ホスト判定と前提確認**: `20-common-step-issue` 仕様の手順 1 と同じ判定で CLI を選ぶ。`git status --porcelain` の出力から `wip/` 配下の未追跡ファイル（全体計画チケットなど、開始コミットに載せる持ち越し分）を除いた残りが空でなければ、停止して呼び出し元に返す（確認手順は呼び出し元）。`.git/MERGE_HEAD`・`rebase-merge/` 等が存在する（マージ・リベース途中）、origin が無い・複数リモートで push 先が曖昧、のときも停止して状態を返す
 2. **default ブランチの特定と最新化**: `gh repo view --json defaultBranchRef` / `glab repo view`（取れなければ `git remote show origin` の HEAD branch）。`git fetch origin` で最新を取得する
 3. **ブランチ作成**: 同名ブランチが既にあれば作らず、別の slug 案を添えて呼び出し元に返す。無ければ `git checkout -b <ブランチ名> origin/<default>` で作成する（ローカル default の状態に依存しない）
+   - **リモート追跡ブランチから枝を作ると上流が `origin/<default>` に設定される**ので、そのままでは push の宛先が default ブランチになる。**`git checkout --no-track -b <ブランチ名> origin/<default>` の形で作るか、作成の直後に `git branch --unset-upstream` を実行して上流を外す**。上流は次の手順の `push.sh` が新しいブランチに対して設定する
 4. **開始コミット**: 持ち越した作業中チケットの「差分の基準点」を作成元コミット（`origin/<default>` の SHA）に書き換えてから（default 上で記録した HEAD が作成元と異なる場合の差分検知の誤検知を防ぐ）、持ち越した `wip/` 配下の未追跡ファイル（全体計画チケット等）を `commit.sh -m "chore: #<N> <slug> の作業を開始" wip/...` でコミットする（コミットを保留した全体計画チケットの記録がここで feature ブランチに載る — `20-common-step-ticket` 仕様）。載せるファイルが無い場合のみ `--allow-empty` で空コミットを作る。続けて `push.sh` で push する（上流設定はコマンドが行う）
 5. **draft MR の作成**: 現在ブランチに open な MR が既にあるか確認し（`gh pr view --json number,url,state` / `glab mr list --source-branch <ブランチ> --per-page 20`）、あればその番号と URL を返して終える。無ければテンプレートから本文を `wip/tmp/mr-body.md` に作り、GitHub は `gh pr create --draft --title <タイトル> --body-file ...`、GitLab は `glab api projects/:id/merge_requests -X POST --raw-field "source_branch=<ブランチ名>" --raw-field "target_branch=<default>" --raw-field "title=Draft: <タイトル>" --raw-field "description=@wip/tmp/mr-body.md"` で作成する（draft はタイトルの `Draft: ` 接頭辞で表す。本文はファイル渡しで、`20-common-step-issue` 仕様「GitLab の長文送信」が正。`glab mr create --description` への文字列渡しは使わない）。失敗したらコマンドと出力を返して停止し、別の手段で再試行しない
 6. **報告**: ブランチ名・MR の番号と URL を呼び出し元に返し、一時ファイルを削除する

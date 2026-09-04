@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0043-0046 AI アセット設計結果 — フィードバックの正史への書き戻し</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット設計結果レポート / AI アセット設計</p>
+  <h1 id="title" data-required>0043-0046 AI アセット設計結果 — フィードバックの正史への書き戻し</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 21</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 削除だけのコマンドを通す判定</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. merge-state.json の branch</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. --linked の前提</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 過渡期の記述を落とした</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. 判定できないときは拒否側に倒す</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 引数・環境の誤りの識別子</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. 敵対的レビューの起動の条件</a></li>
+          <li><a href="#f8"><span class="mk good">◎</span> 8. DoD のコマンドと保留の書き方</a></li>
+          <li><a href="#f9"><span class="mk good">◎</span> 9. 実装計画の許可範囲と対策</a></li>
+          <li><a href="#f10"><span class="mk good">◎</span> 10. 前 issue の作業領域の残骸</a></li>
+          <li><a href="#f11"><span class="mk good">◎</span> 11. レポートの積み上げ方</a></li>
+          <li><a href="#f12"><span class="mk warn">△</span> 12. 手順の挿入をやめて畳んだ</a></li>
+          <li><a href="#f13"><span class="mk good">◎</span> 13. 設計実施のルールと採番</a></li>
+          <li><a href="#f14"><span class="mk good">◎</span> 14. テンプレートは Read + Write</a></li>
+          <li><a href="#f15"><span class="mk good">◎</span> 15. 節の対応表と数え方</a></li>
+          <li><a href="#f16"><span class="mk good">◎</span> 16. eval の表を ## に統一</a></li>
+          <li><a href="#f17"><span class="mk good">◎</span> 17. 数の書き方を全般に広げた</a></li>
+          <li><a href="#f18"><span class="mk good">◎</span> 18. 番号参照は名前でも辿れる</a></li>
+          <li><a href="#f19"><span class="mk good">◎</span> 19. テストの書き方とシェルの罠</a></li>
+          <li><a href="#f20"><span class="mk good">◎</span> 20. 標準構成・移設・参照更新</a></li>
+          <li><a href="#f21"><span class="mk good">◎</span> 21. ブランチ作成時の上流</a></li>
+          <li><a href="#f22"><span class="mk good">◎</span> 22. レビュアーのモデルと DDR 4 本</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
+    <div><dt>チケット</dt><dd>0043・0044・0045・0046</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-04</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">フィードバック計画（0033・0042）が「この MR で対応」と決めた改善候補 45 件を、要件定義書 6 本・仕様書 15 本・DDR 4 本に書き戻した。設計計画（0041）の文書一覧に沿って 4 枚のチケットで分担し、候補 1 件ごとに反映先を突き合わせて 45 / 45 が正史に現れることを確かめた。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>21</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>無し</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li><a href="#f17">保留 P2 の結論</a>: 「数を書いたら数えたコマンドを併記する」を設計文書・DDR・レポート全般に広げた。ただし受け入れ条件・DoD・レビューの判断の根拠になる数に限った</li>
+        <li><a href="#f10">候補 31 の実現の形</a>: 前 issue の残骸の片付けを、全体計画チケットの許可範囲を承認付きで広げる形にした。承認なしで消せる形にはしていない</li>
+        <li><a href="#f5">候補 4 を 1 つの原則にまとめた</a>: 3 つの場面を「判定できないときは『もう一度やる』側に倒す」の適用例として並べた（DDR i0010-09）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><a href="#f16">eval の表の見出しを 5 本で昇格した</a>。5 本とも親見出しの中身は「なし。&lt;理由&gt;」の 1 行で、切れる文脈が無いことを確かめている</li>
+        <li><a href="#f19">候補 8（類型の文言）</a>は省略形を機構の定義と同一の文言に置き換えただけ</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><b>仕様に書いた振る舞いが実装と一致しているか（<code>BD006</code> / <code>FN004</code> の経路）</b>: この 2 つの識別子はまだ実装に無い。設計フェーズは文書だけを触るため → AI アセット実装フェーズ（0047 以降）</li>
+      <li><b>アセット本体（SKILL.md・テンプレート・ルール本体）が新しい仕様に追随しているか</b>: 設計チケットの許可範囲が <code>.claude/docs/**</code> に限られる → AI アセット実装フェーズの参照更新</li>
+      <li><b><code>git checkout --no-track -b</code> の実際の挙動（候補 30）</b>: 現在のブランチで検証すると作業中の状態を壊す。git の仕様に基づく記述に留めた → 実装フェーズのテスト、または次に issue を起こすときの実測</li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">削除だけのコマンドを通す判定を仕様に 1 節でまとめた <span class="chip good">◎良</span> <span class="basis">根拠: workflow-guard 仕様 制御方式 6 / WG-T18 / DDR i0010-06</span></h3>
+      <p>削除だけの段（実行体が <code>rm</code>、<code>git</code> のサブコマンドが <code>rm</code>）の判定を 7 段で書いた。対象を読めない・ディレクトリ・展開前の文字列・進行状態のファイルを順に外し、残ったものだけを置き場か宣言と照合する。テスト観点に <code>WG-T18</code> を、要件との対応に 1 行を足し、要件側には削除だけを対象にした Shall / Shall not を追加した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>Edit / Write にファイルを消す手段が無いことによる「移設が完了しない」問題が、仕様の側で解けた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2"><code>merge-state.json</code> に <code>branch</code> を足し、読む側の扱いを書いた <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-overall-summary 仕様 Script 処理 / 00-workflow-issue-mr-driven 仕様 position / BD-T18</span></h3>
+      <p><code>logs/</code> はブランチに紐づかないので、別の issue で <code>ready</code> まで終えた記録がそのまま残る。スキーマに <code>branch</code> を足し、<b>書き手は <code>finalize.sh</code> だけ</b>であることと、ブランチ名が取れないときは既存の値を残すことを書いた。読む側には、<code>mr</code> か <code>branch</code> が違う記録を無いものとして扱うこと、<code>branch</code> を持たない古い記録は <code>mr</code> の一致だけで判定することを書いた。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>同じ clone で次の issue を始めた瞬間に <code>status</code> が毎回止まる、という実装済みの回避が仕様の裏付けを得た。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3"><code>--linked</code> の前提を <code>state=recorded</code> に限定した <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-overall-summary 仕様「CLI が使えない環境での release」/ FN-T10</span></h3>
+      <p>段階 4 を経ていない状態で <code>--linked</code> を受け付けると、前提検査・完了検査・書き出し・push を飛ばして段階 5 の片付け（<code>wip/</code> の全削除）に直行する。前提と理由を書き、<code>FN-T10</code> で固定した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>外部委任モードの再開フラグが、成果物を消す近道にならないことが仕様に書かれた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">過渡期の記述を正史から落とした <span class="chip good">◎良</span> <span class="basis">根拠: 4 本の仕様書から削除。残りは DDR 2 件のみ</span></h3>
+      <p>「現行アセットとの差分（実装時に追従が要る箇所）」の節、<code>session-start</code> 仕様の「実装フェーズで直す」と「この issue で実施するか」の列、<code>10-task-overall-summary</code> 仕様と <code>00-workflow-quick-request</code> 仕様に残っていた同種の記述を削除した。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>grep -rn '実装フェーズで直す|現行アセットとの差分' .claude/docs
+=&gt; 20_ddr/i0010-01-...md:25
+   20_ddr/i0010-01-...md:44
+（DDR 2 件のみ。DDR はマージ済みのため本文を変更しない）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>正史が「今どうなっているか」だけを述べる状態に戻った。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">「判定できないときは拒否側に倒す」を原則として書いた <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-overall-summary 仕様 再導出の節 / 00-workflow-issue-mr-driven 仕様 complete 3 / DDR i0010-09</span></h3>
+      <p>draft の判定を 3 値で扱うこと（判定できない → <code>pushed</code> に倒して段階 7 を実行する）、<code>state</code> が既知の段階名でないときは終了 2 で止めず再導出すること、そしてこの 2 つを含む原則「『進んだことにする』側ではなく『もう一度やる』側に倒す」を書いた。<code>.draft // empty</code> が <code>false</code> を右辺に畳む罠も明記した。時刻を読めない指摘の扱いは <code>boundary.sh</code> の振る舞いなので <code>complete</code> の側に書いた。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>3 つの別々の実装判断が、1 つの原則とその適用例として読めるようになった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">引数・環境の誤りの識別子を規約にし、2 本に新設した <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-spec 仕様 エラー識別子 / BD006 / FN004 / DDR i0010-07</span></h3>
+      <p>「提供コマンドの識別子表には終了コード 2 の番号を必ず 1 つ置く」と「番号は末尾に足し既存を振り直さない」を規約にし、<code>BD006</code> と <code>FN004</code> を新設した。どちらも要件（例外フロー）を先に足してから仕様の対応表に行を足している。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>前提を直せば進む失敗と、呼び方を直すまで進まない失敗が、識別子で分岐できるようになった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">敵対的レビューの起動の条件を 3 つ足した <span class="chip good">◎良</span> <span class="basis">根拠: 00-workflow-issue-mr-driven 仕様 手順 2a / 要件 整合 6・7</span></h3>
+      <p>起動プロンプトに現在のブランチ名を書くこと（環境情報はセッション開始時点で固定される。0009 で実測）、観点に「仕様書が求める必須節が実在するか」を含めること（節の不在は中身を見る観点では拾えない）、既定のモデルが使えないときの代替（実行者と別であることだけが要件・上限回数は消費する）を書いた。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実測で分かった落とし穴が、次の起動から自動的に避けられる形になった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">8</span>
+      <h3 id="f8">DoD に書くコマンドと保留の書き方を計画の共通手順に足した <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-investigation-plan 仕様 共通手順 4 とその後の箇条書き</span></h3>
+      <p>DoD に書くコマンドは書く前に <code>--help</code> か仕様で形を確かめること、保留は 3 点（何が未決か・現行にどう書かれているか・誰がいつ決めるか）を書くこと、保留を立てる / 決着させるときに「既に満たされていないか」を先に確かめることを足した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実行者が DoD の文字列をそのまま打って躓く経路と、解決済みの論点を持ち回る経路の両方が塞がった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">9</span>
+      <h3 id="f9">実装計画の許可範囲・実測値・ロックアウト対策を直した <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-ai-asset-implementation-plan 仕様 4 項目と OUT ひな形</span></h3>
+      <p>削除を伴うステップは消す対象を <code>allow.write</code> に含める（移設は新旧両方）、<code>run-tests.sh --filter</code> はパス全体のグロブなので <code>'*test_&lt;名前&gt;*'</code> の形で書く、計画は読むだけなので実測値は調査フェーズの値を使う、ロックアウト対策として挙げるテストは変更箇所を実際に踏むものにする。最後の 1 つは OUT ひな形の行に「対策を守るテスト ID × 踏む判定」の列として現れる。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>踏まないテストを対策として書く事故が、表の列の空欄として見えるようになった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">10</span>
+      <h3 id="f10">前 issue の作業領域が default に残っている場合の扱いを決めた <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-overall-plan 仕様 処理フロー 4 / 要件 例外フローと「やってよいこと」の規約</span></h3>
+      <p>片付けは自分の issue の分しか消さないので、他の issue の残骸はブランチを切る前が唯一の片付けの機会になる。残骸の検出・一覧と出どころの提示・承認・承認されなければ保留した点に書いて進むことを書いた。既定の宣言では <code>wip/20_plans/</code> <code>wip/30_reports/</code> の残骸を消せないので、要件の「やってよいこと」の規約に「承認を得た残骸の片付けに限り他の置き場への削除を含めてよい」を足した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>仕様に書くだけでは実際には拒否される、という状態を作らずに済んだ。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">11</span>
+      <h3 id="f11">実施タスクの共通手順にレポートの積み上げ方を足した <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-investigation-exec 仕様 共通手順 4 / 要件 2 行</span></h3>
+      <p>過去の節を書き換えないこと（誤りは新しい節で引用して訂正、番号の振り直しは読み替えの注記）、表に載せきれない対象を本文で足さず表に行を足すこと、書き終える前に計画書の「成果物の形」を読み返すことを足した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>積み上げ式のレポートが「そのときの判断の記録」であり続ける条件が明文化された。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">12</span>
+      <h3 id="f12">手順の挿入をやめて但し書きに畳んだ <span class="chip warn">△注意</span> <span class="basis">根拠: 共通手順を番号で参照している仕様 10 本</span></h3>
+      <p>「成果物の形の突き合わせ」を新しい手順 5 として挿入しかけたが、<code>共通手順 5</code> <code>共通手順 6</code> を番号で参照している仕様が 10 本ある。挿入するとその参照がすべてずれ、しかも壊れたことが見えない。手順 4 の但し書きに畳み直し、番号は 計画 1〜7・実施 1〜6 のまま保った。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>grep -n '^[0-9]\+\. \*\*' .claude/docs/10_spec/skills/10-task-investigation-plan.md
+=&gt; 1〜7 の 7 行（連番）
+grep -n '^[0-9]\+\. \*\*' .claude/docs/10_spec/skills/10-task-investigation-exec.md
+=&gt; 1〜6 の 6 行（連番）</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">注意</p>
+        <p>この制約自体は候補 49 の反映として仕様に書いた（<a href="#f18">f18</a>）が、番号参照が 40 か所残っている状態は解消していない（残課題 R1）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">13</span>
+      <h3 id="f13">設計実施タスクにルールの読み込みと採番の完結を足した <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-ai-asset-design-exec 仕様 3 項目 / 要件の完了時 DoD</span></h3>
+      <p>着手したら最初に <code>ai-asset-design-docs</code> ルールを読む（設計の指摘の多くはルールに書いてあることの取りこぼし）、識別子の採番とその識別子が指す観点の定義を同じチケットで済ませる（接頭辞の登録だけで受け入れ条件を満たしたと判断した取りこぼしが実際に起きた）、セルフレビューで「このフェーズで旧名を増やしていないか」を確かめる。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>レビューで拾っていた種類の指摘が、着手時と完了時の 2 か所で先に潰される。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">14</span>
+      <h3 id="f14">テンプレートの作成を <code>cp</code> から Read + Write に直した <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-report-view 仕様 処理フロー 2 / 要件</span></h3>
+      <p>処理フロー 2 を「テンプレートを Read で読み、同じベース名の HTML として Write で書き出す」に変えた。理由は置き場の問題ではなく、<b>コマンドによる書き込みは宣言の有無によらず WF205 で拒否される</b>ことである（<code>cp</code> / <code>mv</code> / リダイレクトは削除の判定の対象外で、WF205 のまま）。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>手順どおりに進めると必ず止まる箇所が消えた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">15</span>
+      <h3 id="f15">OUT ひな形の節 → HTML の節の対応表と数え方を書いた <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-report-view 仕様 対応表 9 行 / 処理フロー 5 の但し書き 3 項目</span></h3>
+      <p>どの節をどこに収めるかを書き手がその場で判断すると、同じ種類のレポートでも節の位置が変わる。9 行の対応表を置き、数え方（<code>###</code> の見出し数と <code>&lt;h3 id=</code> の数）・同じ数には内訳を添えること・累積の数は 1 か所に置くことを足した。◇ の欄の見出しは「判断が欲しい」とし、書き手が方針を決めている前提の文言にしないことも書いた（調査タスクは決めないと定められているため）。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>レビュアーが探す場所が固定され、数の食い違いが足し算で見つかるようになった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">16</span>
+      <h3 id="f16">eval の表を <code>##</code> に統一し、5 本を昇格した <span class="chip good">◎良</span> <span class="basis">根拠: 5 本の仕様書 / DDR i0010-08 / 保留 P1 の確認</span></h3>
+      <p><code>20-common-step-spec</code> 仕様は eval を独立した節に置くと定めていたのに、先に書かれた 5 本は <code>## Script 処理</code> の下の <code>###</code> にあった。5 本とも親見出しの本文が「なし。&lt;理由&gt;」の 1 行だけで文脈が切れないことを確かめて、<code>##</code> に上げた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>grep -rn '^### テスト観点（eval）' .claude/docs/
+=&gt; 0 行（昇格後）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>同じ種類の情報の置き場が 1 通りになった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">17</span>
+      <h3 id="f17">数の書き方を設計文書・DDR・レポート全般に広げた <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-requirement 仕様 セルフレビュー項目 15・16 と「数の書き方」/ 保留 P2</span></h3>
+      <p>セルフレビュー項目を 14 → 16 に増やし（受け入れ基準を足したら図の更新要否を判断する / 書いた数に数えたコマンドを添える）、「数の書き方（設計文書・DDR・レポートに共通）」の節を置いた。<b>保留 P2 の結論</b>として、対象は要件書だけに閉じず全般に広げ、コマンドの併記は受け入れ条件・DoD・レビューの判断の根拠になる数に限ることにした。内訳と累積の規約は <code>20-common-step-report-view</code> を正とし、二重に持たない。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>読み手が同じコマンドを打てば、書かれた数が今も正しいか確かめられる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">18</span>
+      <h3 id="f18">番号で参照する記述は名前でも辿れるようにした <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-spec 仕様 処理フロー 8</span></h3>
+      <p>参照する側は「共通手順 5（成果物のコミットと完了）」のように番号と名前を併記すること、参照される側は各項目に名前を持たせること、既に番号だけの参照がある文書に項目を挿入するときは但し書きに畳むか参照元を同じチケットで全部直すことを書いた。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><a href="#f12">f12</a> で実際に迫られた判断が、次の書き手にも同じ結論として届く。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">19</span>
+      <h3 id="f19">テストの書き方とシェルの罠を 5 件足した <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-shell-script 仕様「テストの書き方」「終了コード」/ 10-task-feedback-plan 仕様</span></h3>
+      <p>ケースごとに git のコミットをしない・1 回の実行で外部プロセスを何十回も起動しない（既定 120 秒の上限）・負のコントロールは環境（タイムゾーン・ロケール・改行コード）が変わっても落ちるか確かめる・他の提供コマンドの出力は <code>jq</code> に渡す前に JSON か検査する・複数の値を 1 回の <code>jq</code> で受けるときは 1 行 1 値にする、を足した。「終了コード」には、提供コマンドが他の提供コマンドを内部から呼ぶときに呼ばれる側の前提を呼ぶ側のエラー文に書くことを足した。あわせて <code>10-task-feedback-plan</code> の類型の文言を機構の定義と同一に揃え、消し込み表を OUT ひな形と要件に足した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>全件テストが環境の違いで落ちる経路と、抽出した項目が集約で落ちる経路の両方に手当てが入った。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">20</span>
+      <h3 id="f20">アセット作成の作法に標準構成・移設・参照更新を書いた <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-ai-asset-creator 仕様「移設の完了条件」「参照更新の作法」/ 要件 2 行</span></h3>
+      <p>標準構成は「持てるもの」の一覧であって全部を持つ意味ではないこと（テンプレートを共有するスキルは <code>assets/</code> を持たない・空のディレクトリを作らない）、eval の要否は <code>20-common-step-spec</code> の決定に従い新しい基準を作らないこと、移設の完了条件 3 つ（新しい場所にある / <b>参照が全部移っている</b> / 移設後のパスでテストが通る）、参照更新の作法 3 つ（偽陽性を除く検索式・期待値は残るもので書く・置換先の無い旧名は別の一覧にする）を書いた。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>「ファイルを置いただけで移設したことにする」形の未完了が定義として排除された。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">21</span>
+      <h3 id="f21">ブランチ作成時の上流の罠を書いた <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-feature-mr 仕様 手順 3 とサンプル</span></h3>
+      <p><code>git checkout -b &lt;ブランチ名&gt; origin/&lt;default&gt;</code> はリモート追跡ブランチから枝を作るので上流が <code>origin/&lt;default&gt;</code> になり、そのままでは push の宛先が default ブランチになる。手順とサンプルを <code>git checkout --no-track -b ...</code> の形に直し、代替として <code>git branch --unset-upstream</code> を添えた。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>ブランチを作った直後の push が default に向く経路が塞がった。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">22</span>
+      <h3 id="f22">レビュアーのモデルの代替を要件に足し、DDR 4 本を残した <span class="chip good">◎良</span> <span class="basis">根拠: 00_requirement/rules/work-defaults.md / DDR i0010-06〜09</span></h3>
+      <p><code>work-defaults</code> の要件に、このルールが敵対的レビュアーの既定のモデル・実施回数の上限・実行者と同じモデルで起動しないことを持つべきこと（実行者の表とは別の表に置く）と、既定のモデルで起動できないときの代替の決め方（実行者と別であることだけが要件・回数は消費・差し替えたモデル名を記録に残す）を足した。DDR は <code>i0010-06</code>（削除の判定の形）・<code>i0010-07</code>（識別子は末尾に足す）・<code>i0010-08</code>（eval の表は <code>##</code>）・<code>i0010-09</code>（判定できないときは拒否側に倒す）の 4 本。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>設計フェーズで下した決定 4 件の経緯が、正史ではなく DDR に残った。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>候補 45 件（この MR で対応 44 + 候補 56）がすべて仕様のどこかに現れる</td><td>45 / 45。0043 が 11 件（1〜7・18〜20・44）、0044 が 15 件（8・10・13・14・17・31・37・41〜43・45・48・50・51・56）、0045 が 13 件（11・15・16・32・36・38・39・46・47・49・52〜55）、0046 が 6 件（9・12・28・30・34・18 の要件側）</td></tr>
+      <tr><td><code>00-workflow-issue-mr-driven</code> の要件の項目数と仕様の対応表の行数</td><td>44 / 44</td></tr>
+      <tr><td><code>10-task-overall-summary</code> の要件の項目数と仕様の対応表の行数</td><td>41 / 41（<code>- Where</code> で始まる 1 行を含む）</td></tr>
+      <tr><td><code>grep -rn '^### テスト観点（eval）' .claude/docs/</code></td><td>0 行（5 本を <code>##</code> に昇格した後）</td></tr>
+      <tr><td>旧名の残存（<code>10-work-</code> / <code>20-task-</code> / <code>work-boundary</code> / <code>merge-prep</code>。DDR を除く）</td><td>0 行（4 チケットとも完了時に確認）</td></tr>
+      <tr><td>共通手順の番号（計画 1〜7 / 実施 1〜6）が変わっていない</td><td><code>grep -n '^[0-9]\+\. \*\*'</code> の出力が 7 行 / 6 行で連番</td></tr>
+      <tr><td>アセット本体に触っていない</td><td>4 チケットの <code>git status --porcelain</code> がすべて <code>.claude/docs/</code> 配下と <code>wip/</code> のみ</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><code>BD006</code> / <code>FN004</code> を返す経路を実装する → AI アセット実装（0047 以降）</li>
+    <li><code>20-common-step-requirement/SKILL.md</code> の「セルフレビュー項目 14 項目」を 16 項目に追随させる → AI アセット実装の参照更新</li>
+    <li><code>report.template.html</code> の ◇ 欄の見出しを「判断が欲しい」に変える → AI アセット実装</li>
+    <li><code>20-common-step-feature-mr/SKILL.md</code> の <code>git checkout -b</code> を <code>--no-track</code> 付きに追随させる → AI アセット実装</li>
+    <li><code>.claude/rules/work-defaults.md</code> 本体に、既定のモデルが使えないときの代替の決め方を書く → AI アセット実装</li>
+    <li><code>10-task-overall-plan/SKILL.md</code> に前 issue の残骸の扱いを追随させる → AI アセット実装</li>
+    <li>各 task スキルの SKILL.md に、0044・0045 で足した手順の但し書きを追随させる → AI アセット実装の参照更新</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>候補 4（時刻を読めない指摘）は <code>10-task-overall-summary</code> 仕様に書く（0043 の DoD の文言）</td><td>その振る舞いは <code>boundary.sh</code> のもので <code>finalize.sh</code> には無い</td><td><code>00-workflow-issue-mr-driven</code> 仕様の <code>complete</code> に書き、要件も同じスキルの例外 [E6] に足した。1:1 対応を優先した</td></tr>
+      <tr><td>候補 13（<code>--filter</code> のグロブ）は実装計画スキルだけに書けばよい</td><td>挙動の正は <code>run-tests.sh</code> の仕様にあるべきで、そちらに無いと次に同じ誤りが出る</td><td><code>20-common-step-shell-script</code> 仕様の処理フロー 2 にも 1 文足した</td></tr>
+      <tr><td>仕様のテスト観点の表は実装と揃っている</td><td><code>FN-T10</code>〜<code>FN-T17</code> と <code>BD-T14</code>〜<code>BD-T18</code> の 13 件がテストファイルにあるのに仕様の表に無かった</td><td>対応表からこれらを参照する必要があったので、先に表へ 13 行を足した</td></tr>
+      <tr><td>共通手順に手順を 1 つ足すのは軽い変更</td><td>番号で参照している仕様が 10 本 40 か所あり、事実上できない</td><td>但し書きに畳み、制約自体を候補 49 の反映として仕様に書いた</td></tr>
+      <tr><td>レポートは最初のチケット（0043）で作る（実施タスクの共通手順 4）</td><td>設計計画（0041）が最後のチケット（0046）の DoD にレポートを置いていた</td><td>0046 で 4 チケット分をまとめて書いた。次の計画では最初のチケットの DoD に置く</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><b>R1</b>: 共通手順を番号で参照している 40 か所は、候補 49 の規約を書いただけで名前併記に直っていない → 別 issue（機械検査が入ってからまとめて直す）</li>
+    <li><b>R2</b>: 仕様のテスト観点の表とテストファイルの ID がずれても誰も気づかない（今回 13 件の欠落を手で見つけた） → 別 issue 候補 22（設計文書検査の機械化）</li>
+    <li><b>R3</b>: <code>20-common-step-shell-script</code> 仕様の「終了コード」節に対応する要件の行が無い（過剰仕様か要件の書き漏れ） → 別 issue 候補 22</li>
+    <li><b>R4</b>: 別 issue に回すと決めた 11 件（候補 21〜27・29・33・35・40）は、ヘッドレスのため未起票 → 全体まとめで MR 本文に一覧として残し、人間が起票する</li>
+    <li><b>R5</b>: <code>git checkout --no-track -b</code> を実機で確かめていない → 実装フェーズのテスト、または次の issue の実測</li>
+  </ul>
+</section>
+
+<footer>#10 / #35 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

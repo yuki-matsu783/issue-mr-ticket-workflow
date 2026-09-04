@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0050- AI アセット実装・テスト結果 — 仕様に本体を追随させる</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 2</span>
+    <span class="chip good">◎良 4</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -145,6 +145,8 @@
         <ol class="toc-sub">
           <li><a href="#f1"><span class="mk good">◎</span> 1. ◇ の見出しを「判断が欲しい」に</a></li>
           <li><a href="#f2"><span class="mk good">◎</span> 2. 消し込み表の節を足した</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. BD006 / FN004 に分けた</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. BD-T19 / FN-T18 を足した</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -167,9 +169,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。</p>
+  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。<b>0051 まで（S2: 中核）</b>: 提供コマンド 2 本の引数・環境の誤りを <code>BD006</code> / <code>FN004</code> に分け、テスト <code>BD-T19</code> / <code>FN-T18</code> を足した。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi good"><b>4</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -193,6 +195,8 @@
       <p class="sub">ほぼ確実</p>
       <ul>
         <li><a href="#f2">消し込み表</a>の列は「走査した記録 / 抽出した項目 / 行き先」の 3 列。仕様の記述をそのまま列にした</li>
+        <li><a href="#f3">番号は末尾に足し</a>、既存の <code>BD001</code>〜<code>BD005</code> / <code>FN001</code>〜<code>FN003</code> を振り直していない</li>
+        <li><a href="#f4">引数・環境の誤りのテスト</a>は原因ごとに ID を分けず、1 つの ID に 3 原因を並べた</li>
       </ul>
     </div>
   </div>
@@ -239,6 +243,45 @@ grep -rn '承認が欲しい' .claude/skills/
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">引数・環境の誤りを BD006 / FN004 に分けた <span class="chip good">◎良</span> <span class="basis">根拠: 両スキル仕様のエラー識別子・DDR i0010-07</span></h3>
+      <p><code>boundary.sh</code> と <code>finalize.sh</code> の <code>arg_ng</code> が、呼び方が成立していない誤り（未知のサブコマンド・値の無いオプション・依存コマンドの不在）を前提未充足と同じ <code>001</code> で返していた。終了コードだけが 2 で違うため、番号を見た呼び手が前提を直そうとしてしまう。番号を末尾に足した <code>BD006</code> / <code>FN004</code> に変え、コメントも逸脱の記録から番号の意味の説明に書き換えた。</p>
+      <p>変更は 1 行ずつの 2 か所で、既存の <code>BD001</code>〜<code>BD005</code> / <code>FN001</code>〜<code>FN003</code> は振り直していない。振り直すとテストの期待値・実装・レポートの記述が連動して壊れる。</p>
+      <details>
+        <summary>ロックアウト対策として踏んだ経路と結果</summary>
+        <pre><code>commit.sh -m "fix: 引数・環境の誤りを BD006 / FN004 に分ける（S2） (#10)" ...
+=&gt; OK: 2 ファイルをコミットした（96c2b1d）
+
+boundary.sh status   =&gt; {"at_boundary":false,"position":"in_task",...}  exit 0
+boundary.sh bogus    =&gt; BD006: 引数・環境の誤り — 不明なサブコマンド: bogus  exit 2
+finalize.sh bogus    =&gt; FN004: 引数・環境の誤り — 不明なサブコマンド: bogus  exit 2</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>提供コマンド 6 本すべてが「引数・環境の誤り」の専用番号を持つ状態に揃った。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">テスト BD-T19 / FN-T18 を足した <span class="chip good">◎良</span> <span class="basis">根拠: 両スキル仕様のテスト観点</span></h3>
+      <p>1 つの ID に 3 つの原因（未知のサブコマンド / 値を取るオプションに値が無い / 必要な外部コマンドが無い）を並べた。依存コマンドの不在は <code>test-lib.sh</code> の <code>make_restricted_path bash git</code> で <code>jq</code> の無い PATH を作って踏ませている。</p>
+      <p>同じ ID の中で、<code>-h</code> と <code>--help</code> が終了 0 で使い方を出すことと、前提未充足が <code>BD001</code> / <code>FN001</code> と終了 1 のまま変わらないことも確かめている。番号を分けた変更が、分けるべきでない側まで動かしていないことを 1 つのケースで見られる。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>run-tests.sh --filter '*test_boundary*'
+=&gt; OK: 1 本 / 19 件（passed=112 failures=0）
+
+run-tests.sh --filter '*test_finalize*'
+=&gt; OK: 1 本 / 18 件（passed=69 failures=0）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>既存の <code>BD-T03</code> / <code>BD-T09</code> / <code>BD-T16</code> / <code>FN-T02</code> / <code>FN-T10</code> は期待値を変えずに通っている。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -250,8 +293,12 @@ grep -rn '承認が欲しい' .claude/skills/
     <tbody>
       <tr><td><code>grep -rn '承認が欲しい' .claude/skills/*/assets/</code></td><td>0 行</td></tr>
       <tr><td><code>run-tests.sh --filter '*test_check_html*'</code>（<code>RV-T01</code>〜<code>RV-T08</code> の回帰）</td><td><code>OK: 1 本 / 8 件</code>（<code>passed=58 failures=0</code>）</td></tr>
-      <tr><td>このレポートの HTML が <code>check-html.sh</code> を通る</td><td>S1 の締めで実行</td></tr>
+      <tr><td>このレポートの HTML が <code>check-html.sh</code> を通る</td><td>通過（S2 の追記後に再実行）</td></tr>
       <tr><td>テンプレートにプレースホルダの書き残しが無い</td><td>テンプレートは二重波括弧のプレースホルダを持つのが正なので対象外。書き終わりの検査は使う側（レポート・計画書）で行う</td></tr>
+      <tr><td><code>boundary.sh status</code>（書き換えた直後のロックアウト確認）</td><td>JSON を返す（終了 0）。<code>bogus</code> は <code>BD006</code> で終了 2</td></tr>
+      <tr><td><code>run-tests.sh --filter '*test_boundary*'</code>（<code>BD-T19</code> を含む全 ID）</td><td><code>OK: 1 本 / 19 件</code>（<code>passed=112 failures=0</code>）</td></tr>
+      <tr><td><code>run-tests.sh --filter '*test_finalize*'</code>（<code>FN-T18</code> を含む全 ID）</td><td><code>OK: 1 本 / 18 件</code>（<code>passed=69 failures=0</code>）</td></tr>
+      <tr><td>既存の <code>BD-T03</code> / <code>BD-T09</code> / <code>BD-T16</code> / <code>FN-T02</code> / <code>FN-T10</code> が期待値を変えずに通る</td><td>上の 2 本に含まれて全通過（期待値の編集は無し）</td></tr>
     </tbody>
   </table>
   </div>
@@ -261,6 +308,8 @@ grep -rn '承認が欲しい' .claude/skills/
   <h2>設計への反映</h2>
   <ol>
     <li><code>20-common-step-report-view/SKILL.md</code> の視覚語彙の 1 行を「判断が欲しい」に追随させる → S4（0053）</li>
+    <li><code>00-workflow-issue-mr-driven/SKILL.md</code> の「BD001〜BD005」を <code>BD006</code> まで含む表記に直す → S3（0052）</li>
+    <li><code>10-task-overall-summary/SKILL.md</code> の「FN001〜FN003」を <code>FN004</code> まで含む表記に直す → S3（0052）</li>
   </ol>
 </section>
 

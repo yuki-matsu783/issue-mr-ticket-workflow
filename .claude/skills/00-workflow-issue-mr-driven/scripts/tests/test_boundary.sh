@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_boundary.sh — boundary.sh のテスト（仕様のテスト ID: BD-T01〜13、敵対的レビューの指摘の反映で BD-T14〜18）
+# test_boundary.sh — boundary.sh のテスト（仕様のテスト ID: BD-T01〜13、敵対的レビューの指摘の反映で BD-T14〜18、識別子の分離で BD-T19）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_boundary*'
 set -uo pipefail
 
@@ -495,5 +495,37 @@ run_cmd bash "$B" status --offline
 assert_exit "BD-T18" 1
 assert_eq "BD-T18" "BD005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 rm -f logs/merge-state.json logs/mr.json
+
+# ================================================================ BD-T19
+# 引数・環境の誤りは BD006 と終了コード 2。使い方は終了 0、前提未充足は BD001 と終了 1 のまま
+reset_tickets
+mk_ticket 0001 investigation 20_done false
+mk_ticket 0002 design-plan 00_todo false
+
+run_cmd bash "$B" bogus                          # 未知のサブコマンド
+assert_exit "BD-T19" 2
+assert_eq "BD-T19" "BD006" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+run_cmd bash "$B" request --body-file            # 値を取るオプションに値が無い
+assert_exit "BD-T19" 2
+assert_eq "BD-T19" "BD006" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+run_cmd bash "$B" status --nosuch                # サブコマンドの不明な引数
+assert_exit "BD-T19" 2
+assert_eq "BD-T19" "BD006" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+make_restricted_path bash git                    # 必要な外部コマンド（jq）が無い
+run_cmd env PATH="$RESTRICTED_PATH" bash "$B" status
+assert_exit "BD-T19" 2
+assert_eq "BD-T19" "BD006" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+run_cmd bash "$B" -h                             # 使い方は終了 0
+assert_exit "BD-T19" 0
+run_cmd bash "$B" --help
+assert_exit "BD-T19" 0
+
+run_cmd bash "$B" skip --reason ""               # 前提未充足は終了 1 の BD001 のまま
+assert_exit "BD-T19" 1
+assert_eq "BD-T19" "BD001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 
 finish

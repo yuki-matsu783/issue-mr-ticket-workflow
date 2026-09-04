@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_finalize.sh — finalize.sh のテスト（仕様のテスト ID: FN-T01〜09、敵対的レビューの指摘の反映で FN-T10〜17）
+# test_finalize.sh — finalize.sh のテスト（仕様のテスト ID: FN-T01〜09、敵対的レビューの指摘の反映で FN-T10〜17、識別子の分離で FN-T18）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_finalize*'
 set -uo pipefail
 
@@ -395,5 +395,40 @@ awk '/^## DoD$/ { print; print ""; print "DoD の項目はまだ書かれてい�
 git add -A >/dev/null 2>&1; git commit -q -m "chore: DoD を空にする"; git push -q origin feature-x
 run_cmd bash "$F" release
 if printf '%s' "${R_OUT##*$'\n'}" | grep -qE '^(OK|FN[0-9]{3}):'; then pass "FN-T16"; else fail "FN-T16" "結果行が無い: 最終行=[${R_OUT##*$'\n'}] exit=$R_EXIT"; fi
+
+# ================================================================ FN-T18
+# 引数・環境の誤りは FN004 と終了コード 2。使い方は終了 0、前提未充足は FN001 と終了 1 のまま
+restore
+
+run_cmd bash "$F" bogus                          # 未知のサブコマンド
+assert_exit "FN-T18" 2
+assert_eq "FN-T18" "FN004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+run_cmd bash "$F" release --pr                   # 値を取るオプションに値が無い
+assert_exit "FN-T18" 2
+assert_eq "FN-T18" "FN004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+run_cmd bash "$F" release --nosuch               # release の不明な引数
+assert_exit "FN-T18" 2
+assert_eq "FN-T18" "FN004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+make_restricted_path bash git                    # 必要な外部コマンド（jq）が無い
+run_cmd env PATH="$RESTRICTED_PATH" bash "$F" release
+assert_exit "FN-T18" 2
+assert_eq "FN-T18" "FN004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+run_cmd bash "$F" -h                             # 使い方は終了 0
+assert_exit "FN-T18" 0
+run_cmd bash "$F" --help
+assert_exit "FN-T18" 0
+
+restore                                          # 前提未充足は終了 1 の FN001 のまま
+mkdir -p wip/10_tickets/00_todo
+cp wip/10_tickets/10_doing/0009-overall-summary.md wip/10_tickets/00_todo/0010-investigation.md
+sed -i 's/^ticket_type: overall-summary/ticket_type: investigation/' wip/10_tickets/00_todo/0010-investigation.md
+git add -A >/dev/null 2>&1; git commit -q -m "chore: add todo"; git push -q origin feature-x
+run_cmd bash "$F" release
+assert_exit "FN-T18" 1
+assert_eq "FN-T18" "FN001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 
 finish

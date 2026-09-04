@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの敵対的レ
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T17:04:31+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "34d8651"
 ---
 
 # 0049 BD006 / FN004 のテスト観点を仕様に足す（実装計画からの差し戻し）

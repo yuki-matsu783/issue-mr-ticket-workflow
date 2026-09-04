@@ -6,8 +6,8 @@ executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "設計フェーズの敵対的レビューは上限 1 回に達している（0046 の切れ目で実施済み）"}
 allow:
-  write: ["wip/**"]
-  ops: ["remote-read"]
+  write: [".claude/docs/**", "wip/**"]
+  ops: ["read", "remote-read"]
 started_at: ""
 completed_at: ""
 base_sha: ""

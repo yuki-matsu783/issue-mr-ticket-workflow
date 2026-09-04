@@ -6,8 +6,8 @@ executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "中核を含まない文書の追随で、機械テストの対象ではない（eval の定義は既存のまま）"}
 allow:
-  write: ["wip/**"]
-  ops: ["remote-read"]
+  write: [".claude/skills/00-workflow-issue-mr-driven/SKILL.md", ".claude/skills/10-task-investigation-plan/SKILL.md", ".claude/skills/10-task-investigation-exec/SKILL.md", ".claude/skills/10-task-ai-asset-design-exec/SKILL.md", ".claude/skills/10-task-ai-asset-implementation-plan/SKILL.md", ".claude/skills/10-task-overall-plan/SKILL.md", ".claude/skills/10-task-overall-summary/SKILL.md", ".claude/skills/10-task-feedback-plan/SKILL.md", "wip/**"]
+  ops: ["read", "remote-read"]
 started_at: ""
 completed_at: ""
 base_sha: ""

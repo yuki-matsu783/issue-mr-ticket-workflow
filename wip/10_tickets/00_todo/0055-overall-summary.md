@@ -6,8 +6,8 @@ executor: main
 human_review: {required: true, reason: "片付けと draft 解除の前の最終確認（基準どおり）"}
 adversarial_review: {required: false, reason: "基準どおり（全体まとめは最終確認を人間が行う）"}
 allow:
-  write: ["logs/**"]
-  ops: ["merge-base"]
+  write: ["wip/**", "logs/**"]
+  ops: ["read", "remote-read", "remote-write:issue", "remote-write:mr", "remote-write:push", "merge-base"]
 started_at: ""
 completed_at: ""
 base_sha: ""

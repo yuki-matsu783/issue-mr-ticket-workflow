@@ -6,8 +6,8 @@ executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "中核を含まず、機械テストで固定できる範囲の変更のため基準を不要に倒す"}
 allow:
-  write: ["logs/**"]
-  ops: ["hook-test"]
+  write: [".claude/skills/20-common-step-report-view/assets/**", ".claude/skills/10-task-feedback-plan/assets/**", "wip/**", "logs/**"]
+  ops: ["read", "remote-read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""

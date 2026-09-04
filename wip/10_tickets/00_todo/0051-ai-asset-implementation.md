@@ -6,8 +6,8 @@ executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: true, reason: "提供コマンド 2 本は中核で、壊れると切れ目の判定と片付けが止まる"}
 allow:
-  write: ["logs/**"]
-  ops: ["hook-test"]
+  write: [".claude/skills/00-workflow-issue-mr-driven/scripts/**", ".claude/skills/10-task-overall-summary/scripts/**", "wip/**", "logs/**"]
+  ops: ["read", "remote-read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""

@@ -6,8 +6,8 @@ executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: false, reason: "中核を含まない文書の追随"}
 allow:
-  write: ["wip/**"]
-  ops: ["remote-read"]
+  write: [".claude/skills/20-common-step-report-view/SKILL.md", ".claude/skills/20-common-step-requirement/SKILL.md", ".claude/skills/20-common-step-spec/SKILL.md", ".claude/skills/20-common-step-shell-script/SKILL.md", ".claude/skills/20-common-step-ai-asset-creator/SKILL.md", ".claude/skills/20-common-step-feature-mr/SKILL.md", ".claude/rules/work-defaults.md", "wip/**"]
+  ops: ["read", "remote-read"]
 started_at: ""
 completed_at: ""
 base_sha: ""

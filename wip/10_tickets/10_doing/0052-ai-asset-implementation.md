@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まない文書の追
 allow:
   write: [".claude/skills/00-workflow-issue-mr-driven/SKILL.md", ".claude/skills/10-task-investigation-plan/SKILL.md", ".claude/skills/10-task-investigation-exec/SKILL.md", ".claude/skills/10-task-ai-asset-design-exec/SKILL.md", ".claude/skills/10-task-ai-asset-implementation-plan/SKILL.md", ".claude/skills/10-task-overall-plan/SKILL.md", ".claude/skills/10-task-overall-summary/SKILL.md", ".claude/skills/10-task-feedback-plan/SKILL.md", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T17:28:38+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "ec41fc1"
 ---
 
 # 0052 ワークフロー・タスクスキル 8 本の SKILL.md を仕様に追随させる（S3）

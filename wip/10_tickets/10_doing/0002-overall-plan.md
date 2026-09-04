@@ -21,10 +21,10 @@ base_sha: "7d5983b"
 
 ## DoD
 
-- [ ] 起点となる issue が確定し、番号と URL が記録されている（根拠: ）
-- [ ] feature ブランチと draft MR が作られ、logs/mr.json に記録されている（根拠: ）
-- [ ] 種別とフェーズ列・各タスクの実行者・人間レビュー要否・敵対的レビュー要否の方針が全体計画書に書かれ、ユーザーの承認を得ている（根拠: ）
-- [ ] 最初の計画チケット（調査計画）が 1 枚作られている（根拠: ）
+- [x] 起点となる issue が確定し、番号と URL が記録されている（根拠: issue #50 https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50。全体計画書「対象」節）
+- [x] feature ブランチと draft MR が作られ、logs/mr.json に記録されている（根拠: ブランチ `feature-50-worktree-parallel-tickets`、draft PR #51。`logs/mr.json` に mr=51 と URL を記録済み）
+- [x] 種別とフェーズ列・各タスクの実行者・人間レビュー要否・敵対的レビュー要否の方針が全体計画書に書かれ、ユーザーの承認を得ている（根拠: 全体計画書「種別」「フェーズ列」「方針」節。承認③④を「合意の記録」に記載）
+- [x] 最初の計画チケット（調査計画）が 1 枚作られている（根拠: `wip/10_tickets/00_todo/0003-investigation-plan.md`）
 
 ## 作業内容
 

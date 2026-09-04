@@ -352,7 +352,7 @@
       <tr><td>名前の食い違い</td><td>0 件。<code>attachment-comment.template.md</code> は現行仕様に無く、<code>summary-section.template.md</code> として作った</td></tr>
       <tr><td><code>boundary.sh</code> の機械テスト</td><td><code>BD-T01</code>〜<code>BD-T13</code> の 13 件・アサーション 74 件が PASS（<code>run-tests.sh --filter '*test_boundary*'</code> → <code>OK: 1 本 / 13 件</code>）</td></tr>
       <tr><td><code>boundary.sh</code> の終了コード</td><td>成功 0 / 前提未充足 1（BD001〜BD005）/ 引数・環境の誤り 2。最終行は <code>OK:</code> または <code>BDxxx:</code></td></tr>
-      <tr><td>全件テスト（回帰）</td><td>0025 の時点で <code>OK: 26 本 / 178 件</code>。26 ファイルすべて PASS</td></tr>
+      <tr><td>全件テスト（回帰）</td><td>0026 の時点で <code>OK: 27 本 / 187 件</code>。27 ファイルすべて PASS（完了検査の切り出しの後も <code>test_ticket.sh</code> が 117 アサーション全通過）</td></tr>
       <tr><td><code>finalize.sh</code> の機械テスト</td><td><code>FN-T01</code>〜<code>FN-T09</code> の 9 件・アサーション 38 件が PASS。実行時間 44 秒</td></tr>
       <tr><td>完了検査の二重実装</td><td>0 件。<code>ticket.sh</code> と <code>finalize.sh</code> が同じ <code>ticket_check_completion</code> を source する</td></tr>
       <tr><td>テスト ID の総数</td><td>165 → 178（<code>BD-T</code> 13 件）→ <strong>187</strong>（<code>FN-T</code> 9 件）</td></tr>

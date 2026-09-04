@@ -157,7 +157,7 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 | 名前の食い違い | 0 件。`attachment-comment.template.md` は現行仕様に無く、`summary-section.template.md` として作った |
 | `boundary.sh` の機械テスト | `BD-T01`〜`BD-T13` の 13 件・アサーション 74 件が PASS（`run-tests.sh --filter '*test_boundary*'` → `OK: 1 本 / 13 件`） |
 | `boundary.sh` の終了コード | 成功 0 / 前提未充足 1（BD001〜BD005）/ 引数・環境の誤り 2。最終行は `OK:` または `BDxxx:` |
-| 全件テスト（回帰） | 0025 の時点で `OK: 26 本 / 178 件`。26 ファイルすべて PASS |
+| 全件テスト（回帰） | 0026 の時点で `OK: 27 本 / 187 件`。27 ファイルすべて PASS（完了検査の切り出しの後も `test_ticket.sh` が 117 アサーション全通過） |
 | `finalize.sh` の機械テスト | `FN-T01`〜`FN-T09` の 9 件・アサーション 38 件が PASS（`run-tests.sh --filter '*test_finalize*'`）。実行時間 44 秒 |
 | 完了検査の二重実装 | 0 件。`ticket.sh` と `finalize.sh` が同じ `ticket_check_completion` を source する |
 | テスト ID の総数 | 165 → 178（`BD-T`13 件）→ **187**（`FN-T`9 件） |

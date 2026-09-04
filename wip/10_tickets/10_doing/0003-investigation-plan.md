@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり（work-defaults.m
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T22:19:24+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "8c68128"
 ---
 
 # 0003 調査計画: worktree 上での機構の挙動と並列実施の費用対効果

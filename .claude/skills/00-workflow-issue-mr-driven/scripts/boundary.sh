@@ -48,8 +48,8 @@ USAGE
 
 result_ok() { log_info "OK: $1"; printf 'OK: %s\n' "$1"; exit 0; }
 result_ng() { log_warn "${SCRIPT_PREFIX}$1: $2"; printf '%s%s: %s\n' "$SCRIPT_PREFIX" "$1" "$2"; exit "$3"; }
-# 引数・環境の誤り。仕様の識別子表に専用番号が無いため BD001 を終了コード 2 で使う（作業ログ「仕様からの逸脱」に記録）
-arg_ng() { result_ng 001 "引数・環境の誤り — $1" 2; }
+# 引数・環境の誤り（BD006・終了コード 2）。前提未充足（BD001〜BD005・終了コード 1）とは別に扱う
+arg_ng() { result_ng 006 "引数・環境の誤り — $1" 2; }
 
 now_iso() { local ts; printf -v ts '%(%Y-%m-%dT%H:%M:%S%z)T' -1; printf '%s:%s' "${ts:0:22}" "${ts:22}"; }
 cur_branch() { git rev-parse --abbrev-ref HEAD 2>/dev/null || true; }

@@ -3,7 +3,7 @@ type: ticket
 ticket_type: overall-summary
 predecessors: ["0054", "0056"]
 executor: main
-human_review: {required: true, reason: "片付けと draft 解除の前の最終確認（基準どおり）"}
+human_review: {required: false, reason: "全体計画書「止まってよい場面」の 2026-09-04 の合意で draft 解除の直前の人間レビューを削除した（人間レビューの代わりに切れ目ごとの敵対的レビューを入れているため）。マージは引き続き人間が行う"}
 adversarial_review: {required: false, reason: "基準どおり（全体まとめは最終確認を人間が行う）"}
 allow:
   write: ["wip/**", "logs/**"]

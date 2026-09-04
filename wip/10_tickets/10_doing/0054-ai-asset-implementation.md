@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まず、全件テス
 allow:
   write: [".claude/skills/**", ".claude/rules/**", "wip/**", "logs/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-04T17:50:01+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1728adc"
 ---
 
 # 0054 参照更新と全件テスト（S5）

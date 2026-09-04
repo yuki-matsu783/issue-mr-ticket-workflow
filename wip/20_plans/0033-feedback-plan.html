@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0033 フィードバック計画 — 記録 38 枚の棚卸しと設計反映の確定</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">フィードバック計画 / フェーズ 5</p>
+  <h1 id="title" data-required>0033 フィードバック計画 — 記録 38 枚の棚卸しと設計反映の確定</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#records">確認した記録の範囲</a></li>
+      <li><a href="#candidates">改善候補の一覧</a></li>
+      <li><a href="#agreement">合意</a></li>
+      <li><a href="#issues">起票した issue</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#next-phase">後続フェーズの決定</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
+    <div><dt>チケット</dt><dd>0033</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-04</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">issue #10 の主作業で積み上がった記録を 1 回だけ棚卸しし、「次に何をするか」を確定する。受け入れ条件 <strong>A5</strong>（実装で判明した仕様との食い違いを仕様書へ書き戻し、経緯を DDR に残す）に直接効く。<strong>A5 だけが実装フェーズの終わりで未達</strong>であり、このフェーズが後続を起こさなければ issue が閉じない。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li>改善候補は <strong>29 件</strong>。うち <strong>21 件</strong>をこの MR で対応（仕様への書き戻し）、<strong>8 件</strong>を別 issue 候補として残す（ヘッドレスのため起票しない）</li>
+      <li>後続フェーズは <strong>AI アセット設計</strong>（書き戻し）を含める。設計反映・追加実装・調査は含めない</li>
+      <li>最初の計画チケット <code>0041</code>（<code>ai-asset-design-plan</code>）を 1 枚だけ起こす</li>
+    </ul>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>区分</th><th>内容</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td>根拠とする入力</td><td>完了・取り消し済みチケット 38 枚の作業ログ（固定見出しの全項目）、<code>wip/30_reports/</code> の 6 本、MR #35 のコメント・レビュー、全体計画書のフェーズ列と受け入れ条件</td><td>記憶からは書かない（入力は記録だけ）</td></tr>
+      <tr><td>扱う対象</td><td>改善候補の洗い出し・分類・対応先の決定、後続フェーズの要否、最初の計画チケット 1 枚の作成</td><td>—</td></tr>
+      <tr><td>扱わない対象</td><td>改善そのものの実施、別 issue の起票</td><td>実施は後続フェーズ / 起票はヘッドレスでは行わない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="records">
+  <h2>確認した記録の範囲</h2>
+  <p>作業ログは<strong>チケット番号順に固定見出しを機械的になぞった</strong>。抽出は <code>awk</code> で見出し単位に切り出し、全件を読んだ。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>種類</th><th>範囲</th></tr></thead>
+    <tbody>
+      <tr><td>チケットの作業ログ</td><td>完了 36 枚（0001〜0017・0019〜0032・0035〜0040）+ 取り消し 2 枚（0018・0034）の計 38 枚。読んだ見出しは「うまくいかなかったこと」「仕様からの逸脱」「判断と根拠」「拒否・確認・迂回の記録」「スコープ外で見つけたこと」「AI アセットに反映すべき内容」</td></tr>
+      <tr><td>レポート</td><td><code>0003</code> / <code>0004</code> / <code>0005</code> / <code>0006</code> の調査 4 本、<code>0011</code> の設計 1 本、<code>0024</code> の実装 1 本（「想定と異なった点」「残課題」R1〜R12）</td></tr>
+      <tr><td>MR のレビュー指摘</td><td><code>gh api --paginate</code> で comments 6 件（すべて自分が投稿した切れ目の証跡）・reviews 0 件・review comments 0 件。<strong>人間のレビュー指摘は 0 件</strong>で、敵対的レビュー 2 回（12 件 + 16 件）が代替した。その 28 件は追加チケットで反映済みなので候補にしない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="candidates">
+  <h2>改善候補の一覧</h2>
+  <p>観点は 足りなかった / 邪魔だった / 無かった / 問題なし。類型は (a) アセットが無かった / (b) あったが誤っていた / (c) あったが罠が書かれていなかった / (d) あったのに辿り着けなかった。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>候補</th><th>出どころ</th><th>観点</th><th>類型</th><th>いつ効くか × 守らせ方</th><th>対応先</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>workflow-guard</code> 仕様の制御方式 6 に、削除だけの段の判定（置き場 or 宣言の一致・ディレクトリ・展開前の文字列・進行状態のファイル）を 0036 + 0038 の最終形で 1 節にまとめ、テスト表に <code>WG-T18</code> を足す</td><td>0031・0036・0038</td><td>足りなかった</td><td>(b)</td><td>操作のたび × 機械的に拒否する</td><td>この MR</td></tr>
+      <tr><td>2</td><td><code>logs/merge-state.json</code> のスキーマに <code>branch</code> を足す</td><td>0035・0037・0039</td><td>足りなかった</td><td>(b)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>3</td><td><code>finalize.sh --linked</code> の前提（<code>state=recorded</code> のときだけ）を仕様に書く</td><td>0035</td><td>足りなかった</td><td>(b)</td><td>スキル呼び出し時 × 機械的に拒否する</td><td>この MR</td></tr>
+      <tr><td>4</td><td><code>is_draft</code> の 3 値化・未知の <code>state</code> の再導出・時刻を読めない指摘は落とさない、の 3 つを仕様に書く（「判定できないときどちらに倒すか」）</td><td>0035・0037</td><td>足りなかった</td><td>(a)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>5</td><td><code>boundary.sh</code> の <code>before_request</code> に「完了したチケットが 1 件以上ある」を足す</td><td>0027・R6</td><td>足りなかった</td><td>(b)</td><td>操作のたび × 機械的に拒否する</td><td>この MR</td></tr>
+      <tr><td>6</td><td>過渡期の記述（「現行アセットとの差分」の表、<code>session-start</code> の「実装フェーズで直す」）を正史から落とす</td><td>0027・R5</td><td>邪魔だった</td><td>(b)</td><td>スキル呼び出し時 × 読ませる</td><td>この MR</td></tr>
+      <tr><td>7</td><td>提供コマンドの識別子表に「引数・環境の誤り」（終了 2）の番号を必ず 1 つ置く規約にし、<code>BD</code> と <code>FN</code> に新設する</td><td>0025・0026・R3</td><td>足りなかった</td><td>(a)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>8</td><td><code>10-task-feedback-plan</code> 仕様の類型の文言を機構の定義に揃える</td><td>0040</td><td>足りなかった</td><td>(b)</td><td>スキル呼び出し時 × 読ませる</td><td>この MR</td></tr>
+      <tr><td>9</td><td><code>20-common-step-ai-asset-creator</code> の標準構成に「テンプレートを共有する場合 <code>assets/</code> は持たない」を明記する</td><td>0029</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 読ませる</td><td>この MR</td></tr>
+      <tr><td>10</td><td>AI アセット実装計画の許可範囲の書き方に「削除を伴う作業は、消す対象を <code>allow.write</code> に含める」を添える</td><td>0036</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>11</td><td>テストの作法に「負のコントロールは環境（タイムゾーン・ロケール）が変わっても落ちるか確かめる」を足す</td><td>0039</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>12</td><td>「移設」の完了条件に「参照も移す」を含める</td><td>0040</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>13</td><td><code>run-tests.sh --filter</code> はパス全体のグロブであることを仕様と DoD の書き方（<code>'*test_&lt;名前&gt;*'</code>）に残す</td><td>0025・0026</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>14</td><td>計画スキル共通に「DoD に書くコマンドは、書く前に <code>--help</code> か仕様でオプションの形を確かめる」を足す</td><td>0006</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>15</td><td>eval の表の階層を揃える（既存 5 本は <code>###</code>、新規 19 本は <code>##</code>）</td><td>0023</td><td>足りなかった</td><td>(b)</td><td>スキル呼び出し時 × 読ませる</td><td>この MR</td></tr>
+      <tr><td>16</td><td><code>20-common-step-report-view</code> に「OUT ひな形の節 → HTML の節」の対応表と、md/html の自己チェックの数え方を書く</td><td>0007・0010・0015</td><td>足りなかった</td><td>(a)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>17</td><td><code>10-task-ai-asset-design-exec</code> に 4 手順を足す（frontmatter の見直し / 効く箇所を先に <code>grep</code> / 番号を変えたら全文検索 / 着手時に <code>ai-asset-design-docs</code> を読む）</td><td>0011・0012・0019・0021・0022</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>18</td><td>敵対的レビュアーの既定モデルが使えないとき（API の 529 等）の代替の決め方を書く</td><td>0022</td><td>足りなかった</td><td>(a)</td><td>レビュー時 × 読ませる</td><td>この MR</td></tr>
+      <tr><td>19</td><td>敵対的レビューの観点に「仕様書が求める必須節が実在するか」を足す</td><td>0017</td><td>足りなかった</td><td>(a)</td><td>レビュー時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>20</td><td>サブエージェントに渡す文脈に<strong>現在のブランチ名</strong>を含めることを <code>00-workflow-issue-mr-driven</code> 仕様にも書く</td><td>0009</td><td>足りなかった</td><td>(c)</td><td>スキル呼び出し時 × 手順化する</td><td>この MR</td></tr>
+      <tr><td>21</td><td><code>markdown-docs</code> ルールが存在しない（2 本のルールが正として参照している）</td><td>0024・R1</td><td>無かった</td><td>(a)</td><td>常時読込 × 読ませる（<strong>常時読込を 1 本増やすコスト</strong>）</td><td>別 issue</td></tr>
+      <tr><td>22</td><td>設計文書検査の機械化（対応表の行数一致・規約節の見出し・番号参照・旧名 0 件）。7 本中 7 本が違反していた</td><td>0013・0019・0020・0022</td><td>無かった</td><td>(a)</td><td>操作のたび × 機械的に拒否する</td><td>別 issue</td></tr>
+      <tr><td>23</td><td><code>run-tests.sh</code> に ID 指定の部分実行が無く、全件が 10 分前後かかる</td><td>0006・0008・0032</td><td>足りなかった</td><td>(a)</td><td>操作のたび × 手順化する</td><td>別 issue</td></tr>
+      <tr><td>24</td><td>GitLab 経路が fixture でも実機でも未検証</td><td>0025・0026・0039・R4/R12</td><td>足りなかった</td><td>(a)</td><td>操作のたび × 機械的に拒否する</td><td>別 issue</td></tr>
+      <tr><td>25</td><td><code>workflow-guard</code> の残りの穴（<code>cp</code> / <code>mv</code> の宛先の展開前の文字列、<code>rmdir</code> が <code>WF204</code>）</td><td>0036・0038・R11</td><td>足りなかった</td><td>(c)</td><td>操作のたび × 機械的に拒否する</td><td>別 issue</td></tr>
+      <tr><td>26</td><td><code>ticket.sh</code> の使い勝手 3 件（<code>--dod</code> の根拠欄が二重・繰り返しフラグを黙って捨てる・<code>--help</code> が無い）</td><td>0011・0037・0007</td><td>邪魔だった</td><td>(c)</td><td>操作のたび × 機械的に拒否する</td><td>別 issue</td></tr>
+      <tr><td>27</td><td><code>wip/tmp/</code> の使い捨てスクリプトが <code>WF204</code> で実行できない</td><td>0032</td><td>邪魔だった</td><td>(a)</td><td>操作のたび × 機械的に拒否する</td><td>別 issue</td></tr>
+      <tr><td>28</td><td>eval の要否の基準（機械テストで代えられるものは不要か）を <code>20-common-step-ai-asset-creator</code> 仕様に明記する。スクリプトを持つ共通ステップ 4 本が eval を持たない理由がどこにも無い</td><td>0003・0011 の残課題</td><td>無かった</td><td>(a)</td><td>スキル呼び出し時 × 読ませる</td><td>この MR</td></tr>
+      <tr><td>29</td><td>エージェント定義の <code>model</code> を既知の一覧と突き合わせる機械検査（存在しないモデル名は起動時に初めて失敗する）</td><td>0014・R10</td><td>無かった</td><td>(a)</td><td>操作のたび × 機械的に拒否する</td><td>別 issue</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>対応しないもの</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>候補</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>PR #12 が片付けなしでマージされ main に前 issue の作業領域が残っていた（0001）</td><td><code>finalize.sh</code> の実装（0026）と片付け段階で解消済み</td></tr>
+      <tr><td><code>logs/review-history.jsonl</code> に読む実装が無い（0004）</td><td>仕様どおり（振り返りの材料として書くだけ）。読み手を作るのは受け入れ条件の外</td></tr>
+      <tr><td><code>10-task-ai-asset-design-exec</code> の <code>AS-E01</code> が例文中の架空 ID（0003）</td><td>0023 で 19 本の eval を定義したときに実 ID と区別が付く形になった</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="agreement">
+  <h2>合意</h2>
+  <p><strong>ヘッドレス実行</strong>（ユーザーの応答を待たない実行形態）のため、既定の提案どおりに決めた。人間は MR のコメントを読んで後から差し戻せる。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>決定</th><th>合意の相手・日時</th></tr></thead>
+    <tbody>
+      <tr><td>1〜20・28</td><td>この MR で対応（AI アセット設計フェーズで仕様に書き戻す）</td><td>既定（ヘッドレス）・2026-09-04</td></tr>
+      <tr><td>21〜27・29</td><td>別 issue（<strong>起票はしない</strong>。内容と理由を残す）</td><td>既定（ヘッドレス）・2026-09-04</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box">
+    <p class="label">分け方の理由</p>
+    <p><strong>1〜20</strong> はすべて「この issue で作った機構の仕様と実装の食い違い」か「この issue の作業で判明した手順の穴」で、受け入れ条件 A5 が求める書き戻しそのもの。文書の変更だけで閉じ、アセット本体の振る舞いを変えない。<strong>21〜27</strong> は新しいアセット（ルール 1 本・検査スクリプト）の作成、提供コマンドの機能追加、GitLab の検証環境を伴う。issue #10 の受け入れ条件に含まれず、この MR に入れると差分が主題からずれる。</p>
+  </div>
+</section>
+
+<section id="issues">
+  <h2>起票した issue</h2>
+  <p>ヘッドレス実行では<strong>別 issue の起票を行わない</strong>（取り消せない外部への副作用のため）。次のセッションで人間が判断する材料として残す。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>候補</th><th>issue</th><th>URL</th></tr></thead>
+    <tbody>
+      <tr><td>21 <code>markdown-docs</code> ルールの新設</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+      <tr><td>22 設計文書検査の機械化</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+      <tr><td>23 <code>run-tests.sh</code> の部分実行と実行時間</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+      <tr><td>24 GitLab 経路の検証</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+      <tr><td>25 <code>workflow-guard</code> の残りの穴</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+      <tr><td>26 <code>ticket.sh</code> の使い勝手 3 件</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+      <tr><td>27 <code>wip/tmp/</code> のスクリプトが実行できない</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+      <tr><td>29 エージェント定義の <code>model</code> の機械検査</td><td>未起票（ヘッドレスのため）</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>AI アセット設計計画（0041）</h3>
+      <p>候補 1〜20 を反映先の文書ごとにまとめ、設計チケット群と全体まとめチケットを起こす。反映先は <code>10_spec/hooks/20-PreToolUse/workflow-guard.md</code>、<code>10_spec/skills/</code> の 6 本前後、<code>10_spec/agents/adversarial-reviewer.md</code>、<code>rules/work-defaults.md</code> の要件と、経緯を残す DDR。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>AI アセット設計（S1 が枚数を決める）</h3>
+      <p>仕様への書き戻しと DDR。アセット本体には触らない（許可範囲は <code>.claude/docs/**</code>）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>全体まとめ</h3>
+      <p>統括レポート、MR 本文の最終整形（成果物リンク一覧）、片付け、draft 解除。<code>finalize.sh release</code> を初めて自分に対して使う。</p>
+    </li>
+  </ol>
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>S1（0041）</td><td><code>wip/**</code></td><td><code>read</code> / <code>remote-read</code></td></tr>
+      <tr><td>S2（設計）</td><td><code>.claude/docs/**</code> / <code>wip/**</code></td><td><code>read</code> / <code>remote-read</code></td></tr>
+      <tr><td>S3（全体まとめ）</td><td><code>wip/**</code> / <code>logs/**</code></td><td><code>read</code> / <code>remote-read</code> / <code>remote-write:push</code> / <code>remote-write:mr-update</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next-phase">
+  <h2>後続フェーズの決定</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>フェーズ</th><th>採否</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>AI アセット設計（<code>ai-asset-design-plan</code> → <code>ai-asset-design</code>）</td><td><strong>含める</strong></td><td>候補 1〜20 がすべて <code>.claude/docs/</code> への書き戻しで、受け入れ条件 A5 が「仕様に反映されていること」を求める。全体計画のフェーズ 6 の見込みどおり</td></tr>
+      <tr><td>設計反映（<code>design-feedback-*</code>）</td><td>含めない</td><td>対象はアプリルートの <code>docs/</code> 配下で、この issue は <code>.claude/docs/</code> しか触っていない</td></tr>
+      <tr><td>AI アセット実装・テスト（追加）</td><td>含めない</td><td>候補 1〜20 は文書の変更だけで閉じる。本体の変更を伴う候補（25）は別 issue に送った</td></tr>
+      <tr><td>調査</td><td>含めない</td><td>書き戻す内容は各チケットの作業ログに逸脱として具体で残っており、新たに読み取る問いが無い</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>未着手チケットの見直し</strong>: この時点の未着手は 0 枚。範囲・実行者・レビュー要否を見直す対象は無い。</p>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>確かめること</th><th>方法</th><th>期待値</th></tr></thead>
+    <tbody>
+      <tr><td>候補の洗い出しに漏れが無い</td><td><code>awk</code> で全チケットの「AI アセットに反映すべき内容」「スコープ外で見つけたこと」「仕様からの逸脱」を抽出し、候補表の出どころ欄と突き合わせる</td><td>抽出された項目のうち、候補表・対応しない表・反映済み（敵対的レビューの 28 件）のどれかに現れないものが 0 件</td></tr>
+      <tr><td>MR のレビュー指摘を取りこぼしていない</td><td><code>gh api --paginate</code> で comments / reviews / review comments の 3 経路</td><td>人間の指摘 0 件（自分の切れ目の証跡 6 件のみ）</td></tr>
+      <tr><td>後続チケットが 1 枚起きている</td><td><code>ls wip/10_tickets/00_todo/</code></td><td><code>0041-ai-asset-design-plan.md</code> が 1 枚</td></tr>
+      <tr><td>受け入れ条件 A5 の担い手が決まっている</td><td>本計画書の「後続フェーズの決定」</td><td>AI アセット設計フェーズが「含める」</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>内容</th><th>先行</th><th>実行者</th><th>人間レビュー</th><th>敵対的レビュー</th></tr></thead>
+    <tbody>
+      <tr><td>0041</td><td><code>ai-asset-design-plan</code></td><td>候補 1〜20 の反映先（要件・仕様・DDR）を文書ごとにまとめ、設計チケット群と全体まとめチケットを起こす</td><td>0033</td><td>メインエージェント</td><td>不要</td><td>不要</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <p class="label">基準との差分</p>
+    <p><code>work-defaults</code> の既定は <code>ai-asset-design-plan</code> の実行者が「サブエージェント（opus）」だが、<strong>メインエージェント</strong>にする。この issue では提供コマンドが完成したばかりで、チケットの状態遷移をサブエージェントに任せる運用（<code>task-executor</code> の起動）をまだ一度も通していない。全体計画が置いた「提供コマンドが未完成の間は全種類をメインエージェントで実施する」という一時的な事情の継続である。レビュー要否は基準どおり（どちらも不要）。</p>
+  </div>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>壊し得るもの</th><th>影響</th><th>戻し方</th></tr></thead>
+    <tbody>
+      <tr><td>正史（<code>.claude/docs/</code> の要件・仕様）</td><td>書き戻しの誤りが後続の実装の判断を狂わせる</td><td>設計チケットの基準点（<code>base_sha</code>）に戻す。書き戻しは文書のみでアセット本体の振る舞いを変えない</td></tr>
+      <tr><td>アセット本体を誤って触る</td><td>機構の振る舞いが変わる</td><td>各設計チケットの <code>allow.write</code> は <code>.claude/docs/**</code> なので、外への変更はフックが <code>WF201</code> で拒否する</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li>候補 21〜27（別 issue）。<strong>起票していない</strong>ので次のセッションで人間が判断する。放置すると失われるため、MR 本文の統括と <code>boundary.sh note</code> にも同じ一覧を残す</li>
+    <li>敵対的レビューの指摘 28 件（1 回目 12 件・2 回目 16 件）。すべて追加チケットで反映済みなので候補にしていない。ただし<strong>そのうち仕様に書き戻すべきもの</strong>（候補 1〜5）は候補表に入れている</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>保留した点</th><th>決める時期・場所</th></tr></thead>
+    <tbody>
+      <tr><td>P1</td><td>候補 21〜27 を実際に issue として起票するか（ヘッドレスのため未起票）</td><td>次のセッションで人間が判断。全体まとめの MR 本文に一覧を残す</td></tr>
+      <tr><td>P2</td><td>候補 15（eval の表の階層）をどちらに揃えるか。既存を動かすと 5 本の仕様書に差分が出る</td><td>0041（AI アセット設計計画）</td></tr>
+      <tr><td>P3</td><td>候補 7 の新しい識別子の番号（<code>BD006</code> / <code>FN004</code> を足すか、既存を振り直すか）。振り直しは <code>BD-T16</code> の期待値に波及する</td><td>0041</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "同じタスクの敵対的レビ
 allow:
   write: ["wip/**", "logs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T18:19:31+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "dffadfd"
 ---
 
 # 0056 敵対的レビューの指摘 5 件を反映する

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0004 調査結果 — worktree 上でのフックの作業ツリー解決と、WIP・宣言範囲・差分判定の健全性</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査結果レポート / 調査</p>
+  <h1 id="title" data-required>0004 調査結果 — worktree 上でのフックの作業ツリー解決と、WIP・宣言範囲・差分判定の健全性</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 4</span>
+    <span class="chip stop">✕問題 1</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 作業ツリーは cwd から上向きに解決される</a></li>
+          <li><a href="#f2"><span class="mk warn">△</span> 2. 全参照 81 行の判定</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 6 本のフックの判定先</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. logs/ が複製されない帰結</a></li>
+          <li><a href="#f5"><span class="mk stop">✕</span> 5. 作業ツリーをまたぐ書き込み</a></li>
+          <li><a href="#f6"><span class="mk warn">△</span> 6. 仕様・DDR とコードの食い違い</a></li>
+          <li><a href="#f7"><span class="mk warn">△</span> 7. 既存テストの範囲と残余</a></li>
+          <li><a href="#f8"><span class="mk good">◎</span> 8. 実測手順（人間が実行）</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
+    <div><dt>チケット</dt><dd>0004（観点 A）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-04</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">0004 まで（観点 A）。答えは「入力 JSON の <code>cwd</code> が worktree を指しており、かつその worktree が <code>HOOK_ROOT</code> との相互参照を保っているかぎり、6 本すべてが worktree 側の <code>wip/</code> と <code>logs/</code> で判定する」。DDR <code>i0009-55</code> の言う静かな無効化は <code>__hc_resolve_worktree</code>（<code>hook-common.sh:319-331</code>）と <code>hook_read_input</code> からの呼び出し（<code>:369</code>）で塞がれている。ただし条件と穴があり、参照 81 行のうち取り違え・疑いが 4 件、作業ツリーをまたぐ絶対パスでは進行状態ファイル保護が効かない。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>4</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><a href="#f5">f5</a> の位置づけ。作業ツリーをまたぐ絶対パス指定で進行状態ファイル保護がすり抜けることを、受け入れ条件 A1 の「動かない箇所」として扱うか、全体計画書の保留 P2（機構の不具合として別 issue）へ回すか決めきれていない。並列を採らなくても worktree を使えば踏むので前者に寄せたが、判断は 0009 / 0010 に委ねる。</li>
+        <li><a href="#f2">f2</a> の X2（<code>session-start.sh:74</code> が <code>boundary.sh</code> を <code>HOOK_WORKTREE</code> から取る）。仕様 §2「スクリプトは常に <code>HOOK_ROOT</code>」に反するが、原則どおりに直すと本流の <code>wip/</code> を読んで現在地が壊れる。原則が例外を要するのか、原則の書き方が粗いのかを設計で決めてほしい。</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇判断が欲しい</p>
+      <p class="sub">決めた方針の承認 / 決められない点の判断</p>
+      <ul>
+        <li>取り違えの判定基準を「①スクリプト・設定の実体（<code>HOOK_ROOT</code> が正）か、②<code>wip/</code> <code>logs/</code> <code>git</code> の状態（<code>HOOK_WORKTREE</code> が正）か」の 2 択に固定し、定義行・コメント・テストの設定を対象外にした。</li>
+        <li>実測手順を「Claude を worktree に入れる」実測と「<code>cwd</code> を worktree にしたフックの単体実行」の 2 段に分け、後者を主にした（<a href="#f8">f8</a>）。前者は <code>git worktree add</code> も <code>cd</code> も WF204 で拒否されるため AI からは組み立てられない。</li>
+        <li>実測の識別子に <code>main</code> 基点の作業ツリー W1（作業中チケット 0 枚）を使う設計にした。本流と同内容の作業ツリーでは「worktree 側を見た」と「本流を見た」が同じ出力になり区別できないため。</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>参照の総数 81 行・90 箇所は <code>grep -rn</code> / <code>grep -rno</code> で機械的に数えた値。</li>
+        <li><code>logs/</code> が <code>.gitignore</code> され（<code>git ls-files logs/</code> が 0 件）、<code>wip/</code> は追跡されている（19 件）。</li>
+        <li>ロックの置き場が <code>$HOOK_WORKTREE/logs/locks/&lt;name&gt;.lock</code> であること（<code>hook-common.sh:604 / 624 / 634</code>）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>Claude が worktree に入ったとき <code>cwd</code> が各イベントで本当に worktree を指すか — 原文の確認には <code>web</code> が要るが 0004 の <code>allow.ops</code> は <code>read</code> / <code>remote-read</code> のみ。DDR <code>i0009-55</code> の引用を二次資料として使った。引き取り先: 0006 / 0009。</li>
+      <li><code>EnterWorktree</code> / <code>ExitWorktree</code> の実在と、Claude が worktree に入る手段 — 外部仕様。引き取り先: 0006 / 0009。</li>
+      <li>Skill ツールが読む <code>SKILL.md</code> が本流と worktree のどちらの実体か — 外部仕様。これが決まるまで <code>session-start.sh:140</code> の正誤は確定しない。引き取り先: 0006 / 0010。</li>
+      <li><code>git worktree add</code> が実際に書く <code>.git</code> と <code>gitdir</code> の中身 — <code>git worktree</code> は WF204 で拒否され実行できない。引き取り先: 0009（実測 P0）。</li>
+      <li>6 本のフックを <code>cwd</code> = worktree で走らせた実際の出力 — 同上。引き取り先: 0009（実測 P1〜P7）。</li>
+      <li><code>logs/</code> が無い worktree で提供コマンド 5 本が何を読みどう振る舞うか — 観点 B の担当範囲。引き取り先: 0005。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>対象コミット: <code>feature-50-worktree-parallel-tickets</code> の <code>65d908e</code>（チケット 0004 の基準点は <code>9721416</code>）。</li>
+    <li>実行したのは読み取りのコマンドだけ（<code>grep -rn</code> / <code>sed -n</code> / <code>git ls-files</code> / <code>git ls-tree</code> / <code>git rev-parse</code> / <code>git log -S</code>）。書き込みは <code>wip/30_reports/</code> と <code>wip/tmp/</code> のみ。</li>
+    <li>参照の数え方: 行数 81、箇所数 90（<code>HOOK_ROOT</code> 28 / <code>HOOK_WORKTREE</code> 62）、テストを除いた本体 71 行。</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">作業ツリーは cwd から上向きに解決され、相互参照の検査を通ったときだけ worktree 側になる <span class="chip good">◎良</span> <span class="basis">根拠: hook-common.sh:17-19 / 31 / 293-316 / 319-331 / 369</span></h3>
+      <p>すべての判定の入口は <code>hook-common.sh</code> の 4 か所である。<code>HOOK_ROOT</code> は <code>BASH_SOURCE</code> から 3 段上がって決まり（<code>:17-19</code>）、フックは <code>settings.json</code> に <code>${CLAUDE_PROJECT_DIR}</code> 基準の絶対パスで登録されているので常に本流を指す。<code>HOOK_WORKTREE</code> の初期値は <code>HOOK_ROOT</code>（<code>:31</code>）で、<code>__hc_resolve_worktree</code>（<code>:319-331</code>）が <code>cwd</code> から上向きに <code>.claude</code> を探し、<code>__hc_is_worktree_of</code> を通った候補だけを採る。呼び出しは <code>hook_read_input</code> の末尾 1 か所（<code>:369</code>）で、6 本とも <code>hook_read_input</code> を呼ぶため自動的にこの解決を通る。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>行</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>hook-common.sh:17-19</td><td>HOOK_ROOT は BASH_SOURCE から lib → hooks → .claude → ルートと 3 段上がって決まる（環境変数 HOOK_ROOT / LOGGER_ROOT があればそれを優先）。フックは settings.json に ${CLAUDE_PROJECT_DIR} 基準の絶対パスで登録されている（tests/fixtures/settings-hooks.expected.tsv 全 16 行）ので、HOOK_ROOT は常にセッション開始時のプロジェクトルート = 本流になる</td></tr>
+          <tr><td>hook-common.sh:31</td><td>初期値は HOOK_WORKTREE = HOOK_ROOT（解決に失敗したら本流に倒れる）</td></tr>
+          <tr><td>hook-common.sh:319-331</td><td>__hc_resolve_worktree。HOOK_CWD が空、または HOOK_ROOT と同じなら即戻る。違えば cwd から上向きに .claude を探し、__hc_is_worktree_of を通った候補だけを採る。git を呼ばない（DDR i0009-22）</td></tr>
+          <tr><td>hook-common.sh:369</td><td>呼び出しは hook_read_input の末尾 1 か所だけ。hook_read_input を呼ぶフックはすべて自動的にこの解決を通る（6 本とも呼んでいる）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><code>__hc_is_worktree_of</code>（<code>:293-316</code>）が要求するのは相互参照の双方向で、(1) 候補直下の <code>.git</code> がファイルでその <code>gitdir:</code> が <code>&lt;HOOK_ROOT&gt;/.git/worktrees/</code> 配下を指し実在すること、(2) その <code>gitdir</code> が候補の <code>.git</code> を指し返すこと。したがって「<code>.claude</code> を持つだけの別ディレクトリ」「stale な登録だけが残る場所」「<code>git worktree repair</code> 前の作業ツリー」は本流に倒れる（安全側）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ grep -n "__hc_resolve_worktree\|HOOK_CWD" .claude/hooks/
+lib/hook-common.sh:25   ... HOOK_CWD=""; ...
+lib/hook-common.sh:319  __hc_resolve_worktree() {
+lib/hook-common.sh:323    [[ -n "${HOOK_CWD:-}" ]] || return 0
+lib/hook-common.sh:359    ... HOOK_CWD="${REPLY_FIELDS[2]}" ...
+lib/hook-common.sh:369    __hc_resolve_worktree</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>フックは worktree 側の <code>wip/</code> と <code>logs/</code> を見て判定する。ただし「<code>cwd</code> が worktree を指す」「相互参照が双方向に成立する」の 2 条件が要り、どちらかが欠けると黙って本流側の状態で判定する。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">2</span>
+      <h3 id="f2">HOOK_ROOT / HOOK_WORKTREE の全参照 81 行の判定 — 取り違え・疑い 4 件 <span class="chip warn">△注意</span> <span class="basis">根拠: grep -rn の全出力 81 行</span></h3>
+      <p>全出力を 5 群に割った。<b>W</b> = 作業ツリーの状態を指す（<code>HOOK_WORKTREE</code> が正・現状も一致）、<b>R</b> = スクリプト・設定の実体（<code>HOOK_ROOT</code> が正・現状も一致）、<b>C</b> = 定義行とコメント、<b>X</b> = 取り違えとその疑い、<b>T</b> = テストの設定。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>群</th><th>件数</th></tr></thead>
+        <tbody>
+          <tr><td>W（作業ツリーの状態。一致）</td><td>55</td></tr>
+          <tr><td>R（置き場。一致）</td><td>8</td></tr>
+          <tr><td>C（定義・コメント）</td><td>4</td></tr>
+          <tr><td><b>X（取り違え・疑い）</b></td><td><b>4</b></td></tr>
+          <tr><td>T（テストの設定）</td><td>10</td></tr>
+          <tr><td>合計</td><td><b>81</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>ファイル:行</th><th>参照</th><th>指しているもの</th><th>正</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>00-SessionStart/session-start.sh:47</td><td>HOOK_WORKTREE</td><td>logs/sessions の掃除</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:66</td><td>HOOK_WORKTREE</td><td>logs/&lt;状態ファイル&gt; の破損検査</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:74</td><td>HOOK_WORKTREE</td><td>boundary.sh のパス</td><td>置き場（原則は HOOK_ROOT）</td><td><b>X</b></td></tr>
+          <tr><td>00-SessionStart/session-start.sh:113</td><td>HOOK_WORKTREE</td><td>git branch --show-current</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:115</td><td>HOOK_WORKTREE</td><td>logs/mr.json の存在</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:116</td><td>HOOK_WORKTREE</td><td>logs/mr.json の issue</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:117</td><td>HOOK_WORKTREE</td><td>logs/mr.json の url</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:120</td><td>HOOK_WORKTREE</td><td>logs/merge-state.json の存在</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:121</td><td>HOOK_WORKTREE</td><td>同 JSON の検査</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:122</td><td>HOOK_WORKTREE</td><td>同 state の取り出し</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>00-SessionStart/session-start.sh:140</td><td>HOOK_WORKTREE</td><td>.claude/skills/&lt;名前&gt;/SKILL.md の存在</td><td>置き場（HOOK_ROOT が正）</td><td><b>X</b></td></tr>
+          <tr><td>10-UserPromptSubmit/workflow-entry.sh:38</td><td>HOOK_ROOT</td><td>config/entry-skills.txt</td><td>置き場</td><td>R</td></tr>
+          <tr><td>10-UserPromptSubmit/workflow-entry.sh:143</td><td>HOOK_WORKTREE</td><td>wip/10_tickets/&lt;状態&gt; の有無</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>12-SubagentStart/subagent-start-check.sh:41</td><td>HOOK_WORKTREE</td><td>10_doing/*.md</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>12-SubagentStart/subagent-start-check.sh:42</td><td>HOOK_WORKTREE</td><td>00_todo/*.md</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>12-SubagentStart/subagent-start-check.sh:67</td><td>HOOK_ROOT</td><td>config/model-aliases.txt</td><td>置き場</td><td>R</td></tr>
+          <tr><td>13-SubagentStop/subagent-stop-check.sh:53</td><td>HOOK_WORKTREE</td><td>10_doing/*.md</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>13-SubagentStop/subagent-stop-check.sh:83</td><td>HOOK_WORKTREE</td><td>git rev-parse --git-dir</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>13-SubagentStop/subagent-stop-check.sh:97</td><td>HOOK_WORKTREE</td><td>git status --porcelain</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>13-SubagentStop/subagent-stop-check.sh:211</td><td>HOOK_WORKTREE</td><td>logs/hooks/decisions.jsonl</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>13-SubagentStop/subagent-stop-check.sh:225</td><td>HOOK_ROOT</td><td>config/model-aliases.txt</td><td>置き場</td><td>R</td></tr>
+          <tr><td>20-PreToolUse/block-chmod.sh:33</td><td>HOOK_ROOT</td><td>config/blocked-commands.txt</td><td>置き場</td><td>R</td></tr>
+          <tr><td>20-PreToolUse/workflow-guard.sh:84</td><td>HOOK_WORKTREE</td><td>WF209 の文面に出す作業ツリー</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>20-PreToolUse/workflow-guard.sh:133</td><td>HOOK_WORKTREE</td><td>10_doing/*.md の一覧</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>20-PreToolUse/workflow-guard.sh:145</td><td>HOOK_WORKTREE</td><td>作業中チケットの実体</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>20-PreToolUse/workflow-state-guard.sh:123</td><td>HOOK_WORKTREE</td><td>チケットの実在確認（WF302）</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:34</td><td>HOOK_WORKTREE</td><td>logs/push-state.json</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:47</td><td>HOOK_WORKTREE</td><td>git rev-parse --abbrev-ref HEAD</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:56</td><td>HOOK_WORKTREE</td><td>push_detect の第 5 引数</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:63</td><td>HOOK_WORKTREE</td><td>git remote get-url origin</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:82</td><td>HOOK_WORKTREE</td><td>git symbolic-ref</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:88</td><td>HOOK_WORKTREE</td><td>logs/mr.json の存在</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:90</td><td>HOOK_WORKTREE</td><td>同 JSON の読み取り</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-compact-prompt.sh:133</td><td>HOOK_WORKTREE</td><td>git diff --name-only</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-usage-report.sh:47</td><td>HOOK_WORKTREE</td><td>git rev-parse --abbrev-ref HEAD</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-usage-report.sh:51</td><td>HOOK_WORKTREE</td><td>logs/usage/&lt;branch&gt;.json</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-usage-report.sh:167</td><td>HOOK_WORKTREE</td><td>push_detect の第 5 引数</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-usage-report.sh:245</td><td>HOOK_WORKTREE</td><td>logs/mr.json</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-usage-report.sh:283</td><td>HOOK_WORKTREE</td><td>logs/usage の作成</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/post-push-usage-report.sh:284</td><td>HOOK_WORKTREE</td><td>レポートの書き出し先</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/workflow-diff-check.sh:49</td><td>HOOK_WORKTREE</td><td>作業中チケットの実体</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/workflow-diff-check.sh:201</td><td>HOOK_WORKTREE</td><td>git rev-parse --git-dir</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/workflow-diff-check.sh:244</td><td>HOOK_WORKTREE</td><td>git status --porcelain=v2</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/workflow-diff-check.sh:249</td><td>HOOK_WORKTREE</td><td>基準点の解決</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/workflow-diff-check.sh:262</td><td>HOOK_WORKTREE</td><td>git diff --name-status</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/workflow-diff-check.sh:293</td><td>HOOK_WORKTREE</td><td>20_done/&lt;先行&gt;*.md</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>22-PostToolUse/workflow-diff-check.sh:306</td><td>HOOK_WORKTREE</td><td>git show &lt;base&gt;:&lt;チケット&gt;</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:19</td><td>HOOK_ROOT</td><td>HOOK_ROOT の決定</td><td>置き場</td><td>R</td></tr>
+          <tr><td>lib/hook-common.sh:20</td><td>HOOK_ROOT</td><td>区切りの正規化</td><td>置き場</td><td>R</td></tr>
+          <tr><td>lib/hook-common.sh:21</td><td>HOOK_ROOT</td><td>LOGGER_ROOT へ代入・export</td><td>置き場（実行ログの出力先も本流に固定）</td><td><b>X</b></td></tr>
+          <tr><td>lib/hook-common.sh:30</td><td>両方</td><td>節のコメント</td><td>—</td><td>C</td></tr>
+          <tr><td>lib/hook-common.sh:31</td><td>両方</td><td>HOOK_WORKTREE の初期値</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:255</td><td>両方</td><td>__hc_resolve_worktree のコメント</td><td>—</td><td>C</td></tr>
+          <tr><td>lib/hook-common.sh:256</td><td>HOOK_ROOT</td><td>同上のコメント</td><td>—</td><td>C</td></tr>
+          <tr><td>lib/hook-common.sh:291</td><td>HOOK_ROOT</td><td>__hc_is_worktree_of のコメント</td><td>—</td><td>C</td></tr>
+          <tr><td>lib/hook-common.sh:321</td><td>HOOK_ROOT</td><td>比較用に正規化</td><td>置き場</td><td>R</td></tr>
+          <tr><td>lib/hook-common.sh:322</td><td>両方</td><td>既定値の代入（本流に倒す）</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:327</td><td>HOOK_WORKTREE</td><td>候補の採用</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:347</td><td>HOOK_ROOT</td><td>config/scope-limits.json</td><td>置き場</td><td>R</td></tr>
+          <tr><td>lib/hook-common.sh:412</td><td>HOOK_WORKTREE</td><td>logs/review-state.json</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:413</td><td>HOOK_WORKTREE</td><td>logs/merge-state.json</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:414</td><td>HOOK_WORKTREE</td><td>logs/sessions/&lt;sid&gt;/approvals.json</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:415</td><td>HOOK_WORKTREE</td><td>logs/sessions/&lt;sid&gt;/entry.json</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:478</td><td>HOOK_WORKTREE</td><td>10_doing/*.md（hook_doing_ticket）</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:604</td><td>HOOK_WORKTREE</td><td>logs/locks/&lt;name&gt;.lock の取得</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:624</td><td>HOOK_WORKTREE</td><td>同ロックの解放</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:634</td><td>HOOK_WORKTREE</td><td>同ロックの一括解放</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:654</td><td>HOOK_WORKTREE</td><td>logs/hooks/decisions.jsonl</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:744</td><td>HOOK_WORKTREE</td><td>logs/sessions/&lt;sid&gt;（hook_session_dir）</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/hook-common.sh:758</td><td>HOOK_WORKTREE</td><td>hook_rel_path の基準</td><td>作業ツリー</td><td>W</td></tr>
+          <tr><td>lib/push-detect.sh:29</td><td>HOOK_ROOT</td><td>root の既定値（git -C に使う）</td><td>作業ツリー</td><td><b>X</b></td></tr>
+          <tr><td>lib/tests/test_hook_common.sh:17</td><td>HOOK_ROOT</td><td>テストの一時リポジトリ</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_hook_common.sh:253</td><td>両方</td><td>同上</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_hook_common.sh:415</td><td>両方</td><td>解決の呼び出し</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_hook_common.sh:417</td><td>HOOK_ROOT</td><td>退避</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_hook_common.sh:418</td><td>HOOK_ROOT</td><td>差し替え</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_hook_common.sh:499</td><td>HOOK_ROOT</td><td>復帰</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_push_detect.sh:21</td><td>HOOK_ROOT</td><td>テストの一時リポジトリ</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_push_detect.sh:30</td><td>HOOK_ROOT</td><td>push_detect の第 5 引数</td><td>—</td><td>T</td></tr>
+          <tr><td>lib/tests/test_scope.sh:48</td><td>HOOK_ROOT</td><td>偽のルート</td><td>—</td><td>T</td></tr>
+          <tr><td>tests/test_config_integrity.sh:32</td><td>HOOK_ROOT</td><td>偽のルート</td><td>—</td><td>T</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>箇所</th><th>何が起きるか</th><th>いま誤判定を生むか</th></tr></thead>
+        <tbody>
+          <tr><td>X1</td><td>session-start.sh:140（__se_has_skill）</td><td>次に読み込むスキルの SKILL.md の存在を worktree 側で見る。Skill ツールが読むのが本流の実体なら、分岐元に無いスキルは「無い」と案内され、worktree にしか無いスキルは読めないのに案内される</td><td>いいえ（案内文の分岐だけ）。Skill の読み込み元は未確定</td></tr>
+          <tr><td>X2</td><td>session-start.sh:74（boundary.sh のパス）</td><td>仕様 §2「スクリプトは常に HOOK_ROOT」に反する。ただし boundary.sh は自分の BASH_SOURCE からルートを決めるので、本流の実体を呼ぶと本流の wip/ を読む。原則どおりに直すと壊れる</td><td>いいえ（.claude は追跡されており worktree にも実体がある）</td></tr>
+          <tr><td>X3</td><td>hook-common.sh:21（LOGGER_ROOT=HOOK_ROOT）</td><td>実行ログ（logger.sh が書く logs/sh/hook-*.log）は常に本流側。decisions.jsonl は worktree 側（:654）。同じ判定の記録が 2 つの作業ツリーに割れる</td><td>いいえ（記録の分散であって判定は変わらない）</td></tr>
+          <tr><td>X4</td><td>push-detect.sh:29（root の既定値）</td><td>root は git -C に使われる（52・54・56・58 行）ので HOOK_WORKTREE が正。既定値だけが HOOK_ROOT</td><td>いいえ（呼び出し 2 か所はどちらも HOOK_WORKTREE を渡している）。第 5 引数を省く呼び手が増えた瞬間に潜在化</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>参照 81 行のうち一致が 63 行（W 55 + R 8）、対象外が 14 行（C 4 + T 10）、取り違え・疑いが 4 行。いま誤判定を生むものは 0 件で、4 件とも「原則と不一致」または「潜在」である。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">6 本のフックはすべて worktree 側で判定する（session-start だけ実質「開始したディレクトリ」）<span class="chip good">◎良</span> <span class="basis">根拠: 各フックのファイル:行（下表）</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>フック</th><th>判定に使う状態</th><th>根拠（ファイル:行）</th><th>結論</th></tr></thead>
+        <tbody>
+          <tr><td>workflow-guard</td><td>作業中チケットの枚数と実体、書き込み先のルート相対化</td><td>hook-common.sh:478 / workflow-guard.sh:145 / :133 / hook-common.sh:758 / workflow-guard.sh:84</td><td><b>worktree 側</b></td></tr>
+          <tr><td>workflow-diff-check</td><td>作業中チケット、git status / diff / show、先行チケットの完了</td><td>workflow-diff-check.sh:49, 201, 244, 249, 262, 293, 306</td><td><b>worktree 側</b>（仕様 §13 の記述と逆。f6）</td></tr>
+          <tr><td>workflow-entry</td><td>継続条件（3 つの置き場のチケット）、宣言・レビュー・マージの記録</td><td>workflow-entry.sh:143 / hook-common.sh:412-415。設定のみ HOOK_ROOT（workflow-entry.sh:38）</td><td><b>worktree 側</b></td></tr>
+          <tr><td>workflow-state-guard</td><td>進行状態ファイル・10_doing / 20_done の置き場・draft 解除</td><td>workflow-state-guard.sh:63-67 → hook-common.sh:758 / workflow-state-guard.sh:123。保護対象の一覧は HOOK_ROOT（hook-common.sh:347）</td><td><b>worktree 側</b>（作業ツリー外の絶対パスは照合されない。f5）</td></tr>
+          <tr><td>session-start</td><td>logs/sessions の掃除、logs/ の状態ファイル、git branch、boundary.sh status --offline</td><td>session-start.sh:47, 66, 74, 113, 115-122</td><td><b>worktree 側</b>。ただし SessionStart は startup / resume / clear / compact でしか走らず、開始後に worktree へ入っても再実行されない</td></tr>
+          <tr><td>subagent-stop-check</td><td>作業中チケット、git status、decisions.jsonl</td><td>subagent-stop-check.sh:53, 83, 97, 211。model-aliases.txt のみ HOOK_ROOT（:225）</td><td><b>worktree 側</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>参考（6 本の対象外だが同じ経路）: <code>subagent-start-check</code> も worktree 側（<code>:41-42</code>）、<code>block-chmod</code> は作業ツリーに依存しない（設定のみ。<code>:33</code>）。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>いずれも <code>hook_read_input</code> を通っているため、フック側に個別の実装漏れは無い。作業ツリーの決定は 1 か所に集約されている。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">logs/ は worktree に複製されず、宣言・承認・進行状態が missing に落ちる <span class="chip warn">△注意</span> <span class="basis">根拠: .gitignore / git ls-files / hook-common.sh:412-415, 580, 590, 604</span></h3>
+      <p><code>.gitignore</code> に <code>logs/</code> があり <code>git ls-files logs/</code> は 0 件、<code>git ls-files wip/</code> は 19 件。したがって <code>git worktree add</code> で作った作業ツリーには <code>wip/</code> は分岐元の内容で存在し、<code>logs/</code> は存在しない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>状態ファイル</th><th>読む場所</th><th>無いときの振る舞い</th><th>効き先</th></tr></thead>
+        <tbody>
+          <tr><td>logs/sessions/&lt;sid&gt;/entry.json</td><td>hook-common.sh:415</td><td>HC_ENTRY_STATE=missing → workflow-entry.sh:205 が WF102 で deny</td><td>チケットが 1 枚も無ければ書き込み・実行が止まる（拒否側なので無効化ではない）</td></tr>
+          <tr><td>logs/sessions/&lt;sid&gt;/approvals.json</td><td>hook-common.sh:414</td><td>承認の記憶が空 → WF202 / WF203 を取り直し</td><td>同じパスに何度も確認が出る</td></tr>
+          <tr><td>logs/review-state.json / merge-state.json</td><td>hook-common.sh:412-413</td><td>missing → レビュー待ち・マージ前作業の緩和が効かない</td><td>切れ目の運用が worktree では成立しない</td></tr>
+          <tr><td>logs/mr.json</td><td>session-start.sh:115</td><td>issue / MR の行が出ない</td><td>現在地の案内が痩せる</td></tr>
+          <tr><td>logs/locks/&lt;name&gt;.lock</td><td>hook-common.sh:604, 624, 634</td><td>作業ツリーごとに別のロック（mkdir -p で作られる）</td><td>本流と worktree で同名のロックが同時に取れる。usage-&lt;branch&gt;.lock のような「同じブランチの記録」の排他が作業ツリーをまたぐと成立しない</td></tr>
+          <tr><td>logs/hooks/decisions.jsonl</td><td>hook-common.sh:654</td><td>hc_append_jsonl が mkdir -p で作る（:580）</td><td>判定記録は worktree 側に貯まる。実行ログは本流側（f2 の X3）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p><code>logs/</code> は初回の判定で自動的に作られる（<code>hc_append_jsonl</code> / <code>hc_json_write</code> がどちらも <code>mkdir -p</code> する）。「無いと落ちる」のではなく「無いところから始まる」。何を初期値にするかは未決（調査計画書の保留 P2）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">5</span>
+      <h3 id="f5">作業ツリーをまたぐ絶対パスの書き込みは、進行状態ファイル保護をすり抜ける <span class="chip stop">✕問題</span> <span class="basis">根拠: workflow-state-guard.sh:63-82 / hook-common.sh:757-770 / workflow-guard.sh:59, 70-96</span></h3>
+      <p><code>workflow-state-guard</code> の照合は (1) <code>__sg_rel</code> → <code>hook_rel_path</code> が <b>HOOK_WORKTREE の配下のときだけ</b>ルート相対にする（配下でなければ絶対パスのまま返す）、(2) <code>__sg_is_state_file</code> が <code>common.state_files</code> と glob 照合、(3) <code>__sg_in_dir</code> が <code>20_done</code> / <code>10_doing</code> と前方一致、の順に行われる。絶対パスは (2) でも (3) でも一致しないので <code>hook_allow</code> に落ちる。</p>
+      <p>つまり Claude が worktree W にいるとき、本流の <code>logs/mr.json</code>・<code>logs/review-state.json</code>・<code>logs/merge-state.json</code>（WF301 の対象）、<code>wip/10_tickets/20_done/*.md</code>（WF303）、<code>10_doing/*.md</code> の新規作成（WF302）を絶対パスで書き換えても止まらない。逆向きも同じ。</p>
+      <p>二重の守りである <code>workflow-guard</code> は <code>__wg_rel</code> が作業ツリー外を WF209 で deny するが、<b>作業中チケットが 1 枚あるときしか働かない</b>（<code>workflow-guard.sh:59</code>）。したがって W に作業中チケットがあれば WF209 で止まり、無ければ（分岐元にチケットが無い / 切れ目）<code>workflow-guard</code> は即抜け、<code>workflow-state-guard</code> も一致せず、宣言済みのセッションなら本流の進行状態ファイルと完了済みチケットを自由に書き換えられる。</p>
+      <details>
+        <summary>根拠を見る（該当コード）</summary>
+        <pre><code>hook_rel_path() {
+  local p="${1:-}" root="$HOOK_WORKTREE" lr lp
+  ...
+  if [[ "$lp" == "$lr/"* ]]; then p="${p:$(( ${#root} + 1 ))}"; elif [[ "$lp" == "$lr" ]]; then p="."; fi
+
+__sg_in_dir() { # $1=パス $2=置き場
+  local p="${1%/}" d="$2"
+  [[ "$p" == "$d" || "$p" == "$d/"* ]]
+
+workflow-guard.sh:59   [[ -n "$__WG_NAME" ]] || exit 0</code></pre>
+      </details>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>フック共通仕様 §13 は「作業中チケットが無い切れ目でも、機構が守るのは進行状態・コミット / push・chmod（常時フック）まで」と約束しているが、作業ツリーをまたぐ絶対パス指定ではこの「常時」が成立しない。<code>hook_rel_path</code> が 1 つの作業ツリーしか基準に持たない設計の帰結である。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">6</span>
+      <h3 id="f6">仕様書・DDR とコードの食い違いが 2 件 <span class="chip warn">△注意</span> <span class="basis">根拠: 10_spec/フック共通仕様.md:389 / :99 / DDR i0009-64 / git log -S</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>文書の記述</th><th>コードの実際</th><th>どちらが正か</th></tr></thead>
+        <tbody>
+          <tr><td>D1</td><td>フック共通仕様 §13「workflow-diff-check（WF601）は HOOK_ROOT の作業ツリーだけを見る。worktree の中で起きた書き込みは事後の差分検査に現れない」（:389）。DDR i0009-64「残る穴」も同じ</td><td>workflow-diff-check.sh は 201・244・249・262・306 行で git -C "$HOOK_WORKTREE"、49・293 行で $HOOK_WORKTREE。git log -S で追うと初版（7cf83a2）からこの形</td><td><b>コードが正</b>（穴は最初から無かった可能性が高い）。文書が古い。0031 の実測がなぜ「現れない」と結論したかは追えていない（R2）</td></tr>
+          <tr><td>D2</td><td>DDR i0009-64「判定は fork ゼロの 2 経路のどちらかが成り立つこと。片方でよい」「両方を要求すると正しい worktree を本流に倒してしまう」</td><td>__hc_is_worktree_of（hook-common.sh:293-316）は相互参照の双方向を要求し、登録側だけから探す経路を置かないと明記。仕様 §2（:99）も「相互参照が成立すること」</td><td><b>コードと仕様 §2 が正</b>。DDR の「決定」節が古い（「影響」節に「相互参照を双方向にしたのは 0036」とだけある）。帰結として git worktree repair 前の作業ツリーは本流に倒れる</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>DDR は経緯の記録なので書き換えない運用だが、「決定」節だけを読むと現在の実装を誤解する。設計フェーズが <code>i0009-55</code> / <code>i0009-64</code> を根拠に使うときは仕様 §2 を正とすること。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">7</span>
+      <h3 id="f7">既存テストが検証済みの範囲と、実測でしか確かめられない残余 <span class="chip warn">△注意</span> <span class="basis">根拠: lib/tests/test_hook_common.sh:405-502 / 10_spec/フック共通仕様.md:356-375</span></h3>
+      <p>worktree に触れるテストは <code>lib/tests/test_hook_common.sh</code> の 1 本だけ（<code>worktree</code> の出現 31 回）。該当は <code>case_worktree</code>（405-502 行）で、コメントに「専用の ID は無いので HK-T18 に付ける」とある。仕様 §11 のテスト一覧に作業ツリー解決の ID は無く、<code>HK-T18</code> は「副入力の縮退」として定義されている（<code>:373</code>）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>検証済み（case_worktree が固定していること）</th><th>行</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>cwd がルート自身・その配下 → ルート</td><td>419-421</td></tr>
+          <tr><td>2</td><td>相互参照が成立する作業ツリー・その配下 → worktree 側</td><td>423-425</td></tr>
+          <tr><td>3</td><td>.claude を持つだけの別ディレクトリ（参考実装）→ ルート</td><td>427</td></tr>
+          <tr><td>4</td><td>.git が普通のディレクトリ（別クローン）→ ルート</td><td>429-430</td></tr>
+          <tr><td>5</td><td>gitdir: の指す先が実在しない偽の .git ファイル → ルート</td><td>432-434</td></tr>
+          <tr><td>6</td><td>指す先はあるが gitdir が無い（片方向）→ ルート</td><td>436-437</td></tr>
+          <tr><td>7</td><td>指す先の gitdir が別の作業ツリーを指す（なりすまし）→ ルート</td><td>439-440</td></tr>
+          <tr><td>8</td><td>相互参照が揃えば拾う（3〜7 の対照）</td><td>442-443</td></tr>
+          <tr><td>9</td><td>本流配下の .claude は拾わない / 内側の正当な worktree は拾う / 片方向に崩すと拾わない</td><td>445-453</td></tr>
+          <tr><td>10</td><td>gitdir: が .. で worktrees/ の外を指す traversal → ルート</td><td>455-462</td></tr>
+          <tr><td>11</td><td>. や余分な / を含む正当な指し先は畳んで受け入れる</td><td>464-466</td></tr>
+          <tr><td>12</td><td>負のコントロール（本物の worktree でも参照を両方消すと拾わない）</td><td>467-469</td></tr>
+          <tr><td>13</td><td>stale な登録だけが残る場所 → ルート、候補側に正しい .git を置けば拾う</td><td>470-482</td></tr>
+          <tr><td>14</td><td>__hc_winpath の正規化 7 ケース</td><td>484-491</td></tr>
+          <tr><td>15</td><td>存在しない cwd → ルート</td><td>493</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>残余（実測が要る）</th><th>なぜテストで代えられないか</th></tr></thead>
+        <tbody>
+          <tr><td>A</td><td>git worktree add が実際に書く .git / gitdir で __hc_is_worktree_of が通るか</td><td>case_worktree はファイルを手で書いて相互参照を作っている。実物のパス表記が同じである保証はコードの中に無い</td></tr>
+          <tr><td>B</td><td>6 本のフックを cwd = worktree で端から端まで走らせた結果</td><td>フックのテストは HOOK_ROOT と HOOK_WORKTREE を同じ一時リポジトリに固定して走る（test_hook_common.sh:253 と同型）。worktree を分けたケースが 1 件も無い</td></tr>
+          <tr><td>C</td><td>logs/ が無い作業ツリーでの通し（WF102 が出るか、decisions.jsonl が作られるか）</td><td>同上。フック 6 本の通しでは固定されていない</td></tr>
+          <tr><td>D</td><td>Claude が worktree に入ったとき各イベントの cwd が worktree になるか</td><td>Claude Code 本体の挙動。リポジトリ内のテストでは原理的に検査できない</td></tr>
+          <tr><td>E</td><td>作業ツリーをまたぐ絶対パス書き込み（f5）が実際にすり抜けるか</td><td>同 B。読み取りでは「照合に一致しない」ところまでしか言えない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>単体（<code>__hc_resolve_worktree</code> / <code>__hc_winpath</code>）は厚く固定されているが、実物の worktree もフック 6 本の通しも 1 件も固定されていない。テスト ID も借り物である。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">8</span>
+      <h3 id="f8">実測手順（人間が実行する。コマンド列 + 観点ごとの予測）<span class="chip good">◎良</span> <span class="basis">根拠: main の 10_doing が .gitkeep のみ / hook-common.sh:25 / 0004 の base_sha 9721416</span></h3>
+      <p>実行は<b>人間</b>が行う（<code>git worktree add</code> / <code>git checkout -b</code> / <code>git switch</code> / <code>cd</code> はどの <code>allow.ops</code> を宣言しても WF204 で拒否される）。結果は <b><code>wip/tmp/worktree-probe/</code></b> に置く（<code>.gitignore</code> 対象・同一作業ツリーなので 0009 が読める）。Git Bash で本流のリポジトリルートを <code>cwd</code> にして実行する。副作用として作業ツリー側の <code>logs/</code> と本流の <code>logs/sh/</code> にログが増える（どちらも <code>.gitignore</code> 対象）。</p>
+      <details open>
+        <summary>P0. 準備と、相互参照の実物の記録</summary>
+        <pre><code>cd /c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow
+mkdir -p wip/tmp/worktree-probe
+MAIN="$(pwd)"
+git worktree add --detach ../imtw-probe-main main    # W1: チケット 0 枚
+git worktree add --detach ../imtw-probe-head HEAD    # W2: 0004 が 10_doing にある
+W1="$(cd ../imtw-probe-main &amp;&amp; pwd)"; W2="$(cd ../imtw-probe-head &amp;&amp; pwd)"
+{
+  echo "== MAIN=$MAIN W1=$W1 W2=$W2"
+  echo "== W1/.git";            cat "$W1/.git"
+  echo "== worktrees/*/gitdir"; cat .git/worktrees/imtw-probe-main/gitdir
+  echo "== W2/.git";            cat "$W2/.git"
+  echo "== doing in W1";        ls -1 "$W1/wip/10_tickets/10_doing/"
+  echo "== doing in W2";        ls -1 "$W2/wip/10_tickets/10_doing/"
+  echo "== logs in W1";         ls -d "$W1/logs" 2&gt;&amp;1
+  echo "== logs in W2";         ls -d "$W2/logs" 2&gt;&amp;1
+} &gt; wip/tmp/worktree-probe/00-setup.txt 2&gt;&amp;1</code></pre>
+      </details>
+      <p><b>P0 の予測</b>: <code>W1/.git</code> は <code>gitdir: &lt;MAIN&gt;/.git/worktrees/imtw-probe-main</code> の 1 行、<code>worktrees/imtw-probe-main/gitdir</code> は <code>&lt;W1&gt;/.git</code>（相互参照が双方向に成立）。W1 の <code>10_doing</code> は <code>.gitkeep</code> のみ、W2 は <code>.gitkeep</code> と <code>0004-investigation.md</code>。<code>logs</code> は W1・W2 とも存在しない。外れたとき: パスが別表記なら <code>__hc_is_worktree_of</code> の前方一致が成立するか怪しく、f1 の前提が崩れる。</p>
+      <details>
+        <summary>P1. 作業ツリー解決そのもの（__hc_resolve_worktree 単体）</summary>
+        <pre><code>for D in "$MAIN" "$MAIN/wip" "$W1" "$W1/wip" "$W2" "$MAIN/参考ディレクトリ/agent-workflow"; do
+  printf '%s -&gt; ' "$D"
+  HOOK_ROOT="$MAIN" bash -c '. "$1/.claude/hooks/lib/hook-common.sh"; HOOK_CWD="$2"; __hc_resolve_worktree; printf "%s\n" "$HOOK_WORKTREE"' _ "$MAIN" "$D"
+done &gt; wip/tmp/worktree-probe/01-resolve.txt 2&gt;&amp;1</code></pre>
+      </details>
+      <p><b>P1 の予測</b>: <code>MAIN</code> と <code>MAIN/wip</code> → <code>MAIN</code>、<code>W1</code> と <code>W1/wip</code> → <code>W1</code>、<code>W2</code> → <code>W2</code>、参考ディレクトリ → <code>MAIN</code>。<code>HOOK_CWD</code> は <code>hook-common.sh:25</code> で空に初期化されるので <b>source した後に代入する</b>こと。外れたとき: 参考ディレクトリが自分自身に解決されるなら DDR <code>i0009-64</code> の対策が実環境で効いていない（重大）。</p>
+      <details>
+        <summary>P2. workflow-guard（作業中チケットをどちらのツリーで数えるか）</summary>
+        <pre><code>gp() { printf '{"session_id":"probe","transcript_path":"","cwd":"%s","hook_event_name":"PreToolUse","permission_mode":"default","tool_name":"Write","tool_input":{"file_path":"%s/apl/probe.txt","content":"x"}}' "$1" "$1"; }
+{ echo "== cwd=W1"; gp "$W1" | bash .claude/hooks/20-PreToolUse/workflow-guard.sh; echo "exit=$?"
+  echo "== cwd=W2"; gp "$W2" | bash .claude/hooks/20-PreToolUse/workflow-guard.sh; echo "exit=$?"
+  echo "== cwd=MAIN（負のコントロール）"; gp "$MAIN" | bash .claude/hooks/20-PreToolUse/workflow-guard.sh; echo "exit=$?"
+} &gt; wip/tmp/worktree-probe/02-guard.txt 2&gt;&amp;1</code></pre>
+      </details>
+      <p><b>P2 の予測</b>: cwd=W1 は<b>出力なし・exit 0</b>（W1 は作業中チケット 0 枚なので <code>workflow-guard.sh:59</code> で抜ける）。cwd=W2 と cwd=MAIN は deny（WF201）か ask（WF202）の JSON が 1 行。判定: W1 だけ無音なら worktree 側で数えている。W1 でも deny / ask が出たら解決の失敗。</p>
+      <details>
+        <summary>P3. workflow-state-guard（進行状態ファイル保護と、作業ツリーをまたぐ書き込み）</summary>
+        <pre><code>sp() { printf '{"session_id":"probe","transcript_path":"","cwd":"%s","hook_event_name":"PreToolUse","permission_mode":"default","tool_name":"Write","tool_input":{"file_path":"%s","content":"x"}}' "$1" "$2"; }
+{ echo "== 自ツリーの 20_done（cwd=W2 / 対象=W2）"
+  sp "$W2" "$W2/wip/10_tickets/20_done/0003-investigation-plan.md" | bash .claude/hooks/20-PreToolUse/workflow-state-guard.sh; echo "exit=$?"
+  echo "== 他ツリーの 20_done（cwd=W2 / 対象=MAIN）"
+  sp "$W2" "$MAIN/wip/10_tickets/20_done/0003-investigation-plan.md" | bash .claude/hooks/20-PreToolUse/workflow-state-guard.sh; echo "exit=$?"
+  echo "== 他ツリーの進行状態ファイル（cwd=W2 / 対象=MAIN/logs/mr.json）"
+  sp "$W2" "$MAIN/logs/mr.json" | bash .claude/hooks/20-PreToolUse/workflow-state-guard.sh; echo "exit=$?"
+} &gt; wip/tmp/worktree-probe/03-state-guard.txt 2&gt;&amp;1</code></pre>
+      </details>
+      <p><b>P3 の予測</b>: 1 つ目は <b>WF303 の deny</b>（相対化が効く）。2 つ目・3 つ目は<b>出力なし</b>（絶対パスのまま照合され一致しない = f5 のとおり）。判定: 2・3 で deny が出れば f5 は誤りなので 0009 で訂正する。</p>
+      <details>
+        <summary>P4. workflow-entry（宣言の記録が worktree 側で missing になるか）</summary>
+        <pre><code>{ echo "== cwd=W1（チケット無し・logs 無し）"
+  gp "$W1" | bash .claude/hooks/10-UserPromptSubmit/workflow-entry.sh; echo "exit=$?"
+  echo "== cwd=W2（チケット有り）"
+  gp "$W2" | bash .claude/hooks/10-UserPromptSubmit/workflow-entry.sh; echo "exit=$?"
+} &gt; wip/tmp/worktree-probe/04-entry.txt 2&gt;&amp;1</code></pre>
+      </details>
+      <p><b>P4 の予測</b>: cwd=W1 は <b>WF102 の deny</b>（<code>workflow-entry.sh:205</code>）。cwd=W2 は<b>出力なし</b>（<code>:143</code> の継続条件が成立）。判定: W1 が無音なら本流のチケットを見ている。W2 が WF102 なら継続条件が worktree 側で見えていない。</p>
+      <details>
+        <summary>P5. workflow-diff-check（worktree の中の差分が事後検査に現れるか）</summary>
+        <pre><code>printf 'x' &gt; "$W2/apl/probe.txt"
+dp() { printf '{"session_id":"probe","transcript_path":"","cwd":"%s","hook_event_name":"PostToolUse","tool_name":"Write","tool_input":{"file_path":"%s/apl/probe.txt"},"tool_response":{"status":"success"}}' "$1" "$1"; }
+{ echo "== cwd=W2"; dp "$W2" | bash .claude/hooks/22-PostToolUse/workflow-diff-check.sh; echo "exit=$?"
+  echo "== cwd=MAIN（負のコントロール）"; dp "$MAIN" | bash .claude/hooks/22-PostToolUse/workflow-diff-check.sh; echo "exit=$?"
+} &gt; wip/tmp/worktree-probe/05-diff-check.txt 2&gt;&amp;1</code></pre>
+      </details>
+      <p><b>P5 の予測</b>: cwd=W2 は <code>additionalContext</code> に <b>WF601</b> と <code>apl/probe.txt</code>（基準点は 0004 の <code>base_sha</code> = <code>9721416</code>）。cwd=MAIN では <code>apl/probe.txt</code> は現れない。判定: W2 で WF601 が出れば<b>仕様 §13 の記述（D1）が古いことが確定</b>する。</p>
+      <details>
+        <summary>P6. session-start（現在地の導出がどちらのツリーか）</summary>
+        <pre><code>ss() { printf '{"session_id":"probe","transcript_path":"","cwd":"%s","hook_event_name":"SessionStart","source":"startup"}' "$1"; }
+{ echo "== cwd=W1"; ss "$W1" | bash .claude/hooks/00-SessionStart/session-start.sh; echo "exit=$?"
+  echo "== cwd=W2"; ss "$W2" | bash .claude/hooks/00-SessionStart/session-start.sh; echo "exit=$?"
+  echo "== cwd=MAIN"; ss "$MAIN" | bash .claude/hooks/00-SessionStart/session-start.sh; echo "exit=$?"
+} &gt; wip/tmp/worktree-probe/06-session-start.txt 2&gt;&amp;1</code></pre>
+      </details>
+      <p><b>P6 の予測</b>: cwd=W1 は「進行中の作業は無い」を含む。cwd=W2 は 0004 を含むが issue / MR 行は出ない（<code>logs/mr.json</code> が無い）。cwd=MAIN は 0004 と issue #50 / MR #51 の両方。判定: W2 で MR #51 が出たら本流の <code>logs/</code> を読んでいる。</p>
+      <details>
+        <summary>P7. 記録の分かれ方（X3 の裏取り）と 片付け</summary>
+        <pre><code>{ echo "== W2 の logs"; find "$W2/logs" -type f 2&gt;&amp;1
+  echo "== W1 の logs"; find "$W1/logs" -type f 2&gt;&amp;1
+  echo "== 本流の logs/sh の更新時刻"; ls -l logs/sh/hook-*.log 2&gt;&amp;1 | tail -20
+} &gt; wip/tmp/worktree-probe/07-logs.txt 2&gt;&amp;1
+
+rm -f "$W2/apl/probe.txt"
+git worktree remove --force ../imtw-probe-main
+git worktree remove --force ../imtw-probe-head
+git worktree prune
+git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象）</code></pre>
+      </details>
+      <p><b>P7 の予測</b>: W1・W2 に <code>logs/hooks/decisions.jsonl</code>（W1 には <code>logs/sessions/probe/</code> も）が新しく作られ、同時に本流の <code>logs/sh/hook-*.log</code> の更新時刻が実行時刻になっている（判定記録は作業ツリー側、実行ログは本流側に割れる）。万一本流が壊れたら基準点 <code>9721416</code> を基準に戻す。</p>
+      <p><b>P8（補助・任意）</b>: W2 の中で <code>claude</code> を起動する、または既存セッションから worktree に入り、(a) <code>wip/**</code> の外への Write が WF201 / WF202 になるか、(b) <code>decisions.jsonl</code> がどちらのツリーに増えるか、(c) SessionStart の現在地が W2 のものになるか を観察する。予測: W2 で起動した場合は <code>HOOK_ROOT</code> も W2 になるため矛盾なく動く（この経路は問題を回避する）。既存セッションから入る場合だけが f1 の条件に当たる。<b>この観察だけが「Claude が worktree に入ったとき cwd が追随するか」に答えられる</b>。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実測の主部（P1〜P7）は worktree を作った後、stdin に <code>cwd</code> を与えてフックを直接叩くだけで済み、識別子（W1 = チケット 0 枚）によって「worktree 側で判定したか」を一意に切り分けられる。Claude 本体に依存するのは P8 だけである。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>参照の総件数</td><td><code>grep -rn "HOOK_ROOT\|HOOK_WORKTREE" .claude/hooks/ | wc -l</code> = <b>81</b>（箇所数は <code>grep -rno</code> で 90。HOOK_ROOT 28 / HOOK_WORKTREE 62）</td></tr>
+      <tr><td>一覧の行数が総件数と合う</td><td>f2 の一覧は 81 行。W 55 + R 8 + C 4 + X 4 + T 10 = <b>81</b> で一致</td></tr>
+      <tr><td>テストを除いた本体の件数</td><td><code>grep -v "/tests/" | wc -l</code> = <b>71</b>。81 − T 10 = 71 で一致</td></tr>
+      <tr><td>ファイルごとの件数</td><td><code>grep -rc</code> の合計（session-start 11 / workflow-entry 2 / subagent-start 3 / subagent-stop 5 / block-chmod 1 / workflow-guard 3 / workflow-state-guard 1 / compact-prompt 8 / usage-report 6 / diff-check 7 / hook-common 23 / push-detect 1 / test_hook_common 6 / test_push_detect 2 / test_scope 1 / test_config_integrity 1）= <b>81</b> で一致</td></tr>
+      <tr><td>6 本すべてに結論と根拠がある</td><td>f3 の表は 6 行、各行にファイル:行が 2 つ以上</td></tr>
+      <tr><td>logs/ が追跡されていない</td><td><code>.gitignore</code> に <code>logs/</code>、<code>git ls-files logs/</code> が <b>0 件</b></td></tr>
+      <tr><td>wip/ が追跡されている</td><td><code>git ls-files wip/</code> が <b>19 件</b></td></tr>
+      <tr><td>main の作業中チケットが 0 枚（実測 P2 の識別子が成立する）</td><td><code>git ls-tree --name-only main wip/10_tickets/10_doing/</code> = <code>.gitkeep</code> の <b>1 件のみ</b></td></tr>
+      <tr><td>作業ツリー解決のテスト ID が仕様にあるか</td><td>仕様 §11 の HK-T01〜HK-T20 に該当なし。HK-T18 は「副入力の縮退」（:373）で、case_worktree は ID を借りている</td></tr>
+      <tr><td>worktree に触れるテストの本数</td><td><code>grep -rln worktree</code> を hooks/**/tests/ に掛けて <b>1 ファイル</b></td></tr>
+      <tr><td>workflow-diff-check が HOOK_WORKTREE を使うのは初版からか</td><td><code>git log --oneline -S'git -C "$HOOK_WORKTREE" status --porcelain=v2'</code> = <code>7cf83a2</code> の <b>1 件のみ</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>作業ツリーをまたぐ絶対パスの書き込みで進行状態ファイル保護が効かない（<a href="#f5">f5</a>）。候補は「他ツリーの絶対パスを拒否側に倒す」「同一リポジトリの全作業ツリーを基準集合として持つ」など。引き取り先: 0010 / 受け入れ条件 A1。</li>
+    <li><code>logs/</code> が worktree に無いときの初期化を決める（保留 P2）。現状は空から始まり、宣言 = WF102・承認 = 取り直し・レビュー / マージ状態 = missing（<a href="#f4">f4</a>）。引き取り先: 0010 / 0005。</li>
+    <li><code>logs/locks/</code> が作業ツリーごとに分かれるため、同じブランチの記録に対する排他が作業ツリーをまたぐと成立しない（<a href="#f4">f4</a>）。引き取り先: 0010。</li>
+    <li>判定記録（decisions.jsonl = 作業ツリー側）と実行ログ（logs/sh/ = 本流側）が割れる（<a href="#f2">f2</a> X3）。引き取り先: 0010。</li>
+    <li>作業ツリー解決に固有のテスト ID が無く HK-T18 を借りている。フック 6 本の worktree 通しテストも無い（<a href="#f7">f7</a>）。引き取り先: 0010 / AI アセット実装。</li>
+    <li>仕様 §13 の D1 と DDR i0009-64 の D2 が実装と食い違う（<a href="#f6">f6</a>）。仕様は書き戻しの対象、DDR は経緯なので追補が要る。引き取り先: 0010 / 設計反映。</li>
+    <li><code>session-start.sh:74</code> が boundary.sh を HOOK_WORKTREE から取る（<a href="#f2">f2</a> X2）。仕様 §2 の原則の書き方を、状態を自分で解決する提供コマンドの扱いを含めて見直す。引き取り先: 0010。</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>調査計画書は「HOOK_ROOT と HOOK_WORKTREE の取り違え」を主な問いに置いていた</td><td>明確な取り違えは 0 件で疑い・潜在が 4 件。より効くのは「1 つの作業ツリーしか基準にできない」ことの帰結（f5）だった</td><td>観点は書き換えず、f2 で取り違えを 4 件として報告したうえで重心を f5 に置いた</td></tr>
+      <tr><td>仕様 §13 と DDR i0009-64 の「workflow-diff-check は worktree の差分を見ない」は現状の記述として使えると見込んでいた</td><td>実装は初版から <code>git -C "$HOOK_WORKTREE"</code> で記述と逆</td><td>f6 の D1 として記録し、実測 P5 で確定させることにした</td></tr>
+      <tr><td>実測は「Claude を worktree に入れる」形でしか取れないと見込んでいた</td><td>フックは stdin の cwd だけで作業ツリーを決めるので、cwd を与えて直接叩けば大半が確かめられる</td><td>実測手順を 2 段に分け、人間の手数を P8 に閉じ込めた</td></tr>
+      <tr><td><code>git worktree list</code> は読み取りなので通ると見込んでいた</td><td><code>git worktree</code> は _SC_GIT_READ_SUBCMDS に無く WF204。同じコマンド行の他の git 読み取りも巻き添えで拒否された</td><td>迂回せず ls-tree / rev-parse に分けて取り直した。観点 E（0008）の材料として記録</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><b>R1</b> Claude が worktree に入ったとき各イベントの cwd が実際に worktree を指すか。本レポートは DDR i0009-55 の引用を二次資料として使っただけ。引き取り先: 0006 / 0009（P8）。</li>
+    <li><b>R2</b> 仕様 §13 と DDR i0009-64「残る穴」の根拠になった 0031 の実測が、なぜ「worktree の差分は事後検査に現れない」と結論したのか。当時のレポートは本ブランチの wip/ に無い。引き取り先: 0009（P5）/ 必要なら過去 MR の履歴。</li>
+    <li><b>R3</b> git worktree repair 前の作業ツリー（相互参照が片方向）が本流に倒れることの実害。DDR i0009-64 が却下した副作用が実装では起きている。引き取り先: 0010。</li>
+    <li><b>R4</b> Skill ツールが読む SKILL.md が本流と worktree のどちらの実体か。これが決まるまで session-start.sh:140（X1）の正誤は確定しない。引き取り先: 0006 / 0010。</li>
+    <li><b>R5</b> 本流と worktree で scope-limits.json の内容が食い違う場合、フックは常に本流の設定で判定する（hook-common.sh:347）。設定を変えるブランチを worktree で開発すると、そのブランチの設定はテストされない。引き取り先: 0010。</li>
+    <li><b>R6</b> f5 を受け入れ条件 A1 の「動かない箇所」として扱うか、全体計画書の保留 P2（別 issue）へ回すか。引き取り先: 0009 / 0010（人間の判断）。</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

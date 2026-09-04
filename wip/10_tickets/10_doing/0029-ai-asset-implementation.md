@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まず、実装フェ
 allow:
   write: [".claude/skills/**", ".claude/agents/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T12:00:20+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "1ad6389"
 ---
 
 # 0029 S6 スキル・エージェント: タスクスキル 15 本 + エージェント 2 本

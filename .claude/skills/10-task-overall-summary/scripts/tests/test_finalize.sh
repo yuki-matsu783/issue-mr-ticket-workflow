@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_finalize.sh — finalize.sh のテスト（仕様のテスト ID: FN-T01〜09）
+# test_finalize.sh — finalize.sh のテスト（仕様のテスト ID: FN-T01〜09、敵対的レビューの指摘の反映で FN-T10〜16）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_finalize*'
 set -uo pipefail
 
@@ -303,5 +303,82 @@ assert_eq "FN-T08" "ready" "$(tl_jq -r '.state' logs/merge-state.json)"
 # --external は via を残し、draft 解除そのものは呼び出し元に委ねる（段階 7 の代行）
 assert_eq "FN-T08" "external" "$(tl_jq -r '.via' logs/merge-state.json)"
 assert_eq "FN-T08" "true" "$(cat "$FIX/draft.txt" | tr -d '\r')"
+
+# ================================================================ FN-T10
+# --linked は段階 4 を終えた後（recorded）にだけ効く。記録が無い状態で渡しても
+# 前提検査・完了検査・書き出しを飛ばして片付けに直行しない
+restore
+rm -f logs/merge-state.json
+run_cmd bash "$F" release --external --pr 1 --linked
+assert_exit "FN-T10" 1
+assert_eq "FN-T10" "FN001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+if [ -n "$(find wip -type f ! -name .gitkeep 2>/dev/null)" ]; then pass "FN-T10"; else fail "FN-T10" "--linked だけで wip/ が片付けられた"; fi
+
+# ================================================================ FN-T11
+# state の値が壊れているときは終了 2 で止めず、実態から再導出して続ける
+restore
+printf '{"state":"へんな値","mr":1,"issue":10}\n' > logs/merge-state.json
+run_cmd bash "$F" release
+assert_exit "FN-T11" 0
+assert_eq "FN-T11" "ready" "$(tl_jq -r '.state' logs/merge-state.json)"
+
+# ================================================================ FN-T12
+# 段階 3 のコミットは済んで push で落ちた後の再実行でも recorded に到達する
+# （前提検査をやり直すと「HEAD が push されていない」で通らなくなる）
+restore
+printf '\n## 完了検査\n\n通過。\n' >> wip/30_reports/0009-overall-summary.md
+git add -A >/dev/null 2>&1; git commit -q -m "chore: 完了検査を書き出す"   # push しない
+printf '{"state":"started","mr":1,"issue":10}\n' > logs/merge-state.json
+run_cmd bash "$F" release
+assert_exit "FN-T12" 0
+assert_eq "FN-T12" "ready" "$(tl_jq -r '.state' logs/merge-state.json)"
+
+# ================================================================ FN-T13
+# 段階 5 は削除まで進んでコミットで落ちた後の再実行でも、未コミットの削除を拾ってから cleaned にする
+restore
+printf '\n## 完了検査\n\n通過。\n' >> wip/30_reports/0009-overall-summary.md
+git add -A >/dev/null 2>&1; git commit -q -m "chore: 完了検査を書き出す"; git push -q origin feature-x
+SHA13="$(git rev-parse HEAD)"
+printf '{"state":"linked","mr":1,"issue":10,"pre_cleanup_sha":"%s"}\n' "$SHA13" > logs/merge-state.json
+find wip -type f ! -name .gitkeep -exec rm -f {} +          # 削除だけ済ませてコミットしない
+run_cmd bash "$F" release
+assert_exit "FN-T13" 0
+assert_eq "FN-T13" "ready" "$(tl_jq -r '.state' logs/merge-state.json)"
+assert_eq "FN-T13" "" "$(git status --porcelain -- wip | tr '\n' ' ' | sed 's/ *$//')"
+
+# ================================================================ FN-T14
+# draft かどうか判定できないときは ready ではなく拒否側（pushed）に倒れ、段階 7 を実際に踏む
+restore
+printf '\n## 完了検査\n\n通過。\n' >> wip/30_reports/0009-overall-summary.md
+find wip -type f ! -name .gitkeep -exec rm -f {} +
+git add -A >/dev/null 2>&1; git commit -q -m "chore: 片付け"; git push -q origin feature-x
+rm -f logs/merge-state.json
+printf '' > "$FIX/draft.txt"                                # 判定できない値
+run_cmd bash "$F" release
+assert_exit "FN-T14" 0
+assert_eq "FN-T14" "false" "$(cat "$FIX/draft.txt" | tr -d '\r')"   # mark_ready を実際に踏んだ
+printf 'true\n' > "$FIX/draft.txt"
+
+# ================================================================ FN-T15
+# 統括レポートの番号がチケット番号と違っても、種類名で探すフォールバックに到達する
+restore
+mv wip/30_reports/0009-overall-summary.md wip/30_reports/0002-overall-summary.md
+mv wip/30_reports/0009-overall-summary.html wip/30_reports/0002-overall-summary.html
+git add -A >/dev/null 2>&1; git commit -q -m "chore: レポートの番号を変える"; git push -q origin feature-x
+run_cmd bash "$F" release
+assert_exit "FN-T15" 0
+assert_not_contains "FN-T15" "統括レポート"
+assert_eq "FN-T15" "ready" "$(tl_jq -r '.state' logs/merge-state.json)"
+
+# ================================================================ FN-T16
+# DoD 節にチェックボックス行が 1 つも無くても、結果行を出さずに終わらない（パイプの途中の失敗）
+restore
+TK16="wip/10_tickets/10_doing/0009-overall-summary.md"
+awk '/^## DoD$/ { print; print ""; print "DoD の項目はまだ書かれていない。"; skip = 1; next }
+     /^## 作業内容$/ { skip = 0 }
+     !skip { print }' "$TK16" > "$TK16.new" && mv "$TK16.new" "$TK16"
+git add -A >/dev/null 2>&1; git commit -q -m "chore: DoD を空にする"; git push -q origin feature-x
+run_cmd bash "$F" release
+if printf '%s' "${R_OUT##*$'\n'}" | grep -qE '^(OK|FN[0-9]{3}):'; then pass "FN-T16"; else fail "FN-T16" "結果行が無い: 最終行=[${R_OUT##*$'\n'}] exit=$R_EXIT"; fi
 
 finish

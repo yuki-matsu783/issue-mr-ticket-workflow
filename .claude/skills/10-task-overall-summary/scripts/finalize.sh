@@ -82,11 +82,15 @@ find_summary_ticket() {
   return 1
 }
 
-# 統括レポート（md）。チケット番号で引き、無ければ種類名で探す
+# 統括レポート（md）。チケット番号で引き、無ければ種類名で探す。
+# 番号のパスは glob 文字を含まないので nullglob では消えない。実在を -f で確かめてから採る
+# （確かめないと、番号が違う・チケットが作業中でないときに存在しないパスを掴んでフォールバックに落ちない）
 find_summary_report() {
   F_REPORT=""
+  local p="$REPORTS/$F_TICKET_NO-overall-summary.md"
+  if [ -n "$F_TICKET_NO" ] && [ -f "$p" ]; then F_REPORT="$p"; return 0; fi
   shopt -s nullglob
-  local c=("$REPORTS/$F_TICKET_NO-overall-summary.md" "$REPORTS"/*-overall-summary.md)
+  local c=("$REPORTS"/*-overall-summary.md)
   shopt -u nullglob
   [ "${#c[@]}" -gt 0 ] || return 1
   F_REPORT="${c[0]}"
@@ -152,7 +156,13 @@ rederive_state() {
   local br unpushed; br="$(cur_branch)"
   unpushed="$(git rev-list "origin/$br..HEAD" 2>/dev/null || printf 'unknown')"
   if [ -n "$unpushed" ] && [ "$unpushed" != "unknown" ]; then F_STATE="cleaned"; log_info "再導出: cleaned"; return 0; fi
-  if is_draft; then F_STATE="pushed"; log_info "再導出: pushed"; else F_STATE="ready"; log_info "再導出: ready"; fi
+  # set -e の下では `is_draft; dr=$?` は非 0 の時点でスクリプトごと終わる。|| で受けて拾う
+  local dr=0; is_draft || dr=$?
+  case "$dr" in
+    0) F_STATE="pushed"; log_info "再導出: pushed" ;;
+    1) F_STATE="ready"; log_info "再導出: ready" ;;
+    *) F_STATE="pushed"; log_warn "再導出: draft かどうか判定できないので拒否側（pushed）に倒す" ;;
+  esac
   # 片付けコミットの親から pre_cleanup_sha を復元する（logs/ を唯一の正にしない）
   if [ -z "$F_PRE_SHA" ]; then
     local c; c="$(git log --format=%H --diff-filter=D -1 -- wip/30_reports 2>/dev/null || true)"
@@ -175,12 +185,21 @@ put_body() { # $1=本文ファイル
     *) return 1 ;;
   esac
 }
+# 0=draft / 1=draft でない / 2=判定できない（CLI 不在・ホスト不明・API 失敗）。
+# 「判定できない」を 1（draft でない）と同じにすると、logs/ を失った環境で ready へ倒れて
+# 何もせずに「解除した」と言ってしまう。呼び手は 2 を拒否側に扱うこと
 is_draft() {
+  local v=""
   case "$F_HOST" in
-    github) command -v gh >/dev/null 2>&1 || return 1; [ "$(gh pr view "$F_MR" --json isDraft -q .isDraft 2>/dev/null | tr -d '\r')" = "true" ] ;;
-    gitlab) command -v glab >/dev/null 2>&1 || return 1; [ "$(glab api "projects/:id/merge_requests/$F_MR" 2>/dev/null | jq -r '.draft // false' | tr -d '\r')" = "true" ] ;;
-    *) return 1 ;;
+    github)
+      command -v gh >/dev/null 2>&1 || return 2
+      v="$(gh pr view "$F_MR" --json isDraft -q .isDraft 2>/dev/null | tr -d '\r')" || return 2 ;;
+    gitlab)
+      command -v glab >/dev/null 2>&1 || return 2
+      v="$(glab api "projects/:id/merge_requests/$F_MR" 2>/dev/null | jq -r '.draft // empty' | tr -d '\r')" || return 2 ;;
+    *) return 2 ;;
   esac
+  case "$v" in true) return 0 ;; false) return 1 ;; *) return 2 ;; esac
 }
 mark_ready() {
   case "$F_HOST" in
@@ -254,7 +273,7 @@ stage_check() {
     printf '%s\n\n' "$CHECK_HEADING"
     printf 'チケット `%s` の完了検査（`finalize.sh release` の段階 2）。未充足 0 件。\n\n' "${F_TICKET##*/}"
     printf '| # | DoD | 合否 | 根拠 |\n|---|---|---|---|\n'
-    ticket_section "$F_TICKET" '^## DoD' | grep -E '^- \[[ x]\]' | awk '
+    ticket_section "$F_TICKET" '^## DoD' | { grep -E '^- \[[ x]\]' || true; } | awk '
       { n++
         checked = ($0 ~ /^- \[x\]/) ? "◎ 済" : "✕ 未"
         line = $0; sub(/^- \[[ x]\] /, "", line)
@@ -274,7 +293,7 @@ stage_record() {
   fi
   if ! grep -q 'id="completion-check"' "$html"; then
     local rows tmp
-    rows="$(printf '%s' "$F_CHECK_MD" | grep -E '^\| [0-9]+ \|' | awk -F'|' '{
+    rows="$(printf '%s' "$F_CHECK_MD" | { grep -E '^\| [0-9]+ \|' || true; } | awk -F'|' '{
       printf "      <tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n", $2, $3, $4, $5 }')"
     tmp="$(mktemp)"
     awk -v rows="$rows" -v head="$CHECK_HEADING" '
@@ -305,8 +324,14 @@ stage_record() {
     fi
   fi
   local out
-  if ! out="$(bash "$COMMIT_SH" -m "chore: 全体まとめの完了検査を統括レポートに書き出す" "$F_REPORT" "$html" 2>&1)"; then
-    printf '%s\n' "$out"; result_ng 002 "完了検査の書き出しをコミットできない（commit.sh の最終行を見ること）" 1
+  # 再実行のとき（前回はコミットまで通って push で落ちた）は差分が無い。commit.sh は差分なしを
+  # CP004 で拒否するので、コミットするものが無ければ飛ばして push へ進む
+  if [ -n "$(git status --porcelain -- "$F_REPORT" "$html" 2>/dev/null)" ]; then
+    if ! out="$(bash "$COMMIT_SH" -m "chore: 全体まとめの完了検査を統括レポートに書き出す" "$F_REPORT" "$html" 2>&1)"; then
+      printf '%s\n' "$out"; result_ng 002 "完了検査の書き出しをコミットできない（commit.sh の最終行を見ること）" 1
+    fi
+  else
+    log_info "完了検査の書き出しは既にコミット済み（差分なし）。コミットを飛ばす"
   fi
   if ! out="$(bash "$PUSH_SH" 2>&1)"; then
     printf '%s\n' "$out"
@@ -371,7 +396,21 @@ stage_cleanup() {
   mapfile -t files < <(find wip -type f ! -name .gitkeep 2>/dev/null | sed 's|\\|/|g')
   local n="${#files[@]}"
   if [ "$n" -eq 0 ]; then
-    F_CLEANED=0
+    # 再実行。前回は削除まで進んでコミットで落ちた可能性があるので、未コミットの削除を拾う。
+    # 拾わずに cleaned へ進めると、段階 6 の push が「未コミットの変更がある」で毎回落ちて
+    # release では二度と先へ進めなくなる
+    local -a pend=()
+    mapfile -t pend < <(git status --porcelain -- wip 2>/dev/null | sed 's/^...//' | sed 's|\\|/|g')
+    if [ "${#pend[@]}" -gt 0 ]; then
+      local out2
+      if ! out2="$(bash "$COMMIT_SH" -m "chore: 作業領域を片付ける" "${pend[@]}" 2>&1)"; then
+        printf '%s\n' "$out2"
+        result_ng 002 "前回の片付けの未コミット分（${#pend[@]} 件）をコミットできない（commit.sh の最終行を見ること）" 1
+      fi
+      F_CLEANED="${#pend[@]}"
+    else
+      F_CLEANED=0
+    fi
     write_state "cleaned"
     return 0
   fi
@@ -436,22 +475,34 @@ cmd_release() {
   find_summary_ticket || true
   find_summary_report || true
   read_state
+  # 値が壊れている（既知の段階名でない）ときは、終了 2 で止めずに再導出へ回す。
+  # 記録は直接編集できない（フックが拒否する）ので、止めると人間にも直す手段が無くなる
+  case "$F_STATE" in
+    ""|started|recorded|linked|cleaned|pushed|ready) ;;
+    *) log_warn "merge-state.json の state が未知（$F_STATE）。実態から再導出する"; F_STATE="" ;;
+  esac
   [ -n "$F_STATE" ] || rederive_state
 
-  # --linked は呼び出し元が本文を更新した後の再開（段階 4 を完了として記録する）
+  # --linked は呼び出し元が本文を更新した後の再開（段階 4 を完了として記録する）。
+  # 段階 4 を経ていない状態で受け付けると、前提検査・完了検査・書き出し・push を飛ばして
+  # 段階 5 の片付け（wip/ の全削除）に直行してしまうので、recorded のときだけ許す
   if [ -n "$OPT_LINKED" ]; then
+    if [ "$F_STATE" != "recorded" ]; then
+      result_ng 001 "--linked は段階 4 の書き出しを終えた後（state=recorded）にだけ使える（現在: ${F_STATE:-記録なし}）" 1
+    fi
     [ -n "$F_PRE_SHA" ] || F_PRE_SHA="$(head_sha)"
     write_state "linked"
   fi
-
-  case "$F_STATE" in
-    ""|started|recorded|linked|cleaned|pushed|ready) ;;
-    *) arg_ng "logs/merge-state.json の state が不正: $F_STATE" ;;
-  esac
   # 記録済みの段階は飛ばして続きから行う（冪等）。write_state が F_STATE を進めるので順に落ちていく
-  if [ -z "$F_STATE" ] || [ "$F_STATE" = "started" ]; then
+  if [ -z "$F_STATE" ]; then
     stage_precheck
     write_state "started"
+    stage_check
+    stage_record
+  elif [ "$F_STATE" = "started" ]; then
+    # 再実行。前提検査はやり直さない。段階 3 のコミットが未 push なだけで「HEAD が push 済み」の
+    # 条件に外れ、通せなくなるためである（統括レポートを失っているときだけ前提から確かめ直す）
+    if [ -z "$F_REPORT" ] || [ ! -f "$F_REPORT" ]; then stage_precheck; fi
     stage_check
     stage_record
   fi

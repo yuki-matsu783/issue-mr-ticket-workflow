@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0024- AI アセット実装・テスト結果 — 機構の実体を作る</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 9</span>
+    <span class="chip good">◎良 10</span>
     <span class="chip warn">△注意 1</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -153,6 +153,7 @@
           <li><a href="#f8"><span class="mk good">◎</span> 8. ワークフロースキル 2 本の書き起こし</a></li>
           <li><a href="#f9"><span class="mk warn">△</span> 9. eval 定義 19 本と旧資産の処遇</a></li>
           <li><a href="#f10"><span class="mk good">◎</span> 10. 敵対的レビュー指摘の反映（boundary.sh）</a></li>
+          <li><a href="#f11"><span class="mk good">◎</span> 11. 敵対的レビュー指摘の反映（finalize.sh）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -175,9 +176,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。<strong>0029（S6 スキル・エージェント）</strong>: <code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、エージェント定義 <strong>2 本</strong>を作った。計画型・実施型の共通手順は 2 本に集約し、残り 10 本は固有部分だけを書く。<strong>0030（S7 ワークフロースキル 2 本）</strong>: 旧名 83 件を置換ではなく<strong>新仕様からの書き起こし</strong>で解消した。2 本に残る旧名は 0 件。<strong>0031（S8 eval 定義と旧資産の処遇）</strong>: eval 定義 <strong>19 本</strong>を作って <code>.claude/evals/</code> を 28 本にした。旧資産の<strong>削除は機構に経路が無く</strong>（WF205）、追加チケット 0036 へ移した。<strong>0037（S10 敵対的レビュー指摘の反映・<code>boundary.sh</code>）</strong>: 指摘 5 件を直し、再現テスト <code>BD-T14</code>〜<code>BD-T18</code> を足した（74 → <strong>97 アサーション</strong>）。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。<strong>0029（S6 スキル・エージェント）</strong>: <code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、エージェント定義 <strong>2 本</strong>を作った。計画型・実施型の共通手順は 2 本に集約し、残り 10 本は固有部分だけを書く。<strong>0030（S7 ワークフロースキル 2 本）</strong>: 旧名 83 件を置換ではなく<strong>新仕様からの書き起こし</strong>で解消した。2 本に残る旧名は 0 件。<strong>0031（S8 eval 定義と旧資産の処遇）</strong>: eval 定義 <strong>19 本</strong>を作って <code>.claude/evals/</code> を 28 本にした。旧資産の<strong>削除は機構に経路が無く</strong>（WF205）、追加チケット 0036 へ移した。<strong>0037（S10 敵対的レビュー指摘の反映・<code>boundary.sh</code>）</strong>: 指摘 5 件を直し、再現テスト <code>BD-T14</code>〜<code>BD-T18</code> を足した（74 → <strong>97 アサーション</strong>）。<strong>0035（S11 敵対的レビュー指摘の反映・<code>finalize.sh</code>）</strong>: 指摘 7 件を直し、再現テスト <code>FN-T10</code>〜<code>FN-T16</code> を足した（38 → <strong>54 アサーション</strong>）。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>9</b><span>◎良</span></li>
+    <li class="kpi good"><b>10</b><span>◎良</span></li>
     <li class="kpi warn"><b>1</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -468,6 +469,31 @@
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">11</span>
+      <h3 id="f11">敵対的レビューの指摘を <code>finalize.sh</code> に反映した（S11） <span class="chip good">◎良</span> <span class="basis">根拠: <code>FN-T10</code>〜<code>FN-T16</code> を含む 54 アサーションが PASS</span></h3>
+      <p>1 回目の敵対的レビューが出した <code>finalize.sh</code> の指摘 7 件を直し、再現テストを足した。7 件のうち 4 件は「<strong>再実行したときに何が起きるか</strong>」の話に集約でき、直し方も「その段階の成果が既にあるかを見る」で揃えられた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>指摘</th><th>直し方</th></tr></thead>
+        <tbody>
+          <tr><td>高</td><td>片付けが削除してからコミットする順序で、失敗後の再実行が取りこぼす</td><td>対象 0 件の分岐で未コミットの削除を拾ってからコミットする</td></tr>
+          <tr><td>高</td><td>記録段階の push 失敗から回復できない</td><td><code>started</code> の再実行は前提検査をやり直さず、差分が無ければコミットを飛ばす</td></tr>
+          <tr><td>高</td><td><code>--linked</code> が状態を検査せずに段階を飛ばす</td><td><code>state=recorded</code> のときだけ受け付け、それ以外は FN001</td></tr>
+          <tr><td>中</td><td><code>is_draft</code> の判定不能が成功側に倒れる</td><td>3 値にし、判定不能は拒否側へ</td></tr>
+          <tr><td>低</td><td>統括レポート探索のフォールバックが到達しない</td><td>番号のパスを <code>-f</code> で確かめてから採る</td></tr>
+          <tr><td>低</td><td>未知の <code>state</code> で再導出に回らない</td><td>終了 2 で止めず、実態から再導出する</td></tr>
+          <tr><td>低</td><td><code>set -e</code> 下のパイプで結果行を出さずに終わる経路</td><td><code>grep</code> を <code>{ ... || true; }</code> で包む</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><strong>再実行の判定に状態ファイルではなく git の作業ツリーを使った</strong>。<code>git status --porcelain</code> を見て「その段階の成果が既にあるか」を決めるので、状態ファイルのスキーマを増やさずに済む。状態ファイルは壊れうるが、作業ツリーは実態そのものである。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>「判定できない」は拒否側に倒した。<code>is_draft</code> が答えを返せないときに <code>ready</code> へ倒すと、<strong>何もせずに「解除した」と報告してしまう</strong>。拒否側なら段階 7 が実際に走り、失敗すれば FN003 で見える。テストは 38 → <strong>54 アサーション</strong>。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -485,6 +511,7 @@
       <tr><td>全件テスト（回帰）</td><td>0027 の時点で <code>OK: 27 本 / 196 件</code>。27 ファイルすべて PASS、失敗 0・アサーション 2,247 件（<code>--timeout 300</code>。既定の 120 秒では <code>test_workflow_guard.sh</code> だけが TIMEOUT する）</td></tr>
       <tr><td><code>finalize.sh</code> の機械テスト</td><td><code>FN-T01</code>〜<code>FN-T09</code> の 9 件・アサーション 38 件が PASS。実行時間 44 秒</td></tr>
       <tr><td>完了検査の二重実装</td><td>0 件。<code>ticket.sh</code> と <code>finalize.sh</code> が同じ <code>ticket_check_completion</code> を source する</td></tr>
+      <tr><td><code>finalize.sh</code> の機械テスト（指摘の反映後）</td><td><code>FN-T01</code>〜<code>FN-T16</code> の 16 件・アサーション <strong>54 件</strong>が PASS（従来 38 + 新規 16）</td></tr>
       <tr><td><code>boundary.sh</code> の機械テスト（指摘の反映後）</td><td><code>BD-T01</code>〜<code>BD-T18</code> の 18 件・アサーション <strong>97 件</strong>が PASS（従来 74 + 新規 23）</td></tr>
       <tr><td>eval 定義の網羅</td><td><code>10_spec/</code> から抽出した eval ID 111 件が <code>.claude/evals/</code> 側にすべて現れる（差はルール 4 本ぶんの 12 件のみ）。ファイル数は 28（既存 9 + 新規 19）</td></tr>
       <tr><td>ワークフロースキルの旧名</td><td>2 本とも 0 件。<code>ワーク</code> の残りは <code>ワークスペース</code>（仕様の禁止事項の文言）だけで、<code>grep -noE "ワーク[^ス]"</code> は 0 件</td></tr>

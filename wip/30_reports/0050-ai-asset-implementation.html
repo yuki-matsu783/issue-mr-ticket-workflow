@@ -1,33 +1,9 @@
-<!--
-  結果レポート（wip/30_reports/）の HTML ビュー テンプレート（20-common-step-report-view）
-
-  使い方（正は .claude/docs/10_spec/skills/20-common-step-report-view.md「処理フロー」）:
-    1. 対応する md と同じベース名でコピーする（拡張子だけ .html）。
-    2. 二重波括弧のプレースホルダをすべて実際の内容に置き換える（要素の内容として置いてあるので、
-       消し忘れはブラウザで見える）。説明のコメントは残しても消してもよい。
-    3. data-required 付きの要素は必須。削除せず、書くことが無ければ「無し」と 1 行書く。
-       data-required の無い節は書くことが無ければ節ごと削除してよい。それ以外の DOM 構造は変えない。
-    4. bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <このファイル> を通す。
-    5. 冒頭のこのコメントは削除してよい。
-
-  節の並び: サイドバー（題名・件数・目次・メタ）→ サマリ（総括 + 件数 + 重点レビュー依頼）→
-  確かめられなかったこと → 実施条件（任意）→ 実施した内容と結果 → 検証の結果（任意）→
-  設計への反映 → 想定と異なった点 → 残課題
-
-  視覚語彙: 結論の性質は 3 色 + 記号 + 文字（◎良 = 青 / △注意 = 黄 / ✕問題 = 赤）。
-  レビューの重みは色相を使わず ◆特に見てほしい / ◇判断が欲しい / ・細かいレビュー不要。
-  ◇ の見出しは「判断が欲しい」で、書き手が方針を決めている前提の文言にしない
-  （決めずに判断を仰ぐ種類のタスクの項目が置けなくなるため）。
-  章 ID は h3 に f1, f2, … の連番。目次・件数・未確認一覧・重点依頼からこの ID を参照する。
-
-  外部依存: 無し（CDN・外部フォント・画像を参照しない。<style> は 1 つ。スクリプト無し）。
--->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{title}}</title>
+<title>0050- AI アセット実装・テスト結果 — 仕様に本体を追随させる</title>
 <style>
   /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
   * { box-sizing: border-box; }
@@ -150,29 +126,25 @@
 <div class="shell">
 
 <aside class="sidebar">
-  <!-- 種別とフェーズ（例: 調査結果レポート / 調査） -->
-  <p class="kind">{{kind}}</p>
-  <!-- 題名（md の H1 と同じ） -->
-  <h1 id="title" data-required>{{title}}</h1>
+  <p class="kind">AI アセット実装・テスト結果レポート / AI アセット実装</p>
+  <h1 id="title" data-required>0050- AI アセット実装・テスト結果 — 仕様に本体を追随させる</h1>
 
-  <!-- 結論件数。サマリの件数タイルと一致させる。0 件の性質も 0 を明示して残す -->
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 {{good_count}}</span>
-    <span class="chip warn">△注意 {{warn_count}}</span>
-    <span class="chip stop">✕問題 {{stop_count}}</span>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 0</span>
+    <span class="chip stop">✕問題 0</span>
   </p>
 
   <nav class="toc" id="toc" data-required>
     <p class="toc-title">目次</p>
-    <!-- 削除した任意節の行は消す。章（f1, f2, …）は toc-sub に同じ数だけ並べる -->
     <ol>
       <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
       <li><a href="#unverified">確かめられなかったこと</a></li>
-      <li><a href="#conditions">実施条件</a></li>
       <li>
         <a href="#findings">実施した内容と結果</a>
         <ol class="toc-sub">
-          <li><a href="#f1"><span class="mk good">◎</span> 1. {{f1_title}}</a></li>
+          <li><a href="#f1"><span class="mk good">◎</span> 1. ◇ の見出しを「判断が欲しい」に</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 消し込み表の節を足した</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -182,134 +154,136 @@
     </ol>
   </nav>
 
-  <!-- 対象 issue / PR は必須。値の無いその他の項目は div ごと削除する -->
   <dl class="meta" id="meta" data-required>
-    <div><dt>issue</dt><dd>{{issue}}</dd></div>
-    <div><dt>PR</dt><dd>{{pr}}</dd></div>
-    <div><dt>ブランチ</dt><dd>{{branch}}</dd></div>
-    <div><dt>チケット</dt><dd>{{tickets}}</dd></div>
-    <div><dt>作成日</dt><dd>{{date}}</dd></div>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/10">#10</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/35">#35</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-10-task-skills-agents-finalize</code></dd></div>
+    <div><dt>チケット</dt><dd>0050〜0054</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-04</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
 </aside>
 
 <main class="main">
 
-<!-- 必須: サマリ（総括 + 件数 + 重点レビュー依頼）。3 つの枠は削除せず、無ければ「無し」と 1 行 -->
 <section id="overview" data-required>
-  <p class="lead">{{summary}}</p>
+  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>{{good_count}}</b><span>◎良</span></li>
-    <li class="kpi warn"><b>{{warn_count}}</b><span>△注意</span></li>
-    <li class="kpi stop"><b>{{stop_count}}</b><span>✕問題</span></li>
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>0</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
-        <li>{{focus_must}}</li>
+        <li>無し</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
       <p class="label">◇判断が欲しい</p>
       <p class="sub">決めた方針の承認 / 決められない点の判断</p>
       <ul>
-        <li>{{focus_want}}</li>
+        <li><a href="#f1">◇ の副題</a>を「決めた方針の承認 / 決められない点の判断」にした。仕様は見出しの文言だけを定めていて副題は定めていないので、両方の使い方が読めるようにこちらで決めた</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
       <p class="label">・細かいレビューは不要</p>
       <p class="sub">ほぼ確実</p>
       <ul>
-        <li>{{focus_skip}}</li>
+        <li><a href="#f2">消し込み表</a>の列は「走査した記録 / 抽出した項目 / 行き先」の 3 列。仕様の記述をそのまま列にした</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- 必須: 確かめられなかったこと。1 行 1 件で章へリンク。無ければ「無し」 -->
 <section id="unverified" data-required>
   <div class="box warn">
     <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
     <ul>
-      <li>{{unverified}}</li>
+      <li><b>テンプレートの見出しの変更が、実際のレポート作成で読みやすくなったか</b>: 効果は eval でしか測れず、実装フェーズでは eval を実行しない → 人間の判断</li>
     </ul>
   </div>
 </section>
 
-<!-- 任意: 実施条件（実測・計測を含むなら書く）。不要なら節ごと削除 -->
-<section id="conditions">
-  <h2>実施条件（測った対象・環境）</h2>
-  <ul>
-    <li>{{conditions}}</li>
-  </ul>
-</section>
-
-<!-- 必須: 実施した内容と結果。結論ごとに li.tl-item、h3 の id は f1 から連番 -->
 <section id="findings" data-required>
   <h2>実施した内容と結果</h2>
   <ol class="tl">
+
     <li class="tl-item">
       <span class="tl-dot good">1</span>
-      <h3 id="f1">{{f1_title}} <span class="chip good">◎良</span> <span class="basis">根拠: {{f1_basis}}</span></h3>
-      <p>{{f1_body}}</p>
+      <h3 id="f1">レビューの重みの ◇ の見出しを「判断が欲しい」に変えた <span class="chip good">◎良</span> <span class="basis">根拠: 20-common-step-report-view 仕様 OUT ひな形の視覚語彙</span></h3>
+      <p><code>report.template.html</code> の 2 か所（冒頭のガイドコメントと <code>#focus-want</code> のラベル）と <code>report.template.md</code> の 1 か所を変えた。副題は「決めた方針の承認 / 決められない点の判断」とし、本文のガイドも「自分で決めた判断と根拠、または決めずに候補と比較軸を並べた点」に直した。</p>
       <details>
         <summary>根拠を見る（実行コマンドと出力）</summary>
-        <pre><code>{{f1_evidence}}</code></pre>
+        <pre><code>grep -rn '承認が欲しい' .claude/skills/*/assets/
+=&gt; 0 行
+
+grep -rn '承認が欲しい' .claude/skills/
+=&gt; .claude/skills/20-common-step-report-view/SKILL.md:25（S4 の担当）</code></pre>
       </details>
       <div class="box ok">
         <p class="label">結論</p>
-        <p>{{f1_conclusion}}</p>
+        <p>調査タスクのように「決めない」と定められたタスクでも、判断を仰ぐ項目の置き場ができた。</p>
       </div>
     </li>
-    <!-- 章の数だけ li.tl-item を繰り返す（id は f2, f3, …。チップとドットの色は結論の性質に合わせる） -->
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">フィードバック計画のひな形に消し込み表の節を足した <span class="chip good">◎良</span> <span class="basis">根拠: 10-task-feedback-plan 仕様 OUT ひな形・処理フロー 2</span></h3>
+      <p>「確認した記録の範囲」と「改善候補の一覧」の間に「消し込み表」の節を置いた。列は 走査した記録 / 抽出した項目 / 行き先（候補 #n / 既に反映済み / 候補にしない + 理由）。ガイドに「行数が『確認した記録の範囲』の件数と一致することを確かめてから候補の一覧へ進む」と「この表が無いと拾ったのに載せ損ねた項目が誰にも気づかれない」を書いた。あわせて同じひな形の類型のガイドが省略形だったので、機構の定義と同じ文言に直した。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>この issue のフィードバック計画が初版で 26 件を落とした直接の原因（表の不在）が、ひな形の側で塞がった。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
-<!-- 任意: 検証の結果を一覧で示す場合。各章で示しているなら削除 -->
 <section id="verified">
   <h2>検証の結果</h2>
   <div class="tablewrap">
   <table>
     <thead><tr><th>検証</th><th>結果</th></tr></thead>
     <tbody>
-      <tr><td>{{verified_item}}</td><td>{{verified_result}}</td></tr>
+      <tr><td><code>grep -rn '承認が欲しい' .claude/skills/*/assets/</code></td><td>0 行</td></tr>
+      <tr><td><code>run-tests.sh --filter '*test_check_html*'</code>（<code>RV-T01</code>〜<code>RV-T08</code> の回帰）</td><td><code>OK: 1 本 / 8 件</code>（<code>passed=58 failures=0</code>）</td></tr>
+      <tr><td>このレポートの HTML が <code>check-html.sh</code> を通る</td><td>S1 の締めで実行</td></tr>
+      <tr><td>テンプレートにプレースホルダの書き残しが無い</td><td>テンプレートは二重波括弧のプレースホルダを持つのが正なので対象外。書き終わりの検査は使う側（レポート・計画書）で行う</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
-<!-- 必須: 設計への反映（後続フェーズで何を決める／何をするか。反映先の文書も） -->
 <section id="next" data-required>
   <h2>設計への反映</h2>
   <ol>
-    <li>{{next}}</li>
+    <li><code>20-common-step-report-view/SKILL.md</code> の視覚語彙の 1 行を「判断が欲しい」に追随させる → S4（0053）</li>
   </ol>
 </section>
 
-<!-- 必須: 想定と異なった点。無ければ「無し」 -->
 <section id="surprises" data-required>
   <h2>想定と異なった点</h2>
   <div class="tablewrap">
   <table>
     <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
     <tbody>
-      <tr><td>{{surprise_expected}}</td><td>{{surprise_actual}}</td><td>{{surprise_handling}}</td></tr>
+      <tr><td>0050 の DoD の「<code>grep -rn '承認が欲しい' .claude/skills/</code> が 0 件」はこのステップで達成できる</td><td>SKILL.md にも 1 件あり、そのファイルは S4 の許可範囲</td><td>DoD をこのステップの担当（<code>assets/</code>）に絞り、<code>.claude/skills/</code> 全体での 0 件は S5（0054）の DoD が確かめる形にした</td></tr>
     </tbody>
   </table>
   </div>
 </section>
 
-<!-- 必須: 残課題。無ければ「無し」 -->
 <section id="todo" data-required>
   <h2>残課題</h2>
   <ul>
-    <li>{{todo}}</li>
+    <li><b>R1</b>: 見出しの変更の効果は eval でしか測れない（実装フェーズでは実行しない） → 人間の判断</li>
   </ul>
 </section>
 
-<footer>{{issue}} / {{pr}} — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+<footer>#10 / #35 — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
 
 </main>
 </div>

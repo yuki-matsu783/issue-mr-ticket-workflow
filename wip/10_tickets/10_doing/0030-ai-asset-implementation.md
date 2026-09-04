@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まず、旧名 0 件
 allow:
   write: [".claude/skills/00-workflow-issue-mr-driven/**", ".claude/skills/00-workflow-quick-request/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T12:19:21+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "04efe8d"
 ---
 
 # 0030 S7 ワークフロースキル 2 本の SKILL.md 改訂（旧名 83 件）

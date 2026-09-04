@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: overall-summary
-predecessors: ["0054"]
+predecessors: ["0054", "0056"]
 executor: main
 human_review: {required: true, reason: "片付けと draft 解除の前の最終確認（基準どおり）"}
 adversarial_review: {required: false, reason: "基準どおり（全体まとめは最終確認を人間が行う）"}

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり（全体まとめ
 allow:
   write: ["wip/**", "logs/**"]
   ops: ["read", "remote-read", "remote-write:issue", "remote-write:mr", "remote-write:push", "merge-base"]
-started_at: ""
+started_at: "2026-09-04T18:26:22+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a029b55"
 ---
 
 # 0055 issue #10 の全体まとめ

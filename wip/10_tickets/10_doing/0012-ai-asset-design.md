@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T05:41:06+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "bbadab9"
 ---
 
 # 0012 AI アセット設計: 並列採用の DDR と、作業ツリーの三分・進行状態の一本化・保護漏れの閉塞

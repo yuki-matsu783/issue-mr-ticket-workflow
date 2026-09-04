@@ -278,6 +278,60 @@ __wg_check_write_targets() { # $1=US 区切りの宛先
   return 0
 }
 
+# 削除だけを行う段か（`rm` / `git rm`）。ファイルの中身を作らないので、対象がチケットの
+# allow.write に収まっていれば通す（Edit / Write にファイルを消す手段が無く、これが無いと
+# AI は自分が作ったアセットを片付けられない。仕様 制御方式 6 との差分は 0036 の作業ログ）
+__wg_is_delete_seg() { # $1=セグメント番号
+  case "${CP_EXE[$1]:-}" in
+    rm)  return 0 ;;
+    git) [[ "${CP_SUBCMD[$1]:-}" == rm ]] && return 0 ;;
+  esac
+  return 1
+}
+
+__wg_delete_targets() { # $1=セグメント番号 → 削除対象を REPLY_LIST に置く。読み取れなければ 1
+  local i="$1" a seen_sub=0
+  if [[ "${CP_EXE[$i]:-}" == rm ]]; then
+    # cmdpos が抜いた書き込み先をそのまま使う（オプションの規則を複製しない）
+    __wg_split_us "${CP_WRITE_TARGETS[$i]:-}"
+    (( ${#REPLY_LIST[@]} )) || return 1
+    return 0
+  fi
+  # git rm はサブコマンドより後ろの非オプション語が対象（cmdpos は git の書き込み先を抜かない）
+  REPLY_LIST=()
+  cmdpos_args "$i"
+  for a in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
+    if (( seen_sub == 0 )); then [[ "$a" == rm ]] && seen_sub=1; continue; fi
+    [[ "$a" == --pathspec-from-file* ]] && return 1   # 対象が別ファイルにあり読み取れない
+    [[ "$a" == -* ]] && continue
+    REPLY_LIST+=("$a")
+  done
+  (( ${#REPLY_LIST[@]} )) || return 1
+  return 0
+}
+
+__wg_check_delete_targets() { # $1=セグメント番号
+  local i="$1" t p
+  if ! __wg_delete_targets "$i"; then
+    hook_deny WF205 "削除するコマンドだが、消す対象を読み取れなかった。消すファイルをパスで 1 つずつ指定すること（コマンドで消してよいのはチケットの allow.write の内側だけ）。" "$(__wg_cmd_head)"
+  fi
+  __wg_load_approvals
+  for t in ${REPLY_LIST[@]+"${REPLY_LIST[@]}"}; do
+    if [[ "$t" == "_" ]]; then
+      hook_deny WF205 "削除の対象を読み取れなかった（クォート等で潰れている）。消すファイルをパスでそのまま指定すること。" "$(__wg_cmd_head)"
+    fi
+    __wg_rel "$t"; p="$REPLY"
+    scope_resolve "$p"
+    case "$SC_DECISION" in
+      skip|allow) ;;
+      *)
+        hook_deny WF205 "$p を消そうとしているが、$(__wg_ticket_line)で書き換えてよい範囲の外（判定 $SC_STAGE）。コマンドで消せるのは宣言した allow.write の内側だけ。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+        ;;
+    esac
+  done
+  return 0
+}
+
 # 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）
 __wg_check_provided_args() { # $1=セグメント番号
   local i="$1" a skip=0 first=1 p
@@ -310,6 +364,14 @@ for (( __wg_i = 0; __wg_i < CP_COUNT; __wg_i++ )); do
   __WG_TARGETS="${SC_TARGETS:-}"
   if [[ -n "${CP_REDIRECTS[$__wg_i]:-}" ]]; then
     __WG_TARGETS="${__WG_TARGETS}${__WG_TARGETS:+$__WG_US}${CP_REDIRECTS[$__wg_i]}"
+  fi
+
+  # 削除だけの段は allow.write で判定する（作成・更新は従来どおり Edit / Write に寄せる）。
+  # リダイレクト先は削除ではなく書き込みなので、置き場の判定を当てる
+  if __wg_is_delete_seg "$__wg_i"; then
+    __wg_check_delete_targets "$__wg_i"
+    __wg_check_write_targets "${CP_REDIRECTS[$__wg_i]:-}"
+    continue
   fi
 
   case "$__WG_SEG_CLASS" in

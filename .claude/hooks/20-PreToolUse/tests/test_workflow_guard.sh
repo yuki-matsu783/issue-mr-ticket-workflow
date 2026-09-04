@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_workflow_guard.sh — workflow-guard.sh のテスト（仕様のテスト ID: WG-T01〜WG-T17）
+# test_workflow_guard.sh — workflow-guard.sh のテスト（仕様のテスト ID: WG-T01〜WG-T18）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*workflow_guard*'
 # テストは set -e を使わない（終了コードは judge が取る）
 set -uo pipefail
@@ -415,6 +415,39 @@ case_broken() {
   set_approvals
 }
 
+# ---- WG-T18: 削除だけのコマンドは allow.write の内側なら通る ----
+case_delete() {
+  set_ticket 0007-ai-asset-impl
+  reset_logs; set_approvals
+  assert_eq "WG-T18" "allow" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh')"
+  assert_eq "WG-T18" "allow" "$(tc 'rm -f .claude/hooks/20-PreToolUse/x.sh .claude/hooks/lib/y.sh')"
+  assert_eq "WG-T18" "allow" "$(tc 'git rm .claude/hooks/20-PreToolUse/x.sh')"
+  assert_eq "WG-T18" "allow" "$(tc 'git rm -r --cached .claude/hooks/old/')"
+  assert_eq "WG-T18" "allow" "$(tc 'rm wip/tmp/x')"                        # 従来から通っていた置き場
+  # 許可範囲の外は今までどおり WF205（負のコントロール）
+  assert_eq "WG-T18" "WF205" "$(tc 'rm apl/app/src/api/a.ts')"
+  assert_eq "WG-T18" "WF205" "$(tc 'git rm apl/app/src/api/a.ts')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm .claude/settings.json')"            # 毎回確認の範囲は消させない
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -rf .claude')"
+  # 作成・更新の扱いは変えない
+  assert_eq "WG-T18" "WF205" "$(tc 'echo x > .claude/hooks/20-PreToolUse/x.sh')"
+  assert_eq "WG-T18" "WF205" "$(tc 'mv .claude/hooks/20-PreToolUse/x.sh .claude/hooks/20-PreToolUse/y.sh')"
+  assert_eq "WG-T18" "WF205" "$(tc 'cp wip/tmp/x .claude/hooks/20-PreToolUse/x.sh')"
+  # 対象を読み取れない形は拒否
+  assert_eq "WG-T18" "WF205" "$(tc 'rm -f')"
+  assert_eq "WG-T18" "WF205" "$(tc 'git rm --pathspec-from-file wip/tmp/list.txt')"
+  # 削除の対象が通っても、リダイレクト先は従来どおり置き場で見る
+  assert_eq "WG-T18" "WF205" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh > .claude/hooks/out.txt')"
+  assert_eq "WG-T18" "allow" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh > wip/tmp/out.txt')"
+  # 宣言に無いパスは、上限（types.allow）の内側でも消せない
+  set_ticket 0003-implementation
+  assert_eq "WG-T18" "allow" "$(tc 'rm apl/app/src/api/a.ts')"
+  assert_eq "WG-T18" "WF205" "$(tc 'rm apl/app/src/other/b.ts')"
+  # 作業中チケットが無ければこのフックは何もしない（WG-T01 と同じ。削除の可否は入口ガードが見る）
+  set_ticket
+  assert_eq "WG-T18" "allow" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh')"
+}
+
 printf 'ticket_type: implementation\n' > "$TMP_REPO/wip/10_tickets/00_todo/0011-x.md"
 
 case_no_ticket
@@ -433,6 +466,7 @@ case_headless
 case_provided_args
 case_web
 case_web_upload
+case_delete
 case_broken
 
 finish

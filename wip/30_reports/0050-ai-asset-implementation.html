@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0050- AI アセット実装・テスト結果 — 仕様に本体を追随させる</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 4</span>
+    <span class="chip good">◎良 5</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -147,6 +147,7 @@
           <li><a href="#f2"><span class="mk good">◎</span> 2. 消し込み表の節を足した</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. BD006 / FN004 に分けた</a></li>
           <li><a href="#f4"><span class="mk good">◎</span> 4. BD-T19 / FN-T18 を足した</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. SKILL.md 8 本を追随させた</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -169,9 +170,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。<b>0051 まで（S2: 中核）</b>: 提供コマンド 2 本の引数・環境の誤りを <code>BD006</code> / <code>FN004</code> に分け、テスト <code>BD-T19</code> / <code>FN-T18</code> を足した。</p>
+  <p class="lead">設計フェーズが正史に書き戻した内容に、アセット本体を追随させる。実装計画（0047）の S1〜S5 を順に実施し、このレポートに節を積み上げる。<b>0050 まで（S1: 定義）</b>: テンプレート 3 件を仕様どおりにした。レビューの重みの ◇ の見出しを「判断が欲しい」に変え、フィードバック計画のひな形に「消し込み表」の節を足した。<b>0051 まで（S2: 中核）</b>: 提供コマンド 2 本の引数・環境の誤りを <code>BD006</code> / <code>FN004</code> に分け、テスト <code>BD-T19</code> / <code>FN-T18</code> を足した。<b>0052 まで（S3: スキル）</b>: ワークフロー・タスクスキル 8 本の SKILL.md に、仕様が足した手順・規約の要約 24 項目を写した。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>4</b><span>◎良</span></li>
+    <li class="kpi good"><b>5</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -197,6 +198,7 @@
         <li><a href="#f2">消し込み表</a>の列は「走査した記録 / 抽出した項目 / 行き先」の 3 列。仕様の記述をそのまま列にした</li>
         <li><a href="#f3">番号は末尾に足し</a>、既存の <code>BD001</code>〜<code>BD005</code> / <code>FN001</code>〜<code>FN003</code> を振り直していない</li>
         <li><a href="#f4">引数・環境の誤りのテスト</a>は原因ごとに ID を分けず、1 つの ID に 3 原因を並べた</li>
+        <li><a href="#f5">SKILL.md には要約だけを書き</a>、正は仕様書という関係を崩していない</li>
       </ul>
     </div>
   </div>
@@ -282,6 +284,31 @@ run-tests.sh --filter '*test_finalize*'
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">SKILL.md 8 本を仕様に追随させた <span class="chip good">◎良</span> <span class="basis">根拠: 各スキルの仕様書の該当節</span></h3>
+      <p>仕様書の該当節から要約を写し、SKILL.md 側で新しい概念を作らないようにした。追加は 24 項目（数え方: 下の表の「足した内容」欄をスラッシュで区切った数）で、すべて仕様書の節と 1:1 で対応する。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>SKILL.md</th><th>足した内容</th><th>仕様の該当箇所</th></tr></thead>
+        <tbody>
+          <tr><td><code>00-workflow-issue-mr-driven</code></td><td>起動プロンプトにブランチ名 / 観点に必須節の実在 / 既定のモデルが使えないときの代替 / <code>BD006</code> の案内</td><td>手順 2a の但し書き 3 件、エラー識別子 <code>BD006</code></td></tr>
+          <tr><td><code>10-task-investigation-plan</code></td><td>DoD に書くコマンドの形を先に確かめる / 保留の書き方 3 点 / 保留は既に満たされていないかを先に見る</td><td>処理フロー 4 の但し書き、「保留の書き方」2 項目</td></tr>
+          <tr><td><code>10-task-investigation-exec</code></td><td>過去の節を書き換えない / 表に載せきれない対象は表に行を足す / 書き終える前に「成果物の形」を読み返す</td><td>共通手順 4 の但し書き 3 件</td></tr>
+          <tr><td><code>10-task-ai-asset-design-exec</code></td><td>着手したら <code>ai-asset-design-docs</code> を読む / 採番と観点の定義を同じチケットで済ませる / 旧名を増やしていないかのセルフレビュー</td><td>固有手順の 3 項目</td></tr>
+          <tr><td><code>10-task-ai-asset-implementation-plan</code></td><td><code>--filter</code> はパス全体のグロブ / 削除対象を <code>allow.write</code> に含める / 実測値は調査フェーズの値を使う / ロックアウト対策のテストが変更箇所を踏む</td><td>固有手順の 4 項目、OUT ひな形「ロックアウト対策」の行</td></tr>
+          <tr><td><code>10-task-overall-plan</code></td><td>前の issue の作業領域が default に残っていないかをブランチを切る前に確かめる / 残骸は承認を得て最初のコミットに含める</td><td>処理フロー 4 の但し書き 2 件</td></tr>
+          <tr><td><code>10-task-overall-summary</code></td><td>進行状態の <code>branch</code> / 判定できないものは「済んでいない」側（draft の 3 値）/ <code>--linked</code> は <code>recorded</code> のときだけ / <code>FN004</code> の案内</td><td>Script 処理の進行状態、段階 4 の但し書き、エラー識別子 <code>FN004</code></td></tr>
+          <tr><td><code>10-task-feedback-plan</code></td><td>抽出と集約を消し込み表で繋ぐ（手順と OUT ひな形の行）</td><td>処理フロー 2 の但し書き、OUT ひな形「消し込み表」の行</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><code>10-task-feedback-plan</code> の類型の文言は機構の定義と同一の形で既に書かれていたので変更していない（ひな形側の省略形は S1 で解消済み）。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -299,6 +326,8 @@ run-tests.sh --filter '*test_finalize*'
       <tr><td><code>run-tests.sh --filter '*test_boundary*'</code>（<code>BD-T19</code> を含む全 ID）</td><td><code>OK: 1 本 / 19 件</code>（<code>passed=112 failures=0</code>）</td></tr>
       <tr><td><code>run-tests.sh --filter '*test_finalize*'</code>（<code>FN-T18</code> を含む全 ID）</td><td><code>OK: 1 本 / 18 件</code>（<code>passed=69 failures=0</code>）</td></tr>
       <tr><td>既存の <code>BD-T03</code> / <code>BD-T09</code> / <code>BD-T16</code> / <code>FN-T02</code> / <code>FN-T10</code> が期待値を変えずに通る</td><td>上の 2 本に含まれて全通過（期待値の編集は無し）</td></tr>
+      <tr><td>SKILL.md 8 本のプレースホルダ</td><td>書き残しは 0 件。3 本に残る二重波括弧は「DoD の型」のひな形として意図的に置いているもので、このチケットで増やしていない</td></tr>
+      <tr><td>SKILL.md 8 本の frontmatter</td><td>8 本とも <code>---</code> で始まり <code>name</code> と <code>description</code> を持つ（変更していない）</td></tr>
     </tbody>
   </table>
   </div>
@@ -308,8 +337,8 @@ run-tests.sh --filter '*test_finalize*'
   <h2>設計への反映</h2>
   <ol>
     <li><code>20-common-step-report-view/SKILL.md</code> の視覚語彙の 1 行を「判断が欲しい」に追随させる → S4（0053）</li>
-    <li><code>00-workflow-issue-mr-driven/SKILL.md</code> の「BD001〜BD005」を <code>BD006</code> まで含む表記に直す → S3（0052）</li>
-    <li><code>10-task-overall-summary/SKILL.md</code> の「FN001〜FN003」を <code>FN004</code> まで含む表記に直す → S3（0052）</li>
+    <li><code>00-workflow-issue-mr-driven/SKILL.md</code> の「BD001〜BD005」を <code>BD006</code> まで含む表記に直す → S3（0052）で反映済み</li>
+    <li><code>10-task-overall-summary/SKILL.md</code> の「FN001〜FN003」を <code>FN004</code> まで含む表記に直す → S3（0052）で反映済み</li>
   </ol>
 </section>
 

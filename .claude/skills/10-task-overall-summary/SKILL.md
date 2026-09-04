@@ -17,7 +17,7 @@ description: >
 issue の作業をたたんで、成果物が後から辿れる形にしてから draft を解除する。マージは人間が行う。
 
 - 要件: `.claude/docs/00_requirement/skills/10-task-overall-summary.md`
-- 仕様（正。処理フロー 1〜10・`finalize.sh release` の 8 段階・FN001〜FN003）: `.claude/docs/10_spec/skills/10-task-overall-summary.md`
+- 仕様（正。処理フロー 1〜10・`finalize.sh release` の 8 段階・FN001〜FN004）: `.claude/docs/10_spec/skills/10-task-overall-summary.md`
 
 ## 手順
 
@@ -40,11 +40,14 @@ issue の作業をたたんで、成果物が後から辿れる形にしてか�
 
 再開時は `logs/merge-state.json` の `state`（`started` → `recorded` → `linked` → `cleaned` → `pushed` → `ready`）から続きを行う。記録が無い・壊れている場合は `release` が実態から再導出して書き戻す。
 
+- 記録には `branch`（この記録がどのブランチのものか）が入る。**書き手は `finalize.sh` だけ**で、読む側（`boundary.sh status` の `merge_prep` 判定、セッション開始時の「マージ前作業」の行）は現在のブランチと違う記録を自分のものとして扱わない。前の issue の記録で毎回止まらないための項目
+- **判定できないものは「済んでいない」側に倒す**。draft かどうかは 3 値（draft / draft でない / 判定できない）で扱い、判定できないときは `pushed` に倒して段階 7 を実際に実行する。「draft でない」と畳むと、記録を失った環境で何も解除していないのに「解除した」と報告してしまう
+
 ### CLI が使えない環境
 
 `gh` / `glab` のどちらも使えないときは、段階 4（本文のリンク一覧）と段階 7（draft 解除）だけを呼び出し元が代行する。
 
-- 段階 4: `release --external --pr <M> --body-file <path>` でリンク一覧と固定マーカーを `<path>` に書き出す。MCP ツールで本文を更新したあと `release --external --pr <M> --linked` で再開する
+- 段階 4: `release --external --pr <M> --body-file <path>` でリンク一覧と固定マーカーを `<path>` に書き出す。MCP ツールで本文を更新したあと `release --external --pr <M> --linked` で再開する。**`--linked` は記録が `recorded` のときだけ受け付ける**（記録なしを含め、それ以外は FN001）。段階 4 を経ていない `--linked` を通すと、前提検査・完了検査・書き出し・push を飛ばして段階 5 の片付け（`wip/` の全削除）に直行してしまう
 - 段階 7: MCP ツールで draft を解除したうえで `release --external --pr <M>` を実行すると、最終ゲートの検査だけを行って `ready` にする
 - `--external` は `via: "external"` を残す。`gh` 自身が確認する強度より劣ることを統括レポートに明記する。`curl` / `WebFetch` へ落とさない
 
@@ -83,6 +86,7 @@ issue の作業をたたんで、成果物が後から辿れる形にしてか�
 | `finalize.sh` が `FN001`（前提未充足） | 列挙された未充足を解消する（チケットの継続・レポート作成・本文の最終化・push）。状態ファイルを直さない |
 | `finalize.sh` が `FN002`（完了検査未充足） | 全体まとめチケットの DoD・作業ログ・根拠欄を埋めてから再実行する |
 | `finalize.sh` が `FN003`（最終ゲート未充足） | 手順 3 の要領で承認を得て `git merge origin/<default>` し、`release` を再実行する。統括レポート・本文はやり直さない |
+| `finalize.sh` が `FN004`（終了コード 2） | 呼び方か環境の誤り（不明なサブコマンド・値の無いオプション・`jq` / `git` の不在）。前提未充足ではないので状態を直しても解消しない。正しい呼び方に直すか、足りないコマンドを入れる |
 | 途中で失敗した | 同じ `release` を再実行する。記録済みの段階は飛ばして続きから進む |
 | GitHub に HTML を添付したい | AI は行わない。人間がブラウザで本文に添付する。API での添付を試みない |
 | ヘッドレスで別 issue の承認が取れない | 起票しない。候補の一覧を統括レポートに書いて次の手順へ進む |

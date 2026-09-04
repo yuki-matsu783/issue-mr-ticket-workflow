@@ -359,7 +359,7 @@ OK: 25 本 / 165 件</code></pre>
       <tr><td>調査は読むだけで済む</td><td><code>python3</code> が WF204 で拒否された。<code>commands.build-test</code> は npm の 6 コマンドしか列挙していなかった</td><td>迂回せず作業を止め、許可を広げる実装チケット 0045 を差し込む合意を取った。DDR <code>i0015-02</code> に判断を残した</td></tr>
       <tr><td>置き場が「本番置換」なら実装フェーズが重くなる</td><td>結論は「採用しない」で、本番コードの変更は 0 行になった</td><td>フェーズを省かず、実装フェーズをテストの確認 + 1 件の追加に充てた</td></tr>
       <tr><td>各ワークの境界で人間レビューを受ける</td><td>指示により止まらずに進めた</td><td>未レビューのタスクを本レポートに明示し、draft 解除後にまとめて見てもらう形にした</td></tr>
-      <tr><td>片付けで作業領域が空になる</td><td>WF303 が <code>wip/10_tickets/20_done</code> の削除を拒む</td><td>削除できる範囲だけ片付け、残る件数と理由を PR 本文に書いた</td></tr>
+      <tr><td>片付けで作業領域が空になる（残るのは <code>20_done</code> だけ）</td><td>WF205 が <code>wip/tmp/**</code> と <code>logs/**</code> 以外へのコマンドによる書き換えをすべて拒み、<code>git rm</code> も <code>rm</code> も通らない。片付けの手段が無い</td><td>迂回せず <code>wip/tmp/</code> だけ片付け、残る件数と理由を PR 本文に書いた</td></tr>
     </tbody>
   </table>
   </div>
@@ -369,7 +369,7 @@ OK: 25 本 / 165 件</code></pre>
   <h2>残課題</h2>
   <ul>
     <li><strong>人間レビューが未実施</strong>。7 タスクがレビューを受けずに通過している。draft 解除後にまとめて見てもらう</li>
-    <li><strong><code>wip/10_tickets/20_done</code> が片付かない</strong>。フック WF303 が削除をすべて拒むため AI が消せない。人間の手か <code>merge-prep.sh</code>（#10）が要る</li>
+    <li><strong>作業領域をまったく片付けられない</strong>。当初は <code>wip/10_tickets/20_done</code> だけが WF303 で残ると見込んでいたが、実際は <strong>WF205 が <code>wip/tmp/**</code> と <code>logs/**</code> 以外へのコマンドによる書き換えをすべて拒む</strong>ため <code>git rm</code> も <code>rm</code> も通らない。片付けは提供コマンド <code>merge-prep.sh</code>（WF205 の対象外）でしか行えず、それが未実装（#10）である。消せたのは <code>wip/tmp/</code> の中身だけで、<code>00_overall_plan/</code> 1 件・<code>20_plans/</code> 8 件・<code>30_reports/</code> 8 件・<code>10_tickets/</code> 14 件が残る</li>
     <li><strong>HTML レポートの添付ができない</strong>。<code>gh</code> が無く、GitHub の非公式アップロードエンドポイントを叩く経路も無い。本文の要約で代替している</li>
     <li><strong>#15 の残りの受け入れ条件</strong>。<code>scope.sh</code> / <code>hook-common.sh</code> の移行判断と uv の導入は本 PR の範囲外</li>
   </ul>

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "調査フェーズの敵対的レ
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T04:24:01+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2a30502"
 ---
 
 # 0011 調査結果レポートの集計・帰属・行番号の訂正（敵対的レビュー 10 件）

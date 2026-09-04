@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの敵対的レ
 allow:
   write: [".claude/docs/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T15:53:41+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "d61423f"
 ---
 
 # 0045 文書とスクリプトの作法を仕様に書き戻す

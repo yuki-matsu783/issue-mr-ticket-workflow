@@ -1,17 +1,17 @@
 ---
 type: report
-title: 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと logs/ 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト）
-description: issue #50 の調査フェーズの結果。観点 A では、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定した。観点 B では、提供コマンド 5 本の状態ファイル依存 17 行を「無いときの振る舞い」つきで表にし、__ss_load が cwd ではなくスクリプトの置き場で LOGGER_ROOT を決めることと、そのずれる 3 条件を特定し、本 issue の実施中に実際に踏んだ 3 件の根本原因を行番号で押さえた。観点 C では、サブエージェントを別 worktree で動かせること（isolation: worktree）を公式 18 引用つきで確定し、既定の分岐元が既定ブランチであるために機構が静かに無効化されることと、subagent-start-check が読む cwd が 2 経路で別物であることを押さえた。観点 D では、git の同一ブランチ制約を公式引用で確定し、ブランチ構成 4 案の比較表・合流手段 6 案のコスト・過去 issue の実データ（feature-10 の 247 コミット中 168 件が状態遷移コミット、rename 104 件）からの衝突見積もり（レポート 1 対あたり同一行の書き換え 13 行）を出し、DDR i0001-23 の却下文 3 主張を再評価した。人間が実行するための実測手順（コマンド列 + 予測）を観点ごとに残した。
+title: 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと logs/ 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト / 観点 E: scope.sh の分類の穴と塞ぎ方）
+description: issue #50 の調査フェーズの結果。観点 A では、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定した。観点 B では、提供コマンド 5 本の状態ファイル依存 17 行を「無いときの振る舞い」つきで表にし、__ss_load が cwd ではなくスクリプトの置き場で LOGGER_ROOT を決めることと、そのずれる 3 条件を特定し、本 issue の実施中に実際に踏んだ 3 件の根本原因を行番号で押さえた。観点 C では、サブエージェントを別 worktree で動かせること（isolation: worktree）を公式 18 引用つきで確定し、既定の分岐元が既定ブランチであるために機構が静かに無効化されることと、subagent-start-check が読む cwd が 2 経路で別物であることを押さえた。観点 D では、git の同一ブランチ制約を公式引用で確定し、ブランチ構成 4 案の比較表・合流手段 6 案のコスト・過去 issue の実データ（feature-10 の 247 コミット中 168 件が状態遷移コミット、rename 104 件）からの衝突見積もり（レポート 1 対あたり同一行の書き換え 13 行）を出し、DDR i0001-23 の却下文 3 主張を再評価した。観点 E では、scope.sh の分類の穴を 4 層に分け、git-core の実体から取った 174 サブコマンドと _SC_GIT_READ_SUBCMDS 29 件の突き合わせで unknown に落ちる 145 件を全件出し、decisions.jsonl の WF204 全 62 件を実行体別に集計し（cd 22 / bash 11 / git 7）、cmdpos.sh の正規化が実行体を取り違える 2 件を再現つきで特定し、read に分類されるのに状態を変えられる逆向きの穴 5 件（branch -d / symbolic-ref / reflog expire / diff --output / -c diff.external）を公式ドキュメントの引用付きで示し、塞ぎ方 5 案を「変更箇所・block-direct-git との関係・scope-limits.json との整合・影響する既存テスト ID・拒否が緩む範囲・隔離下で通るか」の 6 列で比較した。人間が実行するための実測手順（コマンド列 + 予測）を観点ごとに残した。
 tags: [report, investigation, issue-50]
-keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 提供コマンド, merge-state, mr.json, 実測手順, isolation, worktree.baseRef, subagent-start-check, EnterWorktree, worktreeinclude, 隔離強制, decisions.jsonl, 同一ブランチ制約, detached HEAD, ignore-other-worktrees, 合流, rename検出, WF207, WF401, merge-base, i0001-23, squash merge, 採番]
+keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 提供コマンド, merge-state, mr.json, 実測手順, isolation, worktree.baseRef, subagent-start-check, EnterWorktree, worktreeinclude, 隔離強制, decisions.jsonl, 同一ブランチ制約, detached HEAD, ignore-other-worktrees, 合流, rename検出, WF207, WF401, merge-base, i0001-23, squash merge, 採番, scope_classify, _SC_GIT_READ_SUBCMDS, _SC_READ_ONLY_CMDS, _SC_SHELL_KEYWORDS, WF204, WF205, 既定拒否, cmdpos, 提供コマンドの識別, HK-T12, HK-T15, HK-T05, WG-T06, git worktree, git checkout, git switch, merge-tree, diff3, cd, diff.external, symbolic-ref, reflog expire, --output, 逆向きの穴, 隔離下の検査]
 ---
 
-# 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと `logs/` 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト）
+# 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと `logs/` 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト / 観点 E: `scope.sh` の分類の穴と塞ぎ方）
 
 - 対象 issue: [#50](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50)
 - MR: [#51](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51)（draft）
 - ブランチ: `feature-50-worktree-parallel-tickets`
-- チケット: 0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）
+- チケット: 0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）／0008（観点 E）
 - 作成日: 2026-09-04
 
 ## サマリ
@@ -69,6 +69,20 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - **DDR `i0001-23` の却下文 3 主張の再評価**: 「分離は強い」= **今も成り立つ**（むしろ 0004 の e5 を Claude Code 側の隔離検査が塞ぐぶん強くなった）／「1 issue = 1 ブランチ = 1 MR の原則と衝突し」= **成り立たない**（原則は issue↔ブランチ↔MR の対応を言うもので、push しないローカルのサブブランチは MR を増やさない。加えて squash merge で中間履歴は `main` に残らない）／「統合のコストが利得を上回る」= **条件付きで成り立つ**（ファイル衝突は小さいが、合流の操作自体が機構の設計意図に反しており、レポート追記の衝突は毎回確実に出る）（e32）
 - 件数（**タスク全体の合計。0006 の合計行を 0007 分まで積み上げた最新の合計で、以後はこの行を指す。0006 の「◎良 10 件 / △注意 11 件 / ✕問題 3 件 = 24 件」は 0006 時点の合計として読む**）: **◎良 15 件 / △注意 15 件 / ✕問題 4 件 = 34 件**（内訳: 0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件）
 
+0008 まで（観点 A・B・C・D・E）。ここから下の段落・箇条書きが 0008（観点 E）で足した分で、上の 0004〜0007 の記述は書き換えていない。**表題は観点 A・B・C・D から観点 A・B・C・D・E を含む形に広げた**（読み替えの注記は 0005 の段落にある）。
+
+観点 E の問い「`scope.sh` の git 分類にどれだけ穴があり、どう塞げるか」への答えは **「穴は 4 層あり、git サブコマンドの白名簿（`_SC_GIT_READ_SUBCMDS`）はそのうち 1 層にすぎない。しかも穴は『通らない』方向だけでなく『通ってしまう』方向にもあり、後者は `read` 分類のまま任意コマンドを実行できるところまで開いている」**（e35）。
+
+- **L1（git サブコマンド）**: `git-core` の実体から取った **174 サブコマンド**と `_SC_GIT_READ_SUBCMDS`（**29 件**）を `comm` で突き合わせ、**145 件**が `unknown` に落ちることを全件確定した。`checkout` / `switch` / `worktree` / `merge-tree` / `stash` / `version` / `help` を含む。白名簿側に幽霊は 0 件。個別分岐を持つのは `config` / `remote` / `merge` / `push` の 4 件だけで、残り **141 件**は一切の扱いが無い（e36）
+- **L2（基本コマンド）**: `decisions.jsonl` の **WF204 全 62 件**を実行体別に集計した。`cd` **22 件** / `bash` **11 件** / `git` **7 件** / `_` **4 件** / `python` 系 **5 件**（仕様が意図的に除外）/ `sleep` **2 件** / `read` **2 件** / `set` **1 件** / `exit` `break` **2 件** / 誤分類の産物 **9 件**。候補 95 語の照合では、シェル組み込み **33 語**と実在する外部コマンド **28 語**が `unknown` に落ちる（e37）
+- **L3（分類より手前）**: 実行体が `n+1` / `-v` / `hook-common.sh` のような「コマンドではない語」になる誤分類が **9 件**あり、原因は 2 つに特定できた。**①二重引用符の中の `$(( ))` に算術の読み飛ばしが無い**（`cmdpos.sh:129-133`。コード状態の `:98-101` にはある）**②`$( )` とプロセス置換 `<( )` の閉じ括弧の後ろの語が新しい段の実行体になる**（`cmdpos.sh:129-136` / `:179-200` + `cmdpos_parse:383`）。**本チケットの実施中に ② を 4 回再現した**（e38）
+- **L3 の続き**: 提供コマンドの識別が**ルート相対表記に限られる**（`cmdpos.sh:315-318`。仕様 §7-8 と `HK-T12` が明文で固定した設計）ため、絶対パスで提供コマンドを呼ぶと `unknown` に落ちる（実績 11 件）。`cd` の穴と噛み合うと、**cwd がリポジトリルートでない経路では機構を起動する手段が無くなる**（e39）
+- **L4（逆向きの穴）**: `_SC_GIT_READ_SUBCMDS` がサブコマンド名だけを見てオプションを見ないため、**`git branch -d`（ブランチ削除）・`git symbolic-ref <name> <ref>`（HEAD の書き換え）・`git reflog expire`（reflog の破棄）・`git diff --output=<file>`（任意ファイルへの書き込み）・`git -c diff.external=<コマンド> diff`（任意コマンドの実行）** の 5 件が `read` として通り、`workflow-guard` も `block-direct-git` も止めない。根拠はローカルの git 公式ドキュメントの逐語引用（e40）。**X5 は実行していない**
+- **`merge` の分類**は「引数に `origin/*` があるか」だけで決まり（`scope.sh:395-396`）、`git merge origin/feature-なにか` も `merge-base` になる。仕様が言う「取り込みに限る（`git merge origin/<default>`）」になっていない。逆に `git merge --abort` / `--continue` / `git mergetool` は `unknown` で落ち、**衝突解消を中断も続行もできない**（e41）
+- **塞ぎ方は 5 案**（A: 既存一覧に足す / B: 新分類を足して宣言制 / C: 白名簿をオプション込みに変える / D: 提供コマンドを足す / E: 設定の前方一致許可リスト）。案ごとに「変更する箇所・`block-direct-git.sh` との関係・`scope-limits.json` との整合・影響する既存テスト ID・拒否が緩む範囲・隔離下で通るか」を書いた。**逆向きの穴が閉じるのは案 C だけ**で、他の 4 案は L1〜L3 しか直さない。パーサの 2 件は分類の話ではないので別表（P-1〜P-3）にした（e42）
+- **採用は決めていない**。案の組み合わせ表と評価軸 6 つ（既定拒否の原則 / 穴の非対称 / `cd` の起点ずれ / 隔離下との二重の制約 / 合流を通すか / 維持コスト）を並べるところまでにした（e43）
+- 件数（**タスク全体の合計。0007 の合計行を 0008 分まで積み上げた最新の合計で、以後はこの行を指す。0007 の「◎良 15 件 / △注意 15 件 / ✕問題 4 件 = 34 件」は 0007 時点の合計として読む**）: **◎良 19 件 / △注意 17 件 / ✕問題 8 件 = 44 件**（内訳: 0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件、0008 が ◎4 / △2 / ✕4 = 10 件）
+
 ### ◆特に見てほしい（判断に困っている）
 
 - e5 の位置づけ。「作業ツリーをまたぐ絶対パス指定で進行状態ファイル保護がすり抜ける」ことは、フック共通仕様 §13「意図的な緩和」が約束している「機構が守るのは進行状態・コミット / push・`chmod`（常時フック）まで」に反する。**issue #50 の受け入れ条件 A1 の「動かない箇所」として扱うか、全体計画書の保留 P2（機構の不具合として別 issue）へ回すか**を決めきれていない。並列実施を採らなくても worktree を使えば踏むので前者に寄せたが、判断は 0009 と 0010 に委ねる
@@ -82,6 +96,9 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 
 - （0007）**DDR `i0001-23` の却下文のうち「1 issue = 1 ブランチ = 1 MR の原則と衝突する」を『成り立たない』と判定した**。根拠は ①原則の正文（`00_requirement/自己改善ワークフロー機構.md:163`）が言うのは issue とブランチと MR の 1:1:1 対応で、ローカルの中間ブランチを禁じてはいないこと ②同じ前提条件の次の行が「並行して作業する場合は git worktree または別の clone を使う」と**明示的に worktree を許している**こと ③「MR は squash merge され、ブランチ上の作業領域（`wip/`）の履歴は main に残らない」（同 :161）ので中間の合流コミットが正史を汚さないこと、の 3 点である。**この読み方でよいか**（原則を「feature ブランチ以外のブランチを作らない」と読むなら判定は逆になる）を判断してほしい。調査の範囲では原則の解釈を変更していない（e32）
 - （0007）**合流の操作を機構がどう扱うかを決めきれていない**。`git merge worktree-<名前>` は作業中チケットが 0 枚なら現行でも素通りするが、DDR `i0004-07` は「取り込み以外の `merge`（ブランチ間の統合）は `merge-base` 分類で `origin/<default>` 以外を拒否できる」と、**拒否できることを利点として書いている**。並列を採るなら ①`merge-base` を「合流も含む」に広げる ②合流専用の提供コマンド（`merge.sh`）を足す ③合流は人間だけが行う、のいずれかを選ぶことになる。**この選択は設計判断なので 0010 に委ねた**が、③を選ぶと並列の利得が人間の手数で相殺されるおそれがある（e28・e33）
+
+- （0008）**e40 の X5（`git -c diff.external='<任意のコマンド>' diff` が `read` に分類され、両方のフックを通り抜ける）をどこで扱うか。** これは「worktree で機構が動くか」という本 issue の主題とは別種の、**統制そのものの穴**である。全体計画書の保留 P2（機構の不具合として別 issue）に回すのが筋に見えるが、①観点 E の DoD が「穴を全件洗い出す」ことを求めており ②案 C を採るなら本 issue の設計で一緒に直るので、切り出す判断を自分では決めきれていない。**なお本チケットでは一切実行していない**（実行すると任意コマンドの実行になるため、根拠は公式ドキュメントの引用と静的読解のみ）
+- （0008）**「穴を塞ぐ」の向きが 2 つある**ことをどう扱うか。L1〜L3（通らない）は手数の問題で、issue #50 の受け入れ条件 A1（実測ができない）に直接効く。L4（通ってしまう）は統制の問題で、A1 とは無関係だが同じ `_SC_GIT_READ_SUBCMDS` の性質から出ている。**手数だけを直して統制の穴を残すと「広げた」記録だけが残る**ので e43 の評価軸 2 に上げたが、両方を本 issue で直すのかは 0010 の判断に委ねる
 
 ### ◇判断が欲しい（決めた方針の承認 / 決められない点の判断）
 
@@ -102,6 +119,12 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0007）**ブランチ構成の選択肢を、計画書の 3 案（detached HEAD / サブブランチ + 合流 / `--force`）に「別 clone」を足して 4 案にした**。理由は、`00_requirement/自己改善ワークフロー機構.md:164` が並行の手段として worktree と並べて別 clone を明記しており、比較表に載せないと「原則が許している選択肢」が落ちるためである。計画書の 3 案は表の 1〜3 行目にそのまま残した（e27）
 - （0007）**「合流コスト」を 3 つに分けて測った**: ①ファイルの衝突（git が自動で解けない箇所の数）②合流の操作そのものが機構で通るか ③合流後に機構の前提（作業中 1 枚・切れ目の判定）が壊れないか。計画書は ① だけを求めていたが、①が小さいことが分かった時点で ②③ が主コストになったため 3 分割した（e25・e28・e31）
 - （0007）**サブエージェント隔離の worktree を、ブランチ構成の第 5 の案にはせず「案 2 の具体形」として表に併記した**。`worktree-<名前>` は `git worktree add <path>` が引数省略時に作るブランチと同じ性質（`$(basename <path>)` の新規ブランチ）で、案 2 と別立てにすると合流手順が二重になるためである（e27）
+
+- （0008）**git サブコマンドの母集合を `git-core` ディレクトリの実体一覧（174 件）に取った**。`git help -a` は `help` が `_SC_GIT_READ_SUBCMDS` に無く実行できないため使えない。内部ヘルパ（`*--helper` / `remote-http` など、ユーザーが直接打たない名前）も母集合に入るが、**除外の線引きに主観を入れないほうが突き合わせの根拠として強い**と判断した。「145 件」という数はこの母集合の取り方に依存する
+- （0008）**「基本コマンド」の候補 95 語は網羅ではない**。bash の組み込み一覧を機械的に取る手段がこの環境に無い（`compgen` も `help` も分類外で実行できない）ため、①`decisions.jsonl` の実績 ②記憶による bash の予約語・組み込み ③起動プロンプトが名指しした語、の 3 つを混ぜた。**membership の照合だけは機械的**（5 つの一覧をファイルに抽出して `awk` で突き合わせ）だが、候補の側は網羅を主張しない
+- （0008）**塞ぎ方を 5 案に広げた**。計画書は「最低 2 案（既存分類への追加 / 新分類の導入）」を求めていたが、観点 C（隔離下では `git -C` と引用符なしヒアドキュメントが拒否され、無効化できない）と観点 D（合流を通すかどうかが DDR `i0004-07` に触れる）から条件が足されており、2 案では条件を満たす組み合わせを比較できなかった。計画書の 2 案は案 A・案 B としてそのまま残した
+- （0008）**パーサの 2 件（e38 の X1・X2）を「案」ではなく別表（P-1〜P-3）にした**。これらは分類の白名簿の問題ではなく `cmdpos.sh` の正規化の誤りで、どの案を採っても独立に必要になるため。案の比較表に混ぜると「案を選べば直る」ように読めてしまう
+- （0008）**`git fetch` を逆向きの穴に数えなかった**。`git fetch <repo> <src>:<dst>` はローカル ref を作れ、`--prune` はリモート追跡 ref を消すが、`fetch` は「取り込み」の一部として意図的に白名簿に入っていると読める（`00-workflow-issue-mr-driven` の手順が既定ブランチの追従に使う）。判断が割れる可能性があるので注記に留めた（e40 の末尾）
 
 ### ・細かいレビューは不要（ほぼ確実）
 
@@ -128,6 +151,15 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0007）`scope.sh` の `merge` の分類が「引数に `origin/*` があれば `merge-base`、無ければ `unknown`」であること（`scope.sh:392-393`）と、`merge-base` を `ops` に持つ種類が `overall-summary` の **1 種類だけ**であること（`scope-limits.json:24`）
 - （0007）`.gitattributes` が LF 固定にしているのは `*.sh` / `*.tsv` / `*.json` / `*.html` の 4 拡張子で、**`*.md` は含まれない**こと
 - （0007）レポート 1 対への 1 回の追記が md **14 hunk** / HTML **17 hunk** であること（`git show <sha> -U0 -- <path> | grep -c '^@@'` が 0005 の追記・0006 の追記とも md 14 / HTML 17）
+
+- （0008）`git-core` の `git-*` が **174 件**、`_SC_GIT_READ_SUBCMDS` が **29 件**、差分（`comm -13`）が **145 件**、逆差分（`comm -23`）が **0 件**であることは機械的に数えた値である
+- （0008）`decisions.jsonl` の `WF204` が集計時点で **62 件**（提出時点 67 件）、`WF205` が **17 件**であること（`grep -hc`）と、WF204 の実行体別の内訳（`cd` 22 / `bash` 11 / `git` 7 / `_` 4 / `python` 3 / `sleep` 2 / `read` 2 / `set` 1 / `python3` 1 / `perl` 1 / `exit` 1 / `break` 1 / 誤分類 6）は `jq` + `sed` + `uniq -c` で数えた値である
+- （0008）`_SC_READ_ONLY_CMDS` の要素が **65・ユニーク 64**（`column` が 2 回）、`_SC_SHELL_KEYWORDS` が **8**、`_CP_PREFIX_WORDS` が **21**、`_CP_WRITE_CMDS` が **10**、`_CP_OPAQUE_WORDS` が **8** であること
+- （0008）`_SC_SHELL_KEYWORDS` を名指しする箇所が `scope.sh` の**定義行 35 と参照行 409 の 2 行だけ**で、テストからの直接の参照が **0 件**であること（`grep -rn '_SC_SHELL_KEYWORDS' .claude/`）
+- （0008）`test_scope.sh:196-199` が `_SC_READ_ONLY_CMDS` と `_SC_GIT_READ_SUBCMDS` の**全要素をループして `read` を assert している**こと（したがって一覧に足した語は `HK-T15` の検査対象に自動で入る）
+- （0008）`test_config_integrity.sh:47` の `ops` の検査が `has("ops")` だけで、**値の enum 検査を持たない**こと（新しい分類名を足しても `HK-T02` は落ちない）
+- （0008）`scope-limits.json` で `merge-base` を `ops` に持つ種類が `overall-summary` の **1 種類だけ**であること
+- （0008）本環境の git が **Git for Windows v2.39.2**（`C:/Program Files/Git/ReleaseNotes.html` の先頭記載）であること。`git version` は分類外で実行できない
 
 ## 確かめられなかったこと
 
@@ -158,6 +190,14 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 | （0007）サブエージェント worktree の `worktree-<名前>` ブランチが、サブエージェント終了後に**いつまで残るか** | 公式は「a worktree with changes stays on disk until the periodic sweep below can remove it without losing work」（0006 の e18 の S7）と書くが、sweep の周期も、**ブランチ ref を消すのか worktree ディレクトリだけを消すのか**も書いていない。ref が消えると未合流の成果が失われるため、合流手順の前提として確かめる必要がある | 0009（実測手順 D4）／0010 |
 | （0007）並列で得られる**利得**（所要時間の短縮幅） | チケットの `started_at` / `completed_at` は記録されているが、**本ブランチ以外のチケットは `finalize.sh` の片付けで `wip/` ごと消えており、過去 issue の所要時間を後から読めない**（`git show` で復元はできるが、直列で実施した時間しか無く、並列にしたときの短縮幅は推定できない）。コスト側だけを測って利得側を測っていないので、「コストが利得を上回る」の判定は片側の根拠しか持たない | 0009 / 0010（保留 P1 の判断材料として明示） |
 
+| （0008）`scope_classify` が本レポートの読みどおりの分類を返すか（e36〜e41 の全件） | 分類器を走らせるには `bash .claude/hooks/lib/tests/test_scope.sh` か同等のスクリプトが要るが、前者は `hook-test` 分類で本チケットの `allow.ops`（`read` / `remote-read`）に無く、後者は `bash wip/tmp/*.sh` が `unknown` に落ちる（e39）。**分類の結論はすべて静的読解である** | 0009（実測手順 E1・E2）／人間 |
+| （0008）`git -c diff.external='<コマンド>' diff` が実際に任意コマンドを実行するか（e40 の X5） | 実行すると任意コマンドの実行そのものになる。**意図的に試していない**。根拠はローカルの `git-config.html` の逐語（「diff generation is not performed using the internal diff machinery, but using the given command」）と `cmdpos.sh:53, 299`（`-c` の値を読み飛ばす）の静的読解 | 0009（実測手順 E2 で**分類だけ**を確認。実行の確認は人間の判断） |
+| （0008）`git -c core.pager='<コマンド>' --paginate log` が非対話の Bash ツールで発火するか | `git.html` が `--paginate` を「if standard output is a terminal」と限っており、Bash ツールの stdout は端末ではないので発火しない見込み。実行して確かめていない | 0010（X5 が閉じれば同時に閉じるので、優先度は低い） |
+| （0008）`decisions.jsonl` の誤分類 9 件のうち 6 件（`and` / `0031-ai-asset-implementation.md` / `の機械テスト_完了検査の二重実装_` ほか）の原因 | `hook_record` が `target` を **80 文字で切って**記録するため（`workflow-guard.sh:100` の `__wg_cmd_head`）、元のコマンド文字列を復元できない。X2 と同型と推定したが確定していない | 0010（記録の粒度の見直しとして）／追えない |
+| （0008）bash の組み込みコマンドの網羅的な一覧 | `compgen -b` も `help` もこの環境では分類外で実行できず、`man` ページも同梱されていない（`C:/Program Files/Git/usr/share/man/man1/` に該当なし）。候補 95 語は記憶と実績から作った | 0010（一覧を固定するなら、実装時に `compgen -b` の出力を根拠として残す） |
+| （0008）案 D（提供コマンド `worktree.sh`）で、作業ツリーのパス（リポジトリの外）が `__wg_check_provided_args` の判定に掛かってどうなるか | `workflow-guard.sh:83-85` は作業ツリー外のパスを WF209 に倒すので、`bash .claude/skills/…/worktree.sh add ../probe-wt1` は引数の判定で落ちる**見込み**。実行して確かめていない（提供コマンドが存在しないため） | 0010（案 D を採るなら実装前に確認する） |
+| （0008）案 B で新しい `ops` の値を足したとき、`hook_read_input` の jq が未知キーとして WF210 に倒さないか | `types.<t>.ops` は配列の**値**なのでキー検査には掛からない読みだが、jq プログラムの本文を読めていない（`__HC_JQ_INPUT` を読もうとしたコマンドが e38 の X2 で拒否され、その後は必要度が下がったので追わなかった） | 0010（案 B を採るなら実装前に確認する） |
+
 ## 実施条件（測った対象・環境）
 
 - 対象コミット: `feature-50-worktree-parallel-tickets` の `65d908e`（チケット 0004 の基準点は `9721416`）
@@ -179,6 +219,11 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0007）`cd` を含むコマンドが WF204 で **1 回**拒否された。以後はすべて絶対パスと `git -C <本流>` で読んだ
 - （0007）Web の取得は 2 URL・取得日 **2026-09-05**（`git-scm.com/docs/git-worktree` を 2 回、`git-scm.com/docs/git-checkout` を 1 回。引用は e26 の表）
 - （0007）過去 issue の実データは、`main` との `git merge-base` から各 feature ブランチの先端までを対象にした。対象は `feature-1` / `feature-4` / `feature-6` / `feature-8` / `feature-9` / `feature-10` / `feature-50` の 7 本
+
+- （0008）対象コミット: `feature-50-worktree-parallel-tickets` の `e8a79c3`（チケット 0008 の基準点は `35dd59f`）
+- （0008）実行したのは読み取りのコマンドだけ（`ls` / `cat` / `sed` / `grep` / `awk` / `tr` / `sort` / `uniq` / `comm` / `wc` / `head` / `tail` / `printf` / `jq`（ローカルの `logs/hooks/decisions.jsonl` を読むだけ））。**`git` は 1 度も実行していない**（`git worktree` / `checkout` / `switch` / `merge` / `merge-tree` / `diff3` はもちろん、`git log` も使っていない）。ファイルの作成は `wip/tmp/` のみ（`git-subcmds-all.txt` / `git-read-subcmds.txt` / `git-unknown-subcmds.txt` / `cands-*.txt` / `L-*.txt` / `usrbin.txt`）
+- （0008）**リポジトリ外を読んだ**: `C:/Program Files/Git/mingw64/libexec/git-core/`（git サブコマンドの母集合）、`C:/Program Files/Git/mingw64/share/doc/git-doc/*.html`（`git-diff` / `git-config` / `git-symbolic-ref` / `git-reflog` / `git-branch` / `git.html`。逐語引用の出典）、`C:/Program Files/Git/usr/bin/`（外部コマンドの実在確認）、`C:/Program Files/Git/ReleaseNotes.html`（版）。いずれも `ls` / `sed` / `grep` による読み取りのみで、`web`（`curl` / `wget` / WebFetch）は使っていない
+- （0008）本チケットの実施中に踏んだ拒否は **8 件**（`decisions.jsonl` の `2026-09-05T01:03` 以降）。内訳は **WF204 が 7 回**（`cd` 2 / `hook-common.sh` 1 / `-v` 1 / `read` 1 / `_` 1 / `none.txt` 1）と **WF205 が 1 回**（`> "C:/…/wip/tmp/git-subcmds-all.txt"` の引用符付きリダイレクト先が `_` に潰れたもの）。いずれも迂回せず、絶対パス・`awk`・引用符なしのルート相対に書き換えて進めた。**このうち `hook-common.sh` / `-v` / `_` / `none.txt` の 4 件が e38 の X2（X2b を含む）の再現で、`read` 1 件が e37 の再現、`cd` 2 件が本 issue で 21・22 件目の `cd` 拒否である**
 
 ## 実施した内容と結果
 
@@ -1493,6 +1538,440 @@ cd "$MAIN"
 
 **注意（全 D 共通）**: `wip/tmp/` は `.gitignore` 対象なので出力は追跡されない。`git status --porcelain` に `?? ../probe-*` が出ないこと（作業ツリーはリポジトリの外に作る）を各手順の最後に確認する。**`push.sh` は実測の途中で実行しない**（0006 の e24 の C5 と同じ理由）。
 
+### e35. 観点 E の答え — 穴は「git サブコマンドの白名簿が短い」ことだけではなく、4 層に分かれる ◎良
+
+観点 E の問い「`scope.sh` の git 分類にどれだけ穴があり、どう塞げるか」への答えは **「穴は 4 層あり、git サブコマンドの白名簿（`_SC_GIT_READ_SUBCMDS`）はそのうち 1 層にすぎない。しかも穴は『通らない』方向だけでなく『通ってしまう』方向にもあり、後者は `read` 分類のまま任意コマンドを実行できるところまで開いている」**。
+
+| 層 | 何が起きるか | 件数 | 節 |
+|---|---|---|---|
+| L1. git サブコマンドの白名簿が短い | `git-core` にある 174 サブコマンドのうち **145 件**が `unknown` に落ちる。`checkout` / `switch` / `worktree` / `merge-tree` / `stash` / `version` / `help` を含む | 145 | e36 |
+| L2. 基本コマンドの白名簿が短い | `_SC_READ_ONLY_CMDS` に無い外部コマンドとシェル組み込みが `unknown` に落ちる。`cd`（本 issue で **22 回**）・`read`・`set`・`exit`・`break`・`sleep`・`diff3` など | 候補 95 件中 **75 件** | e37 |
+| L3. 分類より**手前**（`cmdpos.sh` の正規化）で実行体を取り違える | 二重引用符の中の `$(( ))` と `$( )`、およびプロセス置換 `<( )` が段を割り、**引数だったはずの語や次のファイルパスが実行体になる**。実行体は `n+1` / `-v` / `hook-common.sh` / `none.txt` のような語になり、必ず `unknown` に落ちる | 実績 **9 件**（+ 本チケットで 4 件再現） | e38・e39 |
+| L4. **逆向き**（`read` に分類されるのに状態を変えられる） | `git branch -d`（ブランチ削除）・`git symbolic-ref <name> <ref>`（HEAD の書き換え）・`git reflog expire`（reflog の破棄）・`git diff --output=<file>`（任意ファイルへの書き込み）・`git -c diff.external=<コマンド> diff`（**任意コマンドの実行**） | **5 件** | e40 |
+
+塞ぎ方は 5 案（A〜E）を e42 に、案の組み合わせと評価軸を e43 に置いた。**どの案を採るかは決めない**（AI アセット設計 0010 以降の判断）。
+
+- 本チケットは `git worktree add` / `git checkout -b` / `git switch` を**一度も実行していない**（起動プロンプトの指示）。実測が要る箇所は e44 に人間向けの手順として残した
+- 塞ぎ方の条件には、0006 の e22 が確定させた **Claude Code の worktree 隔離下の 4 検査**を含めた。とくに Git redirects 検査が「`git -C` / `--git-dir` / `GIT_DIR` / `GIT_WORK_TREE` / 本流への `cd`」を拒否し、command shape 検査が「引用符のないヒアドキュメント」を拒否して**無効化できない**ため、「`cd` の代わりに `git -C` を使わせる」「一時スクリプトを書いて `bash` で走らせる」という迂回路を前提にした案は隔離下で成立しない
+
+### e36. L1: `unknown` に落ちる git サブコマンドの全件（174 件との突き合わせ）✕問題
+
+**母集合の取り方**: `git help -a` は `help` が `_SC_GIT_READ_SUBCMDS` に無く WF204 で実行できないので使えない。代わりに **git の実体（`C:/Program Files/Git/mingw64/libexec/git-core/` の `git-*`）** を `ls` で列挙し、`.exe` と接頭辞 `git-` を落として `sort -u` した。内部ヘルパ（`*--helper` など）も含むが、`git <名前>` として起動できる名前の集合としては正しく、除外の線引きに主観を入れないほうが突き合わせの根拠になる。
+
+```
+ls "C:/Program Files/Git/mingw64/libexec/git-core/" | grep '^git-' \
+  | sed -e 's/\.exe$//' -e 's/^git-//' | sort -u > wip/tmp/git-subcmds-all.txt   # 174 件
+sed -n '36p' .claude/hooks/lib/scope.sh | sed -e "s/^_SC_GIT_READ_SUBCMDS='//" -e "s/'$//" \
+  | tr ' ' '\n' | grep -v '^$' | sort -u > wip/tmp/git-read-subcmds.txt          # 29 件
+comm -13 wip/tmp/git-read-subcmds.txt wip/tmp/git-subcmds-all.txt                # 145 件
+comm -23 wip/tmp/git-read-subcmds.txt wip/tmp/git-subcmds-all.txt                # 0 件
+```
+
+- 環境: Git for Windows（`C:/Program Files/Git/ReleaseNotes.html` の先頭記載は **v2.39.2**。`git version` 自体が `_SC_GIT_READ_SUBCMDS` に無く実行できないため、版はこのファイルから読んだ）
+- **`_SC_GIT_READ_SUBCMDS` の 29 件は全件が実体として存在する**（`comm -23` が 0 件）。つまり白名簿側に幽霊は無い
+- 差分 **145 件**が `scope_classify` の git 分岐を素通りして `unknown` になる。うち **4 件**（`config` / `remote` / `merge` / `push`）だけは個別分岐を持ち、残り **141 件**は一切の扱いが無い
+
+#### e36-1. `unknown` に落ちる 145 件の全件（`comm -13` の出力そのまま）
+
+```
+add add--interactive am annotate apply archive bisect bisect--helper bugreport bundle
+check-attr check-mailmap check-ref-format checkout checkout--worker checkout-index cherry
+cherry-pick citool clean clone column commit commit-graph commit-tree config credential
+credential-cache credential-cache--daemon credential-store credential-wincred daemon diagnose
+difftool difftool--helper env--helper fast-export fast-import fetch-pack filter-branch
+fmt-merge-msg for-each-repo format-patch fsck fsck-objects fsmonitor--daemon gc
+get-tar-commit-id gui gui--askpass gui--askyesno gui.tcl hash-object help hook http-backend
+http-fetch http-push imap-send index-pack init init-db instaweb interpret-trailers mailinfo
+mailsplit maintenance merge merge-file merge-index merge-octopus merge-one-file merge-ours
+merge-recursive merge-resolve merge-subtree merge-tree mergetool mergetool--lib mktag mktree
+multi-pack-index mv notes p4 pack-objects pack-redundant pack-refs patch-id prune
+prune-packed pull push quiltimport range-diff read-tree rebase receive-pack remote remote-ext
+remote-fd remote-ftp remote-ftps remote-http remote-https repack replace request-pull rerere
+reset restore revert rm send-email send-pack sh-i18n sh-i18n--envsubst sh-setup show-branch
+show-index sparse-checkout stage stash stripspace submodule submodule--helper subtree svn
+switch tag unpack-file unpack-objects update update-index update-ref update-server-info
+upload-archive upload-pack verify-commit verify-pack verify-tag version web--browse worktree
+write-tree
+```
+
+#### e36-2. 145 件のうち、扱いを決める必要があるもの（起動プロンプトが名指しした 5 件 + 読み取り専用なのに落ちるもの）
+
+| サブコマンド | 現状の分類 | 状態を変えるか | 本 issue での必要性 | 実績 |
+|---|---|---|---|---|
+| `checkout` | `unknown` → WF204 | 変える（作業ツリー・HEAD） | ブランチを切る・切り替える。受け入れ条件 A1 の実測に要る | **2 回拒否**（`2026-09-04T22:01:29` / `22:03:25`。2 回目は `WORKFLOW_ENFORCE=0` を付けた迂回で、これも拒否された） |
+| `switch` | `unknown` → WF204 | 変える（HEAD） | 同上（`checkout` の後継） | 0 回（`checkout` で止まったため試していない） |
+| `worktree` | `unknown` → WF204 | `list` は変えない / `add` `remove` は変える | 本 issue の主題そのもの。`worktree list` すら読めない | **2 回拒否**（`2026-09-03T02:31:16` / `2026-09-04T21:45:31`。どちらも `worktree list`） |
+| `merge-tree` | `unknown` → WF204 | 変えない（`--write-tree` はオブジェクトを作るがワークツリー・ref は触らない） | 0007 が合流の衝突件数を数えるのに要ったが取れなかった | 0 回（分類外と分かったため試していない） |
+| `stash` | `unknown` → WF204 | `list` `show` は変えない / `push` `pop` は変える | 一時退避。`block-direct-git` は `stash` を**明示的に対象外**にしている（`block-direct-git.sh:36`、DDR `i0004-07`）のに `scope.sh` 側で落ちる | **1 回拒否**（`2026-09-04T11:40:24`。`git stash list >/dev/null` と `git grep` を同じ行に書いたため巻き添え） |
+| `version` / `help` | `unknown` → WF204 | 変えない | 環境の確認。本チケットは版を `ReleaseNotes.html` から読むしかなかった | 0 回 |
+| `show-branch` / `show-index` / `check-attr` / `check-ref-format` / `check-mailmap` / `cherry` / `verify-commit` / `verify-tag` / `verify-pack` / `patch-id` / `range-diff` / `get-tar-commit-id` / `request-pull` / `stripspace` | `unknown` → WF204 | 変えない（純粋な読み取り・標準入出力フィルタ） | 直接は不要だが「読むだけなのに落ちる」群 | 0 回 |
+| `merge` | 引数に `origin/*` があれば `merge-base`、無ければ `unknown` | 変える | 合流。詳細は e41 | 0 回（0007 は実行しなかった） |
+| `config` | `--get` / `--get-all` / `--list` / `-l` / `--get-regexp` があれば `read`、無ければ `unknown` | 読み書き両方 | 既存の個別分岐で足りている | — |
+| `remote` | `add` / `remove` / `rename` / `set-url` / `prune` / `update` があれば `unknown`、無ければ `read` | 読み書き両方 | 既存の個別分岐で足りている | — |
+| `push` | `remote-write:push` | 変える | `push.sh` 経由に寄せる既存の設計どおり | — |
+
+**「巻き添え」の性質**: `workflow-guard` はコマンド行の**全段**を順に判定し、1 段でも `unknown` があればその行ごと拒否する（`workflow-guard.sh:387-443`）。実績 7 件のうち **3 件**（`git stash list >/dev/null; git grep …` / `ls …; git worktree list` / `git fetch … && echo "$(git rev-list …)"`）は、同じ行に読み取り系の git を混ぜたために読み取り側まで一緒に落ちている。**穴の実害は「その 1 コマンドが使えない」より広い**。
+
+### e37. L2: `_SC_READ_ONLY_CMDS` に無いために `unknown` に落ちる基本コマンド ✕問題
+
+#### e37-1. 実績（`logs/hooks/decisions.jsonl` の WF204 全 62 件・実行体別。機械的に集計）
+
+**集計の時点**: 下の表は `2026-09-05T01:06` 時点の **62 件**である。本チケットはその後さらに 5 件（`hook-common.sh` / `-v` / `read` / `_` / `none.txt`）を踏んだので、レポート提出時点の総数は **67 件**になる（`_` 5 / `read` 3 に増え、`hook-common.sh` `-v` `none.txt` が各 1 件加わる）。表は集計時点のまま残し、増分はここに書く。
+
+```
+grep -h '"WF204"' logs/hooks/decisions.jsonl | jq -r '.note' \
+  | sed -e 's/ はどの分類にも当たらない.*//' -e 's/ は .* に当たるが.*//' | sort | uniq -c | sort -rn
+```
+
+| 実行体 | 件数 | 種別 | 備考 |
+|---|---|---|---|
+| `cd` | **22** | シェル組み込み（状態を変えない） | 本 issue の全チケットで繰り返し踏んでいる。本チケットでも 2 回（21・22 件目） |
+| `bash` | **11** | 提供コマンド・一時スクリプトの起動 | 第 1 引数がルート相対でないもの（絶対パス・MSYS パス）。詳細は e39 |
+| `git` | **7** | git サブコマンド | 内訳は e36-2（`worktree list` 2 / `checkout -b` 2 / `stash list` 1 / `fetch` 系 1 / `-C` 付き 1） |
+| `_` | **4** | 実行体が潰れた段 | クォート・変数展開で語が確定しない段。詳細は e38 |
+| `python` / `python3` / `perl` | **5** | 外部インタプリタ | **仕様が意図的に除外している**（フック共通仕様 §8「`python` / `python3` / `perl` / `ruby` / `node` / `deno` は `read` に入れない」）。穴ではない |
+| `sleep` | **2** | 外部コマンド（状態を変えない） | 待ち合わせ |
+| `read` | **2** | シェル組み込み（`while read` の本体） | 本チケットでも 1 回。`while` は透過ラッパー（`_CP_PREFIX_WORDS`）なので、次の語 `read` が実行体になる |
+| `set` | **1** | シェル組み込み | `set -e` を複数行コマンドの先頭に置いた |
+| `exit` / `break` | **2** | シェル組み込み | スクリプト風の複数行コマンド |
+| `n+1` / `r-1` / `end-start` / `and` / `の機械テスト_完了検査の二重実装_` / `0031-ai-asset-implementation.md` | **6**（+ 本チケットの `-v` / `hook-common.sh` で 8） | 誤分類の産物 | 実行体ではない語が実行体として読まれたもの。詳細は e38 |
+
+合計 62 件（22 + 11 + 7 + 4 + 5 + 2 + 2 + 1 + 2 + 6 = 62）。**「本来通すべきなのに落ちた」= 44 件（`cd` 22 + `bash` 11 + `git` 7 の一部 + `sleep` 2 + `read` 2 + `set` 1 + `exit`/`break` 2 ほか）、「意図どおり落とした」= 5 件（インタプリタ）、「誤分類」= 13 件（`_` 4 + 上の 9）** という内訳になる。
+
+#### e37-2. 候補 95 件の membership（機械的な照合）
+
+候補は ①上の実績 ②bash の予約語・組み込み ③本 issue の起動プロンプトが名指しした語（`diff3` ほか）から作った。**これは網羅ではない**（bash の組み込み一覧を機械的に取る手段がこの環境に無い。`compgen` も `help` も分類外）。照合は 5 つの一覧を抽出して `awk` で突き合わせた。
+
+- `READ` = `_SC_READ_ONLY_CMDS`（`scope.sh:31`。**要素 65・ユニーク 64。`column` が 2 回入っている**）
+- `KW` = `_SC_SHELL_KEYWORDS`（`scope.sh:35`。8 件）
+- `PREFIX` = `_CP_PREFIX_WORDS`（`cmdpos.sh:42`。21 件。透過ラッパーとして剥がされ、次の語が実行体になる）
+- `WRITECMD` = `_CP_WRITE_CMDS`（`cmdpos.sh:55`。10 件。`write` 分類として宛先を判定される）
+- `OPAQUE` = `_CP_OPAQUE_WORDS`（`cmdpos.sh:48`。8 件）
+
+| 群 | 語（`-none-` = どの一覧にも無く `unknown` → WF204） |
+|---|---|
+| **シェル組み込み・予約語で `unknown`（40 語）** | `alias` `bg` `bind` `break` `caller` `cd` `continue` `declare` `dirs` `disown` `enable` `exit` `export` `fg` `getopts` `hash` `help` `history` `jobs` `kill` `let` `local` `logout` `mapfile` `popd` `pushd` `read` `readarray` `readonly` `return` `set` `shift` `source` `suspend` `trap` `ulimit` `umask` `unalias` `unset` `wait` |
+| **外部コマンドで `unknown`（この環境の `usr/bin` に実在するもの・28 語）** | `base64` `cksum` `clear` `csplit` `cygpath` `dd` `diff3` `expand` `gunzip` `gzip` `mktemp` `nproc` `numfmt` `patch` `perl`（**仕様が意図的に除外**）`pr` `ps` `sdiff` `shuf` `sleep` `split` `tar` `tput` `tsort` `unexpand` `unzip` `winpty` `zcat` |
+| **`usr/bin` に無い・7 語** | `curl` `wget`（**`_SC_WEB_CMDS` の個別分岐があるので実際は `web` 分類。この表の `-none-` は 5 つの一覧に無いという意味**）／`node` `npx` `python` `python3` `ruby`（仕様が意図的に除外） |
+| `READ` にある（6 語） | `echo` `false` `printf` `pwd` `test` `true` |
+| `PREFIX` にある（3 語） | `env` `exec` `time` |
+| `WRITECMD` にある（9 語） | `cp` `install` `ln` `mkdir` `mv` `rm` `tee` `touch` `truncate` |
+| `OPAQUE` にある（2 語） | `eval` `xargs` |
+
+内訳の検算: どの一覧にも無い（`-none-`）= **75 語**（シェル組み込み 40 + 外部 35（実在 28 + 不在 7））、一覧にある = 20 語（`READ` 6 + `PREFIX` 3 + `WRITECMD` 9 + `OPAQUE` 2）。75 + 20 = **95** で候補の総数と一致する。`-none-` 75 語のうち、実際に穴と呼べるのは **67 語**（`curl` `wget` は `_SC_WEB_CMDS` の分岐があり、`perl` `python` `python3` `node` `npx` `ruby` は仕様 §8 が意図的に除外している。この 8 語を引く）。
+
+**この issue の作業で実際に困ったのは 4 語**: `cd`（22 回）・`read`（2 回）・`set`（1 回）・`sleep`（2 回）。とくに `cd` は、`bash` の提供コマンド識別が**ルート相対表記に限られている**（e39）ことと組み合わさって、「作業ディレクトリがリポジトリルートでない経路では機構そのものを起動できない」という形で効く。
+
+- **`cd` を許すことの意味**: `cd` 自体は状態を変えないが、**後続の段の解決基準（ルート相対の起点）を変える**。`workflow-guard` の `__wg_rel`（`workflow-guard.sh:63-88`）は `hook_rel_path` で `HOOK_WORKTREE` を起点にパスを畳むだけで、`cd` の効果を追跡しない。つまり `cd ../other-repo && echo x > a.txt` は、`cd` を `read` に足すと**判定の起点がずれたまま通る**。塞ぎ方の案（e42）はこの点を必ず扱う必要がある
+- `_SC_SHELL_KEYWORDS`（`for` `done` `fi` `esac` `case` `select` `coproc` `function`）は 0009 より前の issue で追加済みで、`do` / `then` / `else` / `elif` / `while` / `until` / `if` / `!` は `_CP_PREFIX_WORDS` 側で透過的に剥がされる。**ふつうのループは通る**（`WG-T06` の `for f in a; do echo x; done > …` が固定している）。落ちるのはループ**本体**が `read` / `set` / `cd` のような組み込みだったときである
+
+### e38. L3: 分類より手前で実行体を取り違える 2 件（`cmdpos.sh` の正規化）✕問題
+
+`decisions.jsonl` の実行体に `n+1` / `r-1` / `end-start` / `-v` / `hook-common.sh` のような「コマンドではない語」が 9 件ある。これは分類の白名簿の問題ではなく、`cmdpos.sh` の正規化が段を割る位置を誤っているために起きる。**本チケットの実施中に 2 件とも再現した**。
+
+#### X1. 二重引用符の中の `$(( ))` が算術として読まれない
+
+- 場所: `cmdpos.sh:129-133`（`dq` 状態の `'$')` 分岐）
+- コード状態の `'$')` 分岐（`cmdpos.sh:98-101`）は `${rest:1:2}` が `((` なら `_cp_skip_arithmetic_to_reply` で丸ごと読み飛ばして `_` に潰す。**`dq` 状態の分岐にはこの検査が無い**（`${rest:1:1}` が `(` かどうかしか見ない）
+- 帰結: `echo "$((n+1))"` は `(` `(` `n+1` `)` `)` に割れ、`n+1` が実行体の段になる → `unknown` → WF204
+- 実績: `n+1` 1 件 / `r-1` 1 件 / `end-start` 1 件
+
+#### X2. 二重引用符の中の `$( )` の**後ろ**にある語が、新しい段の実行体になる
+
+- 場所: `cmdpos.sh:129-136`（`dq` 状態で `$(` / `` ` `` を見つけたときに ` ( ` を出力して段を割る）と `cmdpos_parse:383`（`(` `)` を段の区切りとして扱う）
+- 帰結: `sed -n "$(grep -n X f | cut -d: -f1),+45p" path/to/file.sh` は
+  `sed -n _` / `grep -n _ f` / `cut -d: -f1` / **`path/to/file.sh`** の 4 段に割れ、最後の段の実行体が `file.sh` になる → `unknown` → WF204
+- **本チケットで 3 回再現**: ①`hook-common.sh はどの分類にも当たらない`（`sed -n "$(grep -n … | cut -d: -f1),+45p" $R/.claude/hooks/lib/hook-common.sh`。閉じ括弧の後ろのファイルパスが実行体になった）②`-v はどの分類にも当たらない`（`awk -v ro=" $(sed -n '31p' … ) " -v kw=" $(…) " …`。閉じ括弧の後ろの `-v` が実行体になった）③`_ はどの分類にも当たらない`（`sed -n "$(grep -n … | cut -d: -f1)"',-6p' …`。閉じ括弧の後ろの単一引用符の語が `_` に潰れて実行体になった）
+- 実績: `-v` 1 件 / `hook-common.sh` 1 件 / `and` 1 件 / `0031-ai-asset-implementation.md` 1 件 / `の機械テスト_完了検査の二重実装_` 1 件（後ろ 3 件は同型と推定。`decisions.jsonl` の `target` が 80 文字で切れており原文を復元できない）
+- **同じ根の変形（X2b）: プロセス置換 `<( )` / `>( )` でも同じことが起きる。** `comm -12 <(sort -u a.txt) wip/tmp/none.txt` は、`<` を `_cp_read_heredoc_open_to_reply` が読み、続く `(` が段を割るため、`)` の後ろの `wip/tmp/none.txt` が新しい段の実行体になる（実行体 `none.txt` → `unknown`）。**本チケットで 1 回踏んだ**（`2026-09-05T01:41:34`。`decisions.jsonl` に `none.txt はどの分類にも当たらない` として残っている）。P-2 の修正はプロセス置換も対象に含める必要がある
+
+**なぜ拒否側に倒れるのが正しくないか**: 判定の材料が壊れているときに拒否側へ倒すのは機構の方針として正しい（DDR `i0009-01`）。しかしここで壊れているのは**入力ではなく機構自身の正規化**で、拒否されているのは `sed` / `awk` / `grep` を組み合わせただけの読み取り専用コマンドである。`_` に潰れた段（`CP_EXE` が `_`）は「何が走るか分からない」ので拒否が正しいが、X1・X2 で出るのは `_` ではなく**具体的だが実行体ではない語**なので、`CP_DATA` のような「実行位置ではない」印も付かない。
+
+### e39. L3 の続き: 提供コマンドの識別がルート相対表記に限られる帰結 △注意
+
+- 場所: `cmdpos.sh:315-318`。`bash` / `sh` の第 1 引数が `^\.claude/skills/[^/]+/scripts/[^/]+\.sh$` または `^\.claude/hooks/([^/]+/)*[^/]+\.sh$` に一致したときだけ `CP_PROVIDED` が立つ
+- これは**意図された設計**である。フック共通仕様 §7-8 が「`cwd` による解決は行わず、絶対パス・`./` 付き・他の相対指定・basename だけの指定は提供コマンドとして扱わない」と明記し、テスト **`HK-T12`** が「絶対パス `bash /c/repo/.claude/skills/x/scripts/y.sh` は提供コマンドでない」ことを固定している
+- 帰結: `CP_PROVIDED` が立たない `bash <パス>` は `scope_classify` の bash 分岐（`scope.sh:401-404`）に落ち、第 1 引数が `-n` でも `^(tests|test)/.*\.sh$` でもなければ **`unknown` → WF204**
+- 実績 **11 件**。内訳は、提供コマンドを絶対パスで呼んだもの（`bash "C:/…/.claude/skills/20-c…"` / `bash /c/…/.claude/skills/20-co…`）と、`wip/tmp/` に書いた一時スクリプトを呼んだもの（`bash "C:/…/wip/tmp/0004-refs.sh"` / `bash /c/…/wip/tmp/splice.sh`）
+- **`cd` の穴と噛み合って詰む**: 作業ディレクトリがリポジトリルートでない経路（フックが `cwd` を worktree に解決している場合、Bash ツールの cwd が毎回リセットされる場合）では、`cd <ルート>` が WF204 で拒否され、絶対パスで提供コマンドを呼ぶと WF204 で拒否される。**機構を起動する手段が無くなる**。本 issue の実施中は「Bash ツールの cwd がたまたま本流のルートだった」ことで回避できていただけである
+- `wip/tmp/*.sh` の実行が落ちる件は、`allow.ops` に `build-test` を宣言しても通らない。`build-test` の判定は `^(tests|test)/.*\.sh$`（リポジトリ直下）か `commands.build-test` の前方一致だけで、`wip/tmp/` は含まれない（`scope.sh:403, 413-416`。仕様 §8 も同旨）
+
+### e40. L4: 逆向きの穴 — `read` に分類されるのに状態を変えられる 5 件 ✕問題
+
+`_SC_GIT_READ_SUBCMDS` は**サブコマンド名だけ**を見てオプションを見ない。オプションで書き込み側に変わるサブコマンドが白名簿に入っているため、次の 5 件が `read` として通る。`workflow-guard` は `read` を無条件に通し（`workflow-guard.sh:422-425`。リダイレクト先だけ確認する）、`block-direct-git` はサブコマンドが `commit` / `push` / `revert` / `cherry-pick` / `am` / `rebase` / `commit-tree` でなければ素通しする（`block-direct-git.sh:92-100`）ので、**両方のフックを通り抜ける**。
+
+| # | 形 | 分類 | 何ができるか | 根拠（ローカルの git 公式ドキュメント。取得日 2026-09-05） |
+|---|---|---|---|---|
+| X3 | `git branch -d <名前>` / `-D` / `-m` / `-M` / `-f` | `read`（`branch` が白名簿） | **ブランチの削除・改名・付け替え**。`git worktree remove` は `unknown` で拒否されるのに、ref の削除は通る | `git-branch.html` の `-d --delete` |
+| X4 | `git symbolic-ref <name> <ref>` / `--delete <name>` | `read`（`symbolic-ref` が白名簿） | **HEAD の書き換え・削除**。`git checkout` を通さずにブランチを切り替えられる | `git-symbolic-ref.html` SYNOPSIS: 「Read, **modify and delete** symbolic refs」／`git symbolic-ref [-m <reason>] <name> <ref>`／`git symbolic-ref --delete [-q] <name>` |
+| X5 | `git -c diff.external='<任意のコマンド>' diff …` | `read`（`-c` は `_CP_GIT_OPTS_WITH_VALUE` として**値ごと読み飛ばされ**、`subcmd` は `diff`） | **任意コマンドの実行**。`workflow-guard` も `block-direct-git` も止めない | `git-config.html`: 「diff.external — If this config variable is set, diff generation is not performed using the internal diff machinery, but **using the given command**」／`cmdpos.sh:53, 299`（`-c` の値を読み飛ばす）。**同じ経路で `core.pager` も使えるが、`git.html` が `--paginate` を「if standard output is a terminal」と限っているため非対話の Bash ツールでは効かない見込み** |
+| X6 | `git diff --output=<file>` / `git log -p --output=<file>` | `read` | **任意のパスへのファイル書き込み**。`git` は `_CP_WRITE_CMDS` に無いので `CP_WRITE_TARGETS` が立たず、`workflow-guard` の WF205 判定に載らない | `git-diff.html`: 「`--output=<file>` Output to a specific file instead of stdout.」 |
+| X7 | `git reflog expire --expire=now --all` / `git reflog delete <entry>` | `read`（`reflog` が白名簿） | **reflog の破棄**（失われたコミットの復旧手段を消す） | `git-reflog.html` SYNOPSIS: `git reflog expire [--expire=<time>] …` / `git reflog delete [--rewrite] [--updateref] …` |
+
+- **X5 は実行していない**（任意コマンドの実行になるため）。根拠はローカルの git 公式ドキュメントと `cmdpos.sh` / `scope.sh` の静的読解のみである
+- `git fetch` も白名簿にあり、`<repo> <src>:<dst>` の形でローカル ref を作れる・`--prune` でリモート追跡 ref を消せるが、これは「取り込み」の一部として意図的に許されている可能性が高いので、穴として数えず注記に留める
+- **この 5 件は「分類を広げる」方向の案（e42 の A・B）とは独立に直せる**。むしろ広げる前に、白名簿がオプションを見ないことの帰結を仕様に書くかどうかを決める必要がある
+
+### e41. `merge` の分類が「引数に `origin/` があるか」だけで決まる △注意
+
+`scope.sh:395-396`:
+
+```
+elif [[ "$sub" == merge ]]; then
+  SC_CLASS="unknown"; for t in "${REPLY_ARGS[@]}"; do [[ "$t" == origin/* ]] && SC_CLASS="merge-base"; done
+```
+
+| 入力 | 分類 | 仕様の意図（§8 / DDR `i0004-07`） | 判定 |
+|---|---|---|---|
+| `git merge origin/main` | `merge-base` | 「取り込みに限る（`git merge origin/<default>`）」 | 一致 |
+| `git merge origin/feature-49-なにか` | `merge-base` | 既定ブランチの取り込みのみのはず | **不一致**（既定ブランチかどうかを見ていない。任意のリモート追跡ブランチを取り込める） |
+| `git merge --no-ff worktree-abc origin/main` | `merge-base` | — | **不一致**（`origin/*` が 1 語あれば、他にローカルブランチが並んでいても `merge-base` になる） |
+| `git merge worktree-abc` | `unknown` → WF204 | ブランチ間の統合は拒否できるはず | 一致（ただし**作業中チケットが 0 枚なら `workflow-guard.sh:47-50` が即座に抜けて素通りする**。0007 の e28） |
+| `git merge --abort` / `--continue` | `unknown` → WF204 | — | **衝突解消の中断・続行ができない**。`block-direct-git` は `merge` を明示的に対象外にしている（`block-direct-git.sh:35-36`）のに、`workflow-guard` 側で止まる |
+| `git mergetool` | `unknown` → WF204 | — | 衝突解消の対話ツールが使えない |
+| `git merge-tree` / `git merge-file` | `unknown` → WF204 | — | **読み取りだけの 3-way マージ（衝突件数の見積もり）ができない**。0007 が実件数を出せなかった直接の原因 |
+
+- `merge-base` を `ops` に持つ種類は `overall-summary` の **1 種類だけ**（`scope-limits.json:24`）。つまり調査・設計・実装のどのチケットでも `git merge` は通らない
+- **`_SC_GIT_READ_SUBCMDS` に `merge-base` が入っている**（`scope.sh:36`）ため、`git merge-base A B`（共通祖先を印字するだけ）は `read` で通る。分類名の `merge-base` と git のサブコマンド名 `merge-base` は別物だが、名前が同じで紛らわしい
+
+### e42. 塞ぎ方の案 5 つ（案ごとに変更箇所・`block-direct-git.sh` との関係・`scope-limits.json` との整合・影響する既存テスト ID・拒否が緩む範囲）◎良
+
+調査計画書は「最低 2 案（既存分類への追加 / 新分類の導入）」を求めていたが、観点 C・D から「隔離下でも通ること」「合流を通すか」という条件が加わったので 5 案に広げた。**どれを採るかは決めない。** 案は排他ではなく、e43 に組み合わせを置いた。
+
+#### 案 A. 既存の一覧に足す（最小差分）
+
+| 観点 | 内容 |
+|---|---|
+| 変更する箇所 | `scope.sh:31`（`_SC_READ_ONLY_CMDS` に `cd` `read` `set` `sleep` `diff3` `base64` `nproc` `cygpath` `unset` `export` `local` `shift` `exit` `break` `continue` `return` `wait` ほか）／`scope.sh:36`（`_SC_GIT_READ_SUBCMDS` に `worktree` `merge-tree` `merge-file` `show-branch` `show-index` `check-attr` `check-ref-format` `check-mailmap` `cherry` `verify-commit` `verify-tag` `verify-pack` `patch-id` `range-diff` `request-pull` `version` `help` `stripspace` `get-tar-commit-id`）。**`checkout` / `switch` / `stash` / `worktree add` は状態を変えるので `read` には入れられない**（案 B が要る） |
+| `block-direct-git.sh` との関係 | **無関係**。`__BG_COMMIT_SUBCMDS`（`revert` `cherry-pick` `am` `rebase` `commit-tree`）と `commit` / `push` はどれも足す対象に含まれないので、二重の守りは変わらない。ただし `worktree` を `read` に足すと `git worktree add` まで通る（後述） |
+| `scope-limits.json` との整合 | **変更不要**。`read` は宣言によらず常に許可（DDR `i0006-09`）なので `types.*.ops` に手を入れる必要が無い |
+| 影響する既存テスト ID | **`HK-T15`**（`test_scope.sh:196-199` が `_SC_READ_ONLY_CMDS` と `_SC_GIT_READ_SUBCMDS` の**全要素**をループして `read` を assert しているので、足した要素は自動で検査対象になる。表形式の実装が表形式で検査されている）／**`WG-T06`**（`workflow-guard` 経由で `read` が通ることの確認）／`HK-T02`（設定の形は変わらないので影響なし） |
+| 拒否が緩む範囲（何が新しく通るか） | ①`cd` が通ることで、**後続の段のルート相対の起点が変わる**。`__wg_rel`（`workflow-guard.sh:63-88`）は `cd` を追跡しないので、`cd ../other && echo x > a.txt` は `a.txt` を `HOOK_WORKTREE` 基準で判定して通る（作業ツリー外への書き込みが `wip/tmp/**` 判定を偽って通る）②`worktree` を丸ごと足すと `git worktree add` / `remove` / `prune` まで `read` になる。`remove --force` は作業ツリーごと消す ③`read` / `set` を足すと `while read` ループと `set -e` が通る（無害）④`sleep` は待ち合わせ（無害） |
+| 隔離下で通るか | **`cd` は条件付き**。Claude Code の Git redirects 検査が「本流への `cd`」を拒否する（0006 の e22）ので、worktree の内側で完結する `cd` だけが通る。むしろ隔離が二重の守りになる。他の語は影響なし |
+| 長所 / 短所 | 長所: 差分が 2 行、テストが自動追随、`read` は宣言不要なのでチケット側の記載が増えない。短所: `cd` の起点ずれと `worktree add` の巻き込みという**性質の違うものを 1 つの分類に混ぜる**ことになる |
+
+#### 案 B. 新しい分類（`ops` の値）を足して宣言制にする
+
+| 観点 | 内容 |
+|---|---|
+| 変更する箇所 | `scope.sh:388-398` の git 分岐に新分類を追加。粒度の候補は 3 通り: **B-1** `worktree`（`git worktree` の全形 + `checkout -b` + `switch`）／**B-2** `git-write`（作業ツリー・HEAD・ref を変える git 全般）／**B-3** `branch-switch`（HEAD の移動）と `worktree`（作業ツリーの作成・削除）に分ける。`scope-limits.json` の `types.*.ops` に新分類を足し、チケットの `allow.ops` で宣言させる。`workflow-guard.sh:434-438` の `hook-test\|build-test\|merge-base\|web` の case に新分類を並べる |
+| `block-direct-git.sh` との関係 | **境界の再確認が要る**。`block-direct-git` は「履歴に載るコミットを作る操作」を担当し（DDR `i0004-07`）、`checkout` / `switch` / `worktree` はコミットを作らないので担当外のまま。ただし `git checkout -- <path>`（作業ツリーの復元 = 変更の破棄）は「コミットを作らないが成果を消す」操作で、どちらの担当でもない。**新分類にこれを含めるかを決める必要がある** |
+| `scope-limits.json` との整合 | **変更が要る**。`types.<t>.ops` に新分類を足す種類を決める。`investigation`（実測のため）と `ai-asset-implementation`（worktree 上の検証のため）が候補。`ops` の値は enum で検証されていない（`test_config_integrity.sh:47` は `has("ops")` を見るだけ）ので、値を足しても `HK-T02` は落ちない。`overall-plan` は既に `remote-write:push` を持つので前例の形はある |
+| 影響する既存テスト ID | **`HK-T15`**（`test_scope.sh:199` の `_SC_GIT_READ_SUBCMDS` 全件ループには載らないので、新分類の assert を `test_scope.sh:213` の `pair` 表に追加する。`git worktree list=worktree` のような行）／**`WG-T06`**（`workflow-guard` が「宣言があれば通る / 無ければ WF204」を検査する箇所。`test_workflow_guard.sh:216, 221` と同じ形で 1 行足す）／**`HK-T02`**（`scope-limits.json` と `task-types.tsv` の照合。`ops` の値は照合対象外なので落ちない） |
+| 拒否が緩む範囲 | 宣言したチケットだけ。宣言しなければ今までどおり WF204。**粒度 B-2 を採ると `reset --hard` / `clean -fd` / `restore` まで 1 つの宣言で通る**ので、B-1 か B-3 のほうが範囲は狭い |
+| 隔離下で通るか | **`git worktree add` は隔離下では意味が変わる**。サブエージェントが既に worktree にいるとき、その中でさらに worktree を作ることになる。`git checkout -b` は worktree の内側なら通る（Git redirects 検査は `-C` / `--git-dir` / 本流への `cd` を見るだけ） |
+| 長所 / 短所 | 長所: 「読み取り」と「作業ツリーを変える」を混ぜない。宣言が記録に残る。短所: 分類が 1 つ増え、`scope-limits.json`・仕様 §8・`work-defaults.md` の 3 か所に波及する |
+
+#### 案 C. 白名簿を「サブコマンド名」から「サブコマンド + オプション」に変える
+
+| 観点 | 内容 |
+|---|---|
+| 変更する箇所 | `scope.sh:388-398`。`config` / `remote` / `merge` に既にある「引数を見る」形を `branch` / `symbolic-ref` / `reflog` / `diff` / `log` / `show` / `stash` / `worktree` / `notes` / `tag` / `bisect` / `submodule` / `sparse-checkout` / `bundle` に広げる。あわせて `git` のグローバルオプション（`-c` / `--config-env`）に**書き込み・実行を誘発する設定名**（`diff.external` / `core.pager` / `sequence.editor` / `core.editor` / `*.textconv` ほか）があれば `unknown` に倒す |
+| `block-direct-git.sh` との関係 | **補完関係**。`block-direct-git` はサブコマンド名だけを見るので、X5（`-c diff.external`）は `block-direct-git` 側でも塞げる（`git` の第 1 サブコマンドが何であれ `-c <危険な設定>=` があれば拒否する）。**どちらのフックで塞ぐかを決める必要がある**（`scope.sh` は分類まで、規約の照合は呼び手、という DDR `i0009-17` の分担に照らすと `scope.sh` 側が自然） |
+| `scope-limits.json` との整合 | **変更不要**（分類の粒度が細かくなるだけ） |
+| 影響する既存テスト ID | **`HK-T15`**（`test_scope.sh:199` の全件ループが `git branch` を `read` と assert しているので、`branch` をオプション依存にすると**このループが落ちる**。`config` / `remote` / `merge` と同じく `pair` 表（`:200-212`）へ移す改修が要る。ここが案 C の最大の作業量）／**`WG-T06`**／`BG-T*`（`block-direct-git` 側でも塞ぐなら。テスト ID は `test_block_direct_git.sh` に付いていないので**新設が要る**） |
+| 拒否が緩む範囲 | **緩まない。むしろ締まる**（X3〜X7 が閉じる）。副作用として `git branch -a` のような読み取り形も「オプションを見て通す」判定に変わるため、判定漏れで**今まで通っていた読み取りが落ちる**リスクがある |
+| 隔離下で通るか | 影響なし |
+| 長所 / 短所 | 長所: 逆向きの穴（e40）を根から塞ぐ。短所: 白名簿の維持コストが跳ね上がる（git のオプションは版で増える）。「網羅できたか」を検査で担保できない（`curl` の 200 オプションと同じ問題。`scope.sh:254` に同旨の注記がある） |
+
+#### 案 D. 提供コマンドを足して、分類を広げずに操作だけ通す
+
+| 観点 | 内容 |
+|---|---|
+| 変更する箇所 | `.claude/skills/<どれか>/scripts/worktree.sh`（`add` / `list` / `remove` を、置き場・ブランチ名・`logs/` の初期化・後始末までまとめて行う）を新設。`scope.sh` は無変更。提供コマンドは分類を問わず許可される（`cmdpos.sh:315-318` → `SC_CLASS=provided` → `workflow-guard.sh:410-414`） |
+| `block-direct-git.sh` との関係 | **無関係**。`block-direct-git.sh:67` が提供コマンドの段を `continue` で飛ばすので、内部の `git worktree` は判定に現れない（DDR `i0004-05`） |
+| `scope-limits.json` との整合 | **変更不要** |
+| 影響する既存テスト ID | 新設の提供コマンドに新しいテスト ID（`WT-T01`〜）が要る。既存では **`HK-T12`**（提供コマンドの識別）と **`WG-T14`**（提供コマンドの引数のパスにも書き込み判定を当てる。`workflow-guard.sh:368-384`）が新コマンドにも掛かる。`__WG_VALUE_OPTS`（`workflow-guard.sh:43`）に新コマンドの値オプションを足す必要があるかを確認する |
+| 拒否が緩む範囲 | **提供コマンドが行う操作だけ**。もっとも狭い。ただし提供コマンドの引数にパスが現れるので、`__wg_check_provided_args` が `<worktree のパス>` を判定しようとして WF202（未記載パスの確認）を出す可能性がある（作業ツリーはリポジトリの外に作るので `__wg_rel` が WF209 に倒れる。`workflow-guard.sh:83-85`）。**この点は案 D の実現可能性そのものに関わる** |
+| 隔離下で通るか | **通る見込み**。ルート相対表記の `bash .claude/skills/…/worktree.sh` は Command working directory 検査にも Git redirects 検査にも当たらない（0006 の e22。提供コマンド 5 本に `git -C` が 0 件であることと同じ理由） |
+| 長所 / 短所 | 長所: 分類を広げずに済み、`logs/` の初期化（調査計画書の保留 P2）や `.gitignore` への追加（0006 の e21）を 1 か所に閉じ込められる。短所: コマンドが 1 本増える。DDR `i0004-07` が「取り込み用の提供コマンドを設ける」案を却下した理由（「衝突解消の対話をスクリプトに閉じ込められない」）が、合流まで含めるなら同じく効く |
+
+#### 案 E. 文字列前方一致の汎用許可リスト（`commands.build-test` の一般化）
+
+| 観点 | 内容 |
+|---|---|
+| 変更する箇所 | `scope-limits.json` の `commands` に `allow`（あるいは分類名ごとのキー）を足し、`scope.sh:413-416` の `build-test` 判定と同じ「セグメント文字列の前方一致」で分類を当てる。例: `{"commands": {"worktree": ["git worktree list", "git worktree add ../probe-"], "read": ["cd ", "git version"]}}` |
+| `block-direct-git.sh` との関係 | **無関係**（`scope.sh` の分類だけを変える） |
+| `scope-limits.json` との整合 | **設定側が主戦場**。`commands` のキーが増えるので `hook_read_input` の jq プログラム（未知キーで WF210 に倒れる検証）と `test_config_integrity.sh` の検査を合わせる必要がある |
+| 影響する既存テスト ID | **`HK-T02`**（`scope-limits.json` の形の検査。`commands` のキー集合が変わる）／**`HK-T15`**（前方一致の判定は `test_scope.sh` の `npm test=build-test` / `npm install=unknown` と同じ形で足せる）／**`WF210`** 系（設定の検査。`test_scope.sh` の `case_load_errors`） |
+| 拒否が緩む範囲 | 列挙した文字列だけ。**ただし前方一致なので `git worktree ` と書くと `git worktree remove --force` まで通る**。仕様 §8 が `commands.build-test` について「裸の形（`npm test`）はどのディレクトリの `npm test` にも当たる」と同じ性質を既に受容している |
+| 隔離下で通るか | 列挙する文字列しだい。`cd ` を列挙すると案 A と同じ条件（本流への `cd` は隔離下で別途拒否） |
+| 長所 / 短所 | 長所: コードを変えずに設定だけで穴を塞げる。`scope-limits.json` は `common.confirm` 対象なので変更のたびに人が確認する（統制が残る）。短所: 前方一致の粗さ。設定の表現力が上がるぶん「設定を読まないと何が通るか分からない」状態になり、仕様と設定の二重管理になる |
+
+#### 案とは別に必要な修正（分類の話ではないが同じ観点で出たもの）
+
+| # | 修正 | 変更する箇所 | 影響する既存テスト ID |
+|---|---|---|---|
+| P-1 | `dq` 状態でも `$((` を算術として読み飛ばす（e38 の X1） | `cmdpos.sh:129-133` に `${rest:1:2} == '(('` の分岐を足し、`_cp_skip_arithmetic_to_reply` を呼ぶ | **`HK-T05`**（`cmdpos.sh` の正規化・分割。`test_cmdpos.sh`）に `echo "$((n+1))"` のケースを足す |
+| P-2 | `$( )`・`` ` ` ``・プロセス置換 `<( )` `>( )` の閉じ括弧の後ろにある語を、新しい段の実行体にしない（e38 の X2・X2b） | `cmdpos_parse:375, 383`（`(` `)` を区切りとして扱う箇所）か `_cp_normalize_to_reply` の `dq` 復帰処理・`_cp_read_heredoc_open_to_reply`。**引数の途中で段が割れていること自体が誤り**なので、`$( )` の結果を `_` に潰して 1 語として残す形が候補 | **`HK-T05`**。`sed -n "$(cmd),+1p" file` と `comm -12 <(sort a) b` のケースを足す |
+| P-3 | 提供コマンドの識別を絶対パスにも広げるか、`cd` を許して相対起動を可能にするか（e39） | `cmdpos.sh:315-318` を変えるなら仕様 §7-8 と **`HK-T12`** の期待値が反転する。DDR が要る（現行は「`cwd` による解決は行わない」が明文の決定） | **`HK-T12`**（期待値の反転）／`WG-T14` |
+
+### e43. 案の組み合わせと評価軸（決めない）◎良
+
+5 案は排他ではない。本 issue が必要としているのは「①worktree を作る ②worktree の中で作業する ③成果を合流する」の 3 つで、必要な範囲が違う。
+
+| 必要なこと | 案 A | 案 B | 案 C | 案 D | 案 E |
+|---|---|---|---|---|---|
+| `git worktree list` を読む | ○（`worktree` を `read` に足すと `add` も通る） | ○（宣言制） | ○（オプションを見て `list` だけ `read`） | ○ | ○ |
+| `git worktree add` / `remove` | △（`read` になってしまう） | ○ | ○ | ○ | ○（前方一致の粗さあり） |
+| `git checkout -b` / `switch` | ✕（状態を変えるので `read` に入れられない） | ○ | ○ | △（提供コマンドに含めるなら） | ○ |
+| worktree の中で `cd` する | ○ | △（`cd` は git ではないので B の対象外） | ✕ | ✕ | ○ |
+| 絶対パスで提供コマンドを呼ぶ | ✕ | ✕ | ✕ | ✕ | ✕（P-3 が要る） |
+| `git merge-tree` で合流の衝突を数える | ○ | ○ | ○ | △ | ○ |
+| ローカルブランチの合流（`git merge worktree-x`） | ✕ | ○（分類を足せば） | ○ | ○ | ○ |
+| 逆向きの穴（e40 の X3〜X7）が閉じる | ✕ | ✕ | **○** | ✕ | ✕ |
+| 隔離下でも通る | 条件付き | ○ | ○ | ○ | 条件付き |
+| 差分の大きさ | 最小（2 行） | 中（コード + 設定 + 仕様 + テスト） | 大（白名簿の作り替え + テストの移し替え） | 中（新コマンド 1 本 + テスト一式） | 中（設定の形 + 検査） |
+
+**評価軸**（0010 が判断するときの材料。順位は付けない）:
+
+1. **既定拒否の原則をどこまで維持するか**。仕様 §8 と `workflow-guard.sh:439-441` は「どの分類にも当たらない = 拒否」を明文の既定にしている。案 A・E は白名簿を伸ばすことで既定を実質的に緩め、案 B・D は既定を保ったまま宣言・提供コマンドという別の口を開ける
+2. **穴の非対称をどう扱うか**。L1〜L3（通らない）は作業の手数の問題で、L4（通ってしまう）は統制の問題である。手数の問題だけを直すと、統制の穴が残ったまま「広げた」記録だけが残る
+3. **`cd` の起点ずれ**（e37 の注記）を許容するか。`cd` を通すなら `__wg_rel` の起点を `cd` に追随させるか、`cd` の引数が作業ツリーの内側であることを検査する必要がある。**これを検査せずに `cd` を `read` に足すのは、作業ツリー外への書き込みを開けることと同じ**
+4. **隔離下との二重の制約**。Claude Code 側が既に「本流への `cd`」「`git -C`」を塞いでいる（0006 の e22）。機構側の緩和が隔離側の検査と重ならないなら、隔離を採る前提では機構側を緩めても実効的な緩みは小さい
+5. **合流を通すか通さないか**（0007 の e33 の J1〜J6、R23）。案 B・C・E は `git merge <ローカルブランチ>` を通す選択肢を含み、これは DDR `i0004-07` の「取り込み以外の `merge` は拒否できる」という設計意図を部分的に覆す。**覆すなら新しい DDR が要る**
+6. **維持コスト**。案 C の白名簿は git の版ごとに増える。`scope.sh:254` が `curl` について既に「網羅的かは確かめられない」と認めており、同じ性質の負債が増える
+
+### e44. 実測手順（観点 E。人間が実行する。コマンド列 + 予測）◎良
+
+本チケットは分類の判定を **1 度も実行していない**（`bash .claude/hooks/lib/tests/test_scope.sh` は `hook-test` 分類で、`allow.ops` に無い）。読み取りだけの結論なので、次の 3 つを人間が実行して裏を取る。**`git worktree add` / `git checkout -b` / `git switch` を含むのは E3 だけで、E1・E2 は既存のテストを走らせるだけである。**
+
+出力は `wip/tmp/worktree-probe/` に置く（`.gitignore` 対象。0004〜0007 の実測と同じ置き場）。
+
+#### E1. 既存のテストが今も全通過することを確かめる（負のコントロール）
+
+```bash
+cd "C:/Users/taniyama/Desktop/git/issue-mr-ticket-workflow"
+mkdir -p wip/tmp/worktree-probe
+bash .claude/hooks/lib/tests/test_scope.sh          > wip/tmp/worktree-probe/e1-scope.txt   2>&1
+bash .claude/hooks/lib/tests/test_cmdpos.sh        > wip/tmp/worktree-probe/e1-cmdpos.txt 2>&1
+bash .claude/hooks/20-PreToolUse/tests/test_workflow_guard.sh > wip/tmp/worktree-probe/e1-guard.txt 2>&1
+grep -c '^FAIL' wip/tmp/worktree-probe/e1-*.txt
+```
+
+予測: すべて `FAIL` 0 件。**現状のテストは e36〜e41 の穴を 1 つも検出しない**（穴はテストの期待値そのものに書かれている: `test_scope.sh:199` が `_SC_GIT_READ_SUBCMDS` の全件を `read` と assert しており、`branch` もそこに含まれる）。
+外れたとき: 環境差（git の版・bash の版）が原因。その差を先に潰さないと E2 以降の結果が読めない。
+
+#### E2. 本レポートが「`unknown` に落ちる」と書いた入力を、実際の分類器に通す
+
+`scope_classify` は source 専用なので、テストヘルパと同じ形で呼ぶ。**次のスクリプトを `wip/tmp/worktree-probe/e2.sh` として保存してから実行する**（引用符付きのヒアドキュメント `<<'EOF'` で書けば worktree 隔離下でも通る。0006 の e22）。
+
+```bash
+cat > wip/tmp/worktree-probe/e2.sh <<'EOF'
+#!/usr/bin/env bash
+# scope.sh の分類を、本レポート e36〜e41 の入力に当てて印字する（判定するだけで実行しない）
+set -uo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+HOOK_ROOT="$ROOT"; HOOK_WORKTREE="$ROOT"; export HOOK_ROOT HOOK_WORKTREE
+. "$ROOT/.claude/hooks/lib/cmdpos.sh"
+. "$ROOT/.claude/hooks/lib/scope.sh"
+# 上限設定を HC_LIMITS に詰める（hook_read_input と同じ形。US=0x1e / KV=0x1f）
+US=$'\x1e'; KV=$'\x1f'
+HC_LIMITS=""
+add() { HC_LIMITS+="${HC_LIMITS:+$US}$1$KV$2"; }
+add type investigation
+add t.investigation.ops read
+add common.allow 'wip/**'
+add common.protected '.claude/**'
+add common.confirm '.claude/settings.json'
+add common.file_granular 'CLAUDE.md'
+add common.state_files 'logs/mr.json'
+HC_LIMITS_STATE=ok
+scope_load investigation
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  cmdpos_parse "$line"
+  out=""
+  i=0
+  while [ "$i" -lt "$CP_COUNT" ]; do
+    c="$(scope_classify "$i")"
+    out="$out${out:+ }$c"
+    i=$((i + 1))
+  done
+  printf '%s\t%s\n' "$out" "$line"
+done
+EOF
+```
+
+```bash
+cat > wip/tmp/worktree-probe/e2-inputs.txt <<'EOF'
+cd /tmp
+git worktree list
+git worktree add ../probe-wt1
+git checkout -b probe-branch
+git switch probe-branch
+git merge-tree base b1 b2
+git stash list
+git version
+git branch -d probe-branch
+git symbolic-ref HEAD refs/heads/main
+git reflog expire --expire=now --all
+git diff --output=wip/tmp/out.txt
+git -c diff.external=true diff
+git merge origin/main
+git merge origin/feature-49-x
+git merge worktree-abc
+git merge --abort
+bash /c/repo/.claude/skills/20-common-step-ticket/scripts/ticket.sh next
+bash wip/tmp/x.sh
+while read w; do echo "$w"; done
+echo "$((1+2))"
+sed -n "$(grep -n x f | cut -d: -f1),+2p" .claude/hooks/lib/hook-common.sh
+diff3 a b c
+sleep 1
+EOF
+bash wip/tmp/worktree-probe/e2.sh < wip/tmp/worktree-probe/e2-inputs.txt \
+  > wip/tmp/worktree-probe/e2-out.txt 2>&1
+cat wip/tmp/worktree-probe/e2-out.txt
+```
+
+予測（本レポートの読みが正しければ、左列は次のとおり）:
+
+| 入力 | 予測される分類 | 根拠の節 |
+|---|---|---|
+| `cd /tmp` | `unknown` | e37 |
+| `git worktree list` / `add` | `unknown` | e36 |
+| `git checkout -b` / `git switch` | `unknown` | e36 |
+| `git merge-tree` / `git stash list` / `git version` | `unknown` | e36 |
+| `git branch -d` | **`read`** | e40 の X3 |
+| `git symbolic-ref HEAD refs/heads/main` | **`read`** | e40 の X4 |
+| `git reflog expire --expire=now --all` | **`read`** | e40 の X7 |
+| `git diff --output=wip/tmp/out.txt` | **`read`**（`SC_TARGETS` は空） | e40 の X6 |
+| `git -c diff.external=true diff` | **`read`** | e40 の X5 |
+| `git merge origin/main` / `origin/feature-49-x` | `merge-base`（**両方**） | e41 |
+| `git merge worktree-abc` / `--abort` | `unknown` | e41 |
+| `bash /c/repo/.claude/…/ticket.sh next` | `unknown` | e39 |
+| `bash wip/tmp/x.sh` | `unknown` | e39 |
+| `while read w; do …; done` | 1 段目が `unknown`（実行体 `read`） | e37 |
+| `echo "$((1+2))"` | どこかの段が `unknown`（実行体 `1+2`） | e38 の X1 |
+| `sed -n "$(…),+2p" …hook-common.sh` | 最終段が `unknown`（実行体 `hook-common.sh`） | e38 の X2 |
+| `diff3 a b c` / `sleep 1` | `unknown` | e37 |
+
+外れたとき: 本レポートの静的読解が誤っている。とくに **X5（`git -c diff.external=… diff` が `read`）が外れる**なら e40 の重大度が下がるので、優先して確認する。`git -c diff.external=true diff` の `true` は何もしないコマンドなので、この 1 行は**実行しても安全**である（`e2.sh` は分類を印字するだけで git を実行しない）。
+
+#### E3. worktree を実際に作って、機構が何で止まるかを端から端まで見る（0004 の P0 と兼ねる）
+
+**0004 の e8 の実測手順 P0 と同じ作業ツリーを使う。**別に作る必要は無い。E3 で見るのは「作業ツリーの中で AI が使うコマンドが、どこで WF204 に落ちるか」だけである。
+
+```bash
+cd "C:/Users/taniyama/Desktop/git/issue-mr-ticket-workflow"
+OUT=wip/tmp/worktree-probe; mkdir -p "$OUT"
+# 0004 の P0 で W1 を作っていない場合だけ作る
+git worktree add ../probe-wt1 main 2>&1 | tee "$OUT/e3-add.txt"
+# 作業ツリーの中で、AI がふつうに打つ 3 つの形を試す（人間が打つので機構は関与しない。
+# 見たいのは「同じ文字列を AI が打ったらどうなるか」なので、workflow-guard を直接叩く）
+printf '%s\n' \
+  '{"session_id":"probe","cwd":"<W1 の絶対パス>","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"cd ../probe-wt1 && ls"}}' \
+  > "$OUT/e3-in1.json"
+bash .claude/hooks/20-PreToolUse/workflow-guard.sh < "$OUT/e3-in1.json" > "$OUT/e3-out1.txt" 2>&1
+cat "$OUT/e3-out1.txt"
+```
+
+予測: 作業中チケットが 0 枚の作業ツリー（`main` 基点の W1）では `workflow-guard.sh:47-50` が即座に抜けるので**無出力（許可）**になる。つまり **worktree の中では分類の穴そのものが観測できない**（機構が丸ごと無音になる。0006 の e20）。分類の穴が観測できるのは「作業中チケットが 1 枚ある作業ツリー」だけなので、`cwd` を**本流**にした入力で試す。
+外れたとき: `workflow-guard` が worktree 側のチケットを見ていないことになり、0004 の e3 の結論が変わる。
+
+後始末: `git worktree remove ../probe-wt1`（0004 の e8 の「片付け」に従う）。**本流の `wip/` `logs/` には触れない。**
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -1554,6 +2033,17 @@ cd "$MAIN"
 | （0007）実測手順が「コマンド列 + 予測 + 外れたとき + 後始末」の形で揃っている | e34 の D1〜D5 の **5 件**すべてに、コマンドブロック・予測・外れたとき・後始末がある |
 | （0007）観点 D が読み取りだけで完結していない箇所を残課題に落とした | 「確かめられなかったこと」に 0007 の行が **5 件**、「残課題」に 0007 の行が **5 件** |
 
+| （0008）git サブコマンドの母集合と白名簿の突き合わせが全件である | `ls "…/libexec/git-core/" \| grep '^git-' \| sed … \| sort -u \| wc -l` = **174**、`_SC_GIT_READ_SUBCMDS` = **29**、`comm -13` = **145**、`comm -23` = **0**。29 + 145 = 174 で一致 |
+| （0008）e36-1 の一覧が 145 件である | `comm -13` の出力をそのまま貼っている（加工していない） |
+| （0008）起動プロンプトが名指しした 5 つが一覧に載っている | `checkout` / `switch` / `worktree` / `merge-tree` は e36-1 の 145 件に含まれ、e36-2 の表にも行がある。`diff3` は git サブコマンドではなく外部コマンドなので e37-2 の「外部コマンドで `unknown`（実在）」に載っている |
+| （0008）WF204 の実行体別の内訳の合計が総件数と合う | 集計時点（`01:06`）: `cd` 22 + `bash` 11 + `git` 7 + `_` 4 + `python` 3 + `sleep` 2 + `read` 2 + `set` 1 + `python3` 1 + `perl` 1 + `exit` 1 + `break` 1 + `n+1` 1 + `r-1` 1 + `end-start` 1 + `and` 1 + `の機械テスト_…` 1 + `0031-…md` 1 = **62**。`grep -hc '"WF204"'` = **62** で一致。提出時点では本チケットの 5 件（`hook-common.sh` / `-v` / `read` / `_` / `none.txt`）が加わって **67**（`_` 5 / `read` 3） |
+| （0008）e37-2 の membership が機械照合である | 5 つの一覧を `sed` + `tr` + `sort -u` でファイルに抽出し、候補 95 語と `awk` で突き合わせた。手で判定していない |
+| （0008）逆向きの穴 5 件すべてに一次資料の逐語がある | e40 の表の「根拠」列 5 行すべてに、ローカルの git 公式ドキュメント（`git-branch.html` / `git-symbolic-ref.html` / `git-config.html` / `git-diff.html` / `git-reflog.html`）の逐語または SYNOPSIS がある |
+| （0008）塞ぎ方の案が 2 つ以上あり、6 列すべてが埋まっている | 案は **5 つ**（A〜E）。各案の表は「変更する箇所 / `block-direct-git.sh` との関係 / `scope-limits.json` との整合 / 影響する既存テスト ID / 拒否が緩む範囲 / 隔離下で通るか / 長所・短所」の **7 行**で、空欄は 0 |
+| （0008）各案に「影響する既存テスト ID」が具体的な ID で入っている | A: `HK-T15` `WG-T06` `HK-T02` ／ B: `HK-T15` `WG-T06` `HK-T02` ／ C: `HK-T15` `WG-T06`（+ `block-direct-git` 側は ID 新設） ／ D: `HK-T12` `WG-T14`（+ 新設） ／ E: `HK-T02` `HK-T15`。P-1〜P-3 は `HK-T05` `HK-T12` `WG-T14` |
+| （0008）「隔離下でも通ること」が条件に入っている | e35 の末尾、e42 の各案の「隔離下で通るか」行、e43 の評価軸 4、e44 の E2 の `<<'EOF'` の注記の 4 か所 |
+| （0008）`git worktree add` / `git checkout -b` / `git switch` を実行していない | 「実施条件（0008）」に「`git` は 1 度も実行していない」と明記。`decisions.jsonl` の本チケット分（`2026-09-05T01:03:54` 以降）に `git` の実行記録が無い |
+
 ## 設計への反映
 
 | # | 反映すること | 引き取り先 |
@@ -1592,6 +2082,17 @@ cd "$MAIN"
 | 30 | （0007）**合流したことを記録する場所が無い**。`decisions.jsonl` に `cwd` も `agent_id` も無く（0006 の e19）、`logs/` は作業ツリーごとに分かれる（0005 の e9）。並列を採るなら「どの作業ツリーのどのチケットの成果を、いつ、どこへ合流したか」を残す先を決める必要がある（e33 の 5 点目） | 0010 |
 | 31 | （0007）`git branch -d` / `-D` が `scope.sh` の `_SC_GIT_READ_SUBCMDS` の `branch` に当たって **`read` に分類される**（`scope.sh:36`）。合流後の後始末には都合がよいが、**ブランチを消す操作が読み取り扱いになっている**のは分類の穴である（`git worktree remove` は `unknown` で拒否されるのに、ref の削除は通る）。観点 E の一覧に載せる | 0008／0010 |
 
+| 32 | （0008）**穴の塞ぎ方を 5 案から選ぶ**（e42・e43）。案 A（既存一覧に足す）／案 B（新分類を宣言制で足す）／案 C（白名簿をオプション込みに変える）／案 D（提供コマンド `worktree.sh` を足す）／案 E（設定の前方一致許可リスト）。**排他ではないので組み合わせで決める**（e43 の表）。評価軸 6 つを添えた | 0010（AI アセット設計計画）／調査計画書の保留 P3 |
+| 33 | （0008）**`cd` を通すなら、判定の起点のずれを同時に扱う**（e37 の注記・e43 の評価軸 3）。`__wg_rel`（`workflow-guard.sh:63-88`）は `HOOK_WORKTREE` を起点にパスを畳むだけで `cd` を追跡しない。`cd` を `_SC_READ_ONLY_CMDS` に足すだけだと、`cd ../other && echo x > a.txt` が作業ツリー外への書き込みとして通る。候補は「`cd` の引数が作業ツリーの内側であることを検査する」「`cd` を含む段があるコマンド行は分類を保留して拒否側に倒す」など | 0010／AI アセット設計 |
+| 34 | （0008）**`cmdpos.sh` の正規化を 2 か所直す**（e38 の X1・X2、e42 の P-1・P-2）。①`dq` 状態でも `$((` を算術として読み飛ばす（`cmdpos.sh:129-133`。コード状態の `:98-101` に同じ処理がある）②`$( )` の閉じ括弧の後ろの語を新しい段の実行体にしない。**どの案を採っても独立に必要**で、直さないと `sed` / `awk` を組み合わせただけの読み取りコマンドが落ち続ける。テストは `HK-T05` | 0010／AI アセット実装 |
+| 35 | （0008）**提供コマンドの識別がルート相対表記に限られる件を、どう扱うか決める**（e39・e42 の P-3）。現行は仕様 §7-8 と `HK-T12` が明文で固定した設計判断なので、変えるなら **DDR が要る**。変えないなら「cwd がリポジトリルートでない経路では提供コマンドを呼べない」ことを前提として仕様に書き、`cd` を通す（案 A・E）ことで担保する | 0010（AI アセット設計）／DDR |
+| 36 | （0008）**逆向きの穴 5 件（e40 の X3〜X7）を閉じるか、統制の外に置くと明記するか**。`git branch -d` / `symbolic-ref` / `reflog expire` / `diff --output` / `-c diff.external`。閉じるなら案 C。閉じないなら仕様 §13（意図的な緩和）に「`_SC_GIT_READ_SUBCMDS` はサブコマンド名だけを見るので、オプションで書き込みに変わる形は統制しない」と明記して、既定拒否の約束の範囲を正しく狭める | 0010／全体計画書の保留 P2（別 issue に切り出すなら） |
+| 37 | （0008）**`merge` の分類を「取り込みに限る」形に直す**（e41）。現行は引数に `origin/*` が 1 語あれば `merge-base` なので、`git merge origin/feature-なにか` も通る。仕様 §8 と DDR `i0004-07` は既定ブランチの取り込みを意図している。あわせて `git merge --abort` / `--continue` / `git mergetool` が `unknown` で落ちる（衝突解消を中断も続行もできない）ことの扱いを決める。0007 の設計への反映 25・26 と同じ根 | 0010／AI アセット設計 |
+| 38 | （0008）**`bash wip/tmp/*.sh` が `unknown` に落ちる**（e39）。`allow.ops` に `build-test` を宣言しても通らない（判定は `^(tests\|test)/.*\.sh$` と `commands.build-test` の前方一致だけ）。一時スクリプトを走らせる正規の経路が無いので、案 E（`commands` の一般化）か `build-test` の判定に `wip/tmp/` を足すかを決める。**隔離下では引用符付きヒアドキュメント（`<<'EOF'`）で書く必要がある**（0006 の e22） | 0010／AI アセット設計 |
+| 39 | （0008）**`_SC_SHELL_KEYWORDS` に直接のテストが無い**（`grep -rn` が定義行と参照行の 2 行のみ）。`WG-T06` の `for f in a; do echo x; done > …` が間接的に踏んでいるだけで、`_SC_READ_ONLY_CMDS` / `_SC_GIT_READ_SUBCMDS` のような**全要素ループの検査が無い**（`test_scope.sh:196-199`）。一覧を増やすなら、増やす前に同じ形のループを足す | 0010（テスト ID の割り付け）／AI アセット実装 |
+| 40 | （0008）**`_SC_READ_ONLY_CMDS` に `column` が 2 回入っている**（`scope.sh:31`。要素 65・ユニーク 64）。害は無いが、表形式の実装として重複は取る。全要素ループのテスト（`HK-T15`）は重複を検出しない | 0010（軽微）／AI アセット実装 |
+| 41 | （0008）**`hook_record` の `target` が 80 文字で切られる**（`workflow-guard.sh:100` の `__wg_cmd_head`）ため、誤分類 9 件のうち 6 件の原因を後から特定できなかった（e38）。分類の穴を直した後にも同じ調査が要る見込みなので、記録の粒度（全文を残す / ハッシュを添える / 実行体と段数を別キーにする）を決める。0006 の設計への反映 16（`cwd` と `agent_id` が記録されていない）と同じ根 | 0010 |
+
 ## 想定と異なった点
 
 | 計画時の見込み | 実際 | どう扱ったか |
@@ -1621,6 +2122,13 @@ cd "$MAIN"
 | （0007）衝突の件数は `git merge` を試して数えるつもりでいた | **3-way マージを実行する手段が 1 つも無い。** `merge` は `unknown`、`merge-tree` は `_SC_GIT_READ_SUBCMDS` に無く、`diff3` は `_SC_READ_ONLY_CMDS` に無い。読み取りだけで数えるには「過去の追記の hunk 位置を共通の基点に写す」しかなかった | 静的な方法に切り替えて (6)(7) を出し、実件数の確定は実測手順 D3 に落とした。◇ に「実行していない」ことを明記した |
 | （0007）`isolation: worktree` の worktree は、ブランチ構成の第 5 の案として別に立てるつもりでいた | `worktree-<名前>` は `git worktree add <path>`（引数省略）が作るブランチ（`$(basename <path>)`）と**同じ性質**で、案 2 の具体形だった | e27 の案 2 の欄に併記し、「隔離を採る = 案 2 の合流手順を決める」と書いた |
 
+| （0008）調査計画書と全体計画書は穴を「`checkout` / `switch` / `worktree` / `cd` が `unknown` に落ちる」という 4 語の問題として書いていた | **4 語では済まなかった。** git サブコマンドだけで 145 件、基本コマンドで 61 語、さらに分類より手前のパーサの誤りが 2 件、逆向きの穴が 5 件あった。とくに**逆向きの穴は計画書がまったく想定していない方向**である | 観点は書き換えず、e35 で穴を 4 層に整理したうえで、計画書が名指しした 4 語を e36-2 と e37-2 の表に明示して残した |
+| （0008）「`unknown` に落ちる」ことの実害は「そのコマンドが使えない」ことだと見込んでいた | **`workflow-guard` はコマンド行の全段を判定し、1 段でも `unknown` があれば行ごと拒否する**（`workflow-guard.sh:387-443`）。実績 7 件の git 拒否のうち 3 件は、読み取り系の git を同じ行に混ぜたための巻き添えだった | e36-2 の末尾に「巻き添えの性質」として書いた |
+| （0008）`decisions.jsonl` の実行体に混じる `n+1` / `and` のような語は、記録の取り方の問題（80 文字で切れている）だと見込んでいた | **`cmdpos.sh` の正規化のバグだった。** 二重引用符の中の `$(( ))` と `$( )` が段を割り、引数だったはずの語が実行体になる。**本チケットの実施中に 3 回再現した**（`hook-common.sh` / `-v` / `_`） | e38 に X1・X2 として原因を行番号つきで特定し、e42 の P-1・P-2 として修正案を別表にした |
+| （0008）`git branch` が `read` 分類なのは 0007 が既に指摘していたので、同種の穴は 1〜2 件だろうと見込んでいた | **5 件あり、うち 1 件（`git -c diff.external=<コマンド> diff`）は任意コマンドの実行まで開いていた。** `_SC_GIT_READ_SUBCMDS` がサブコマンド名だけを見る設計から機械的に導かれる | e40 に表としてまとめ、公式ドキュメントの逐語を根拠に添えた。X5 は**実行していない**ことを明記し、扱いの判断を ◆ に上げた |
+| （0008）塞ぎ方の案は「既存分類への追加」と「新分類の導入」の 2 案で足りると見込んでいた（調査計画書の「対象と方法」観点 E 行） | 観点 C の隔離検査（`git -C` と引用符なしヒアドキュメントを拒否し、無効化できない）と観点 D の合流（DDR `i0004-07` に触れる）が条件として加わり、**2 案では条件を満たす組み合わせを比較できなかった** | 5 案に広げ、計画書の 2 案を案 A・案 B としてそのまま残した。組み合わせ表（e43）で「何のために何が要るか」を分けた |
+| （0008）既存テストを走らせて分類を確かめられると見込んでいた（`allow.ops` に `build-test` があると思っていた） | 本チケットの `allow.ops` は `read` / `remote-read` のみで、`bash .claude/hooks/lib/tests/test_scope.sh` は `hook-test` 分類。**分類の結論はすべて静的読解になった** | 「確かめられなかったこと」に上げ、実測手順 E1・E2 に落とした。E2 は分類を印字するだけで git を実行しない形にした |
+
 ## 残課題
 
 | # | 残課題 | 引き取り先 |
@@ -1649,3 +2157,9 @@ cd "$MAIN"
 | R22 | （0007）**サブエージェント worktree の `worktree-<名前>` ブランチが終了後にいつまで残るか。** ref ごと消えるなら未合流の成果が失われ、合流手順は「終了前に本流へ書き戻す」形（J4）に限定される。公式は worktree ディレクトリの sweep には触れるが ref には触れていない | 0009（実測手順 D4）／0010 |
 | R23 | （0007）**合流の実行者を誰にするか**（e33 の J1〜J6）。J2（`scope.sh` の分類を広げる）を選ぶと DDR `i0004-07` の決定を部分的に覆すことになり、J3（`merge.sh` を足す）は同 DDR が却下した案に戻ることになる。どちらも「当時の判断を、worktree という新しい前提のもとで見直す」形の決定なので、**DDR を上書きする新しい DDR が要る** | 0010（AI アセット設計計画）／AI アセット設計 |
 | R24 | （0007）**採番の重複が「衝突せずに通る」経路をどう塞ぐか**（e30 の (1)）。番号を作業ツリーに閉じない採り方にするのか、合流の手順で検査するのか。前者はチケットの命名規則（`<4 桁>-<種類>.md`）と `find_ticket` / `boundary.sh` の番号の扱いに波及し、後者は合流を機構が担うこと（J2 / J3）を前提にする | 0010 |
+| R25 | （0008）**`scope_classify` の実際の出力を 1 度も見ていない。** e36〜e41 の分類はすべて `scope.sh` / `cmdpos.sh` の静的読解で、本チケットの `allow.ops`（`read` / `remote-read`）では分類器を走らせられなかった（`hook-test` も `bash wip/tmp/*.sh` も分類外）。**とくに e40 の X5（`git -c diff.external=… diff` が `read`）が外れると、逆向きの穴の重大度が下がる** | 0009（実測手順 E1・E2）／人間 |
+| R26 | （0008）**e40 の 5 件を本 issue で直すか、全体計画書の保留 P2（別 issue）へ回すか。** L1〜L3（通らない）は受け入れ条件 A1 に直接効くが、L4（通ってしまう）は A1 とは無関係で、`worktree` とも無関係の統制の穴である。0004 の R6・0005 の R10・0006 の R18 と同じ種類の判断だが、**こちらは「worktree を使わなくても常時開いている」点が違う** | 0009／0010（人間の判断） |
+| R27 | （0008）**「基本コマンドの一覧」を何を根拠に確定するか。** 本レポートの候補 95 語は網羅ではない（bash の組み込み一覧を機械的に取る手段がこの環境に無い）。案 A・E を採るなら、足す語の集合を決める根拠（`compgen -b` の出力・POSIX のユーティリティ一覧・実績の積み上げのどれか）を先に決める必要がある | 0010（AI アセット設計） |
+| R28 | （0008）**案 D（提供コマンド `worktree.sh`）が `__wg_check_provided_args` を通るか。** 作業ツリーはリポジトリの外に作るので、引数のパスが `__wg_rel`（`workflow-guard.sh:83-85`）で WF209 に倒れる見込みで、そうなると案 D は成立しない。**案 D を候補に残すなら実装前に確認が要る** | 0010／AI アセット実装計画 |
+| R29 | （0008）**案 B で新しい `ops` の値を足したとき、`hook_read_input` の jq が未知キーとして WF210 に倒さないか。** `types.<t>.ops` は配列の値なのでキー検査には掛からない読みだが、jq プログラム（`__HC_JQ_INPUT`）の本文を読めていない（読もうとしたコマンドが e38 の X2 で拒否された） | 0010／AI アセット実装計画 |
+| R30 | （0008）**`decisions.jsonl` の `target` が 80 文字で切られる**（`workflow-guard.sh:100`）ため、誤分類 9 件のうち 6 件の原文を復元できなかった。分類を直した後も同じ調査が要る見込みなので、記録の粒度を見直すか、原文が要る調査は `logs/hooks/` 以外の材料（会話ログ）に頼ることを前提にするかを決める | 0010／保留 P2 |

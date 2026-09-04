@@ -127,12 +127,12 @@
 
 <aside class="sidebar">
   <p class="kind">調査結果レポート / 調査</p>
-  <h1 id="title" data-required>0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと <code>logs/</code> 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト）</h1>
+  <h1 id="title" data-required>0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと <code>logs/</code> 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否 / 観点 D: 1 issue = 1 ブランチとの両立と合流コスト / 観点 E: <code>scope.sh</code> の分類の穴と塞ぎ方）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 15</span>
-    <span class="chip warn">△注意 15</span>
-    <span class="chip stop">✕問題 4</span>
+    <span class="chip good">◎良 19</span>
+    <span class="chip warn">△注意 17</span>
+    <span class="chip stop">✕問題 8</span>
   </p>
 
   <nav class="toc" id="toc" data-required>
@@ -178,6 +178,16 @@
           <li><a href="#f32"><span class="mk warn">△</span> 32. DDR i0001-23 の却下文の再評価</a></li>
           <li><a href="#f33"><span class="mk good">◎</span> 33. 合流手順の選択肢とコスト（A6 の材料）</a></li>
           <li><a href="#f34"><span class="mk good">◎</span> 34. 実測手順（観点 D。人間が実行）</a></li>
+          <li><a href="#f35"><span class="mk good">◎</span> 35. 観点 E の答え — 穴は 4 層に分かれる</a></li>
+          <li><a href="#f36"><span class="mk stop">✕</span> 36. unknown に落ちる git サブコマンド 145 件（全件）</a></li>
+          <li><a href="#f37"><span class="mk stop">✕</span> 37. unknown に落ちる基本コマンド（cd 22 件ほか）</a></li>
+          <li><a href="#f38"><span class="mk stop">✕</span> 38. 分類より手前で実行体を取り違える 2 件</a></li>
+          <li><a href="#f39"><span class="mk warn">△</span> 39. 提供コマンドの識別がルート相対に限られる帰結</a></li>
+          <li><a href="#f40"><span class="mk stop">✕</span> 40. 逆向きの穴 5 件（read なのに状態を変えられる）</a></li>
+          <li><a href="#f41"><span class="mk warn">△</span> 41. merge の分類が origin/ の有無だけで決まる</a></li>
+          <li><a href="#f42"><span class="mk good">◎</span> 42. 塞ぎ方の案 5 つ（6 観点で比較）</a></li>
+          <li><a href="#f43"><span class="mk good">◎</span> 43. 案の組み合わせと評価軸（決めない）</a></li>
+          <li><a href="#f44"><span class="mk good">◎</span> 44. 実測手順（観点 E。人間が実行）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -191,7 +201,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）</dd></div>
+    <div><dt>チケット</dt><dd>0004（観点 A）／0005（観点 B）／0006（観点 C）／0007（観点 D）／0008（観点 E）</dd></div>
     <div><dt>作成日</dt><dd>2026-09-04</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -204,12 +214,13 @@
   <p class="lead">0005 まで（観点 A・B）。観点 B の答えは「分かれる。ただし『何を基準に分かれるか』がフックと提供コマンドで違い、提供コマンドは <code>cwd</code> ではなく<b>起動したスクリプトの置き場</b>で作業ツリーを決める」。フックは <code>HOOK_ROOT</code> と <code>HOOK_WORKTREE</code> を分けて持つが、提供コマンドの根は <code>LOGGER_ROOT</code> 1 本で、<code>__ss_load</code> が <code>BASH_SOURCE[1]</code> から決め、本体は <code>cd "$LOGGER_ROOT"</code> して以後すべて相対で触る。<code>logs/</code> が無い worktree で壊れるコマンドは 1 本も無く、実害は逆に「前 issue の記録が<b>残る</b>」ほうに出る（本 issue の実施中に 3 件を実際に踏んだ）。表題は 0005 で観点 A・B を含む形に広げた。</p>
   <p class="lead">0006 まで（観点 A・B・C）。観点 C の答えは「<b>動かせる</b>。公式に専用の機能があり、Agent ツールの引数ではなくエージェント定義の frontmatter <code>isolation: worktree</code> で指定する。ただし現行の機構をそのまま載せると、サブエージェント側の worktree が<b>既定ブランチから切られる</b>ため、チケットが 0 枚になって機構が静かに無効化される」。<code>subagent-start-check</code> が読む <code>cwd</code> は 2 経路で別物で、PreToolUse <code>Agent</code> は<b>呼び出し元のもの（確定）</b>、SubagentStart は公式に発火順の記述が無く<b>不明</b>。サブエージェントは呼び出し元と <code>session_id</code> を共有する（本セッションの SubagentStart 4 件が同一 ID）。表題は 0006 で観点 A・B・C を含む形に広げた。</p>
   <p class="lead">0007 まで（観点 A・B・C・D）。観点 D の答えは「<b>保ったまま使える</b>。git の同一ブランチ制約は『サブブランチを切って後で合流する』形で回避でき、MR は squash merge なので中間の履歴は <code>main</code> に残らない。合流コストの主体はファイルの衝突ではなく、①機構が『ブランチ間の合流』を設計として拒否していること（<code>git merge &lt;ローカルブランチ&gt;</code> は <code>unknown</code> → WF204、<code>cherry-pick</code> / <code>rebase</code> / <code>am</code> は WF401）と、②1 タスク 1 レポートの積み上げが追記のたびに md 4 行 + HTML 9 行を必ず同じ行で書き換えることにある」。<code>wip/10_tickets/</code> の衝突は <b>0 件</b>（チケットごとに別ファイル。<code>feature-10</code> の 104 コミットすべてが 1 コミット 1 rename）。DDR <code>i0001-23</code> の却下文は「分離は強い」= 今も成り立つ、「1 issue = 1 ブランチ = 1 MR の原則と衝突し」= <b>成り立たない</b>、「統合のコストが利得を上回る」= 条件付きで成り立つ、と判定した。表題は 0007 で観点 A・B・C・D を含む形に広げた。</p>
+  <p class="lead">0008 まで（観点 A・B・C・D・E）。観点 E の答えは「<b>穴は 4 層あり、git サブコマンドの白名簿（<code>_SC_GIT_READ_SUBCMDS</code>）はそのうち 1 層にすぎない。しかも穴は『通らない』方向だけでなく『通ってしまう』方向にもあり、後者は <code>read</code> 分類のまま任意コマンドを実行できるところまで開いている</b>」。L1: <code>git-core</code> の実体から取った <b>174</b> サブコマンドと白名簿 <b>29</b> 件の突き合わせで <b>145 件</b>が <code>unknown</code>（<code>checkout</code> / <code>switch</code> / <code>worktree</code> / <code>merge-tree</code> / <code>stash</code> を含む）。L2: <code>decisions.jsonl</code> の WF204 <b>62 件</b>の実行体別集計で <code>cd</code> <b>22</b> / <code>bash</code> <b>11</b> / <code>git</code> <b>7</b>。L3: <code>cmdpos.sh</code> の正規化が実行体を取り違える <b>2 件</b>（二重引用符の中の <code>$(( ))</code> と <code>$( )</code> / プロセス置換。本チケットで 4 回再現）。L4: <code>read</code> に分類されるのに状態を変えられる<b>逆向きの穴 5 件</b>（<code>branch -d</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output</code> / <code>-c diff.external</code>）。塞ぎ方は 5 案（A〜E）を 6 観点で比較し、<b>採用は決めていない</b>。表題は 0008 で観点 A・B・C・D・E を含む形に広げた。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>15</b><span>◎良</span></li>
-    <li class="kpi warn"><b>15</b><span>△注意</span></li>
-    <li class="kpi stop"><b>4</b><span>✕問題</span></li>
+    <li class="kpi good"><b>19</b><span>◎良</span></li>
+    <li class="kpi warn"><b>17</b><span>△注意</span></li>
+    <li class="kpi stop"><b>8</b><span>✕問題</span></li>
   </ul>
-  <p class="note">件数はタスク全体の合計（0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件、合計 34 件）。他の節はこの数を指す。</p>
+  <p class="note">件数はタスク全体の合計（0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件、0007 が ◎5 / △4 / ✕1 = 10 件、0008 が ◎4 / △2 / ✕4 = 10 件、合計 44 件）。他の節はこの数を指す。</p>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
       <p class="label">◆特に見てほしい</p>
@@ -223,6 +234,8 @@
         <li>（0006）<a href="#f20">f20</a> を受け入れ条件 A1 の「動かない箇所」に載せるか。「<code>isolation: worktree</code> で起動すると機構が静かに無効化される」は worktree 上の健全性（A1）の問題でもあり、並列採否（A4）の材料でもある。<a href="#f5">f5</a>・<a href="#f13">f13</a> と同じ判断で 0009 / 0010 に委ねる。</li>
         <li>（0007）DDR <code>i0001-23</code> の却下文のうち「1 issue = 1 ブランチ = 1 MR の原則と衝突する」を<b>「成り立たない」と判定した</b>（<a href="#f32">f32</a> の D-2）。根拠は ①原則の正文が言うのは issue とブランチと MR の 1:1:1 対応で、ローカルの中間ブランチを禁じていない ②同じ前提条件の次の行が「並行して作業する場合は git worktree または別の clone を使う」と worktree を明示的に許している ③MR は squash merge なので中間の合流コミットが正史に残らない、の 3 点。この読み方でよいかを判断してほしい（原則を「feature ブランチ以外を作らない」と読むなら判定は逆になる）。</li>
         <li>（0007）合流の操作を機構がどう扱うかを決めきれていない（<a href="#f28">f28</a>・<a href="#f33">f33</a>）。<code>git merge &lt;サブブランチ&gt;</code> は作業中チケットが 0 枚なら現行でも素通りするが、DDR <code>i0004-07</code> は「取り込み以外の <code>merge</code>（ブランチ間の統合）は <code>merge-base</code> 分類で <code>origin/&lt;default&gt;</code> 以外を拒否できる」と<b>拒否できることを利点として書いている</b>。①<code>merge-base</code> を広げる ②合流専用の提供コマンドを足す ③合流は人間だけが行う、のいずれかを 0010 で選ぶ必要がある。③を選ぶと並列の利得が人間の手数で相殺されるおそれがある。</li>
+        <li>（0008）<a href="#f40">f40</a> の X5（<code>git -c diff.external='&lt;任意のコマンド&gt;' diff</code> が <code>read</code> に分類され、<code>workflow-guard</code> も <code>block-direct-git</code> も通り抜ける）をどこで扱うか。<b>worktree とは無関係に常時開いている統制の穴</b>なので全体計画書の保留 P2（別 issue）に見えるが、①観点 E の DoD が「穴を全件洗い出す」ことを求めており ②案 C を採るなら本 issue の設計で一緒に直るので、切り出す判断を決めきれていない。<b>本チケットでは一切実行していない</b>（根拠は git 公式ドキュメントの逐語と静的読解のみ）。</li>
+        <li>（0008）「穴を塞ぐ」の向きが 2 つあることをどう扱うか。L1〜L3（通らない）は手数の問題で受け入れ条件 A1 に直接効き、L4（通ってしまう）は統制の問題で A1 とは無関係だが同じ <code>_SC_GIT_READ_SUBCMDS</code> の性質から出ている。<b>手数だけを直して統制の穴を残すと「広げた」記録だけが残る</b>ので <a href="#f43">f43</a> の評価軸 2 に上げたが、両方を本 issue で直すのかは 0010 の判断に委ねる。</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -243,6 +256,11 @@
         <li>（0007）ブランチ構成の選択肢を、計画書の 3 案（detached HEAD / サブブランチ + 合流 / <code>--force</code>）に<b>「別 clone」を足して 4 案</b>にした（<a href="#f27">f27</a>）。<code>00_requirement/自己改善ワークフロー機構.md:164</code> が並行の手段として worktree と並べて別 clone を明記しており、載せないと原則が許している選択肢が落ちるため。計画書の 3 案は表の 1〜3 行目にそのまま残した。</li>
         <li>（0007）「合流コスト」を 3 つに分けて測った（<a href="#f25">f25</a>）: ①ファイルの衝突 ②合流の操作が機構で通るか ③合流後に機構の前提が壊れないか。計画書は ① だけを求めていたが、①が小さいと分かった時点で ②③ が主コストになったため分割した。</li>
         <li>（0007）サブエージェント隔離の worktree を第 5 の案にはせず、<b>案 2 の具体形として表に併記した</b>。<code>worktree-&lt;名前&gt;</code> は <code>git worktree add &lt;path&gt;</code> が引数省略時に作るブランチと同じ性質（<code>$(basename &lt;path&gt;)</code> の新規ブランチ）で、別立てにすると合流手順が二重になるため。</li>
+        <li>（0008）git サブコマンドの母集合を <code>git-core</code> ディレクトリの実体一覧（174 件）に取った。<code>git help -a</code> は <code>help</code> が白名簿に無く実行できない。内部ヘルパも母集合に入るが、<b>除外の線引きに主観を入れないほうが突き合わせの根拠として強い</b>と判断した。「145 件」はこの取り方に依存する。</li>
+        <li>（0008）「基本コマンド」の候補 95 語は<b>網羅ではない</b>。bash の組み込み一覧を機械的に取る手段がこの環境に無い（<code>compgen</code> も <code>help</code> も分類外）。membership の照合だけは機械的（5 つの一覧をファイルに抽出して <code>awk</code> で突き合わせ）。</li>
+        <li>（0008）塞ぎ方を<b>5 案</b>に広げた。計画書は「最低 2 案」を求めていたが、観点 C（隔離下で <code>git -C</code> と引用符なしヒアドキュメントが拒否され無効化できない）と観点 D（合流が DDR <code>i0004-07</code> に触れる）から条件が加わり、2 案では組み合わせを比較できなかった。計画書の 2 案は案 A・案 B としてそのまま残した。</li>
+        <li>（0008）パーサの 2 件（<a href="#f38">f38</a> の X1・X2）を「案」ではなく別表（P-1〜P-3）にした。分類の白名簿の問題ではなく <code>cmdpos.sh</code> の正規化の誤りで、<b>どの案を採っても独立に必要</b>になるため。</li>
+        <li>（0008）<code>git fetch</code> を逆向きの穴に数えなかった。<code>&lt;repo&gt; &lt;src&gt;:&lt;dst&gt;</code> でローカル ref を作れ <code>--prune</code> でリモート追跡 ref を消せるが、「取り込み」の一部として意図的に白名簿に入っていると読める。判断が割れうるので注記に留めた。</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -269,6 +287,13 @@
         <li>（0007）<code>scope.sh</code> の <code>merge</code> の分類が「引数に <code>origin/*</code> があれば <code>merge-base</code>、無ければ <code>unknown</code>」であること（<code>scope.sh:392-393</code>）と、<code>merge-base</code> を <code>ops</code> に持つのが <code>overall-summary</code> の 1 種類だけであること。</li>
         <li>（0007）<code>.gitattributes</code> が LF 固定にしているのは <code>*.sh</code> / <code>*.tsv</code> / <code>*.json</code> / <code>*.html</code> の 4 拡張子で、<code>*.md</code> は含まれないこと。</li>
         <li>（0007）レポート 1 対への 1 回の追記が md 14 hunk / HTML 17 hunk であること（0005 の追記・0006 の追記とも同数）。</li>
+        <li>（0008）<code>git-core</code> の <code>git-*</code> が 174 件、<code>_SC_GIT_READ_SUBCMDS</code> が 29 件、<code>comm -13</code> が 145 件、逆差分が 0 件であること。</li>
+        <li>（0008）<code>decisions.jsonl</code> の WF204 が集計時点で 62 件（提出時点 67 件）、WF205 が 17 件であることと、実行体別の内訳（<code>cd</code> 22 / <code>bash</code> 11 / <code>git</code> 7 / <code>_</code> 4 / <code>python</code> 3 / <code>sleep</code> 2 / <code>read</code> 2 / 誤分類 6 ほか）。</li>
+        <li>（0008）<code>_SC_READ_ONLY_CMDS</code> の要素が 65・ユニーク 64（<code>column</code> が 2 回）、<code>_SC_SHELL_KEYWORDS</code> 8、<code>_CP_PREFIX_WORDS</code> 21、<code>_CP_WRITE_CMDS</code> 10、<code>_CP_OPAQUE_WORDS</code> 8 であること。</li>
+        <li>（0008）<code>_SC_SHELL_KEYWORDS</code> を名指しする箇所が定義行と参照行の 2 行だけで、テストからの直接参照が 0 件であること。</li>
+        <li>（0008）<code>test_scope.sh:196-199</code> が <code>_SC_READ_ONLY_CMDS</code> と <code>_SC_GIT_READ_SUBCMDS</code> の<b>全要素</b>をループして <code>read</code> を assert していること（足した語は <code>HK-T15</code> の検査対象に自動で入る）。</li>
+        <li>（0008）<code>test_config_integrity.sh:47</code> の <code>ops</code> の検査が <code>has("ops")</code> だけで、値の enum 検査を持たないこと。</li>
+        <li>（0008）本環境の git が Git for Windows v2.39.2（<code>ReleaseNotes.html</code> の先頭記載）であること。<code>git version</code> は分類外で実行できない。</li>
       </ul>
     </div>
   </div>
@@ -300,6 +325,13 @@
       <li>（0007）<code>git worktree add</code> が同じブランチを拒否するときの<b>正確なエラー文言</b> — 公式は振る舞いだけを書き、文言は載っていない。引き取り先: 0009（実測 D1）。</li>
       <li>（0007）サブエージェント worktree の <code>worktree-&lt;名前&gt;</code> ブランチが終了後にいつまで残るか — 公式は worktree ディレクトリの sweep には触れるが ref には触れていない。ref が消えると未合流の成果が失われる。引き取り先: 0009（実測 D4）/ 0010。</li>
       <li>（0007）並列で得られる<b>利得</b>（所要時間の短縮幅） — 完了した issue の <code>wip/</code> は <code>finalize.sh</code> の片付けで消えており、直列の所要時間しか残っていない。<b>コスト側だけを測って利得側を測っていない</b>ので、「コストが利得を上回る」の判定は片側の根拠しか持たない。引き取り先: 0009 / 0010。</li>
+      <li>（0008）<code>scope_classify</code> が本レポートの読みどおりの分類を返すか（<a href="#f36">f36</a>〜<a href="#f41">f41</a> の全件） — 分類器を走らせるには <code>hook-test</code> 分類が要るが本チケットの <code>allow.ops</code> は <code>read</code> / <code>remote-read</code> のみで、<code>bash wip/tmp/*.sh</code> も <code>unknown</code> に落ちる。<b>分類の結論はすべて静的読解である</b>。引き取り先: 0009（実測 E1・E2）／人間。</li>
+      <li>（0008）<code>git -c diff.external='&lt;コマンド&gt;' diff</code> が実際に任意コマンドを実行するか（<a href="#f40">f40</a> の X5） — 実行すると任意コマンドの実行そのものになるので<b>意図的に試していない</b>。根拠は <code>git-config.html</code> の逐語と <code>cmdpos.sh:53, 299</code> の静的読解。引き取り先: 0009（実測 E2 で分類だけ確認）。</li>
+      <li>（0008）<code>git -c core.pager='&lt;コマンド&gt;' --paginate log</code> が非対話の Bash ツールで発火するか — <code>git.html</code> が <code>--paginate</code> を「if standard output is a terminal」と限っており発火しない見込み。確かめていない。引き取り先: 0010（優先度は低い）。</li>
+      <li>（0008）<code>decisions.jsonl</code> の誤分類 9 件のうち 6 件の原因 — <code>hook_record</code> の <code>target</code> が <b>80 文字で切られる</b>（<code>workflow-guard.sh:100</code>）ため元のコマンド文字列を復元できない。X2 と同型と推定したが確定していない。引き取り先: 0010／追えない。</li>
+      <li>（0008）bash の組み込みコマンドの網羅的な一覧 — <code>compgen -b</code> も <code>help</code> も分類外で実行できず、man ページも同梱されていない。候補 95 語は記憶と実績から作った。引き取り先: 0010。</li>
+      <li>（0008）案 D（提供コマンド <code>worktree.sh</code>）で、作業ツリーのパス（リポジトリの外）が <code>__wg_check_provided_args</code> の判定に掛かってどうなるか — <code>workflow-guard.sh:83-85</code> が作業ツリー外を WF209 に倒す見込み。<b>案 D の実現可能性そのものに関わる</b>。引き取り先: 0010。</li>
+      <li>（0008）案 B で新しい <code>ops</code> の値を足したとき <code>hook_read_input</code> の jq が未知キーとして WF210 に倒さないか — jq プログラム（<code>__HC_JQ_INPUT</code>）の本文を読めていない（読もうとしたコマンドが X2 で拒否された）。引き取り先: 0010。</li>
     </ul>
   </div>
 </section>
@@ -324,6 +356,10 @@
     <li>（0007）<code>cd</code> を含むコマンドが WF204 で <b>1 回</b>拒否された。以後はすべて絶対パスと <code>git -C &lt;本流&gt;</code> で読んだ。</li>
     <li>（0007）Web の取得は 2 URL・取得日 <b>2026-09-05</b>（<code>git-scm.com/docs/git-worktree</code> を 2 回、<code>git-scm.com/docs/git-checkout</code> を 1 回。引用は <a href="#f26">f26</a>）。</li>
     <li>（0007）過去 issue の実データは <code>git merge-base main &lt;branch&gt;</code> から各 feature ブランチの先端までを対象にした。対象は <code>feature-1</code> / <code>feature-4</code> / <code>feature-6</code> / <code>feature-8</code> / <code>feature-9</code> / <code>feature-10</code> / <code>feature-50</code> の 7 本。</li>
+    <li>（0008）対象コミット: <code>feature-50-worktree-parallel-tickets</code> の <code>e8a79c3</code>（チケット 0008 の基準点は <code>35dd59f</code>）。</li>
+    <li>（0008）実行したのは読み取りのコマンドだけ（<code>ls</code> / <code>cat</code> / <code>sed</code> / <code>grep</code> / <code>awk</code> / <code>tr</code> / <code>sort</code> / <code>uniq</code> / <code>comm</code> / <code>wc</code> / <code>head</code> / <code>tail</code> / <code>printf</code> / <code>jq</code>）。<b><code>git</code> は 1 度も実行していない</b>（<code>git worktree</code> / <code>checkout</code> / <code>switch</code> / <code>merge</code> / <code>merge-tree</code> / <code>diff3</code> はもちろん <code>git log</code> も）。ファイルの作成は <code>wip/tmp/</code> のみ。</li>
+    <li>（0008）<b>リポジトリ外を読んだ</b>: <code>…/libexec/git-core/</code>（サブコマンドの母集合）、<code>…/share/doc/git-doc/*.html</code>（<code>git-diff</code> / <code>git-config</code> / <code>git-symbolic-ref</code> / <code>git-reflog</code> / <code>git-branch</code> / <code>git.html</code>。逐語引用の出典）、<code>…/usr/bin/</code>（外部コマンドの実在確認）、<code>ReleaseNotes.html</code>（版）。いずれも <code>ls</code> / <code>sed</code> / <code>grep</code> による読み取りのみで、<code>web</code>（<code>curl</code> / <code>wget</code> / WebFetch）は使っていない。</li>
+    <li>（0008）本チケットの実施中に踏んだ拒否は <b>8 件</b>。WF204 が 7 回（<code>cd</code> 2 / <code>hook-common.sh</code> 1 / <code>-v</code> 1 / <code>read</code> 1 / <code>_</code> 1 / <code>none.txt</code> 1）、WF205 が 1 回（引用符付きリダイレクト先が <code>_</code> に潰れたもの）。いずれも迂回せず書き換えて進めた。<b>うち 4 件が <a href="#f38">f38</a> の X2・X2b の再現、1 件が <a href="#f37">f37</a> の再現。</b></li>
   </ul>
 </section>
 
@@ -1357,6 +1393,331 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">35</span>
+      <h3 id="f35">観点 E の答え — 穴は「git サブコマンドの白名簿が短い」ことだけではなく、4 層に分かれる <span class="chip good">◎良</span> <span class="basis">根拠: scope.sh:31, 35, 36, 370-419 / cmdpos.sh:42, 48, 55, 129-136, 315-318 / workflow-guard.sh:387-443 / decisions.jsonl</span></h3>
+      <p>観点 E の答えは <b>「穴は 4 層あり、git サブコマンドの白名簿（<code>_SC_GIT_READ_SUBCMDS</code>）はそのうち 1 層にすぎない。しかも穴は『通らない』方向だけでなく『通ってしまう』方向にもあり、後者は <code>read</code> 分類のまま任意コマンドを実行できるところまで開いている」</b>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>層</th><th>何が起きるか</th><th>件数</th><th>節</th></tr></thead>
+        <tbody>
+          <tr><td>L1. git サブコマンドの白名簿が短い</td><td><code>git-core</code> にある 174 サブコマンドのうち <b>145 件</b>が <code>unknown</code> に落ちる。<code>checkout</code> / <code>switch</code> / <code>worktree</code> / <code>merge-tree</code> / <code>stash</code> / <code>version</code> / <code>help</code> を含む</td><td>145</td><td><a href="#f36">f36</a></td></tr>
+          <tr><td>L2. 基本コマンドの白名簿が短い</td><td><code>_SC_READ_ONLY_CMDS</code> に無い外部コマンドとシェル組み込みが <code>unknown</code> に落ちる。<code>cd</code>（本 issue で <b>22 回</b>）・<code>read</code>・<code>set</code>・<code>exit</code>・<code>break</code>・<code>sleep</code>・<code>diff3</code> など</td><td>候補 95 件中 <b>75 件</b></td><td><a href="#f37">f37</a></td></tr>
+          <tr><td>L3. 分類より<b>手前</b>（<code>cmdpos.sh</code> の正規化）で実行体を取り違える</td><td>二重引用符の中の <code>$(( ))</code> と <code>$( )</code> が段を割り、<b>引数だったはずの語や次のファイルパスが実行体になる</b>。実行体は <code>n+1</code> / <code>-v</code> / <code>hook-common.sh</code> / <code>none.txt</code> のような語になり、必ず <code>unknown</code> に落ちる</td><td>実績 <b>9 件</b>（+ 本チケットで 4 件再現）</td><td><a href="#f38">f38</a>・<a href="#f39">f39</a></td></tr>
+          <tr><td>L4. <b>逆向き</b>（<code>read</code> に分類されるのに状態を変えられる）</td><td><code>git branch -d</code>（ブランチ削除）・<code>git symbolic-ref &lt;name&gt; &lt;ref&gt;</code>（HEAD の書き換え）・<code>git reflog expire</code>（reflog の破棄）・<code>git diff --output=&lt;file&gt;</code>（任意ファイルへの書き込み）・<code>git -c diff.external=&lt;コマンド&gt; diff</code>（<b>任意コマンドの実行</b>）</td><td><b>5 件</b></td><td><a href="#f40">f40</a></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>塞ぎ方は 5 案（A〜E）を <a href="#f42">f42</a> に、案の組み合わせと評価軸を <a href="#f43">f43</a> に置いた。<b>どの案を採るかは決めない</b>（AI アセット設計 0010 以降の判断）。</p>
+      <div class="box warn">
+        <p class="label">条件として置いたこと</p>
+        <p>本チケットは <code>git worktree add</code> / <code>git checkout -b</code> / <code>git switch</code> を<b>一度も実行していない</b>（起動プロンプトの指示）。実測が要る箇所は <a href="#f44">f44</a> に人間向けの手順として残した。塞ぎ方の条件には、<a href="#f22">f22</a> が確定させた <b>Claude Code の worktree 隔離下の 4 検査</b>を含めた。とくに Git redirects 検査が「<code>git -C</code> / <code>--git-dir</code> / <code>GIT_DIR</code> / <code>GIT_WORK_TREE</code> / 本流への <code>cd</code>」を拒否し、command shape 検査が「引用符のないヒアドキュメント」を拒否して<b>無効化できない</b>ため、「<code>cd</code> の代わりに <code>git -C</code> を使わせる」「一時スクリプトを書いて <code>bash</code> で走らせる」という迂回路を前提にした案は隔離下で成立しない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">36</span>
+      <h3 id="f36">L1: <code>unknown</code> に落ちる git サブコマンドの全件（174 件との突き合わせ）<span class="chip stop">✕問題</span> <span class="basis">根拠: libexec/git-core の実体 174 件 / scope.sh:36 の 29 件 / comm -13 の 145 件 / decisions.jsonl の git 拒否 7 件</span></h3>
+      <p><b>母集合の取り方</b>: <code>git help -a</code> は <code>help</code> が <code>_SC_GIT_READ_SUBCMDS</code> に無く WF204 で実行できないので使えない。代わりに git の実体（<code>C:/Program Files/Git/mingw64/libexec/git-core/</code> の <code>git-*</code>）を <code>ls</code> で列挙し、<code>.exe</code> と接頭辞 <code>git-</code> を落として <code>sort -u</code> した。内部ヘルパも含むが、<code>git &lt;名前&gt;</code> として起動できる名前の集合としては正しく、除外の線引きに主観を入れないほうが突き合わせの根拠になる。</p>
+      <pre><code>ls "C:/Program Files/Git/mingw64/libexec/git-core/" | grep '^git-' \
+  | sed -e 's/\.exe$//' -e 's/^git-//' | sort -u &gt; wip/tmp/git-subcmds-all.txt   # 174 件
+sed -n '36p' .claude/hooks/lib/scope.sh | sed -e "s/^_SC_GIT_READ_SUBCMDS='//" -e "s/'$//" \
+  | tr ' ' '\n' | grep -v '^$' | sort -u &gt; wip/tmp/git-read-subcmds.txt          # 29 件
+comm -13 wip/tmp/git-read-subcmds.txt wip/tmp/git-subcmds-all.txt                # 145 件
+comm -23 wip/tmp/git-read-subcmds.txt wip/tmp/git-subcmds-all.txt                # 0 件</code></pre>
+      <ul>
+        <li>環境: Git for Windows（<code>ReleaseNotes.html</code> の先頭記載は <b>v2.39.2</b>。<code>git version</code> 自体が白名簿に無く実行できないため、版はこのファイルから読んだ）</li>
+        <li><b><code>_SC_GIT_READ_SUBCMDS</code> の 29 件は全件が実体として存在する</b>（<code>comm -23</code> が 0 件）。白名簿側に幽霊は無い</li>
+        <li>差分 <b>145 件</b>が git 分岐を素通りして <code>unknown</code> になる。うち <b>4 件</b>（<code>config</code> / <code>remote</code> / <code>merge</code> / <code>push</code>）だけは個別分岐を持ち、残り <b>141 件</b>は一切の扱いが無い</li>
+      </ul>
+      <details>
+        <summary><code>unknown</code> に落ちる 145 件の全件（<code>comm -13</code> の出力そのまま）</summary>
+        <pre><code>add add--interactive am annotate apply archive bisect bisect--helper bugreport bundle
+check-attr check-mailmap check-ref-format checkout checkout--worker checkout-index cherry
+cherry-pick citool clean clone column commit commit-graph commit-tree config credential
+credential-cache credential-cache--daemon credential-store credential-wincred daemon diagnose
+difftool difftool--helper env--helper fast-export fast-import fetch-pack filter-branch
+fmt-merge-msg for-each-repo format-patch fsck fsck-objects fsmonitor--daemon gc
+get-tar-commit-id gui gui--askpass gui--askyesno gui.tcl hash-object help hook http-backend
+http-fetch http-push imap-send index-pack init init-db instaweb interpret-trailers mailinfo
+mailsplit maintenance merge merge-file merge-index merge-octopus merge-one-file merge-ours
+merge-recursive merge-resolve merge-subtree merge-tree mergetool mergetool--lib mktag mktree
+multi-pack-index mv notes p4 pack-objects pack-redundant pack-refs patch-id prune
+prune-packed pull push quiltimport range-diff read-tree rebase receive-pack remote remote-ext
+remote-fd remote-ftp remote-ftps remote-http remote-https repack replace request-pull rerere
+reset restore revert rm send-email send-pack sh-i18n sh-i18n--envsubst sh-setup show-branch
+show-index sparse-checkout stage stash stripspace submodule submodule--helper subtree svn
+switch tag unpack-file unpack-objects update update-index update-ref update-server-info
+upload-archive upload-pack verify-commit verify-pack verify-tag version web--browse worktree
+write-tree</code></pre>
+      </details>
+      <p>145 件のうち、扱いを決める必要があるもの（起動プロンプトが名指しした 5 件 + 読み取り専用なのに落ちるもの）:</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>サブコマンド</th><th>現状の分類</th><th>状態を変えるか</th><th>本 issue での必要性</th><th>実績</th></tr></thead>
+        <tbody>
+          <tr><td><code>checkout</code></td><td><code>unknown</code> → WF204</td><td>変える（作業ツリー・HEAD）</td><td>ブランチを切る・切り替える。受け入れ条件 A1 の実測に要る</td><td><b>2 回拒否</b>（<code>22:01:29</code> / <code>22:03:25</code>。2 回目は <code>WORKFLOW_ENFORCE=0</code> を付けた迂回で、これも拒否された）</td></tr>
+          <tr><td><code>switch</code></td><td><code>unknown</code> → WF204</td><td>変える（HEAD）</td><td>同上（<code>checkout</code> の後継）</td><td>0 回（<code>checkout</code> で止まったため試していない）</td></tr>
+          <tr><td><code>worktree</code></td><td><code>unknown</code> → WF204</td><td><code>list</code> は変えない / <code>add</code> <code>remove</code> は変える</td><td>本 issue の主題そのもの。<code>worktree list</code> すら読めない</td><td><b>2 回拒否</b>（<code>2026-09-03T02:31:16</code> / <code>2026-09-04T21:45:31</code>。どちらも <code>worktree list</code>）</td></tr>
+          <tr><td><code>merge-tree</code></td><td><code>unknown</code> → WF204</td><td>変えない（<code>--write-tree</code> はオブジェクトを作るがワークツリー・ref は触らない）</td><td>0007 が合流の衝突件数を数えるのに要ったが取れなかった</td><td>0 回（分類外と分かったため試していない）</td></tr>
+          <tr><td><code>stash</code></td><td><code>unknown</code> → WF204</td><td><code>list</code> <code>show</code> は変えない / <code>push</code> <code>pop</code> は変える</td><td><code>block-direct-git</code> は <code>stash</code> を<b>明示的に対象外</b>にしている（<code>block-direct-git.sh:36</code>、DDR <code>i0004-07</code>）のに <code>scope.sh</code> 側で落ちる</td><td><b>1 回拒否</b>（<code>2026-09-04T11:40:24</code>。<code>git grep</code> と同じ行に書いたため巻き添え）</td></tr>
+          <tr><td><code>version</code> / <code>help</code></td><td><code>unknown</code> → WF204</td><td>変えない</td><td>環境の確認。本チケットは版を <code>ReleaseNotes.html</code> から読むしかなかった</td><td>0 回</td></tr>
+          <tr><td><code>show-branch</code> / <code>show-index</code> / <code>check-attr</code> / <code>check-ref-format</code> / <code>check-mailmap</code> / <code>cherry</code> / <code>verify-commit</code> / <code>verify-tag</code> / <code>verify-pack</code> / <code>patch-id</code> / <code>range-diff</code> / <code>get-tar-commit-id</code> / <code>request-pull</code> / <code>stripspace</code></td><td><code>unknown</code> → WF204</td><td>変えない（純粋な読み取り・標準入出力フィルタ）</td><td>直接は不要だが「読むだけなのに落ちる」群</td><td>0 回</td></tr>
+          <tr><td><code>merge</code></td><td>引数に <code>origin/*</code> があれば <code>merge-base</code>、無ければ <code>unknown</code></td><td>変える</td><td>合流。詳細は <a href="#f41">f41</a></td><td>0 回</td></tr>
+          <tr><td><code>config</code> / <code>remote</code> / <code>push</code></td><td>個別分岐あり</td><td>読み書き両方 / 変える</td><td>既存の分岐で足りている</td><td>—</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">巻き添えの性質</p>
+        <p><code>workflow-guard</code> はコマンド行の<b>全段</b>を順に判定し、1 段でも <code>unknown</code> があればその行ごと拒否する（<code>workflow-guard.sh:387-443</code>）。実績 7 件のうち <b>3 件</b>（<code>git stash list &gt;/dev/null; git grep …</code> / <code>ls …; git worktree list</code> / <code>git fetch … &amp;&amp; echo "$(git rev-list …)"</code>）は、同じ行に読み取り系の git を混ぜたために読み取り側まで一緒に落ちている。<b>穴の実害は「その 1 コマンドが使えない」より広い。</b></p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">37</span>
+      <h3 id="f37">L2: <code>_SC_READ_ONLY_CMDS</code> に無いために <code>unknown</code> に落ちる基本コマンド <span class="chip stop">✕問題</span> <span class="basis">根拠: decisions.jsonl の WF204 62 件の実行体別集計 / scope.sh:31, 35 / cmdpos.sh:42, 48, 55 / usr/bin の実在確認</span></h3>
+      <p><b>集計の時点</b>: 下の表は <code>2026-09-05T01:06</code> 時点の <b>62 件</b>である。本チケットはその後さらに 5 件（<code>hook-common.sh</code> / <code>-v</code> / <code>read</code> / <code>_</code> / <code>none.txt</code>）を踏んだので、提出時点の総数は <b>67 件</b>になる。表は集計時点のまま残す。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>実行体</th><th>件数</th><th>種別</th><th>備考</th></tr></thead>
+        <tbody>
+          <tr><td><code>cd</code></td><td><b>22</b></td><td>シェル組み込み（状態を変えない）</td><td>本 issue の全チケットで繰り返し踏んでいる。本チケットでも 2 回（21・22 件目）</td></tr>
+          <tr><td><code>bash</code></td><td><b>11</b></td><td>提供コマンド・一時スクリプトの起動</td><td>第 1 引数がルート相対でないもの。詳細は <a href="#f39">f39</a></td></tr>
+          <tr><td><code>git</code></td><td><b>7</b></td><td>git サブコマンド</td><td>内訳は <a href="#f36">f36</a>（<code>worktree list</code> 2 / <code>checkout -b</code> 2 / <code>stash list</code> 1 / <code>fetch</code> 系 1 / <code>-C</code> 付き 1）</td></tr>
+          <tr><td><code>_</code></td><td><b>4</b></td><td>実行体が潰れた段</td><td>クォート・変数展開で語が確定しない段。詳細は <a href="#f38">f38</a></td></tr>
+          <tr><td><code>python</code> / <code>python3</code> / <code>perl</code></td><td><b>5</b></td><td>外部インタプリタ</td><td><b>仕様が意図的に除外している</b>（フック共通仕様 §8）。穴ではない</td></tr>
+          <tr><td><code>sleep</code></td><td><b>2</b></td><td>外部コマンド（状態を変えない）</td><td>待ち合わせ</td></tr>
+          <tr><td><code>read</code></td><td><b>2</b></td><td>シェル組み込み（<code>while read</code> の本体）</td><td>本チケットでも 1 回。<code>while</code> は透過ラッパーなので次の語 <code>read</code> が実行体になる</td></tr>
+          <tr><td><code>set</code> / <code>exit</code> / <code>break</code></td><td><b>3</b></td><td>シェル組み込み</td><td>スクリプト風の複数行コマンド</td></tr>
+          <tr><td><code>n+1</code> / <code>r-1</code> / <code>end-start</code> / <code>and</code> / <code>の機械テスト_…</code> / <code>0031-…md</code></td><td><b>6</b></td><td>誤分類の産物</td><td>実行体ではない語が実行体として読まれたもの。詳細は <a href="#f38">f38</a></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>合計 62 件（22 + 11 + 7 + 4 + 5 + 2 + 2 + 3 + 6 = 62）。<b>「本来通すべきなのに落ちた」= 44 件、「意図どおり落とした」= 5 件（インタプリタ）、「誤分類」= 13 件</b>という内訳になる。</p>
+      <p>候補 95 語の membership（機械的な照合）。候補は ①上の実績 ②bash の予約語・組み込み ③起動プロンプトが名指しした語から作った。<b>これは網羅ではない</b>（bash の組み込み一覧を機械的に取る手段がこの環境に無い）。照合は 5 つの一覧をファイルに抽出して <code>awk</code> で突き合わせた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>群</th><th>語（どの一覧にも無く <code>unknown</code> → WF204）</th></tr></thead>
+        <tbody>
+          <tr><td><b>シェル組み込み・予約語で <code>unknown</code>（40 語）</b></td><td><code>alias</code> <code>bg</code> <code>bind</code> <code>break</code> <code>caller</code> <code>cd</code> <code>continue</code> <code>declare</code> <code>dirs</code> <code>disown</code> <code>enable</code> <code>exit</code> <code>export</code> <code>fg</code> <code>getopts</code> <code>hash</code> <code>help</code> <code>history</code> <code>jobs</code> <code>kill</code> <code>let</code> <code>local</code> <code>logout</code> <code>mapfile</code> <code>popd</code> <code>pushd</code> <code>read</code> <code>readarray</code> <code>readonly</code> <code>return</code> <code>set</code> <code>shift</code> <code>source</code> <code>suspend</code> <code>trap</code> <code>ulimit</code> <code>umask</code> <code>unalias</code> <code>unset</code> <code>wait</code></td></tr>
+          <tr><td><b>外部コマンドで <code>unknown</code>（この環境の <code>usr/bin</code> に実在・28 語）</b></td><td><code>base64</code> <code>cksum</code> <code>clear</code> <code>csplit</code> <code>cygpath</code> <code>dd</code> <code>diff3</code> <code>expand</code> <code>gunzip</code> <code>gzip</code> <code>mktemp</code> <code>nproc</code> <code>numfmt</code> <code>patch</code> <code>perl</code>（<b>仕様が意図的に除外</b>）<code>pr</code> <code>ps</code> <code>sdiff</code> <code>shuf</code> <code>sleep</code> <code>split</code> <code>tar</code> <code>tput</code> <code>tsort</code> <code>unexpand</code> <code>unzip</code> <code>winpty</code> <code>zcat</code></td></tr>
+          <tr><td><code>usr/bin</code> に無い（7 語）</td><td><code>curl</code> <code>wget</code>（<code>_SC_WEB_CMDS</code> の個別分岐があるので実際は <code>web</code> 分類）／<code>node</code> <code>npx</code> <code>python</code> <code>python3</code> <code>ruby</code>（仕様が意図的に除外）</td></tr>
+          <tr><td><code>READ</code> にある（6 語）</td><td><code>echo</code> <code>false</code> <code>printf</code> <code>pwd</code> <code>test</code> <code>true</code></td></tr>
+          <tr><td><code>PREFIX</code>（透過ラッパー）にある（3 語）</td><td><code>env</code> <code>exec</code> <code>time</code></td></tr>
+          <tr><td><code>WRITECMD</code> にある（9 語）</td><td><code>cp</code> <code>install</code> <code>ln</code> <code>mkdir</code> <code>mv</code> <code>rm</code> <code>tee</code> <code>touch</code> <code>truncate</code></td></tr>
+          <tr><td><code>OPAQUE</code> にある（2 語）</td><td><code>eval</code> <code>xargs</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>内訳の検算</b>: どの一覧にも無い（<code>-none-</code>）= <b>75 語</b>（シェル組み込み 40 + 外部 35（実在 28 + 不在 7））、一覧にある = 20 語（<code>READ</code> 6 + <code>PREFIX</code> 3 + <code>WRITECMD</code> 9 + <code>OPAQUE</code> 2）。75 + 20 = <b>95</b> で候補の総数と一致する。<code>-none-</code> 75 語のうち実際に穴と呼べるのは <b>67 語</b>（<code>curl</code> <code>wget</code> は <code>_SC_WEB_CMDS</code> の分岐があり、<code>perl</code> <code>python</code> <code>python3</code> <code>node</code> <code>npx</code> <code>ruby</code> は仕様 §8 が意図的に除外している。この 8 語を引く）。</p>
+      <p><b>この issue の作業で実際に困ったのは 4 語</b>: <code>cd</code>（22 回）・<code>read</code>（2 回）・<code>set</code>（1 回）・<code>sleep</code>（2 回）。とくに <code>cd</code> は、<code>bash</code> の提供コマンド識別がルート相対表記に限られている（<a href="#f39">f39</a>）ことと組み合わさって、「作業ディレクトリがリポジトリルートでない経路では機構そのものを起動できない」形で効く。</p>
+      <div class="box warn">
+        <p class="label"><code>cd</code> を許すことの意味</p>
+        <p><code>cd</code> 自体は状態を変えないが、<b>後続の段の解決基準（ルート相対の起点）を変える</b>。<code>workflow-guard</code> の <code>__wg_rel</code>（<code>workflow-guard.sh:63-88</code>）は <code>hook_rel_path</code> で <code>HOOK_WORKTREE</code> を起点にパスを畳むだけで <code>cd</code> の効果を追跡しない。つまり <code>cd ../other-repo &amp;&amp; echo x &gt; a.txt</code> は、<code>cd</code> を <code>read</code> に足すと<b>判定の起点がずれたまま通る</b>。塞ぎ方の案（<a href="#f42">f42</a>）はこの点を必ず扱う必要がある。なお <code>_SC_SHELL_KEYWORDS</code>（<code>for</code> <code>done</code> <code>fi</code> <code>esac</code> <code>case</code> <code>select</code> <code>coproc</code> <code>function</code>）と <code>_CP_PREFIX_WORDS</code>（<code>do</code> <code>while</code> <code>if</code> ほか）のおかげで<b>ふつうのループは通る</b>（<code>WG-T06</code> が固定）。落ちるのはループ本体が <code>read</code> / <code>set</code> / <code>cd</code> のような組み込みだったときである。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">38</span>
+      <h3 id="f38">L3: 分類より手前で実行体を取り違える 2 件（<code>cmdpos.sh</code> の正規化）<span class="chip stop">✕問題</span> <span class="basis">根拠: cmdpos.sh:98-101 / 129-136 / cmdpos_parse:375, 383 / 本チケットで 3 回再現</span></h3>
+      <p><code>decisions.jsonl</code> の実行体に <code>n+1</code> / <code>r-1</code> / <code>end-start</code> / <code>-v</code> / <code>hook-common.sh</code> のような「コマンドではない語」が 9 件ある。これは分類の白名簿の問題ではなく、<code>cmdpos.sh</code> の正規化が段を割る位置を誤っているために起きる。<b>本チケットの実施中に 2 件とも再現した。</b></p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>場所</th><th>何が起きるか</th><th>実績</th></tr></thead>
+        <tbody>
+          <tr><td>X1</td><td><code>cmdpos.sh:129-133</code>（<code>dq</code> 状態の <code>'$')</code> 分岐）</td><td>コード状態の分岐（<code>:98-101</code>）は <code>${rest:1:2}</code> が <code>((</code> なら <code>_cp_skip_arithmetic_to_reply</code> で丸ごと読み飛ばして <code>_</code> に潰す。<b><code>dq</code> 状態の分岐にはこの検査が無い</b>（<code>${rest:1:1}</code> が <code>(</code> かどうかしか見ない）。帰結: <code>echo "$((n+1))"</code> は <code>(</code> <code>(</code> <code>n+1</code> <code>)</code> <code>)</code> に割れ、<code>n+1</code> が実行体の段になる</td><td><code>n+1</code> 1 / <code>r-1</code> 1 / <code>end-start</code> 1</td></tr>
+          <tr><td>X2</td><td><code>cmdpos.sh:129-136</code> +<code>cmdpos_parse:383</code></td><td><code>dq</code> 状態で <code>$(</code> / <code>`</code> を見つけると <code> ( </code> を出力して段を割り、<code>(</code> <code>)</code> は段の区切りとして扱われる。帰結: <code>sed -n "$(grep -n X f | cut -d: -f1),+45p" path/to/file.sh</code> は <code>sed -n _</code> / <code>grep -n _ f</code> / <code>cut -d: -f1</code> / <b><code>path/to/file.sh</code></b> の 4 段に割れ、最後の段の実行体が <code>file.sh</code> になる</td><td><code>-v</code> 1 / <code>hook-common.sh</code> 1 / <code>and</code> 1 / <code>0031-…md</code> 1 / <code>の機械テスト_…</code> 1（後ろ 3 件は同型と推定。<code>target</code> が 80 文字で切れており原文を復元できない）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>本チケットで X2 を 4 回再現した</b>: ①<code>hook-common.sh はどの分類にも当たらない</code>（<code>sed -n "$(grep -n … | cut -d: -f1),+45p" $R/.claude/hooks/lib/hook-common.sh</code>）②<code>-v はどの分類にも当たらない</code>（<code>awk -v ro=" $(sed -n '31p' … ) " -v kw=" $(…) " …</code>）③<code>_ はどの分類にも当たらない</code>（<code>sed -n "$(grep -n … | cut -d: -f1)"',-6p' …</code>）④<code>none.txt はどの分類にも当たらない</code>（<code>comm -12 &lt;(sort -u a.txt) wip/tmp/none.txt</code>）。</p>
+      <div class="box warn">
+        <p class="label">X2b: プロセス置換でも同じことが起きる</p>
+        <p><code>comm -12 &lt;(sort -u a.txt) wip/tmp/none.txt</code> は、<code>&lt;</code> を <code>_cp_read_heredoc_open_to_reply</code> が読み、続く <code>(</code> が段を割るため、<code>)</code> の後ろの <code>wip/tmp/none.txt</code> が新しい段の実行体になる（実行体 <code>none.txt</code> → <code>unknown</code>）。<b>本チケットで 1 回踏んだ</b>（<code>2026-09-05T01:41:34</code>）。P-2 の修正はプロセス置換 <code>&lt;( )</code> / <code>&gt;( )</code> とバッククォートも対象に含める必要がある。</p>
+      </div>
+      <div class="box warn">
+        <p class="label">なぜ拒否側に倒れるのが正しくないか</p>
+        <p>判定の材料が壊れているときに拒否側へ倒すのは機構の方針として正しい（DDR <code>i0009-01</code>）。しかしここで壊れているのは<b>入力ではなく機構自身の正規化</b>で、拒否されているのは <code>sed</code> / <code>awk</code> / <code>grep</code> を組み合わせただけの読み取り専用コマンドである。<code>_</code> に潰れた段は「何が走るか分からない」ので拒否が正しいが、X1・X2 で出るのは <code>_</code> ではなく<b>具体的だが実行体ではない語</b>なので、<code>CP_DATA</code> のような「実行位置ではない」印も付かない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">39</span>
+      <h3 id="f39">L3 の続き: 提供コマンドの識別がルート相対表記に限られる帰結 <span class="chip warn">△注意</span> <span class="basis">根拠: cmdpos.sh:315-318 / 仕様 §7-8 / HK-T12 / scope.sh:401-404, 413-416 / decisions.jsonl の bash 拒否 11 件</span></h3>
+      <ul>
+        <li>場所: <code>cmdpos.sh:315-318</code>。<code>bash</code> / <code>sh</code> の第 1 引数が <code>^\.claude/skills/[^/]+/scripts/[^/]+\.sh$</code> または <code>^\.claude/hooks/([^/]+/)*[^/]+\.sh$</code> に一致したときだけ <code>CP_PROVIDED</code> が立つ</li>
+        <li>これは<b>意図された設計</b>である。仕様 §7-8 が「<code>cwd</code> による解決は行わず、絶対パス・<code>./</code> 付き・他の相対指定・basename だけの指定は提供コマンドとして扱わない」と明記し、テスト <b><code>HK-T12</code></b> が「絶対パス <code>bash /c/repo/.claude/skills/x/scripts/y.sh</code> は提供コマンドでない」ことを固定している</li>
+        <li>帰結: <code>CP_PROVIDED</code> が立たない <code>bash &lt;パス&gt;</code> は <code>scope_classify</code> の bash 分岐（<code>scope.sh:401-404</code>）に落ち、第 1 引数が <code>-n</code> でも <code>^(tests|test)/.*\.sh$</code> でもなければ <b><code>unknown</code> → WF204</b></li>
+        <li>実績 <b>11 件</b>。提供コマンドを絶対パスで呼んだものと、<code>wip/tmp/</code> の一時スクリプトを呼んだもの</li>
+        <li><b><code>cd</code> の穴と噛み合って詰む</b>: 作業ディレクトリがリポジトリルートでない経路では、<code>cd &lt;ルート&gt;</code> が WF204 で拒否され、絶対パスで提供コマンドを呼ぶと WF204 で拒否される。<b>機構を起動する手段が無くなる。</b>本 issue の実施中は「Bash ツールの cwd がたまたま本流のルートだった」ことで回避できていただけである</li>
+        <li><code>wip/tmp/*.sh</code> の実行は <code>allow.ops</code> に <code>build-test</code> を宣言しても通らない。判定は <code>^(tests|test)/.*\.sh$</code> か <code>commands.build-test</code> の前方一致だけで、<code>wip/tmp/</code> は含まれない（<code>scope.sh:403, 413-416</code>）</li>
+      </ul>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">40</span>
+      <h3 id="f40">L4: 逆向きの穴 — <code>read</code> に分類されるのに状態を変えられる 5 件 <span class="chip stop">✕問題</span> <span class="basis">根拠: scope.sh:36, 388-398 / cmdpos.sh:53, 299 / workflow-guard.sh:422-425 / block-direct-git.sh:92-100 / git 公式ドキュメント（ローカル）の逐語</span></h3>
+      <p><code>_SC_GIT_READ_SUBCMDS</code> は<b>サブコマンド名だけ</b>を見てオプションを見ない。オプションで書き込み側に変わるサブコマンドが白名簿に入っているため、次の 5 件が <code>read</code> として通る。<code>workflow-guard</code> は <code>read</code> を無条件に通し（<code>workflow-guard.sh:422-425</code>）、<code>block-direct-git</code> はサブコマンドが <code>commit</code> / <code>push</code> / <code>revert</code> / <code>cherry-pick</code> / <code>am</code> / <code>rebase</code> / <code>commit-tree</code> でなければ素通しする（<code>block-direct-git.sh:92-100</code>）ので、<b>両方のフックを通り抜ける</b>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>形</th><th>分類</th><th>何ができるか</th><th>根拠（ローカルの git 公式ドキュメント。取得日 2026-09-05）</th></tr></thead>
+        <tbody>
+          <tr><td>X3</td><td><code>git branch -d &lt;名前&gt;</code> / <code>-D</code> / <code>-m</code> / <code>-M</code> / <code>-f</code></td><td><code>read</code></td><td><b>ブランチの削除・改名・付け替え</b>。<code>git worktree remove</code> は <code>unknown</code> で拒否されるのに、ref の削除は通る</td><td><code>git-branch.html</code> の <code>-d --delete</code></td></tr>
+          <tr><td>X4</td><td><code>git symbolic-ref &lt;name&gt; &lt;ref&gt;</code> / <code>--delete &lt;name&gt;</code></td><td><code>read</code></td><td><b>HEAD の書き換え・削除</b>。<code>git checkout</code> を通さずにブランチを切り替えられる</td><td><code>git-symbolic-ref.html</code>: 「Read, <b>modify and delete</b> symbolic refs」／<code>git symbolic-ref [-m &lt;reason&gt;] &lt;name&gt; &lt;ref&gt;</code>／<code>git symbolic-ref --delete [-q] &lt;name&gt;</code></td></tr>
+          <tr><td>X5</td><td><code>git -c diff.external='&lt;任意のコマンド&gt;' diff …</code></td><td><code>read</code>（<code>-c</code> は <code>_CP_GIT_OPTS_WITH_VALUE</code> として<b>値ごと読み飛ばされ</b>、<code>subcmd</code> は <code>diff</code>）</td><td><b>任意コマンドの実行</b>。<code>workflow-guard</code> も <code>block-direct-git</code> も止めない</td><td><code>git-config.html</code>: 「diff.external — If this config variable is set, diff generation is not performed using the internal diff machinery, but <b>using the given command</b>」／<code>cmdpos.sh:53, 299</code>。同じ経路の <code>core.pager</code> は <code>git.html</code> が <code>--paginate</code> を「if standard output is a terminal」と限るため非対話では効かない見込み</td></tr>
+          <tr><td>X6</td><td><code>git diff --output=&lt;file&gt;</code> / <code>git log -p --output=&lt;file&gt;</code></td><td><code>read</code></td><td><b>任意のパスへのファイル書き込み</b>。<code>git</code> は <code>_CP_WRITE_CMDS</code> に無いので <code>CP_WRITE_TARGETS</code> が立たず、WF205 の判定に載らない</td><td><code>git-diff.html</code>: 「<code>--output=&lt;file&gt;</code> Output to a specific file instead of stdout.」</td></tr>
+          <tr><td>X7</td><td><code>git reflog expire --expire=now --all</code> / <code>git reflog delete &lt;entry&gt;</code></td><td><code>read</code></td><td><b>reflog の破棄</b>（失われたコミットの復旧手段を消す）</td><td><code>git-reflog.html</code>: <code>git reflog expire [--expire=&lt;time&gt;] …</code> / <code>git reflog delete [--rewrite] [--updateref] …</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <ul>
+        <li><b>X5 は実行していない</b>（任意コマンドの実行になるため）。根拠はローカルの git 公式ドキュメントと <code>cmdpos.sh</code> / <code>scope.sh</code> の静的読解のみ</li>
+        <li><code>git fetch</code> も白名簿にあり <code>&lt;repo&gt; &lt;src&gt;:&lt;dst&gt;</code> でローカル ref を作れ <code>--prune</code> でリモート追跡 ref を消せるが、「取り込み」の一部として意図的に許されている可能性が高いので穴として数えず注記に留める</li>
+        <li><b>この 5 件は「分類を広げる」方向の案（A・B）とは独立に直せる</b>。むしろ広げる前に、白名簿がオプションを見ないことの帰結を仕様に書くかどうかを決める必要がある</li>
+      </ul>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">41</span>
+      <h3 id="f41"><code>merge</code> の分類が「引数に <code>origin/</code> があるか」だけで決まる <span class="chip warn">△注意</span> <span class="basis">根拠: scope.sh:36, 395-396 / scope-limits.json:24 / block-direct-git.sh:35-36 / workflow-guard.sh:47-50 / DDR i0004-07</span></h3>
+      <pre><code>elif [[ "$sub" == merge ]]; then
+  SC_CLASS="unknown"; for t in "${REPLY_ARGS[@]}"; do [[ "$t" == origin/* ]] &amp;&amp; SC_CLASS="merge-base"; done</code></pre>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>入力</th><th>分類</th><th>仕様の意図（§8 / DDR <code>i0004-07</code>）</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td><code>git merge origin/main</code></td><td><code>merge-base</code></td><td>取り込みに限る（<code>git merge origin/&lt;default&gt;</code>）</td><td>一致</td></tr>
+          <tr><td><code>git merge origin/feature-49-なにか</code></td><td><code>merge-base</code></td><td>既定ブランチの取り込みのみのはず</td><td><b>不一致</b>（既定ブランチかどうかを見ていない）</td></tr>
+          <tr><td><code>git merge --no-ff worktree-abc origin/main</code></td><td><code>merge-base</code></td><td>—</td><td><b>不一致</b>（<code>origin/*</code> が 1 語あれば、他にローカルブランチが並んでいても通る）</td></tr>
+          <tr><td><code>git merge worktree-abc</code></td><td><code>unknown</code> → WF204</td><td>ブランチ間の統合は拒否できるはず</td><td>一致（ただし<b>作業中チケットが 0 枚なら <code>workflow-guard.sh:47-50</code> が即座に抜けて素通りする</b>。<a href="#f28">f28</a>）</td></tr>
+          <tr><td><code>git merge --abort</code> / <code>--continue</code></td><td><code>unknown</code> → WF204</td><td>—</td><td><b>衝突解消の中断・続行ができない</b>。<code>block-direct-git</code> は <code>merge</code> を明示的に対象外にしているのに <code>workflow-guard</code> 側で止まる</td></tr>
+          <tr><td><code>git mergetool</code></td><td><code>unknown</code> → WF204</td><td>—</td><td>衝突解消の対話ツールが使えない</td></tr>
+          <tr><td><code>git merge-tree</code> / <code>git merge-file</code></td><td><code>unknown</code> → WF204</td><td>—</td><td><b>読み取りだけの 3-way マージ（衝突件数の見積もり）ができない</b>。0007 が実件数を出せなかった直接の原因</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <ul>
+        <li><code>merge-base</code> を <code>ops</code> に持つ種類は <code>overall-summary</code> の <b>1 種類だけ</b>（<code>scope-limits.json:24</code>）。調査・設計・実装のどのチケットでも <code>git merge</code> は通らない</li>
+        <li><code>_SC_GIT_READ_SUBCMDS</code> に <b><code>merge-base</code> が入っている</b>ため <code>git merge-base A B</code> は <code>read</code> で通る。分類名の <code>merge-base</code> と git のサブコマンド名 <code>merge-base</code> は別物だが、名前が同じで紛らわしい</li>
+      </ul>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">42</span>
+      <h3 id="f42">塞ぎ方の案 5 つ（変更箇所・block-direct-git との関係・scope-limits.json との整合・影響する既存テスト ID・拒否が緩む範囲・隔離下で通るか）<span class="chip good">◎良</span> <span class="basis">根拠: scope.sh:31, 36, 388-419 / cmdpos.sh:315-318 / workflow-guard.sh:410-441 / test_scope.sh:196-213 / test_workflow_guard.sh:216, 221 / test_config_integrity.sh:47 / DDR i0004-05・i0004-07・i0006-09・i0009-17</span></h3>
+      <p>調査計画書は「最低 2 案（既存分類への追加 / 新分類の導入）」を求めていたが、観点 C・D から「隔離下でも通ること」「合流を通すか」という条件が加わったので 5 案に広げた。<b>どれを採るかは決めない。</b>案は排他ではなく、組み合わせは <a href="#f43">f43</a> に置いた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>観点</th><th>案 A: 既存の一覧に足す</th><th>案 B: 新分類を足して宣言制</th><th>案 C: 白名簿をオプション込みに</th><th>案 D: 提供コマンドを足す</th><th>案 E: 設定の前方一致許可リスト</th></tr></thead>
+        <tbody>
+          <tr><td><b>変更する箇所</b></td><td><code>scope.sh:31</code>（<code>cd</code> <code>read</code> <code>set</code> <code>sleep</code> <code>diff3</code> ほか）／<code>scope.sh:36</code>（<code>worktree</code> <code>merge-tree</code> <code>version</code> <code>help</code> ほか読み取り専用のもの）。<b><code>checkout</code> / <code>switch</code> / <code>stash</code> は状態を変えるので入れられない</b></td><td><code>scope.sh:388-398</code> に新分類。粒度は B-1 <code>worktree</code> / B-2 <code>git-write</code> / B-3 <code>branch-switch</code> + <code>worktree</code> の 3 通り。<code>scope-limits.json</code> の <code>types.*.ops</code> と <code>workflow-guard.sh:434-438</code> の case</td><td><code>scope.sh:388-398</code>。<code>config</code> / <code>remote</code> / <code>merge</code> にある「引数を見る」形を <code>branch</code> / <code>symbolic-ref</code> / <code>reflog</code> / <code>diff</code> / <code>log</code> / <code>show</code> / <code>stash</code> / <code>worktree</code> ほかに広げ、グローバル <code>-c</code> / <code>--config-env</code> の危険な設定名も見る</td><td><code>.claude/skills/&lt;どれか&gt;/scripts/worktree.sh</code> を新設（<code>add</code> / <code>list</code> / <code>remove</code> + <code>logs/</code> 初期化 + 後始末）。<code>scope.sh</code> は無変更</td><td><code>scope-limits.json</code> の <code>commands</code> に分類名ごとのキーを足し、<code>scope.sh:413-416</code> と同じ前方一致で分類を当てる</td></tr>
+          <tr><td><b><code>block-direct-git.sh</code> との関係</b></td><td><b>無関係</b>（<code>commit</code> 系は足す対象に入らない）</td><td><b>境界の再確認が要る</b>。<code>git checkout -- &lt;path&gt;</code>（変更の破棄）はコミットを作らないが成果を消す。どちらの担当でもない</td><td><b>補完関係</b>。X5 は <code>block-direct-git</code> 側でも塞げる。DDR <code>i0009-17</code> の分担（<code>scope.sh</code> は分類まで）に照らすと <code>scope.sh</code> 側が自然</td><td><b>無関係</b>（<code>block-direct-git.sh:67</code> が提供コマンドの段を <code>continue</code>。DDR <code>i0004-05</code>）</td><td><b>無関係</b></td></tr>
+          <tr><td><b><code>scope-limits.json</code> との整合</b></td><td><b>変更不要</b>（<code>read</code> は宣言によらず常に許可。DDR <code>i0006-09</code>）</td><td><b>変更が要る</b>。<code>types.&lt;t&gt;.ops</code> に新分類を足す種類を決める（<code>investigation</code> と <code>ai-asset-implementation</code> が候補）。<code>ops</code> の値は enum 検証されていない</td><td><b>変更不要</b></td><td><b>変更不要</b></td><td><b>設定側が主戦場</b>。<code>commands</code> のキーが増えるので未知キー検証と <code>test_config_integrity.sh</code> を合わせる</td></tr>
+          <tr><td><b>影響する既存テスト ID</b></td><td><b><code>HK-T15</code></b>（<code>test_scope.sh:196-199</code> が両一覧の<b>全要素</b>をループするので自動追随）／<code>WG-T06</code>／<code>HK-T02</code>（影響なし）</td><td><b><code>HK-T15</code></b>（<code>:213</code> の <code>pair</code> 表に <code>git worktree list=worktree</code> のような行を追加）／<b><code>WG-T06</code></b>（<code>test_workflow_guard.sh:216, 221</code> と同形で 1 行）／<code>HK-T02</code>（落ちない）</td><td><b><code>HK-T15</code></b>（<code>:199</code> の全件ループが <code>git branch</code> を <code>read</code> と assert しているので<b>このループが落ちる</b>。<code>pair</code> 表へ移す改修が要る。案 C の最大の作業量）／<code>WG-T06</code>／<code>block-direct-git</code> 側は<b>ID 新設</b></td><td>新コマンドの ID（<code>WT-T01</code>〜）を新設。既存は <b><code>HK-T12</code></b>（提供コマンドの識別）と <b><code>WG-T14</code></b>（引数のパス判定）が掛かる</td><td><b><code>HK-T02</code></b>（設定の形）／<b><code>HK-T15</code></b>（<code>npm test=build-test</code> と同形）／<code>case_load_errors</code>（WF210）</td></tr>
+          <tr><td><b>拒否が緩む範囲</b></td><td>①<code>cd</code> で<b>後続の段の起点が変わる</b>（<code>cd ../other &amp;&amp; echo x &gt; a.txt</code> が通る）②<code>worktree</code> を丸ごと足すと <code>add</code> / <code>remove --force</code> まで <code>read</code> ③<code>read</code> / <code>set</code> / <code>sleep</code> は無害</td><td>宣言したチケットだけ。<b>B-2 だと <code>reset --hard</code> / <code>clean -fd</code> まで 1 つの宣言で通る</b>ので B-1 / B-3 のほうが狭い</td><td><b>緩まない。むしろ締まる</b>（X3〜X7 が閉じる）。副作用として判定漏れで<b>今まで通っていた読み取りが落ちる</b>リスク</td><td><b>提供コマンドが行う操作だけ</b>。もっとも狭い。ただし引数の作業ツリーパスが <code>__wg_rel</code> で WF209 に倒れる懸念（<a href="#f43">f43</a> の下）</td><td>列挙した文字列だけ。<b>前方一致なので <code>git worktree </code> と書くと <code>remove --force</code> まで通る</b></td></tr>
+          <tr><td><b>隔離下で通るか</b></td><td><b><code>cd</code> は条件付き</b>。Git redirects 検査が本流への <code>cd</code> を拒否するので worktree の内側だけ。むしろ二重の守りになる</td><td><code>git worktree add</code> は隔離下では意味が変わる（worktree の中でさらに worktree を作る）。<code>checkout -b</code> は内側なら通る</td><td>影響なし</td><td><b>通る見込み</b>。ルート相対の <code>bash .claude/skills/…</code> はどの検査にも当たらない</td><td>列挙する文字列しだい（<code>cd </code> を入れると案 A と同じ条件）</td></tr>
+          <tr><td><b>長所 / 短所</b></td><td>差分 2 行・テストが自動追随・宣言不要 ／ <code>cd</code> の起点ずれと <code>worktree add</code> の巻き込みという<b>性質の違うものを 1 分類に混ぜる</b></td><td>「読み取り」と「作業ツリーを変える」を混ぜない・宣言が記録に残る ／ 分類が 1 つ増え 3 か所に波及</td><td>逆向きの穴を根から塞ぐ ／ 白名簿の維持コストが跳ね上がり、網羅を検査で担保できない（<code>scope.sh:254</code> の <code>curl</code> と同じ性質）</td><td>分類を広げずに済み、<code>logs/</code> 初期化・<code>.gitignore</code> 追加を 1 か所に閉じ込められる ／ コマンドが 1 本増え、DDR <code>i0004-07</code> が却下した理由が合流まで含めるなら効く</td><td>コードを変えず設定だけで塞げ、<code>common.confirm</code> 対象なので変更のたびに人が確認する ／ 前方一致の粗さ・仕様と設定の二重管理</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>案とは別に必要な修正（分類の話ではないが同じ観点で出たもの）:</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>修正</th><th>変更する箇所</th><th>影響する既存テスト ID</th></tr></thead>
+        <tbody>
+          <tr><td>P-1</td><td><code>dq</code> 状態でも <code>$((</code> を算術として読み飛ばす（<a href="#f38">f38</a> の X1）</td><td><code>cmdpos.sh:129-133</code> に <code>${rest:1:2} == '(('</code> の分岐を足し <code>_cp_skip_arithmetic_to_reply</code> を呼ぶ</td><td><b><code>HK-T05</code></b>（<code>echo "$((n+1))"</code> のケースを足す）</td></tr>
+          <tr><td>P-2</td><td><code>$( )</code>・バッククォート・プロセス置換 <code>&lt;( )</code> <code>&gt;( )</code> の閉じ括弧の後ろにある語を新しい段の実行体にしない（X2・X2b）</td><td><code>cmdpos_parse:375, 383</code> か <code>_cp_normalize_to_reply</code> の <code>dq</code> 復帰処理・<code>_cp_read_heredoc_open_to_reply</code>。<code>$( )</code> の結果を <code>_</code> に潰して 1 語として残す形が候補</td><td><b><code>HK-T05</code></b>（<code>sed -n "$(cmd),+1p" file</code> と <code>comm -12 &lt;(sort a) b</code> のケースを足す）</td></tr>
+          <tr><td>P-3</td><td>提供コマンドの識別を絶対パスにも広げるか、<code>cd</code> を許して相対起動を可能にするか（<a href="#f39">f39</a>）</td><td><code>cmdpos.sh:315-318</code> を変えるなら仕様 §7-8 と <code>HK-T12</code> の期待値が反転する。<b>DDR が要る</b></td><td><b><code>HK-T12</code></b>（期待値の反転）／<code>WG-T14</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">43</span>
+      <h3 id="f43">案の組み合わせと評価軸（決めない）<span class="chip good">◎良</span> <span class="basis">根拠: f42 の 5 案 / f22 の隔離検査 / f28・f33 の合流 / 仕様 §8 の既定拒否 / DDR i0004-07</span></h3>
+      <p>5 案は排他ではない。本 issue が必要としているのは「①worktree を作る ②worktree の中で作業する ③成果を合流する」の 3 つで、必要な範囲が違う。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>必要なこと</th><th>案 A</th><th>案 B</th><th>案 C</th><th>案 D</th><th>案 E</th></tr></thead>
+        <tbody>
+          <tr><td><code>git worktree list</code> を読む</td><td>○（<code>add</code> も通る）</td><td>○（宣言制）</td><td>○（<code>list</code> だけ <code>read</code>）</td><td>○</td><td>○</td></tr>
+          <tr><td><code>git worktree add</code> / <code>remove</code></td><td>△（<code>read</code> になってしまう）</td><td>○</td><td>○</td><td>○</td><td>○（前方一致の粗さあり）</td></tr>
+          <tr><td><code>git checkout -b</code> / <code>switch</code></td><td>✕（状態を変えるので入れられない）</td><td>○</td><td>○</td><td>△（提供コマンドに含めるなら）</td><td>○</td></tr>
+          <tr><td>worktree の中で <code>cd</code> する</td><td>○</td><td>△（<code>cd</code> は git ではないので対象外）</td><td>✕</td><td>✕</td><td>○</td></tr>
+          <tr><td>絶対パスで提供コマンドを呼ぶ</td><td>✕</td><td>✕</td><td>✕</td><td>✕</td><td>✕（P-3 が要る）</td></tr>
+          <tr><td><code>git merge-tree</code> で合流の衝突を数える</td><td>○</td><td>○</td><td>○</td><td>△</td><td>○</td></tr>
+          <tr><td>ローカルブランチの合流</td><td>✕</td><td>○（分類を足せば）</td><td>○</td><td>○</td><td>○</td></tr>
+          <tr><td><b>逆向きの穴（X3〜X7）が閉じる</b></td><td>✕</td><td>✕</td><td><b>○</b></td><td>✕</td><td>✕</td></tr>
+          <tr><td>隔離下でも通る</td><td>条件付き</td><td>○</td><td>○</td><td>○</td><td>条件付き</td></tr>
+          <tr><td>差分の大きさ</td><td>最小（2 行）</td><td>中</td><td>大</td><td>中</td><td>中</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>評価軸</b>（0010 が判断するときの材料。順位は付けない）:</p>
+      <ol>
+        <li><b>既定拒否の原則をどこまで維持するか。</b>仕様 §8 と <code>workflow-guard.sh:439-441</code> は「どの分類にも当たらない = 拒否」を明文の既定にしている。案 A・E は白名簿を伸ばして既定を実質的に緩め、案 B・D は既定を保ったまま宣言・提供コマンドという別の口を開ける</li>
+        <li><b>穴の非対称をどう扱うか。</b>L1〜L3（通らない）は作業の手数の問題で、L4（通ってしまう）は統制の問題である。手数の問題だけを直すと、統制の穴が残ったまま「広げた」記録だけが残る</li>
+        <li><b><code>cd</code> の起点ずれ</b>（<a href="#f37">f37</a>）を許容するか。<code>cd</code> を通すなら <code>__wg_rel</code> の起点を追随させるか、引数が作業ツリーの内側であることを検査する必要がある。<b>検査せずに <code>cd</code> を <code>read</code> に足すのは、作業ツリー外への書き込みを開けることと同じ</b></li>
+        <li><b>隔離下との二重の制約。</b>Claude Code 側が既に「本流への <code>cd</code>」「<code>git -C</code>」を塞いでいる（<a href="#f22">f22</a>）。機構側の緩和が隔離側の検査と重ならないなら、隔離を採る前提では実効的な緩みは小さい</li>
+        <li><b>合流を通すか通さないか</b>（<a href="#f33">f33</a> の J1〜J6）。案 B・C・E は <code>git merge &lt;ローカルブランチ&gt;</code> を通す選択肢を含み、これは DDR <code>i0004-07</code> の設計意図を部分的に覆す。<b>覆すなら新しい DDR が要る</b></li>
+        <li><b>維持コスト。</b>案 C の白名簿は git の版ごとに増える。<code>scope.sh:254</code> が <code>curl</code> について既に「網羅的かは確かめられない」と認めており、同じ性質の負債が増える</li>
+      </ol>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">44</span>
+      <h3 id="f44">実測手順（観点 E。人間が実行する。コマンド列 + 予測）<span class="chip good">◎良</span> <span class="basis">根拠: test_scope.sh の呼び出し形 / hook_read_input の HC_LIMITS の形 / workflow-guard.sh:47-50 / f22 の command shape 検査</span></h3>
+      <p>本チケットは分類の判定を<b>1 度も実行していない</b>（<code>bash .claude/hooks/lib/tests/test_scope.sh</code> は <code>hook-test</code> 分類で <code>allow.ops</code> に無い）。読み取りだけの結論なので、次の 3 つを人間が実行して裏を取る。<b><code>git worktree add</code> / <code>checkout -b</code> / <code>switch</code> を含むのは E3 だけで、E1・E2 は既存のテストを走らせるだけである。</b>出力は <code>wip/tmp/worktree-probe/</code>（<code>.gitignore</code> 対象）に置く。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>やること</th><th>予測</th><th>外れたときの意味</th></tr></thead>
+        <tbody>
+          <tr><td>E1</td><td><code>bash .claude/hooks/lib/tests/test_scope.sh</code> / <code>test_cmdpos.sh</code> / <code>20-PreToolUse/tests/test_workflow_guard.sh</code> を走らせ <code>grep -c '^FAIL'</code></td><td>すべて <code>FAIL</code> 0 件。<b>現状のテストは <a href="#f36">f36</a>〜<a href="#f41">f41</a> の穴を 1 つも検出しない</b>（穴はテストの期待値そのものに書かれている。<code>test_scope.sh:199</code> が <code>branch</code> を含む全件を <code>read</code> と assert）</td><td>環境差（git・bash の版）。先に潰さないと E2 の結果が読めない</td></tr>
+          <tr><td>E2</td><td><code>scope.sh</code> を source して <code>HC_LIMITS</code> を手で詰め、<a href="#f36">f36</a>〜<a href="#f41">f41</a> の入力 24 行に <code>scope_classify</code> を当てて分類を印字する（下のスクリプト）。<b>git は実行しない</b></td><td>下の予測表のとおり。<code>cd</code> / <code>worktree</code> / <code>checkout -b</code> / <code>switch</code> / <code>merge-tree</code> / <code>stash list</code> / <code>version</code> / <code>bash &lt;絶対パス&gt;</code> / <code>bash wip/tmp/x.sh</code> / <code>diff3</code> / <code>sleep</code> が <code>unknown</code>、<code>branch -d</code> / <code>symbolic-ref</code> / <code>reflog expire</code> / <code>diff --output</code> / <code>-c diff.external</code> が <b><code>read</code></b>、<code>merge origin/main</code> と <code>merge origin/feature-49-x</code> が<b>両方</b> <code>merge-base</code></td><td>本レポートの静的読解が誤っている。とくに <b>X5 が外れる</b>なら <a href="#f40">f40</a> の重大度が下がるので優先して確認する</td></tr>
+          <tr><td>E3</td><td><a href="#f8">f8</a> の P0 で作った W1 を使い、<code>cwd</code> を W1 にした入力で <code>workflow-guard.sh</code> を叩く</td><td>作業中チケットが 0 枚の作業ツリー（<code>main</code> 基点の W1）では <code>workflow-guard.sh:47-50</code> が即座に抜けるので<b>無出力（許可）</b>。つまり <b>worktree の中では分類の穴そのものが観測できない</b>（機構が丸ごと無音。<a href="#f20">f20</a>）。穴が観測できるのは作業中チケットが 1 枚ある作業ツリーだけ</td><td><code>workflow-guard</code> が worktree 側のチケットを見ていないことになり <a href="#f3">f3</a> の結論が変わる</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>E2 のスクリプト。<b>引用符付きのヒアドキュメント（<code>&lt;&lt;'EOF'</code>）で書けば worktree 隔離下でも通る</b>（<a href="#f22">f22</a> の command shape 検査）。</p>
+      <pre><code>cat &gt; wip/tmp/worktree-probe/e2.sh &lt;&lt;'EOF'
+#!/usr/bin/env bash
+# scope.sh の分類を、本レポート f36〜f41 の入力に当てて印字する（判定するだけで実行しない）
+set -uo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+HOOK_ROOT="$ROOT"; HOOK_WORKTREE="$ROOT"; export HOOK_ROOT HOOK_WORKTREE
+. "$ROOT/.claude/hooks/lib/cmdpos.sh"
+. "$ROOT/.claude/hooks/lib/scope.sh"
+US=$'\x1e'; KV=$'\x1f'
+HC_LIMITS=""
+add() { HC_LIMITS+="${HC_LIMITS:+$US}$1$KV$2"; }
+add type investigation
+add t.investigation.ops read
+add common.allow 'wip/**'
+add common.protected '.claude/**'
+add common.confirm '.claude/settings.json'
+add common.file_granular 'CLAUDE.md'
+add common.state_files 'logs/mr.json'
+HC_LIMITS_STATE=ok
+scope_load investigation
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  cmdpos_parse "$line"
+  out=""; i=0
+  while [ "$i" -lt "$CP_COUNT" ]; do
+    c="$(scope_classify "$i")"; out="$out${out:+ }$c"; i=$((i + 1))
+  done
+  printf '%s\t%s\n' "$out" "$line"
+done
+EOF</code></pre>
+      <p>入力（<code>wip/tmp/worktree-probe/e2-inputs.txt</code>）: <code>cd /tmp</code> / <code>git worktree list</code> / <code>git worktree add ../probe-wt1</code> / <code>git checkout -b probe-branch</code> / <code>git switch probe-branch</code> / <code>git merge-tree base b1 b2</code> / <code>git stash list</code> / <code>git version</code> / <code>git branch -d probe-branch</code> / <code>git symbolic-ref HEAD refs/heads/main</code> / <code>git reflog expire --expire=now --all</code> / <code>git diff --output=wip/tmp/out.txt</code> / <code>git -c diff.external=true diff</code> / <code>git merge origin/main</code> / <code>git merge origin/feature-49-x</code> / <code>git merge worktree-abc</code> / <code>git merge --abort</code> / <code>bash /c/repo/.claude/skills/20-common-step-ticket/scripts/ticket.sh next</code> / <code>bash wip/tmp/x.sh</code> / <code>while read w; do echo "$w"; done</code> / <code>echo "$((1+2))"</code> / <code>sed -n "$(grep -n x f | cut -d: -f1),+2p" .claude/hooks/lib/hook-common.sh</code> / <code>diff3 a b c</code> / <code>sleep 1</code>。実行は <code>bash wip/tmp/worktree-probe/e2.sh &lt; wip/tmp/worktree-probe/e2-inputs.txt</code>。</p>
+      <div class="box warn">
+        <p class="label">E2 の安全性</p>
+        <p><code>e2.sh</code> は <code>cmdpos_parse</code> と <code>scope_classify</code> を呼んで<b>分類を印字するだけ</b>で、入力行を実行しない。<code>git -c diff.external=true diff</code> の <code>true</code> は何もしないコマンドなので、この 1 行は仮に実行されても安全である。<b>後始末</b>: E3 で作業ツリーを作った場合は <code>git worktree remove ../probe-wt1</code>（<a href="#f8">f8</a> の「片付け」に従う）。<b>本流の <code>wip/</code> <code>logs/</code> には触れない。</b></p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -1420,6 +1781,16 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
       <tr><td>（0007）合流手順の選択肢が並んでいる（A6 の材料）</td><td><a href="#f33">f33</a> の表が <b>6 行</b>（J1〜J6）。加えて「0010 が決める 5 点」を列挙した</td></tr>
       <tr><td>（0007）実測手順が「コマンド列 + 予測 + 外れたとき + 後始末」の形で揃っている</td><td><a href="#f34">f34</a> の D1〜D5 の <b>5 件</b>すべてに 4 要素がある</td></tr>
       <tr><td>（0007）観点 D が読み取りだけで完結していない箇所を残課題に落とした</td><td>「確かめられなかったこと」に 0007 の行が <b>5 件</b>、「残課題」に 0007 の行が <b>5 件</b></td></tr>
+      <tr><td>（0008）git サブコマンドの母集合と白名簿の突き合わせが全件である</td><td><code>ls …/libexec/git-core/ | grep '^git-' | sed … | sort -u | wc -l</code> = <b>174</b>、<code>_SC_GIT_READ_SUBCMDS</code> = <b>29</b>、<code>comm -13</code> = <b>145</b>、<code>comm -23</code> = <b>0</b>。29 + 145 = 174 で一致</td></tr>
+      <tr><td>（0008）f36 の一覧が 145 件である</td><td><code>comm -13</code> の出力をそのまま貼っている（加工していない）</td></tr>
+      <tr><td>（0008）起動プロンプトが名指しした 5 つが一覧に載っている</td><td><code>checkout</code> / <code>switch</code> / <code>worktree</code> / <code>merge-tree</code> は 145 件に含まれ <a href="#f36">f36</a> の表にも行がある。<code>diff3</code> は git サブコマンドではなく外部コマンドなので <a href="#f37">f37</a> の「外部コマンドで <code>unknown</code>（実在）」に載っている</td></tr>
+      <tr><td>（0008）WF204 の実行体別の内訳の合計が総件数と合う</td><td>集計時点（01:06）: 22 + 11 + 7 + 4 + 5 + 2 + 2 + 3 + 6 = <b>62</b>。<code>grep -hc '"WF204"'</code> = <b>62</b> で一致。提出時点では本チケットの 5 件が加わって <b>67</b></td></tr>
+      <tr><td>（0008）f37 の membership が機械照合である</td><td>5 つの一覧を <code>sed</code> + <code>tr</code> + <code>sort -u</code> でファイルに抽出し、候補 95 語と <code>awk</code> で突き合わせた。手で判定していない</td></tr>
+      <tr><td>（0008）逆向きの穴 5 件すべてに一次資料の逐語がある</td><td><a href="#f40">f40</a> の「根拠」列 5 行すべてに、ローカルの git 公式ドキュメント（<code>git-branch</code> / <code>git-symbolic-ref</code> / <code>git-config</code> / <code>git-diff</code> / <code>git-reflog</code>）の逐語または SYNOPSIS がある</td></tr>
+      <tr><td>（0008）塞ぎ方の案が 2 つ以上あり、6 列すべてが埋まっている</td><td>案は <b>5 つ</b>（A〜E）。<a href="#f42">f42</a> の表は「変更する箇所 / <code>block-direct-git.sh</code> との関係 / <code>scope-limits.json</code> との整合 / 影響する既存テスト ID / 拒否が緩む範囲 / 隔離下で通るか / 長所・短所」の <b>7 行 × 5 案</b>で空欄は 0</td></tr>
+      <tr><td>（0008）各案に「影響する既存テスト ID」が具体的な ID で入っている</td><td>A: <code>HK-T15</code> <code>WG-T06</code> <code>HK-T02</code> ／ B: <code>HK-T15</code> <code>WG-T06</code> <code>HK-T02</code> ／ C: <code>HK-T15</code> <code>WG-T06</code>（+ 新設）／ D: <code>HK-T12</code> <code>WG-T14</code>（+ 新設）／ E: <code>HK-T02</code> <code>HK-T15</code>。P-1〜P-3 は <code>HK-T05</code> <code>HK-T12</code> <code>WG-T14</code></td></tr>
+      <tr><td>（0008）「隔離下でも通ること」が条件に入っている</td><td><a href="#f35">f35</a> の注意書き、<a href="#f42">f42</a> の各案の「隔離下で通るか」行、<a href="#f43">f43</a> の評価軸 4、<a href="#f44">f44</a> の <code>&lt;&lt;'EOF'</code> の注記の 4 か所</td></tr>
+      <tr><td>（0008）<code>git worktree add</code> / <code>checkout -b</code> / <code>switch</code> を実行していない</td><td>「実施条件（0008）」に「<code>git</code> は 1 度も実行していない」と明記。<code>decisions.jsonl</code> の本チケット分（<code>01:03:54</code> 以降）に <code>git</code> の実行記録が無い</td></tr>
     </tbody>
   </table>
   </div>
@@ -1459,6 +1830,16 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
     <li>（0007）<code>push.sh</code> が detached HEAD を CP007 で拒否する一方、<code>boundary.sh:467</code> は <code>origin/HEAD</code> と比較して誤った「未 push」判定を出す。防御の粒度が 2 か所で揃っていない。引き取り先: 0010 / 保留 P2。</li>
     <li>（0007）<b>合流したことを記録する場所が無い</b>。<code>decisions.jsonl</code> に <code>cwd</code> も <code>agent_id</code> も無く（<a href="#f19">f19</a>）、<code>logs/</code> は作業ツリーごとに分かれる。「どの作業ツリーのどのチケットの成果を、いつ、どこへ合流したか」を残す先を決める必要がある。引き取り先: 0010。</li>
     <li>（0007）<code>git branch -d</code> / <code>-D</code> が <code>_SC_GIT_READ_SUBCMDS</code> の <code>branch</code> に当たって <b><code>read</code> に分類される</b>（<code>scope.sh:36</code>）。<code>git worktree remove</code> は拒否されるのに ref の削除は通るのは分類の穴である。引き取り先: 0008 / 0010。</li>
+    <li>（0008）<b>穴の塞ぎ方を 5 案から選ぶ</b>（<a href="#f42">f42</a>・<a href="#f43">f43</a>）。案 A（既存一覧に足す）／案 B（新分類を宣言制）／案 C（白名簿をオプション込みに）／案 D（提供コマンド <code>worktree.sh</code>）／案 E（設定の前方一致許可リスト）。<b>排他ではないので組み合わせで決める</b>。評価軸 6 つを添えた。引き取り先: 0010（調査計画書の保留 P3）。</li>
+    <li>（0008）<b><code>cd</code> を通すなら判定の起点のずれを同時に扱う</b>（<a href="#f37">f37</a>・<a href="#f43">f43</a> の評価軸 3）。<code>__wg_rel</code>（<code>workflow-guard.sh:63-88</code>）は <code>cd</code> を追跡しないので、足すだけだと <code>cd ../other &amp;&amp; echo x &gt; a.txt</code> が通る。引き取り先: 0010 / AI アセット設計。</li>
+    <li>（0008）<b><code>cmdpos.sh</code> の正規化を 2 か所直す</b>（<a href="#f38">f38</a> の X1・X2、<a href="#f42">f42</a> の P-1・P-2）。<b>どの案を採っても独立に必要</b>で、直さないと <code>sed</code> / <code>awk</code> を組み合わせただけの読み取りコマンドが落ち続ける。テストは <code>HK-T05</code>。引き取り先: 0010 / AI アセット実装。</li>
+    <li>（0008）<b>提供コマンドの識別がルート相対表記に限られる件をどう扱うか決める</b>（<a href="#f39">f39</a>・P-3）。現行は仕様 §7-8 と <code>HK-T12</code> が明文で固定した設計判断なので、変えるなら <b>DDR が要る</b>。引き取り先: 0010 / DDR。</li>
+    <li>（0008）<b>逆向きの穴 5 件（<a href="#f40">f40</a>）を閉じるか、統制の外に置くと明記するか。</b>閉じるなら案 C。閉じないなら仕様 §13（意図的な緩和）に「白名簿はサブコマンド名だけを見るので、オプションで書き込みに変わる形は統制しない」と明記して既定拒否の約束の範囲を正しく狭める。引き取り先: 0010 / 保留 P2。</li>
+    <li>（0008）<b><code>merge</code> の分類を「取り込みに限る」形に直す</b>（<a href="#f41">f41</a>）。あわせて <code>--abort</code> / <code>--continue</code> / <code>mergetool</code> が落ちる（衝突解消を中断も続行もできない）ことの扱いを決める。0007 の 25・26 と同じ根。引き取り先: 0010 / AI アセット設計。</li>
+    <li>（0008）<b><code>bash wip/tmp/*.sh</code> が <code>unknown</code> に落ちる</b>（<a href="#f39">f39</a>）。<code>build-test</code> を宣言しても通らない。一時スクリプトを走らせる正規の経路が無いので、案 E か <code>build-test</code> の判定に <code>wip/tmp/</code> を足すかを決める。<b>隔離下では <code>&lt;&lt;'EOF'</code> で書く必要がある</b>。引き取り先: 0010。</li>
+    <li>（0008）<b><code>_SC_SHELL_KEYWORDS</code> に直接のテストが無い</b>（定義行と参照行の 2 行のみ）。一覧を増やすなら、増やす前に <code>test_scope.sh:196-199</code> と同じ全要素ループを足す。引き取り先: 0010 / AI アセット実装。</li>
+    <li>（0008）<code>_SC_READ_ONLY_CMDS</code> に <code>column</code> が 2 回入っている（<code>scope.sh:31</code>）。害は無いが表形式の実装として重複は取る。全要素ループのテストは重複を検出しない。引き取り先: 0010（軽微）。</li>
+    <li>（0008）<b><code>hook_record</code> の <code>target</code> が 80 文字で切られる</b>（<code>workflow-guard.sh:100</code>）ため、誤分類 9 件のうち 6 件の原因を特定できなかった（<a href="#f38">f38</a>）。記録の粒度を決める。0006 の 16 と同じ根。引き取り先: 0010。</li>
   </ol>
 </section>
 
@@ -1490,6 +1871,12 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
       <tr><td>（0007）チケットの状態遷移コミットは「純粋な rename」だと見込んでいた</td><td><b>完了コミット 53 件中 8 件（15%）が rename として検出されない。</b><code>ticket-check.sh:62</code> の未コミット検査がチケットファイル自身を除外するため、作業ログの追記が完了コミットに相乗りする（63 行削除 / 95 行追加で <code>-M20%</code> でも rename にならない実例）</td><td><a href="#f29">f29</a> に実例つきで書き、合流時の衝突の型が変わることを「設計への反映」に上げた</td></tr>
       <tr><td>（0007）衝突の件数は <code>git merge</code> を試して数えるつもりでいた</td><td><b>3-way マージを実行する手段が 1 つも無い。</b><code>merge</code> は <code>unknown</code>、<code>merge-tree</code> は読み取り一覧に無く、<code>diff3</code> も分類外。読み取りだけで数えるには「過去の追記の hunk 位置を共通の基点に写す」しかなかった</td><td>静的な方法に切り替えて件数を出し、実件数の確定は実測 D3 に落とした。◇ に「実行していない」ことを明記した</td></tr>
       <tr><td>（0007）<code>isolation: worktree</code> の worktree はブランチ構成の第 5 の案として別に立てるつもりでいた</td><td><code>worktree-&lt;名前&gt;</code> は <code>git worktree add &lt;path&gt;</code>（引数省略）が作るブランチと<b>同じ性質</b>で、案 2 の具体形だった</td><td><a href="#f27">f27</a> の案 2 に併記し、「隔離を採る = 案 2 の合流手順を決める」と書いた</td></tr>
+      <tr><td>（0008）調査計画書と全体計画書は穴を「<code>checkout</code> / <code>switch</code> / <code>worktree</code> / <code>cd</code> が <code>unknown</code> に落ちる」という 4 語の問題として書いていた</td><td><b>4 語では済まなかった。</b>git サブコマンドだけで 145 件、基本コマンドで 61 語、さらに分類より手前のパーサの誤りが 2 件、逆向きの穴が 5 件あった。とくに<b>逆向きの穴は計画書がまったく想定していない方向</b>である</td><td>観点は書き換えず、<a href="#f35">f35</a> で穴を 4 層に整理したうえで、計画書が名指しした 4 語を <a href="#f36">f36</a> と <a href="#f37">f37</a> の表に明示して残した</td></tr>
+      <tr><td>（0008）「<code>unknown</code> に落ちる」ことの実害は「そのコマンドが使えない」ことだと見込んでいた</td><td><b><code>workflow-guard</code> はコマンド行の全段を判定し、1 段でも <code>unknown</code> があれば行ごと拒否する</b>（<code>workflow-guard.sh:387-443</code>）。実績 7 件の git 拒否のうち 3 件は、読み取り系の git を同じ行に混ぜたための巻き添えだった</td><td><a href="#f36">f36</a> の末尾に「巻き添えの性質」として書いた</td></tr>
+      <tr><td>（0008）<code>decisions.jsonl</code> の実行体に混じる <code>n+1</code> / <code>and</code> のような語は、記録の取り方の問題（80 文字で切れている）だと見込んでいた</td><td><b><code>cmdpos.sh</code> の正規化のバグだった。</b>二重引用符の中の <code>$(( ))</code> と <code>$( )</code> が段を割り、引数だったはずの語が実行体になる。<b>本チケットの実施中に 3 回再現した</b></td><td><a href="#f38">f38</a> に X1・X2 として原因を行番号つきで特定し、<a href="#f42">f42</a> の P-1・P-2 として修正案を別表にした</td></tr>
+      <tr><td>（0008）<code>git branch</code> が <code>read</code> 分類なのは 0007 が既に指摘していたので、同種の穴は 1〜2 件だろうと見込んでいた</td><td><b>5 件あり、うち 1 件（<code>git -c diff.external=&lt;コマンド&gt; diff</code>）は任意コマンドの実行まで開いていた。</b>白名簿がサブコマンド名だけを見る設計から機械的に導かれる</td><td><a href="#f40">f40</a> に表としてまとめ、公式ドキュメントの逐語を根拠に添えた。X5 は<b>実行していない</b>ことを明記し、扱いの判断を ◆ に上げた</td></tr>
+      <tr><td>（0008）塞ぎ方の案は「既存分類への追加」と「新分類の導入」の 2 案で足りると見込んでいた</td><td>観点 C の隔離検査（<code>git -C</code> と引用符なしヒアドキュメントを拒否し無効化できない）と観点 D の合流（DDR <code>i0004-07</code> に触れる）が条件として加わり、<b>2 案では条件を満たす組み合わせを比較できなかった</b></td><td>5 案に広げ、計画書の 2 案を案 A・案 B としてそのまま残した。組み合わせ表（<a href="#f43">f43</a>）で「何のために何が要るか」を分けた</td></tr>
+      <tr><td>（0008）既存テストを走らせて分類を確かめられると見込んでいた（<code>allow.ops</code> に <code>build-test</code> があると思っていた）</td><td>本チケットの <code>allow.ops</code> は <code>read</code> / <code>remote-read</code> のみで、<code>test_scope.sh</code> は <code>hook-test</code> 分類。<b>分類の結論はすべて静的読解になった</b></td><td>「確かめられなかったこと」に上げ、実測手順 E1・E2 に落とした。E2 は分類を印字するだけで git を実行しない形にした</td></tr>
     </tbody>
   </table>
   </div>
@@ -1522,6 +1909,12 @@ git status --porcelain    # 空であること（wip/tmp/ は .gitignore 対象�
     <li><b>R22</b>（0007）<b>サブエージェント worktree の <code>worktree-&lt;名前&gt;</code> ブランチが終了後にいつまで残るか。</b>ref ごと消えるなら未合流の成果が失われ、合流手順は「終了前に本流へ書き戻す」形（J4）だけになる。引き取り先: 0009（実測 D4）/ 0010。</li>
     <li><b>R23</b>（0007）<b>合流の実行者を誰にするか</b>（<a href="#f33">f33</a> の J1〜J6）。J2 は DDR <code>i0004-07</code> の決定を部分的に覆し、J3 は同 DDR が却下した案に戻る。どちらも<b>DDR を上書きする新しい DDR が要る</b>。引き取り先: 0010 / AI アセット設計。</li>
     <li><b>R24</b>（0007）<b>採番の重複が「衝突せずに通る」経路をどう塞ぐか</b>（<a href="#f30">f30</a> の (1)）。番号を作業ツリーに閉じない採り方にするのか、合流の手順で検査するのか。前者は命名規則と <code>find_ticket</code> / <code>boundary.sh</code> の番号の扱いに波及し、後者は合流を機構が担うことを前提にする。引き取り先: 0010。</li>
+    <li><b>R25</b>（0008）<b><code>scope_classify</code> の実際の出力を 1 度も見ていない。</b><a href="#f36">f36</a>〜<a href="#f41">f41</a> の分類はすべて静的読解で、本チケットの <code>allow.ops</code> では分類器を走らせられなかった。<b>とくに <a href="#f40">f40</a> の X5 が外れると逆向きの穴の重大度が下がる</b>。引き取り先: 0009（実測 E1・E2）／人間。</li>
+    <li><b>R26</b>（0008）<b><a href="#f40">f40</a> の 5 件を本 issue で直すか、全体計画書の保留 P2（別 issue）へ回すか。</b>L1〜L3 は受け入れ条件 A1 に直接効くが、L4 は A1 とも <code>worktree</code> とも無関係の統制の穴である。R6・R10・R18 と同じ種類の判断だが、<b>こちらは「worktree を使わなくても常時開いている」点が違う</b>。引き取り先: 0009 / 0010（人間の判断）。</li>
+    <li><b>R27</b>（0008）<b>「基本コマンドの一覧」を何を根拠に確定するか。</b>候補 95 語は網羅ではない。案 A・E を採るなら、足す語の集合を決める根拠（<code>compgen -b</code> の出力・POSIX のユーティリティ一覧・実績の積み上げのどれか）を先に決める必要がある。引き取り先: 0010。</li>
+    <li><b>R28</b>（0008）<b>案 D（提供コマンド <code>worktree.sh</code>）が <code>__wg_check_provided_args</code> を通るか。</b>作業ツリーはリポジトリの外に作るので引数のパスが <code>__wg_rel</code>（<code>workflow-guard.sh:83-85</code>）で WF209 に倒れる見込みで、そうなると案 D は成立しない。引き取り先: 0010 / AI アセット実装計画。</li>
+    <li><b>R29</b>（0008）<b>案 B で新しい <code>ops</code> の値を足したとき <code>hook_read_input</code> の jq が未知キーとして WF210 に倒さないか。</b>jq プログラム（<code>__HC_JQ_INPUT</code>）の本文を読めていない（読もうとしたコマンドが <a href="#f38">f38</a> の X2 で拒否された）。引き取り先: 0010。</li>
+    <li><b>R30</b>（0008）<b><code>decisions.jsonl</code> の <code>target</code> が 80 文字で切られる</b>（<code>workflow-guard.sh:100</code>）ため、誤分類 9 件のうち 6 件の原文を復元できなかった。分類を直した後も同じ調査が要る見込みなので、記録の粒度を見直すかを決める。引き取り先: 0010 / 保留 P2。</li>
   </ul>
 </section>
 

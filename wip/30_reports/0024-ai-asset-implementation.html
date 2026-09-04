@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0024- AI アセット実装・テスト結果 — 機構の実体を作る</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 2</span>
+    <span class="chip good">◎良 3</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -145,6 +145,7 @@
         <ol class="toc-sub">
           <li><a href="#f1"><span class="mk good">◎</span> 1. テンプレート実体 15 件</a></li>
           <li><a href="#f2"><span class="mk good">◎</span> 2. boundary.sh とテスト 13 件</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. finalize.sh と完了検査の共有</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -167,9 +168,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -309,6 +310,34 @@
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3"><code>finalize.sh</code> と完了検査の共有・テスト 9 件を作った（S3・中核） <span class="chip good">◎良</span> <span class="basis">根拠: <code>run-tests.sh --filter '*test_finalize*'</code> が <code>OK: 1 本 / 9 件</code></span></h3>
+      <p>全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。進行状態は <code>logs/merge-state.json</code> の <code>state</code>（<code>started</code> → <code>recorded</code> → <code>linked</code> → <code>cleaned</code> → <code>pushed</code> → <code>ready</code>）で持ち、記録済みの段階を飛ばして続きから行う。</p>
+      <p><strong>完了検査を 2 か所で持たない形にした</strong>。全体まとめチケットは <code>ticket.sh complete</code> を通れない（<code>TK005</code> が必ず拒否する）ので、完了検査だけを共通の関数に切り出した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>ファイル</th><th>役割</th></tr></thead>
+        <tbody>
+          <tr><td><code>20-common-step-ticket/scripts/ticket-check.sh</code></td><td><code>ticket_check_completion</code> と <code>ticket_section</code>。source 専用</td></tr>
+          <tr><td><code>ticket.sh</code> の <code>complete</code></td><td>切り出した関数を呼ぶ（判定の重複を消した）</td></tr>
+          <tr><td><code>finalize.sh</code> の段階 2</td><td>同じ関数を source して呼び、結果を統括レポートの「完了検査」節に書き出す</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><strong>段階の並びで守ったこと</strong></p>
+      <ul>
+        <li>段階 3（書き出しと push）が無いと、書き出した「完了検査」節がどのコミットにも載らないまま段階 5 の片付けで消える。<code>FN-T07</code> は<strong><code>pre_cleanup_sha</code> が指すコミットの</strong>統括レポートに節が含まれることを確かめる（書き出しただけでは通らない）</li>
+        <li>段階 4（SHA の確定とリンク一覧）を片付けより前に置いた。リンクは <code>pre_cleanup_sha</code> に固定した blob URL なので、片付け後でも成果物に辿り着ける（<code>FN-T06</code> が <code>git cat-file</code> で実在を確かめる）</li>
+        <li>本文の書き換えは <code>## 統括</code> 配下の<strong>表の中身だけ</strong>。人間が貼ったリンクと処理フロー 5 の要約は残る（<code>FN-T09</code>）</li>
+        <li>再導出の <code>linked</code> 判定は<strong>固定マーカーだけ</strong>を見る。表の骨格はテンプレートが先に置くので、空の表を <code>linked</code> と誤判定しない（<code>FN-T08</code> が両方の分岐を通す）</li>
+      </ul>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><code>FN-T01</code>〜<code>FN-T09</code> の 9 件、アサーション 38 件が通る。<code>gh</code> はスタブに差し替え、MR 本文と draft の状態をファイルで持たせた。push は bare リポジトリを立てて実際に行う。実行時間は 44 秒。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -323,7 +352,10 @@
       <tr><td>名前の食い違い</td><td>0 件。<code>attachment-comment.template.md</code> は現行仕様に無く、<code>summary-section.template.md</code> として作った</td></tr>
       <tr><td><code>boundary.sh</code> の機械テスト</td><td><code>BD-T01</code>〜<code>BD-T13</code> の 13 件・アサーション 74 件が PASS（<code>run-tests.sh --filter '*test_boundary*'</code> → <code>OK: 1 本 / 13 件</code>）</td></tr>
       <tr><td><code>boundary.sh</code> の終了コード</td><td>成功 0 / 前提未充足 1（BD001〜BD005）/ 引数・環境の誤り 2。最終行は <code>OK:</code> または <code>BDxxx:</code></td></tr>
-      <tr><td>全件テスト（回帰）</td><td><code>OK: 26 本 / 178 件</code>。26 ファイルすべて PASS。テスト ID の総数は 165 → <strong>178</strong>（<code>BD-T01</code>〜<code>BD-T13</code> の 13 件が増えた）</td></tr>
+      <tr><td>全件テスト（回帰）</td><td>0025 の時点で <code>OK: 26 本 / 178 件</code>。26 ファイルすべて PASS</td></tr>
+      <tr><td><code>finalize.sh</code> の機械テスト</td><td><code>FN-T01</code>〜<code>FN-T09</code> の 9 件・アサーション 38 件が PASS。実行時間 44 秒</td></tr>
+      <tr><td>完了検査の二重実装</td><td>0 件。<code>ticket.sh</code> と <code>finalize.sh</code> が同じ <code>ticket_check_completion</code> を source する</td></tr>
+      <tr><td>テスト ID の総数</td><td>165 → 178（<code>BD-T</code> 13 件）→ <strong>187</strong>（<code>FN-T</code> 9 件）</td></tr>
     </tbody>
   </table>
   </div>

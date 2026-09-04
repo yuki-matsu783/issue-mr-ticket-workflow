@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0043 ホットパスの起動コストの実測と実行環境の前提</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査結果レポート</p>
+  <h1 id="title" data-required>0043 ホットパスの起動コストの実測と実行環境の前提</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 0</span>
+    <span class="chip warn">△注意 0</span>
+    <span class="chip stop">✕問題 2</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk stop">✕</span> 1. B-1 起動コストの実測</a></li>
+          <li><a href="#f2"><span class="mk stop">✕</span> 2. B-2 Python 実装の前提</a></li>
+        </ol>
+      </li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/shlex-hook-inspection-7t4sc1</code></dd></div>
+    <div><dt>チケット</dt><dd>0043</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead"><strong>解析そのものは <code>shlex</code> が圧勝し、プロセス起動で逆転する。</strong>起動を除いた解析時間は <code>shlex</code> 版 0.048 ms に対し現行 <code>cmdpos_parse</code> が 2.40 ms で <strong>50 倍速い</strong>。ところが Python のプロセス起動が 27.3 ms かかり、解析の 570 倍にあたる。ホットパスのフックは毎ツール呼び出しで起動し直す使い捨てプロセスなので、この 27.3 ms が丸ごと乗る。<strong>1 本あたり +20.7 ms、5 本で +103 ms。</strong></p>
+  <ul class="kpis">
+    <li class="kpi good"><b>0</b><span>◎良</span></li>
+    <li class="kpi warn"><b>0</b><span>△注意</span></li>
+    <li class="kpi stop"><b>2</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>「解析は 50 倍速い」を捨てる判断でよいか。常駐プロセスにすれば活かせるが、フックの実行モデルを変える話になる</li>
+        <li>直列の合計（+103 ms）を増分として扱ってよいか。5 本は並列に起動するので壁時計はこれより短い</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>DDR i0009-22 は上書きせず維持する。Python の追加は認められている外部プロセスの予算（<code>jq</code> 1 回 = 3.85 ms）の 7.1 倍</li>
+        <li>Python 不在の環境で検査が丸ごと落ちる形は、fail-open を塞げないという DDR i0009-11 の前提と噛み合わない</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>測定の揺れより差がはるかに大きい。bash 版の最大値 9,656 µs と Python 版の最小値 25,936 µs は範囲が重ならない</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong>Windows / Git Bash での実測</strong>。この実行環境（Linux コンテナ）から測れない。仕様書は Git Bash での <code>git</code> 起動を約 95 ms としており差はさらに開く見込みだが、裏付けは無い</li>
+      <li><strong>ホットパス 5 本を実際に同時起動させたときの壁時計時間</strong>。本調査は 1 本ずつ直列に測った</li>
+      <li><strong><code>uv</code> を使った場合の起動時間</strong>。<code>uv</code> はこの環境に無い。#15 本文の実測（<code>uv run --no-project</code> 29 ms）を引き継ぐに留めた</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>Linux コンテナ。bash 5.x、Python 3.11.15、jq</li>
+    <li>各 50 回の中央値。時刻は bash の <code>EPOCHREALTIME</code>（マイクロ秒）と Python の <code>time.perf_counter</code></li>
+    <li>解析に使った入力は <code>git commit -m "fix: あ" &amp;&amp; echo $(ls -1) | tee out.txt</code>（複合コマンド・日本語・コマンド置換・パイプ・書き込み先を含む）</li>
+    <li>計測スクリプトは <code>wip/tmp/bench.sh</code> と <code>wip/tmp/probe.py</code>（追跡外）</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot stop">1</span>
+      <h3 id="f1">B-1 起動コストの実測 <span class="chip stop">✕問題</span> <span class="basis">根拠: bench.sh stats（各 50 回）</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対象</th><th>中央値 (µs)</th><th>最小</th><th>最大</th></tr></thead>
+        <tbody>
+          <tr><td>python 内 <code>shlex</code> 解析（起動なし）</td><td class="num"><b>48</b></td><td class="num">46</td><td class="num">177</td></tr>
+          <tr><td><code>bash -c ':'</code> 起動</td><td class="num">2,396</td><td class="num">2,120</td><td class="num">3,732</td></tr>
+          <tr><td>bash 内 <code>cmdpos_parse</code>（起動なし）</td><td class="num"><b>2,395</b></td><td class="num">2,083</td><td class="num">4,412</td></tr>
+          <tr><td><code>jq -n</code> 起動</td><td class="num">3,850</td><td class="num">3,465</td><td class="num">6,346</td></tr>
+          <tr><td>bash 起動 + <code>cmdpos.sh</code> 読込 + 解析</td><td class="num"><b>6,616</b></td><td class="num">5,427</td><td class="num">9,656</td></tr>
+          <tr><td><code>python3 -S -c pass</code></td><td class="num">10,892</td><td class="num">9,804</td><td class="num">13,308</td></tr>
+          <tr><td><code>python3 -S -c 'import shlex'</code></td><td class="num">21,450</td><td class="num">19,674</td><td class="num">39,631</td></tr>
+          <tr><td><code>python3</code> 起動 + 解析</td><td class="num"><b>27,332</b></td><td class="num">25,936</td><td class="num">30,884</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><strong>増分の見積り</strong>: ホットパス 1 本が現行 6,616 µs、Python 版が 27,332 µs で <strong>+20.7 ms</strong>。5 本が毎ツール呼び出しで走るので直列に足すと <strong>+103.6 ms／ツール呼び出し</strong>。</p>
+      <p><code>import shlex</code> だけで 10.6 ms 増える（10,892 → 21,450）。<code>shlex</code> が <code>re</code> を引き込むためで、最小限の起動でも避けられない。何もしない Python（<code>-S -c pass</code>）でも bash の空起動の 4.5 倍。</p>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>DDR i0009-22 は「ホットパスが起動してよい外部プロセスは <code>jq</code> の 1 回だけ」と定めている。その <code>jq</code> が 3,850 µs。Python の追加は 27,332 µs で、<strong>認められている予算の 7.1 倍</strong>を 1 本ごとに使う。「1 秒以内」という目安には収まるが、同 DDR が「1 秒以内は検査できない形なので fork 回数で縛る」と決めた経緯からすると、目安を持ち出して通す筋ではない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">2</span>
+      <h3 id="f2">B-2 Python 実装の前提 <span class="chip stop">✕問題</span> <span class="basis">根拠: DDR i0001-14 / i0009-11、hook-common.sh の読み込み行</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>必要になるもの</th><th>難しさ</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>インタプリタの解決</td><td>フックはリポジトリルートを fork なしで解決している。Python の場所は同じようには決められない。Windows では <code>python3</code> が PATH に無く <code>py</code> や <code>python</code> になる</td></tr>
+          <tr><td>2</td><td>起動オプション</td><td><code>-S</code> で 27.3 → 21.5 ms 程度。<code>-I</code> で環境変数の影響を排除。それでも bash の 2.4 ms には届かない</td></tr>
+          <tr><td>3</td><td>import の最小化</td><td><code>shlex</code> は <code>re</code> を引き込み 10.6 ms。<code>json</code> を足せばさらに増え、stdin を <code>jq</code> で読んでいる現状と重複する</td></tr>
+          <tr><td>4</td><td>DDR i0001-14 の基準を満たすこと</td><td>判定材料は「想定する全実行環境で確実にアクセスできるもの」に限られる。Python は Git Bash に同梱されない。同 DDR は逃げ道（全環境で保証されるようになれば使ってよい）を用意しているが、<code>uv</code> 自体の配布が要る</td></tr>
+          <tr><td>5</td><td>ブートストラップの入口</td><td>SessionStart フック自身は Python 不在でも動く必要があり bash で書くことになる。入れ子の依存が生じる</td></tr>
+          <tr><td>6</td><td>失敗時の振る舞い</td><td>DDR i0009-11 が「打ち切りは fail-open で塞げない」と決めている。Python 不在の環境ではコマンド検査が丸ごと落ちる。bash 版のフォールバックを残すなら<strong>同じ判定を 2 言語で二重実装</strong>することになり、食い違いが新しいバグの種になる</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>6 項目のうち 1・4・5・6 が設計上の判断を要する。とくに 6 が重い。フックは自動で走り、失敗したときの復旧手段が AI に無い。Python 不在の環境で検査が落ちる形は、この機構の前提と噛み合わない。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li><strong>本番置換は採らない</strong>。0046 の「判定誤りが 7 件入る」に加え、本調査の「+103 ms／ツール呼び出し」「DDR i0009-22 の予算の 7.1 倍」「Python 不在時に検査が落ちる」が重なる。どれか 1 つでも十分な却下理由になる</li>
+    <li><strong>DDR i0009-22 は維持する</strong>。上書きの必要が無い。ただし「なぜ Python を入れなかったか」を新しい DDR に残し、次に同じ問いが出たときに実測から辿れるようにする</li>
+    <li><strong>照合役案の起動コストは問題にならない</strong>。テストは毎ツール呼び出しではなく明示的に走らせるもので、27 ms の起動が 1 回増えても影響しない</li>
+    <li><strong>解析が 2.4 ms かかっている事実は別の話として残る</strong>。<code>cmdpos_parse</code> は fork ゼロだが、bash の空起動と同じだけの時間を解析に使っている。速くする余地はあるが本 issue の範囲外</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>Python 版は「起動のぶんだけ遅い」</td><td>解析そのものは 50 倍速く、起動で逆転する構図だった</td><td>「解析 vs 起動」を分けて測り直し、両方を表に載せた</td></tr>
+      <tr><td>#15 の実測（<code>python3</code> 18.5 ms）を再現する</td><td>この環境では 27.3 ms。<code>-S</code> で 21.5 ms まで下がる</td><td>環境差として両方を記録し、増分の見積りには自分の実測を使った</td></tr>
+      <tr><td>B-2 は「何が必要か」の列挙で終わる</td><td>失敗時の振る舞い（項目 6）が単なる列挙ではなく却下理由の 1 つになった</td><td>設計への反映に格上げした</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>Windows / Git Bash での実測</strong>。計画どおり本 PR では行わない。実測が要ると設計フェーズが判断したらフィードバック計画で別 issue にする</li>
+    <li><strong>ホットパス 5 本の並列起動の壁時計時間</strong>。直列の合計（+103 ms）は上限側の見積り</li>
+    <li><strong><code>cmdpos_parse</code> 自体の 2.4 ms</strong>。fork ゼロだが速くはない。ホットパスの目安（1 秒以内）には十分収まっているので本 issue では扱わない</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "実装フェーズ 2 回目の敵�
 allow:
   write: [".claude/skills/10-task-overall-summary/**", ".claude/skills/20-common-step-ticket/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T13:07:26+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "11f735d"
 ---
 
 # 0035 S11 敵対的レビュー指摘の反映（finalize.sh 7 件）

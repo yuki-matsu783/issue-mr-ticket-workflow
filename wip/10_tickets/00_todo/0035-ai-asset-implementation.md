@@ -1,13 +1,13 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation
-predecessors: ["0034"]
+predecessors: ["0037"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: true, reason: "実装フェーズ 2 回目の敵対的レビューを、0028〜0035 の差分に対してここでまとめて行う"}
 allow:
-  write: ["wip/**"]
-  ops: ["remote-read"]
+  write: [".claude/skills/10-task-overall-summary/**", ".claude/skills/20-common-step-ticket/**", "logs/**", "wip/**"]
+  ops: ["read", "build-test", "hook-test", "remote-read"]
 started_at: ""
 completed_at: ""
 base_sha: ""

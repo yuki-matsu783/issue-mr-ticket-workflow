@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "中核を含まず、件数と旧
 allow:
   write: [".claude/evals/**", ".claude/skills/**", ".claude/rules/**", "wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T12:26:15+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "0556d1b"
 ---
 
 # 0031 S8 eval 定義 19 件と旧資産 5 件の処遇（旧名 26 件）

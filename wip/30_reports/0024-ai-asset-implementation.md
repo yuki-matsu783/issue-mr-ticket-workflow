@@ -30,7 +30,9 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 
 **敵対的レビュー（中核 3 枚まとめて 1 回目）**: 0025〜0027 の差分（`509240b..HEAD`、12 ファイル・2,334 行）に対して読み取り専用のレビュアーを 1 回走らせ、**指摘 12 件**（高 4 / 中 5 / 低 3、いずれも裏取り済み）を得た。追加チケット **0034**（`boundary.sh` 5 件）と **0035**（`finalize.sh` 7 件）に落とした。
 
-- ◎良 6 件 / △注意 0 件 / ✕問題 0 件（節は e1〜e6 の 6 件。0028 と 1 回目の敵対的レビューまで）
+**0029（S6 スキル・エージェント）**: `task-types.tsv` の 15 種すべてに `SKILL.md` を置き、エージェント定義 **2 本**を作った。計画型・実施型の共通手順は `10-task-investigation-plan` / `10-task-investigation-exec` の 2 本に集約し、残り 10 本は固有部分だけを書く。
+
+- ◎良 7 件 / △注意 0 件 / ✕問題 0 件（節は e1〜e7 の 7 件。0029 と 1 回目の敵対的レビューまで）
 
 ### ◆特に見てほしい（判断に困っている）
 
@@ -205,6 +207,18 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 
 指摘は追加チケット **0034**（`boundary.sh` 5 件）と **0035**（`finalize.sh` 7 件）に落とし、`0033`（フィードバック計画）の先行チケットに加えた。実装フェーズの 2 回目の敵対的レビューは 0035 の完了後に 0028〜0035 の差分でまとめて行う。
 
+### e7. タスクスキル 15 本とエージェント定義 2 本を作った（S6） ◎良
+
+`task-types.tsv` の 15 種すべてに `SKILL.md` を置き、`.claude/agents/` にエージェント定義 2 本を作った。機構が type からスキルを引ける状態になった。
+
+**共通手順は 2 本に集約した**。計画タスクの共通手順（着手 → 入力の確認 → 計画書 → 実施チケット群 → 次の計画チケット → 完了 → 結果報告）の正は `10-task-investigation-plan`、実施タスクの共通手順（入力の確認 → 1 枚ずつ着手 → 実施 → レポートに追記 → コミットと完了 → 次へ）の正は `10-task-investigation-exec` に置き、残り 10 本は「手順」の冒頭で正を指して固有部分だけを書く。15 本に複製していたら、手順を 1 つ足すのに 15 か所を直すことになる。
+
+**発火条件は type の文字列で揃えた**。`description` の `Use when` を `ticket.sh next returns type "<type>"` の形にした。機構は type からスキルを引くので、日本語のタスク名より type の文字列が入っているほうが確実に引ける。
+
+**エージェントの `model` は仕様どおりに分けた**。`task-executor` は `inherit`（実行者がチケットごとに変わる）、`adversarial-reviewer` は `claude-fable-5-1` 固定（実行者と別のモデルであることが敵対的レビューの値）。`tools` に `AskUserQuestion` と `Agent` を書かないことで、「ユーザーに質問しない」「サブエージェントを入れ子にしない」を機械的に担保している。
+
+**実施型 6 本は固有のテンプレートを持たない**。各仕様の OUT ひな形節が「report-view のレポートテンプレートを使う」と定めているためで、最初に `assets/<種類>.template.md` と書いていた 6 本を書き直した。
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -217,6 +231,9 @@ keywords: [AI アセット実装, テンプレート, boundary.sh, finalize.sh, 
 | 全件テスト（回帰） | 0027 の時点で `OK: 27 本 / 196 件`。27 ファイルすべて PASS、失敗 0・アサーション 2,247 件（`--timeout 300`。既定の 120 秒では `test_workflow_guard.sh` だけが TIMEOUT する） |
 | `finalize.sh` の機械テスト | `FN-T01`〜`FN-T09` の 9 件・アサーション 38 件が PASS（`run-tests.sh --filter '*test_finalize*'`）。実行時間 44 秒 |
 | 完了検査の二重実装 | 0 件。`ticket.sh` と `finalize.sh` が同じ `ticket_check_completion` を source する |
+| タスクスキルの網羅 | `task-types.tsv` の 5 列目 15 行と `.claude/skills/10-task-*/SKILL.md` を `diff` で突合し差分 0 行 |
+| SKILL.md の frontmatter | 15 本すべて `name` / `description` の 2 項目のみ（`type` / `title` / `tags` / `keywords` の混入 0 件）。テンプレート由来のプレースホルダ（`{{SKILL_NAME}}` 等）の残り 0 件 |
+| 共通手順の再掲 | 0 件。共通手順の本文を持つのは `10-task-investigation-plan` と `10-task-investigation-exec` の 2 本だけで、残り 10 本は正を参照する |
 | フックの追随 | `.claude/hooks/boundary.sh` / `.claude/hooks/finalize.sh` を指す実行時の参照は 0 件（残るのは仕様の過渡期記述・DDR・SE-T10 の意図的な旧パス） |
 | 注入の機械テスト | `SE-T01`〜`SE-T10` の 10 件・アサーション 45 件が PASS。`WE-T10`（`position` と継続条件の一致）は `test_workflow_entry.sh` 75 件に含まれる |
 | テスト ID の総数 | 165 → 178（`BD-T`13 件）→ 187（`FN-T`9 件）→ **196**（`SE-T`を 3 件から 10 件へ ほか） |

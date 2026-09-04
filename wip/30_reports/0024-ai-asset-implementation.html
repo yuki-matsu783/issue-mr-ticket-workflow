@@ -130,7 +130,7 @@
   <h1 id="title" data-required>0024- AI アセット実装・テスト結果 — 機構の実体を作る</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 6</span>
+    <span class="chip good">◎良 7</span>
     <span class="chip warn">△注意 0</span>
     <span class="chip stop">✕問題 0</span>
   </p>
@@ -149,6 +149,7 @@
           <li><a href="#f4"><span class="mk good">◎</span> 4. フックの追随と注入・テスト 10 件</a></li>
           <li><a href="#f5"><span class="mk good">◎</span> 5. RV009 の新設と CP-T08 の振り直し</a></li>
           <li><a href="#f6"><span class="mk good">◎</span> 6. 敵対的レビュー（1 回目・指摘 12 件）</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. タスクスキル 15 本とエージェント 2 本</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -171,9 +172,9 @@
 <main class="main">
 
 <section id="overview" data-required>
-  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。</p>
+  <p class="lead">実装フェーズの結果報告。0017 の計画が並べたステップ S1〜S9 を、チケット 0024〜0032 が同じレポートに節を積み上げる。<strong>0024（S1 設定・定義）</strong>: 仕様の OUT ひな形が名前とパスで指定しているテンプレート <strong>15 件</strong>を作った。13 件は各スキルの <code>assets/</code>、2 件（レポート・計画書の md 共通の型）は <code>20-common-step-report-view</code> の <code>assets/</code>。仕様が参照する <code>*.template.md</code> は<strong>全件が実体を持つ</strong>状態になった。<strong>0025（S2 中核: <code>boundary.sh</code>）</strong>: タスクの切れ目の判定・レビュー依頼・完了確認を担う提供コマンドを作った。5 サブコマンド、機械テスト <strong>13 件</strong>（アサーション 74 件）が通る。<code>logs/review-state.json</code> を書き換える唯一の経路になる。<strong>0026（S3 中核: <code>finalize.sh</code>）</strong>: 全体まとめの完了検査から draft 解除までを 1 コマンド 8 段階にまとめた。完了検査は <code>ticket.sh</code> と共通の関数に切り出して二重実装を消した。機械テスト <strong>9 件</strong>（アサーション 38 件）が通る。<strong>0027（S4 中核: フックの追随と注入）</strong>: 提供コマンドの置き場を仕様側に確定した決定に、実装済みのフック 3 行とテスト 4 行を追随させた。<code>session-start.sh</code> の注入の整形（制御方式 4〜11）を実装し、<code>boundary.sh</code> 待ちで 3/3 へ送られていたテスト <strong>10 件</strong>を書いた。<strong>0028（S5 RV009 と CP-T08 の振り直し）</strong>: 1 つの識別子が 2 つの原因を指していた状態と、1 つのテスト ID が 2 ファイルにあった状態を解消した。<strong>敵対的レビュー（1 回目）</strong>: 中核 3 枚の差分に読み取り専用のレビュアーを 1 回走らせ、<strong>指摘 12 件</strong>を追加チケット 0034・0035 に落とした。<strong>0029（S6 スキル・エージェント）</strong>: <code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、エージェント定義 <strong>2 本</strong>を作った。計画型・実施型の共通手順は 2 本に集約し、残り 10 本は固有部分だけを書く。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>6</b><span>◎良</span></li>
+    <li class="kpi good"><b>7</b><span>◎良</span></li>
     <li class="kpi warn"><b>0</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
@@ -403,6 +404,19 @@
       </div>
     </li>
 
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">タスクスキル 15 本とエージェント定義 2 本を作った（S6） <span class="chip good">◎良</span> <span class="basis">根拠: <code>task-types.tsv</code> との突合が差分 0 行</span></h3>
+      <p><code>task-types.tsv</code> の 15 種すべてに <code>SKILL.md</code> を置き、<code>.claude/agents/</code> にエージェント定義 2 本を作った。機構が type からスキルを引ける状態になった。</p>
+      <p><strong>共通手順は 2 本に集約した</strong>。計画タスクの共通手順（着手 → 入力の確認 → 計画書 → 実施チケット群 → 次の計画チケット → 完了 → 結果報告）の正は <code>10-task-investigation-plan</code>、実施タスクの共通手順（入力の確認 → 1 枚ずつ着手 → 実施 → レポートに追記 → コミットと完了 → 次へ）の正は <code>10-task-investigation-exec</code> に置き、残り 10 本は「手順」の冒頭で正を指して固有部分だけを書く。15 本に複製していたら、手順を 1 つ足すのに 15 か所を直すことになる。</p>
+      <p><strong>発火条件は type の文字列で揃えた</strong>。<code>description</code> の <code>Use when</code> を <code>ticket.sh next returns type "&lt;type&gt;"</code> の形にした。機構は type からスキルを引くので、日本語のタスク名より type の文字列が入っているほうが確実に引ける。</p>
+      <p><strong>エージェントの <code>model</code> は仕様どおりに分けた</strong>。<code>task-executor</code> は <code>inherit</code>（実行者がチケットごとに変わる）、<code>adversarial-reviewer</code> は <code>claude-fable-5-1</code> 固定（実行者と別のモデルであることが敵対的レビューの値）。<code>tools</code> に <code>AskUserQuestion</code> と <code>Agent</code> を書かないことで、「ユーザーに質問しない」「サブエージェントを入れ子にしない」を機械的に担保している。</p>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実施型 6 本は固有のテンプレートを持たない。各仕様の OUT ひな形節が「report-view のレポートテンプレートを使う」と定めているためで、最初に <code>assets/&lt;種類&gt;.template.md</code> と書いていた 6 本を書き直した。</p>
+      </div>
+    </li>
+
   </ol>
 </section>
 
@@ -420,6 +434,9 @@
       <tr><td>全件テスト（回帰）</td><td>0027 の時点で <code>OK: 27 本 / 196 件</code>。27 ファイルすべて PASS、失敗 0・アサーション 2,247 件（<code>--timeout 300</code>。既定の 120 秒では <code>test_workflow_guard.sh</code> だけが TIMEOUT する）</td></tr>
       <tr><td><code>finalize.sh</code> の機械テスト</td><td><code>FN-T01</code>〜<code>FN-T09</code> の 9 件・アサーション 38 件が PASS。実行時間 44 秒</td></tr>
       <tr><td>完了検査の二重実装</td><td>0 件。<code>ticket.sh</code> と <code>finalize.sh</code> が同じ <code>ticket_check_completion</code> を source する</td></tr>
+      <tr><td>タスクスキルの網羅</td><td><code>task-types.tsv</code> の 5 列目 15 行と <code>.claude/skills/10-task-*/SKILL.md</code> を <code>diff</code> で突合し差分 0 行</td></tr>
+      <tr><td>SKILL.md の frontmatter</td><td>15 本すべて <code>name</code> / <code>description</code> の 2 項目のみ（<code>type</code> / <code>title</code> / <code>tags</code> / <code>keywords</code> の混入 0 件）。テンプレート由来のプレースホルダの残り 0 件</td></tr>
+      <tr><td>共通手順の再掲</td><td>0 件。共通手順の本文を持つのは <code>10-task-investigation-plan</code> と <code>10-task-investigation-exec</code> の 2 本だけで、残り 10 本は正を参照する</td></tr>
       <tr><td>フックの追随</td><td><code>.claude/hooks/boundary.sh</code> / <code>.claude/hooks/finalize.sh</code> を指す実行時の参照は 0 件（残るのは仕様の過渡期記述・DDR・SE-T10 の意図的な旧パス）</td></tr>
       <tr><td>注入の機械テスト</td><td><code>SE-T01</code>〜<code>SE-T10</code> の 10 件・アサーション 45 件が PASS。<code>WE-T10</code>（<code>position</code> と継続条件の一致）は <code>test_workflow_entry.sh</code> 75 件に含まれる</td></tr>
       <tr><td>テスト ID の総数</td><td>165 → 178（<code>BD-T</code> 13 件）→ 187（<code>FN-T</code> 9 件）→ <strong>196</strong>（<code>SE-T</code> を 3 件から 10 件へ ほか）</td></tr>

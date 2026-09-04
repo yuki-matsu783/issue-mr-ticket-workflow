@@ -156,4 +156,21 @@ assert_exit "RV-T07" 1
 assert_contains "RV-T07" "RV006: テンプレートを特定できない"
 assert_not_contains "RV-T07" "RV008"
 
+# RV-T08 awk が無い環境では縮退せず RV009・終了 2（引数もファイルも正しいので RV008 ではない）
+# 正のコントロール: 同じ PATH に awk を足せば 0 で通る（PATH を絞ったこと自体が原因ではないことを示す）
+make_restricted_path bash cat comm cut date git grep head sed sort tr uniq wc mkdir printf
+RV_NOAWK="$RESTRICTED_PATH"
+make_restricted_path bash cat comm cut date git grep head sed sort tr uniq wc mkdir printf awk
+RV_AWK="$RESTRICTED_PATH"
+_rv_saved_path="$PATH"
+PATH="$RV_NOAWK"; run_cmd bash "$CHECK" "$R"; PATH="$_rv_saved_path"
+assert_exit "RV-T08" 2
+assert_eq "RV-T08" "RV009" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "RV-T08" "awk"
+assert_not_contains "RV-T08" "RV008"
+assert_not_contains "RV-T08" "OK:"
+PATH="$RV_AWK"; run_cmd bash "$CHECK" "$R"; PATH="$_rv_saved_path"
+assert_exit "RV-T08" 0
+assert_contains "RV-T08" "OK:"
+
 finish

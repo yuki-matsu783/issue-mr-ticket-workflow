@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の差分 3。フ�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T01:03:46+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "35dd59f"
 ---
 
 # 0008 調査: scope.sh の git 分類の穴と塞ぎ方の選択肢

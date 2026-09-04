@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "実装フェーズの総仕上げ�
 allow:
   write: [".claude/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T13:31:00+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "3330683"
 ---
 
 # 0032 S9 参照更新の総仕上げと 0 件判定

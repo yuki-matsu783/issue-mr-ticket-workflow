@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "指摘の反映であり、2 回�
 allow:
   write: [".claude/skills/00-workflow-issue-mr-driven/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T12:56:36+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "5b0e44f"
 ---
 
 # 0037 S10 敵対的レビュー指摘の反映（boundary.sh 5 件）

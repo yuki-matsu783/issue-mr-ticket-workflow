@@ -1,12 +1,12 @@
 ---
 type: report
-title: 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと logs/ 状態ファイル）
-description: issue #50 の調査フェーズの結果。観点 A では、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定した。観点 B では、提供コマンド 5 本の状態ファイル依存 17 行を「無いときの振る舞い」つきで表にし、__ss_load が cwd ではなくスクリプトの置き場で LOGGER_ROOT を決めることと、そのずれる 3 条件を特定し、本 issue の実施中に実際に踏んだ 3 件の根本原因を行番号で押さえた。人間が実行するための実測手順（コマンド列 + 予測）を観点ごとに残した。
+title: 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと logs/ 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否）
+description: issue #50 の調査フェーズの結果。観点 A では、フックの HOOK_ROOT / HOOK_WORKTREE の全参照 81 件を判定つきで一覧にし、6 本のフックが worktree 側と本流側のどちらで判定するかを行番号つきで確定した。観点 B では、提供コマンド 5 本の状態ファイル依存 17 行を「無いときの振る舞い」つきで表にし、__ss_load が cwd ではなくスクリプトの置き場で LOGGER_ROOT を決めることと、そのずれる 3 条件を特定し、本 issue の実施中に実際に踏んだ 3 件の根本原因を行番号で押さえた。観点 C では、サブエージェントを別 worktree で動かせること（isolation: worktree）を公式 18 引用つきで確定し、既定の分岐元が既定ブランチであるために機構が静かに無効化されることと、subagent-start-check が読む cwd が 2 経路で別物であることを押さえた。人間が実行するための実測手順（コマンド列 + 予測）を観点ごとに残した。
 tags: [report, investigation, issue-50]
-keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 提供コマンド, merge-state, mr.json, 実測手順]
+keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツリー解決, 静かな無効化, workflow-guard, workflow-diff-check, hc_lock, HK-T18, 提供コマンド, merge-state, mr.json, 実測手順, isolation, worktree.baseRef, subagent-start-check, EnterWorktree, worktreeinclude, 隔離強制, decisions.jsonl]
 ---
 
-# 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと `logs/` 状態ファイル）
+# 0004 調査結果 — worktree 上での機構の健全性（観点 A: フックの作業ツリー解決 / 観点 B: 提供コマンドと `logs/` 状態ファイル / 観点 C: サブエージェントの別 worktree 起動可否）
 
 - 対象 issue: [#50](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50)
 - MR: [#51](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51)（draft）
@@ -40,6 +40,20 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - 提供コマンドには**排他制御が 1 つも無い**（5 本に `lock` の語が 0 件。`hc_lock` はフック専用）。同じ作業ツリーでの並列は `.git/index.lock` と採番で衝突し、worktree に分ければ index は分かれるが `logs/` は別々になる（e15）
 - 件数（**タスク全体の合計。ここが唯一の合計で、他の節はここを指す**）: **◎良 6 件 / △注意 8 件 / ✕問題 2 件 = 16 件**（内訳: 0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件）
 
+0006 まで（観点 A・B・C）。ここから下の段落・箇条書きが 0006（観点 C）で足した分で、上の 0004・0005 の記述は書き換えていない。**表題は観点 A・B から観点 A・B・C を含む形に広げた**（読み替えの注記は 0005 の段落にある）。
+
+観点 C の問い「サブエージェントを呼び出し元と別の worktree で動かせるか」への答えは **「動かせる。公式に専用の機能があり、Agent ツールの引数ではなくエージェント定義の frontmatter `isolation: worktree` で指定する。ただし現行の機構をそのまま載せると、サブエージェント側の worktree が既定ブランチから切られるため、機構が静かに無効化される」**。呼び出し元の起動プロンプトが前提に置いた「呼び出し元の作業ディレクトリは固定で、サブエージェントは既定でそれを引き継ぐ」は**既定としては正しく、前提は崩せる**（e17）。
+
+- 公式の一次資料は 4 本（`sub-agents` / `worktrees` / `hooks` / `agents`）。取得日 2026-09-04。`docs.claude.com/en/docs/claude-code/*` は `code.claude.com/docs/en/*` へ 301 で移っている。DDR `i0009-55` が二次資料として引用していた `hooks.md:598-601` の原文は現在の `hooks` ページに**同じ文言で実在**し、引用は今も有効だった（e18）
+- `subagent-start-check` が読む `cwd` は **2 つの経路で別物**。PreToolUse `Agent`（WF801 / WF803）は呼び出し元のツール呼び出しなので**呼び出し元の `cwd`**。SubagentStart（WF802）は公式が「フックが呼ばれた時点の作業ディレクトリ」としか書いておらず、`isolation: worktree` のとき worktree 作成の前か後かを**書いていない**ので **不明**（実測が要る）。どちらの経路でも対象チケットは `$HOOK_WORKTREE` から取る（`subagent-start-check.sh:41-42`）（e19）
+- **サブエージェントは呼び出し元とセッション ID を共有する**。本セッションの 4 件（0003 / 0004 / 0005 / 0006 の起動）の SubagentStart 記録は 4 件とも `session_id` が `595e717b-…` で、本サブエージェントの `CLAUDE_CODE_SESSION_ID` と同一（`CLAUDE_CODE_CHILD_SESSION=1`）。公式の「Subagents work within a single session」と一致する（e19）
+- **`decisions.jsonl` は `cwd` も `agent_id` も記録していない**（全 7506 行のキーが `ts, session_id, hook, event, decision, id, tool, target, ticket, note` の 10 個で一致）。SubagentStart の記録は **22 件**あり 22 件とも本流の `logs/hooks/decisions.jsonl` に落ちているが、本リポジトリで worktree を作ったことが 1 度も無いので、これは「worktree でも本流を見る」ことの証明にはならない（負のコントロールが無い）（e19）
+- **サブエージェント worktree の既定の分岐元は「リポジトリの既定ブランチ」であって呼び出し元の `HEAD` ではない**。`main` の `wip/10_tickets/10_doing/` は `.gitkeep` のみ（0004 の検証済み）なので、隔離したサブエージェントから見るとチケットが 0 枚になり、`workflow-guard.sh:59` が即座に抜けて**すべての書き込みと実行が素通りする**（DDR `i0009-55` が言う「静かな無効化」がそのまま再現する）。回避には `worktree.baseRef: "head"` の設定が要るが、本リポジトリの `.claude/settings.json` に `worktree` キーは **0 件**（e20）
+- worktree の既定の置き場は `.claude/worktrees/<名前>/` で、これは `scope-limits.json` の `common.protected` の `.claude/**` に含まれる。作業ツリーの解決が成功すれば書き込みは worktree ルート相対（`wip/…`）になって当たらず、失敗して本流に倒れると `.claude/worktrees/…` として硬く拒否される。加えて `.claude/worktrees/` は本リポジトリの `.gitignore` に**無い**（公式は Tip で入れることを勧めている）ので、本流の `git status --porcelain` に未追跡として現れ、`push.sh` 項目 1（`push.sh:78`）が落ちる（e21）
+- Claude Code は隔離中のセッション・サブエージェントに 4 つの検査を掛ける。うち **command shape の検査は「引用符のないヒアドキュメント」「ブレース展開」を含む Bash コマンドを拒否し、公式が「You can't turn this check off」と明記している**。本プロジェクトは長い文面をヒアドキュメントで一時スクリプトに書いて実行する運用が常態なので、ここが正面から当たる。一方 git リダイレクト検査（`git -C` ほか）は、提供コマンド 5 本の本体に `git -C` が **0 件**（テストとテストヘルパのみ）なので当たらない（e22）
+- 動かせない場合・採らない場合の代替は 6 通り挙げ、成立条件を書いた（e23）。うち機構と最も相性がよいのは「人間が `claude --worktree <名前>` で別セッションを開く」で、成立条件は ①`.claude/worktrees/` を `.gitignore` に入れる ②`logs/` を `.worktreeinclude` で複製するか worktree ごとに作る ③同じ feature ブランチを 2 つの作業ツリーで checkout できない git 制約を回避する（0007 の観点 D）④workspace trust を先に取る、の 4 つ
+- 件数（**タスク全体の合計。0005 の合計行を 0006 分まで積み上げた最新の合計で、以後はこの行を指す。0005 の「◎良 6 件 / △注意 8 件 / ✕問題 2 件 = 16 件」は 0005 時点の合計として読む**）: **◎良 10 件 / △注意 11 件 / ✕問題 3 件 = 24 件**（内訳: 0004 が ◎3 / △4 / ✕1 = 8 件、0005 が ◎3 / △4 / ✕1 = 8 件、0006 が ◎4 / △3 / ✕1 = 8 件）
+
 ### ◆特に見てほしい（判断に困っている）
 
 - e5 の位置づけ。「作業ツリーをまたぐ絶対パス指定で進行状態ファイル保護がすり抜ける」ことは、フック共通仕様 §13「意図的な緩和」が約束している「機構が守るのは進行状態・コミット / push・`chmod`（常時フック）まで」に反する。**issue #50 の受け入れ条件 A1 の「動かない箇所」として扱うか、全体計画書の保留 P2（機構の不具合として別 issue）へ回すか**を決めきれていない。並列実施を採らなくても worktree を使えば踏むので前者に寄せたが、判断は 0009 と 0010 に委ねる
@@ -47,6 +61,9 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 
 - （0005）e13 の 3 件の位置づけ。`push.sh` 項目 4・`resolve_mr`・`write_mr_json` の 3 件は、全体計画書の保留 P2 に「`logs/` の進行状態が issue をまたいで残る」「`mr.json` の `issue` が誰にも書かれない」として既に挙がっている。一方で 3 件とも**受け入れ条件 A1 の「動かない箇所」でもある**（worktree を使えば緩和されるという意味で、本 issue の判断材料そのもの）。**P2 として別 issue に切り出すのか、A1 の一覧に載せて本 issue の設計フェーズで直すのか**を決めきれていない。0004 の e5 と同じ判断で、まとめて 0009 / 0010 に委ねる
 - （0005）e11 の「フックは本流の実体、提供コマンドは worktree の実体」を**正とするか**。正とするなら「機構が自分自身の 2 バージョンで動く」ことを仕様に明記して、`.claude/` を変えるブランチを worktree で開発するときの手順（本流へ戻ってから機構を使う等）を決める必要がある。正としないなら提供コマンドも `CLAUDE_PROJECT_DIR` 起動に寄せることになるが、そうすると worktree で作業しても本流の `wip/` を触ってしまい、worktree の意味が消える。**どちらも一長一短で、調査の範囲では決めない**
+
+- （0006）**観点 C の答えが肯定なので、保留 P1（並列を採るか）の重心が「できるか」から「載せ替える価値があるか」に移った**。手段は存在するが、そのまま載せると e20（既定ブランチから切られて機構が無効化される）・e21（`.claude/worktrees/` が protected かつ未 gitignore）・e22（ヒアドキュメント検査を無効化できない）の 3 つを同時に直すことになる。**この 3 つを直してでも 1 issue 内の並列を採るのか**を、0009 と 0010 で判断してほしい。調査の範囲では決めない
+- （0006）**e20 を受け入れ条件 A1 の「動かない箇所」に載せるか**。「サブエージェントを `isolation: worktree` で起動すると機構が静かに無効化される」は、worktree 上の健全性（A1）の問題でもあり、並列採否（A4）の材料でもある。0004 の e5・0005 の e13 と同じ判断で、まとめて 0009 / 0010 に委ねる
 
 ### ◇判断が欲しい（決めた方針の承認 / 決められない点の判断）
 
@@ -58,6 +75,11 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0005）`LOGGER_ROOT` のずれは **`__ss_load` の 1 行を読んだ静的解析**であって実測ではない。`CLAUDE_PROJECT_DIR` は本セッションの Bash ツールの環境では**未設定**（`echo "${CLAUDE_PROJECT_DIR:-未設定}"` で確認）なので条件②は実運用では起きにくいと判断したが、フックは `settings.json` がこの変数で起動するので**フック経由では必ず設定されている**。経路によって結論が変わる
 - （0005）実測手順（e16）は **本流だけでできる 2 件（B1・B2）と worktree が要る 4 件（B3〜B6）** に分けた。B1・B2 は 0004 の実測手順 P0（worktree の作成）より前に単独で実行できるので、worktree を作れない環境でも先に片付く
 
+- （0006）「可否」を **「Claude Code の機能として存在するか」と「現行の機構を載せて成立するか」の 2 段に分けて答えた**。前者だけで答えると「動かせる」で終わり、後者だけで答えると「動かせない」になる。DoD が求めているのは観点 C の可否なので、結論は前者（動かせる）を主にし、後者を e20〜e22 の条件として並べた
+- （0006）`subagent-start-check` が読む `cwd` について、**PreToolUse `Agent` 経路は「呼び出し元」と断定し、SubagentStart 経路は「不明」に留めた**。前者は Agent ツールの呼び出し自体がメイン側のツール呼び出しであることと、公式の `agent_id` の説明（「Present only when the hook fires inside a subagent call」）から断定できる。後者は worktree の作成時点と SubagentStart の発火時点の前後関係が公式に書かれていないため、推測で埋めずに実測（C2）へ落とした
+- （0006）**`isolation: worktree` を実際に試していない**。試すには `.claude/agents/` に検査用のエージェント定義を置くか既存の `task-executor.md` の frontmatter を変えることになり、どちらも本チケットの `allow.write`（`wip/**`）の外である。書き込みを拒否されたわけではなく、**宣言の範囲外なので初めから試みなかった**。実測手順 C1〜C4 に落として人間に回した
+- （0006）**フックは Claude Code の隔離検査（git リダイレクト・command shape）の対象外**と読んだ。公式が検査の対象を「a Bash, PowerShell, or Monitor command」と限っており、フックは Claude Code 自身が起動するプロセスでツール呼び出しではないためだが、これは**引用からの推論**であって明文ではない。外れると `git -C "$HOOK_WORKTREE"` を持つフック 4 本（`session-start` / `subagent-stop-check` / `post-push-compact-prompt` / `post-push-usage-report`）が隔離下で止まる
+
 ### ・細かいレビューは不要（ほぼ確実）
 
 - 参照の総数 81 行・90 箇所（`grep -rn ... | wc -l` と `grep -rno ... | wc -l`）は機械的に数えた値である
@@ -68,6 +90,12 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0005）5 本すべてが本体の先頭で `cd "$LOGGER_ROOT"` すること（`ticket.sh:342` / `commit.sh:96` / `push.sh:65` / `boundary.sh:664` / `finalize.sh:538`）。`check-html.sh:61` と `run-tests.sh:62` も同じ形
 - （0005）提供コマンド 5 本に `lock` の語が 1 件も無いこと（`grep -rn lock` が 0 件。`blocked` を除く）
 - （0005）現物の `logs/mr.json` の `.issue` が `null` であること（`cat logs/mr.json`）
+
+- （0006）`decisions.jsonl` の全 **7506 行**のキーが 10 個（`ts, session_id, hook, event, decision, id, tool, target, ticket, note`）で一致すること（`jq -r 'keys|join(",")' | sort | uniq -c` が 1 行）と、`SubagentStart` の記録が **22 件**、うち本セッション（`595e717b-…`）が **4 件**であることは機械的に数えた値である
+- （0006）提供コマンド 5 本の本体に `git -C` / `--git-dir` / `GIT_DIR` / `GIT_WORK_TREE` が **0 件**であること（`grep -rn` が拾ったのは `tests/test_push.sh:57` と `test-lib.sh:71-75` のテスト側のみ）
+- （0006）`.claude/settings.json` に `worktree` キーが **0 件**であること、`.gitignore` に `.claude/worktrees/` の行が **0 件**であること
+- （0006）`scope-limits.json` の `common.protected` が `[".claude/**", ".gitignore", "apl/*/.gitignore", ".gitattributes"]` の 4 件であること
+- （0006）本サブエージェントの実行環境が `AI_AGENT=claude-code_2-1-259_agent` / `CLAUDE_AGENT_SDK_VERSION=0.3.259` / `CLAUDE_CODE_CHILD_SESSION=1` / `CLAUDE_PROJECT_DIR` 未設定 / `pwd` が本流のリポジトリルートであること（`env | grep -i claude` と `pwd`）
 
 ## 確かめられなかったこと
 
@@ -85,6 +113,13 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 | （0005）前 issue の `logs/mr.json` を掴んだ `boundary.sh status`（`logs/sh/boundary.log` の 2026-09-04T22:09:45）の**出力そのもの** | `boundary.sh` は `status` の出力をログに残さない（`start subcommand=status` と結果行だけ）。当時の会話ログは本ブランチの `wip/` に無い | 実測不要（コードの経路で説明できる。e13-2） |
 | （0005）`logs/mr.json` の `.issue` が **いつから** null なのか（過去の issue でも null だったのか） | `logs/` は追跡外なので履歴が無く、現物の 1 世代しか読めない | 追えない（`write_mr_json` に書き手が無いことから、初回作成時は常に null と言える。e13-3） |
 
+| （0006）`isolation: worktree` を書いたサブエージェントが実際に別 worktree で走るか、そのとき `pwd` と `git rev-parse --show-toplevel` が何を返すか | 試すには `.claude/agents/` にエージェント定義を置くか既存の frontmatter を変える必要があり、本チケットの `allow.write`（`wip/**`）の外。拒否されたのではなく宣言の範囲外なので試みていない | 0009（実測手順 C1）／人間 |
+| （0006）SubagentStart フックの `cwd` が、`isolation: worktree` のときに worktree 作成の**前**の値か**後**の値か | 公式は `cwd` を「Current working directory when the hook is invoked」としか書かず、`WorktreeCreate` と `SubagentStart` の発火順を明示していない。書かれていないことを推測で埋めない | 0009（実測手順 C2） |
+| （0006）Claude Code の隔離検査（git リダイレクト・command shape）がフックのプロセスにも及ぶか | 公式は検査の対象を「a Bash, PowerShell, or Monitor command」と限っているが、フックが対象外であることを明示した文はない。引用からの推論に留まる | 0009（実測手順 C3）／0010 |
+| （0006）`worktree.baseRef: "head"` を設定したとき、サブエージェント worktree が呼び出し元の feature ブランチの `HEAD` から切られるか（公式は「Inside a worktree, `"head"` resolves to that worktree's `HEAD`」とだけ書き、サブエージェント worktree の分岐元がメイン会話の `HEAD` かどうかは明示していない） | 設定の変更は `.claude/settings.json` への書き込みで `allow.write` の外。加えて中核の設定なので調査で触らない | 0009（実測手順 C4）／0010 |
+| （0006）`.worktreeinclude` で `logs/` を worktree へ複製したときに、進行状態（`merge-state.json` ほか）が二重になって何が起きるか | 複製を試すには worktree を作る必要があり、AI からは実行できない（`git worktree` も `--worktree` 起動も WF204 / 人間の操作） | 0009／0010（調査計画書の保留 P2） |
+| （0006）`isolation` frontmatter が本環境の Claude Code 2.1.259 で実際に解釈されるか（公式は `isolation` の導入版を明記していない） | 実行して確かめるほかなく、上と同じ理由で試みていない | 0009（実測手順 C1） |
+
 ## 実施条件（測った対象・環境）
 
 - 対象コミット: `feature-50-worktree-parallel-tickets` の `65d908e`（チケット 0004 の基準点は `9721416`）
@@ -94,6 +129,12 @@ keywords: [worktree, HOOK_WORKTREE, HOOK_ROOT, LOGGER_ROOT, __ss_load, 作業ツ
 - （0005）実行したのは読み取りのコマンドだけ（`grep -rn` / `sed -n` / `cat` / `ls` / `find` / `wc` / `jq`（ローカルの `logs/*.json` を読むだけ）／ `git ls-files` / `git log -S` / `echo` による環境変数の確認）。ファイルの作成は `wip/30_reports/` と `wip/tmp/` のみ
 - （0005）`cd` を含むコマンドが WF204 で 1 回拒否されたため、以後はすべて絶対パスと `git -C` で読んだ
 - （0005）`CLAUDE_PROJECT_DIR` は本セッションの Bash ツールでは**未設定**、`PWD` は MSYS 形式（`/c/Users/…`）だった。フック側の `HOOK_WORKTREE` は `__hc_winpath` で `C:/…` に正規化されるので、同じディレクトリでも 2 つの根は**文字列としては別表記**になる
+
+- （0006）対象コミット: `feature-50-worktree-parallel-tickets` の `fb981f6`（チケット 0006 の基準点は `436ecb0`）
+- （0006）実行したのは読み取りのコマンドと Web の取得だけ（`grep -rn` / `sed -n` / `cat` / `ls` / `jq`（ローカルの `logs/*.json*` を読むだけ）／`wc` / `env` / `pwd` / `awk` / WebFetch）。ファイルの作成は `wip/30_reports/` と `wip/tmp/` のみ
+- （0006）`cd` を含むコマンドが WF204 で **2 回**拒否された（`2026-09-04T23:48:12` と `23:48:24` の `decisions.jsonl` の記録）。以後はすべて絶対パスで読んだ。`for … do` を含むコマンドも 1 回 WF204（`_ はどの分類にも当たらない`）で拒否され、`grep` を並べる形に書き換えた。`bash wip/tmp/<スクリプト>.sh` も WF204（`bash はどの分類にも当たらない`）で拒否されたため、レポートの差し込みは `awk` の出力を `wip/tmp/` に書いて Edit ツールで反映する形に変えた（`cp` で `wip/30_reports/` を上書きしようとして WF205 も 1 回）
+- （0006）Web の取得は 4 URL・取得日 **2026-09-04**（e18 の表）。`docs.claude.com/en/docs/claude-code/hooks` は `code.claude.com/docs/en/hooks` へ **301** で、リダイレクト先を明示して取り直した
+- （0006）本サブエージェントの実行環境: `AI_AGENT=claude-code_2-1-259_agent`、`CLAUDE_AGENT_SDK_VERSION=0.3.259`、`CLAUDE_CODE_SESSION_ID=595e717b-bd51-4bf4-b049-a23fb8a2fae8`、`CLAUDE_CODE_CHILD_SESSION=1`、`CLAUDE_PROJECT_DIR` **未設定**、`pwd` は本流のリポジトリルート（`/c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow`）
 
 ## 実施した内容と結果
 
@@ -773,6 +814,241 @@ rm -rf "$MAIN/wip/tmp/worktree-probe/b5"
 git -C "$MAIN" status --porcelain   # 空であること（wip/tmp/ は .gitignore 対象）
 ```
 
+### e17. 観点 C の答え — サブエージェントは別 worktree で動かせる。口は Agent ツールではなくエージェント定義の frontmatter ◎良
+
+**可否: 動かせる。**
+
+公式は「サブエージェントを一時的な git worktree で走らせる」機能を持っている。指定の口は 2 つある。
+
+| 口 | 書く場所 | 効き方 |
+|---|---|---|
+| `isolation: worktree` | エージェント定義の frontmatter（本プロジェクトでは `.claude/agents/task-executor.md`） | そのエージェントは**常に**自分の worktree で走る |
+| 「エージェントに worktree を使って」と頼む | 会話（メインエージェントへの指示） | その場かぎりで有効になる |
+
+**Agent ツールの引数には無い。** 調査計画書の観点 C は「Agent ツールに作業ディレクトリ／worktree を指定する手段があるか」と問いを立てていたが、探す場所が違っていた（想定と異なった点に記載）。裏取りは 2 つ。
+
+- 本プロジェクトのフックが Agent の `tool_input` から拾っているのは `subagent_type` / `model` / `run_in_background` の 3 つだけで（`hook-common.sh:207-213`）、作業ディレクトリに当たるキーは無い
+- 起動プロンプトのひな形（`00-workflow-issue-mr-driven/assets/subagent-prompt.template.md`）にも worktree を渡す欄は無く、`SKILL.md:85` の起動手順も「モデルはチケットの `executor`」までしか書いていない。**ひな形に口が無いのは正しく、口はエージェント定義側にある**
+
+**既定の振る舞い**は、呼び出し元の起動プロンプトが前提に置いたとおりである。公式の原文（e18 の S1）:
+
+> A subagent starts in the main conversation's current working directory. Within a subagent, `cd` commands don't persist between Bash or PowerShell tool calls and don't affect the main conversation's working directory. To give the subagent an isolated copy of the repository instead, set `isolation: worktree`.
+
+つまり「呼び出し元の作業ディレクトリを引き継ぐ」は**既定**であって固定ではない。前提は `isolation: worktree` で崩せる。本サブエージェント自身も既定どおりで、`pwd` は本流のリポジトリルートを返した。
+
+**ただし「動かせる」は「現行の機構がそのまま載る」を意味しない。** 載せたときに起きることを e20（分岐元）・e21（置き場と gitignore）・e22（隔離検査）に分けた。
+
+### e18. 公式ドキュメントの出典（URL・引用・取得日 2026-09-04）◎良
+
+取得はすべて WebFetch。`docs.claude.com/en/docs/claude-code/hooks` は `code.claude.com/docs/en/hooks` へ **301 Moved Permanently** で移っており、リダイレクト先で取り直した。以下の引用は取得したページの本文からの逐語で、訳は付けない（訳すと原文の条件が落ちるため）。
+
+| # | URL | 節 | 引用（逐語） | 取得日 |
+|---|---|---|---|---|
+| S1 | `https://code.claude.com/docs/en/sub-agents` | Subagent working directory | 「A subagent starts in the main conversation's current working directory. Within a subagent, `cd` commands don't persist between Bash or PowerShell tool calls and don't affect the main conversation's working directory. To give the subagent an isolated copy of the repository instead, set `isolation: worktree`.」 | 2026-09-04 |
+| S2 | 同上 | Supported frontmatter fields（`isolation` の行） | 「Set to `worktree` to run the subagent in a temporary git worktree, giving it an isolated copy of the repository branched by default from your default branch rather than the parent session's `HEAD`. The worktree is automatically cleaned up if the subagent makes no changes」 | 2026-09-04 |
+| S3 | 同上 | Subagent working directory | 「A subagent with `isolation: worktree` runs its Bash and PowerShell commands inside its worktree. A command whose working directory resolves to your main checkout instead, for example because the worktree directory was removed while the subagent was running, fails with an error.」 | 2026-09-04 |
+| S4 | 同上 | Subagent working directory | 「When the main conversation itself runs isolated in a worktree, Claude Code applies the same checks to the session and to every subagent it spawns, including subagents without `isolation: worktree`」 | 2026-09-04 |
+| S5 | 同上 | Session scope | 「**Subagents work within a single session.**」／「**Subagents can run in parallel within a session.**」／「There is a concurrent subagent limit: by default, when 20 subagents are running in a session, spawning another with the Agent tool fails with `Concurrent subagent limit reached`.」 | 2026-09-04 |
+| S6 | `https://code.claude.com/docs/en/worktrees` | Isolate subagents with worktrees | 「Subagents can run in their own worktrees so parallel edits don't conflict. Ask Claude to "use worktrees for your agents", or make the isolation permanent for a custom subagent by adding `isolation: worktree` to its frontmatter.」 | 2026-09-04 |
+| S7 | 同上 | Isolate subagents with worktrees | 「Each subagent gets a temporary worktree that Claude Code removes automatically when the subagent finishes without changes; a worktree with changes stays on disk until the periodic sweep below can remove it without losing work.」／「Subagent worktrees use the same base branch as `--worktree`, so they branch from your repository's default branch unless `worktree.baseRef` is set to `"head"`.」 | 2026-09-04 |
+| S8 | 同上 | Choose the base branch | 「`"fresh"` (default): branch from the repository's default branch on the remote, usually `main`, so the worktree starts from a clean tree matching the remote.」／「`"head"`: branch from your current local `HEAD`, so the worktree carries your unpushed commits and feature-branch state. Use this when isolating subagents that need to operate on in-progress work. Inside a worktree, `"head"` resolves to that worktree's `HEAD`, not the main checkout's.」 | 2026-09-04 |
+| S9 | 同上 | Start Claude in a worktree | 「Pass `--worktree` or `-w` with a name to create an isolated worktree and start Claude in it. By default, the worktree is created under `.claude/worktrees/<name>/` at your repository root, on a new branch named `worktree-<name>`」／Tip:「Add `.claude/worktrees/` to your `.gitignore` so worktree contents don't appear as untracked files in your main checkout.」 | 2026-09-04 |
+| S10 | 同上 | How Claude Code enforces isolation | 「**File edits**: Claude Code blocks an `Edit`, `Write`, or `NotebookEdit` that targets a path in the main checkout.」／「**Command working directory**: Claude Code blocks a Bash, PowerShell, or Monitor command whose working directory resolves to the main checkout, or whose working directory it can't verify stays outside it.」／「**Git redirects**: Claude Code blocks a Bash or Monitor command that redirects git into the main checkout. The redirect can come through `git -C`, `--git-dir`, a `GIT_DIR` or `GIT_WORK_TREE` variable, or a `cd` into the main checkout before running git.」／「**Command shape**: Claude Code blocks a Bash or Monitor command it can't verify stays inside the worktree, even when the command runs no git at all. Claude Code refuses shell constructs it can't trace without running them, such as brace expansion and heredocs with unquoted delimiters. … You can't turn this check off.」 | 2026-09-04 |
+| S11 | 同上 | Copy gitignored files into worktrees | 「A worktree is a fresh checkout, so untracked files like `.env` or `.env.local` from your main repository are not present. To copy them automatically when Claude creates a worktree, add a `.worktreeinclude` file to your project root.」／「Only files that match a pattern and are also gitignored are copied, so tracked files are never duplicated.」 | 2026-09-04 |
+| S12 | 同上 | Ask Claude to create a worktree | 「You can also ask Claude to "work in a worktree" during a session, and it creates one with the `EnterWorktree` tool.」 | 2026-09-04 |
+| S13 | `https://code.claude.com/docs/en/hooks` | Common input fields | 「`cwd` \| Current working directory when the hook is invoked」 | 2026-09-04 |
+| S14 | 同上 | Common input fields（subagent の追加フィールド） | 「`agent_id` \| Unique identifier for the subagent. Present only when the hook fires inside a subagent call. Use this to distinguish subagent hook calls from main-thread calls.」 | 2026-09-04 |
+| S15 | 同上 | Reference scripts by path（Note） | 「**Worktrees are different.** If Claude enters a worktree during the session, Claude Code keeps `${CLAUDE_PROJECT_DIR}` where it was and passes the worktree path to your hooks a different way:」／「**`${CLAUDE_PROJECT_DIR}` stays put**: it still points at the project root where the session started…」／「**`cwd` follows Claude**: the `cwd` field in the hook's input JSON is the worktree root after Claude enters a worktree, and the new directory after Claude runs `cd`. Read it when a hook needs to know which directory Claude is working in.」 | 2026-09-04 |
+| S16 | 同上 | Hooks in subagents | 「Hooks from settings files, managed policy settings, and plugins also run inside subagents. When a subagent calls a tool, tool events such as `PreToolUse` and `PostToolUse` fire the same configured hooks as in the main conversation, and the input carries the `agent_id` and `agent_type` common input fields that identify the subagent.」 | 2026-09-04 |
+| S17 | 同上 | WorktreeCreate | 「When a worktree is being created via `--worktree`, `isolation: "worktree"`, or for a background session. Replaces default git behavior.」／event-specific fields は `worktree_path` と `base_ref`／「Any non-zero exit code aborts worktree creation」 | 2026-09-04 |
+| S18 | `https://code.claude.com/docs/en/agents` | Run agents in parallel | 「Worktrees give each session a separate git checkout, so parallel sessions never edit the same files. Use them for sessions you run yourself. Agent view moves each dispatched session into its own worktree automatically, and subagents you spawn can each get one too.」／「Agent teams don't isolate teammates in worktrees, so partition the work so each teammate owns a different set of files.」 | 2026-09-04 |
+
+**DDR `i0009-55` の引用の裏取り。** DDR は `hooks.md:598-601` として S15 と同じ文面を二次資料（取得済みの原本）から引いていた。今回 `hooks` ページの原文を直接読み、**同じ文言で実在すること**を確認した。したがって 0004 の e1・e3 が DDR の引用に依存して立てた結論（`cwd` を読むのが公式の指示どおりである）は、一次資料でも支持される。
+
+なお `worktrees` ページ側にも同趣旨の Note があるが、**文言が違う**（「the `cwd` field … is the worktree root, and it moves again when Claude runs `cd`」）。意味は同じで、引用するなら DDR と同じ `hooks` ページ側を使うのが整合する。
+
+### e19. `subagent-start-check` が読む `cwd` は 2 経路で別物。片方は「呼び出し元」、もう片方は「不明」 △注意
+
+このフックは同じスクリプトを 2 つのイベントに登録している（`subagent-start-check.sh:4` のコメント、`settings.json` の `SubagentStart` と PreToolUse `matcher: Agent`）。対象チケットの決め方は共通で、`__sa_target`（`subagent-start-check.sh:36-49`）が `"$HOOK_WORKTREE"/wip/10_tickets/10_doing/*.md` → 無ければ `00_todo/*.md` の先頭を採る。`HOOK_WORKTREE` は `hook_read_input`（`hook-common.sh:369`）が入力 JSON の `cwd` から解決する（0004 の e1）。したがって**答えは「どちらの `cwd` が入力 JSON に載るか」に還元される**。
+
+| 経路 | 発火 | 入力 JSON の `cwd` は誰のものか | 根拠 | 確度 |
+|---|---|---|---|---|
+| PreToolUse / matcher `Agent`（WF801 実行者の不一致・WF803 background）| メインエージェントが Agent ツールを呼ぶとき | **呼び出し元のもの** | Agent ツールの呼び出しはメイン側のツール呼び出しである。公式 S14 は `agent_id` を「Present only when the hook fires inside a subagent call」と定義しており、Agent の PreToolUse はサブエージェントの中ではないので `agent_id` が付かない。加えて `isolation: worktree` の worktree は `WorktreeCreate`（S17「when a worktree is being created via … `isolation: "worktree"`」）で作られ、Agent ツールの実行より後なので、この時点で worktree はまだ存在しない | **確定** |
+| SubagentStart（WF802 要点の注入） | サブエージェントが spawn されるとき | **不明** | 公式は `cwd` を S13「Current working directory when the hook is invoked」としか書かず、`SubagentStart` 固有のフィールドとして挙げているのは `agent_type` だけである。`WorktreeCreate` と `SubagentStart` の**発火順が書かれていない**ため、「worktree に入る前の呼び出し元の `cwd`」か「入った後の worktree ルート」かを決められない | **不明**（実測 C2） |
+
+**記録からの裏取り（件数付き）。**
+
+- `logs/hooks/decisions.jsonl` は全 **7482 行**（`wc -l`。`jq` が読めた行は 7506 で、複数行にまたがる旧形式が混ざっている）。イベント別は PreToolUse 7101 / PostToolUse 249 / UserPromptSubmit 55 / SubagentStop 25 / SessionStart 25 / **SubagentStart 22** / 空 5
+- **SubagentStart の 22 件はすべて本流の `logs/hooks/decisions.jsonl` に落ちている**。`hook_record` は `"$HOOK_WORKTREE/logs/hooks/decisions.jsonl"` に書く（`hook-common.sh:654`）ので、22 件とも `HOOK_WORKTREE` が本流に解決したことになる。**ただしこれは「worktree でも本流を見る」ことの証明にはならない。**本リポジトリでは worktree を 1 度も作っておらず、負のコントロール（worktree 側で走らせた記録）が 0 件だからである
+- **サブエージェントは呼び出し元とセッション ID を共有する。** 本セッションの SubagentStart は **4 件**（`2026-09-04T22:19:00` = 0003、`22:38:16` = 0004、`23:06:28` = 0005、`23:47:16` = 0006）で、**4 件とも `session_id` が `595e717b-bd51-4bf4-b049-a23fb8a2fae8`**。これは本サブエージェントの環境変数 `CLAUDE_CODE_SESSION_ID` と同一で、環境には `CLAUDE_CODE_CHILD_SESSION=1` も立っている。別々のサブエージェント 4 体が同じ ID を持つ以上、この ID はサブエージェント固有のものではない。公式 S5「Subagents work within a single session.」と一致する
+- **サブエージェントのツール呼び出しでもフックは同じように走る。** 本チケット着手後（`23:48` 以降、`session_id` = 上記）の記録は **37 件**で、内訳は `workflow-entry` と `workflow-guard` の PreToolUse が大半、うち **2 件が WF204 の deny**（`cd`）。すべて本流の `logs/` に落ちている。公式 S16 と一致する
+- **`decisions.jsonl` は `cwd` も `agent_id` も記録していない。** 全 7506 行のキーが `ts, session_id, hook, event, decision, id, tool, target, ticket, note` の 10 個で一致する（`jq -r 'keys|join(",")' | sort | uniq -c` の出力が 1 行）。`HOOK_AGENT_ID` は `hook_read_input` が読んでいる（`hook-common.sh:360`）のに `hook_record` は落としている。**どの作業ツリーで判定したか・メインかサブエージェントかを記録から後追いできない**ので、並列を採るなら記録側に手当てが要る（設計への反映 16）
+
+**帰結。** WF802 の注入（`isolation: worktree` を採ったときに最も効く経路）が呼び出し元のチケットを見るのか worktree 側のチケットを見るのかは、**読み取りだけでは確定しない**。ただしどちらであっても、`worktree.baseRef` が既定のままなら worktree 側にはチケットが無いので（e20）、結果は同じ方向に転ぶ。
+
+### e20. サブエージェント worktree は既定ブランチから切られる — 機構の「静かな無効化」がそのまま再現する ✕問題
+
+公式 S2 と S7 が明記している。
+
+> giving it an isolated copy of the repository branched **by default from your default branch rather than the parent session's `HEAD`**
+
+> Subagent worktrees use the same base branch as `--worktree`, so they **branch from your repository's default branch** unless `worktree.baseRef` is set to `"head"`.
+
+本リポジトリに当てはめると次のようになる。
+
+| # | 事実 | 根拠 |
+|---|---|---|
+| 1 | 既定ブランチは `main`。本 issue の作業は `feature-50-worktree-parallel-tickets` にある | `git branch --show-current` |
+| 2 | `main` の `wip/10_tickets/10_doing/` は `.gitkeep` の **1 件のみ**（作業中チケット 0 枚） | 0004 の「検証の結果」（`git ls-tree --name-only main wip/10_tickets/10_doing/`） |
+| 3 | よって既定設定のサブエージェント worktree には**このフェーズのチケットが 1 枚も存在しない** | 1 と 2 |
+| 4 | `subagent-start-check` の `__sa_target` は `10_doing` → `00_todo` の順に探す。`main` の `00_todo` にもチケットは無いので、`hook_record skip "" "" "対象チケットが無い"` で `exit 0`。**WF802 の要点注入が起きない** | `subagent-start-check.sh:44-48, 83-86` |
+| 5 | `workflow-guard` は作業中チケットが 0 枚のとき即座に抜ける。**書き込みも実行も全部通る** | `workflow-guard.sh:59`（0004 の e3・実測手順 P2 の予測と同じ経路） |
+| 6 | `workflow-entry` の継続条件（`00_todo` / `10_doing` / `20_done` にチケットがあるか）も成立しないので、宣言の要求（WF102）が出る | `workflow-entry.sh:143`（0004 の e3・e4） |
+| 7 | 回避には `worktree.baseRef: "head"` が要る。公式 S8 は「Use this when isolating subagents that need to operate on in-progress work」と、まさにこの用途を挙げている | S8 |
+| 8 | **本リポジトリの `.claude/settings.json` に `worktree` キーは 0 件** | `grep -n "worktree" .claude/settings.json` |
+
+DDR `i0009-55` は「worktree に入った瞬間に機構が消えることに、誰も気づかない」ことを避けるために `cwd` からの解決を入れた。その解決は効くのに（0004 の e1）、**分岐元が既定ブランチだと「解決には成功して、そこにチケットが無い」という別経路で同じ結末に落ちる**。0004 の実測手順 P2 が識別子として使っている W1（`main` を基点にした作業ツリー = チケット 0 枚で無音）は、**既定設定のサブエージェント worktree そのもの**である。
+
+`worktree.baseRef: "head"` に変えた場合も、公式 S8 の「Inside a worktree, `"head"` resolves to that worktree's `HEAD`, not the main checkout's」は**呼び出し元セッションが worktree にいるとき**の話で、メイン会話が本流にいるときにサブエージェント worktree の分岐元がメイン会話の `HEAD` になるとは明示していない。そこは実測（C4）に落とした。
+
+### e21. worktree の置き場が `.claude/worktrees/` であることの二重の当たり △注意
+
+公式 S9 は「By default, the worktree is created under `.claude/worktrees/<name>/` at your repository root, on a new branch named `worktree-<name>`」と書き、Tip で「Add `.claude/worktrees/` to your `.gitignore`」と勧めている。本リポジトリの現状と突き合わせると 2 つ当たる。
+
+**(1) `.claude/` 配下は機構の保護対象である。**
+
+- `scope-limits.json` の `common.protected` は `[".claude/**", ".gitignore", "apl/*/.gitignore", ".gitattributes"]` の 4 件
+- 作業ツリーの解決が**成功**すれば、隔離サブエージェントの書き込みは worktree ルート（`<本流>/.claude/worktrees/<名前>`）からの相対パス（`wip/…`）に落ちるので（`hook_rel_path` の基準は `HOOK_WORKTREE`。`hook-common.sh:758`）、`.claude/**` には当たらない
+- 解決に**失敗**して本流に倒れると、同じ書き込みが `.claude/worktrees/<名前>/wip/…` として相対化され、`.claude/**` に当たって拒否される。**成功なら通り、失敗なら硬く止まる**（0004 の e5 のような「失敗しても素通り」ではない）ので、この点は安全側
+
+解決が成功する見込みは高い。`__hc_is_worktree_of` は本流の配下にある worktree を明示的に許しており（`hook-common.sh:298-300` のコメント「本流の配下でも、相互参照が完全に成立するなら正当な worktree（`git worktree add ./sub-wt`）」）、既定ブランチのチェックアウトには `.claude/` が含まれるので上向き探索の 1 段目で当たる。ただし**実測していない**（実測 C1 で確かめる）。
+
+**(2) `.claude/worktrees/` が `.gitignore` に無い。**
+
+- 本リポジトリの `.gitignore` に `.claude/worktrees/` の行は **0 件**（`logs/`・`wip/tmp/*`・`参考ディレクトリ/`・`.claude/settings.json.bak-*` はある）
+- 本流の `git status --porcelain` に未追跡として現れる
+- `push.sh` の押し込み前チェック項目 1 は `git status --porcelain` の出力が空でないと落ちる（`push.sh:74-83`）。つまり**サブエージェント worktree が 1 つでも残っていると push できなくなる**
+- 公式 S7 は「a worktree with changes stays on disk until the periodic sweep below can remove it without losing work」と書いており、**変更を伴うサブエージェント（= チケットを実施するサブエージェント）の worktree は必ず残る**
+
+直し方は `.gitignore` に 1 行足すだけだが、`.gitignore` 自体が `common.protected` に入っているので調査では触らない（設計への反映 18）。
+
+### e22. Claude Code 側の隔離強制 4 検査と、機構の Bash 依存の相性 △注意
+
+公式 S10 の 4 検査を、本プロジェクトの実物と突き合わせた。S4 のとおり、**呼び出し元セッションが隔離されているときは `isolation: worktree` を持たないサブエージェントにも同じ検査が及ぶ**。
+
+| 検査 | 内容（S10） | 本プロジェクトへの当たり | 判定 |
+|---|---|---|---|
+| File edits | 本流のパスを対象にした `Edit` / `Write` / `NotebookEdit` を拒否 | **0004 の e5（作業ツリーをまたぐ絶対パスの書き込みが進行状態ファイル保護をすり抜ける）を、Claude Code 側が外から塞ぐ**。ただし隔離下のときだけで、隔離していない worktree 運用では効かない | 追い風 |
+| Command working directory | 作業ディレクトリが本流に解決する Bash / PowerShell / Monitor コマンドを拒否 | 提供コマンド 5 本は本体の先頭で `cd "$LOGGER_ROOT"` する（0005 の e9）。相対起動なら `LOGGER_ROOT` は worktree に解決するので当たらない。**本流の絶対パスで起動すると当たる**（0005 の e10-2 の条件①がそのまま拒否になる） | 条件付き |
+| Git redirects | `git -C` / `--git-dir` / `GIT_DIR` / `GIT_WORK_TREE` / 本流への `cd` を経由して git を本流へ向けるコマンドを拒否 | **提供コマンド 5 本の本体に `git -C` は 0 件**（`grep -rn` が拾ったのは `tests/test_push.sh:57` と `test-lib.sh:71-75` のテスト側のみ）。本体は当たらない。フックには `git -C "$HOOK_WORKTREE"` が 4 本ある（`session-start.sh:113`、`subagent-stop-check.sh:83, 97`、`post-push-compact-prompt.sh:47, 63, 82, 133`、`post-push-usage-report.sh`）が、公式は検査の対象を「a Bash or Monitor command」と限っており、フックはツール呼び出しではないので**対象外と読める（引用からの推論であって明文ではない）** | 条件付き |
+| Command shape | worktree の内側に留まると検証できない Bash / Monitor コマンドを拒否。ブレース展開や**引用符のないヒアドキュメント**を含むものが対象で、「**You can't turn this check off**」 | **正面から当たる。** 本プロジェクトは長い文面をヒアドキュメントで `wip/tmp/*.sh` に書いて `bash` で実行する運用が常態である。引用符付きの区切り（`<<'EOF'`）なら通る読みだが、書き分けを人が守る前提になる。既存のスキル・共通ステップの文面はこの書き分けを指示していない | 逆風 |
+
+なお本チケットでは `cd` が **2 回**、`bash wip/tmp/<スクリプト>.sh` が **1 回** WF204 で拒否されており（機構側の理由。`scope.sh` の git 分類・コマンド分類の穴。観点 E）、`cd` は隔離検査（本流への `cd` を git リダイレクトとみなす）と機構の両方から制約される。塞ぎ方を決める 0008 は、**隔離下でも通る形**を条件に入れる必要がある。
+
+### e23. 動かせない場合・採らない場合の代替と、成立条件 ◎良
+
+観点 C の答えは肯定だが、e20〜e22 を直さずに使うことはできない。公式 S18（Run agents in parallel）の比較を土台に、本プロジェクトで成立する形を並べる。**どれを採るかは決めない**（0010 の判断）。
+
+| # | 代替 | 何が分かれるか | 成立条件 | 出典・根拠 |
+|---|---|---|---|---|
+| A1 | `isolation: worktree` を `task-executor.md` に足す（本命） | サブエージェントごとの作業ツリーと**新ブランチ `worktree-<名前>`** | ①`worktree.baseRef: "head"` を設定し、実際に feature ブランチの `HEAD` から切られることを確かめる（e20）②`.claude/worktrees/` を `.gitignore` に足す（e21）③`logs/` を `.worktreeinclude` で複製するか worktree ごとに初期化する（0005 の保留 P2）④ヒアドキュメントの書き分けを共通ステップに書く（e22）⑤サブエージェントの成果を feature ブランチへ合流させる手順を決める（0007） | S2 / S7 / S8 / S9 / S10 |
+| A2 | 人間が `claude --worktree <名前>` で別セッションを開く（機構との相性が最も良い） | セッションごとの作業ツリー・ブランチ・`logs/`・会話 | ①`.claude/worktrees/` を `.gitignore` に足す ②各 worktree に `logs/` を用意する ③**同じ feature ブランチを 2 つの作業ツリーで checkout できない git の制約**をどう回避するか（0007 の観点 D）④初回は workspace trust を対話で取る（`--worktree` は取っていないとエラーで終わる）⑤人間が 2 つの端末を見る | S9 / S18 |
+| A3 | 人間が別 clone を開く | `.git` ごと分かれる（`logs/` も自動的に別） | ①同じリモートブランチへ双方が push すると取り合いになるので、ブランチを分けるか push の順序を人間が握る ②`.claude/` の実体が 2 つになり、機構自身を変えるブランチではドリフトする（0005 の e11 と同じ根）③git の同一ブランチ制約には当たらない | 一般的な git の性質（公式ページの対象外） |
+| A4 | background agents / agent view（`claude agents`） | セッションごとの作業ツリー（自動で入る） | ①research preview である ②各セッションが自分の issue / MR を持つ形になり、1 issue 内のチケット並列という本 issue の狙いとはずれる | S18「Agent view moves each dispatched session into its own worktree automatically」 |
+| A5 | agent teams | **worktree で隔離しない** | ①公式が「partition the work so each teammate owns a different set of files」と明記しており、同じ `wip/30_reports/<連番>-<種類>.md` に積み上げる本プロジェクトの運用とは正面から衝突する ②experimental で既定は無効 | S18 |
+| A6 | `/batch` スキル | 5〜30 個の worktree 隔離サブエージェントが**それぞれ PR を開く** | ①1 issue = 1 ブランチ = 1 MR の原則（issue #50 のスコープ外）と正面から衝突する | `agents` ページの `/batch` の記述 |
+
+**「動かせない場合」に相当するのはどれか。** 観点 C の答えが否定でなかったので、調査計画書のリスク欄が想定した「0006 の結論が否定的」は起きなかった。ただし A1 の成立条件 5 つのうち 1 つでも満たせないと分かった時点で、実質的には A2 か A3 に倒れる。**A2 と A3 は人間が 2 つ目のセッションを開く形なので、1 プロセス内でのチケット並列は成立せず、並列の単位は「issue」ではなく「人間のセッション」になる。**その場合でも、worktree 上で機構が健全に動くこと（受け入れ条件 A1）は依然として必要である。
+
+### e24. 実測手順（観点 C。人間が実行する。コマンド列 + 予測）◎良
+
+**前提**
+
+- 実行は**人間**が行う。`.claude/agents/` と `.claude/settings.json` への書き込みは本チケットの `allow.write`（`wip/**`）の外で、`git worktree` と `cd` は機構が WF204 で拒否する
+- 実行結果は **`wip/tmp/worktree-probe/`** に置く（0004 の e8・0005 の e16 と同じ置き場）
+- **C1 の前に 0004 の実測手順 P0〜P7 を済ませておくと切り分けが楽**だが、依存はしない
+- 後始末: `.claude/agents/probe-isolated.md` は消す。`.claude/settings.json` を触った場合は元に戻す（バックアップは `.claude/settings.json.bak-*` が `.gitignore` 済み）。残った worktree は `git worktree remove`（ロックされていたら `git worktree unlock` を先に）
+
+**C1. `isolation: worktree` が効くか、効いたときサブエージェントは何を見るか**
+
+`.claude/agents/probe-isolated.md` を人間が置く（frontmatter は次の 6 行、本文は下の指示）。
+
+```markdown
+---
+name: probe-isolated
+description: worktree 隔離の実測用。pwd とリポジトリの状態を報告するだけ
+tools: Bash
+model: haiku
+isolation: worktree
+---
+
+次を 1 回の Bash で実行し、出力をそのまま最終メッセージに貼ること。判断や要約はしない。
+pwd; git rev-parse --show-toplevel; git rev-parse --absolute-git-dir; git branch --show-current;
+git log --oneline -1; ls -1 wip/10_tickets/10_doing/; ls -1 wip/10_tickets/00_todo/ | head -3;
+ls -d logs 2>&1; cat .git 2>&1; echo "SID=$CLAUDE_CODE_SESSION_ID"
+```
+
+本流のセッションから「probe-isolated エージェントを起動して」と頼み、返ってきた出力を `wip/tmp/worktree-probe/c1-isolated.txt` に貼る。
+
+予測: `pwd` は `<本流>/.claude/worktrees/<何か>`。`git branch --show-current` は `worktree-<何か>`。`git log --oneline -1` は **`main` の先端**（`feature-50-…` の先端ではない）。`wip/10_tickets/10_doing/` は `.gitkeep` のみ、`00_todo/` にも `0006`〜`0010` は無い。`logs` は存在しない。`.git` は `gitdir: <本流>/.git/worktrees/<何か>` の 1 行。`SID` は呼び出し元と同じ。
+外れたとき: `pwd` が本流のままなら `isolation` が本環境の Claude Code 2.1.259 で解釈されていない（e17 の結論は「公式にはある」に留まり、本環境では使えないことになる）。`git log` が feature ブランチの先端なら S2 / S7 の「default branch」が当てはまらず、e20 の前提が変わる。
+
+**C2. SubagentStart フックの `cwd` はどちらか**
+
+C1 の直後に、本流で次を実行する。
+
+```bash
+MAIN=/c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow
+tail -40 "$MAIN/logs/hooks/decisions.jsonl" \
+  | jq -c 'select(.event=="SubagentStart" or .event=="SubagentStop")' \
+  > "$MAIN/wip/tmp/worktree-probe/c2-main-log.txt" 2>&1
+ls -la "$MAIN"/.claude/worktrees/*/logs/hooks/ >> "$MAIN/wip/tmp/worktree-probe/c2-main-log.txt" 2>&1
+cat "$MAIN"/.claude/worktrees/*/logs/hooks/decisions.jsonl >> "$MAIN/wip/tmp/worktree-probe/c2-main-log.txt" 2>&1
+```
+
+予測（2 通りのどちらか。**これが観点 C の DoD 3 番目を確定させる**）:
+- (a) 本流の `decisions.jsonl` に `SubagentStart` の記録が 1 件増え、worktree 側に `logs/` が無い → **SubagentStart の `cwd` は呼び出し元のもの**。WF802 は呼び出し元のチケットの要点を注入していたことになる
+- (b) worktree 側に `logs/hooks/decisions.jsonl` ができて記録がそこに落ち、本流には増えない → **SubagentStart の `cwd` は worktree のもの**。このとき `note` は「対象チケットが無い」の `skip` になっている見込み（e20 の 4）
+
+`ticket` フィールドが空でも判断できる（`hook_doing_ticket` は作業中チケットが無ければ空を返す）。**判断の根拠は「どちらのファイルに落ちたか」1 点**である。
+
+**C3. 隔離下で提供コマンドとヒアドキュメントが通るか**
+
+`probe-isolated.md` の本文を次に差し替えて再度起動する（frontmatter はそのまま）。
+
+```
+次の 4 つを別々の Bash 呼び出しで実行し、各々の出力と、拒否されたならその文言をそのまま貼ること。
+(1) bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next
+(2) 引用符のないヒアドキュメント（<<EOF）で /tmp/probe.txt に 1 行書く
+(3) 引用符つきのヒアドキュメント（<<'EOF'）で /tmp/probe2.txt に 1 行書く
+(4) git -C . status --porcelain | head -3
+```
+
+予測: (1) は通り、`{"current":null,"next":…}` か「チケットが無い」旨を返す（worktree 側の `wip/` を見るため、既定ブランチなら未着手も 0 枚）。(2) は **command shape 検査で拒否**（S10）。(3) は通る見込み。(4) は **git リダイレクト検査で拒否**（`git -C`。S10）だが、機構側の WF401（`block-direct-git`）が先に出る可能性もあるので、**どちらの文言が返るか**を記録する。
+外れたとき: (2) が通るなら command shape 検査の対象が公式の記述より狭く、e22 の「逆風」の評価が下がる。(1) が拒否されるなら、隔離下では提供コマンドが一切使えず A1 は成立しない。
+
+**C4. `worktree.baseRef: "head"` の効き**
+
+`.claude/settings.json` に `{"worktree": {"baseRef": "head"}}` を人間が足し（バックアップを `.claude/settings.json.bak-c4` に取る）、C1 をもう一度実行する。
+
+予測: `git log --oneline -1` が **`feature-50-worktree-parallel-tickets` の先端**になり、`wip/10_tickets/00_todo/` に `0007`〜`0010` が現れる。`10_doing/` には実行時点で作業中のチケットが現れる。
+外れたとき: `main` の先端のままなら、「サブエージェント worktree の分岐元がメイン会話の `HEAD` になる」という読みが誤りで、A1 の成立条件 ① が満たせない（= 並列を採るなら別の道が要る）。
+後始末: `.claude/settings.json` を `.bak-c4` から戻す。
+
+**C5. 本流の `git status` が汚れるか**
+
+C1〜C4 のいずれかの後に本流で実行する。
+
+```bash
+MAIN=/c/Users/taniyama/Desktop/git/issue-mr-ticket-workflow
+git -C "$MAIN" status --porcelain > "$MAIN/wip/tmp/worktree-probe/c5-status.txt" 2>&1
+git -C "$MAIN" worktree list >> "$MAIN/wip/tmp/worktree-probe/c5-status.txt" 2>&1
+```
+
+予測: `?? .claude/worktrees/` の行が出る（e21 の (2)）。`git worktree list` に本流 + サブエージェント worktree が並ぶ。
+外れたとき: 出ないなら Claude Code が別の場所に worktree を作っているか、`WorktreeCreate` の既定が変わっている。`git worktree list` の出力で置き場を確定させる。
+**この状態で `push.sh` を実行してはいけない**（項目 1 が落ちるのは予測どおりなので、確かめる必要が無い。落ちた記録だけが残って本流の進行が止まる）。
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -804,6 +1080,23 @@ git -C "$MAIN" status --porcelain   # 空であること（wip/tmp/ は .gitigno
 | （0005）フックが絶対パスで起動される | `grep -c 'CLAUDE_PROJECT_DIR}/.claude/hooks/' .claude/settings.json` = **16**（スクリプトは重複を除いて 11 本）。相対パスで起動する登録は 0 件 |
 | （0005）`CLAUDE_PROJECT_DIR` は Bash ツールでは未設定 | `echo "CLAUDE_PROJECT_DIR=[${CLAUDE_PROJECT_DIR:-未設定}]"` → `未設定`。`PWD` は `/c/Users/…`（MSYS 形式） |
 
+| （0006）`decisions.jsonl` の総行数とイベント別の件数 | `wc -l` = **7482**、`jq` が読めた行 = **7506**。イベント別は PreToolUse 7101 / PostToolUse 249 / UserPromptSubmit 55 / SubagentStop 25 / SessionStart 25 / **SubagentStart 22** / 空 5 で、合計 7482 |
+| （0006）SubagentStart の記録がすべて本流に落ちている | `logs/hooks/decisions.jsonl`（本流）に **22 件**。`.claude/worktrees/` が存在しないので他の候補となるファイル自体が無い（負のコントロールが無いことを明記） |
+| （0006）本セッションの SubagentStart が 4 件で session_id が同一 | `jq 'select(.event=="SubagentStart")\|.session_id' \| sort \| uniq -c` = `4 595e717b-… / 13 7d007b19-… / 4 843ef779-… / 1 c59ef0ce-…`。`595e717b-…` は本サブエージェントの `CLAUDE_CODE_SESSION_ID` と一致 |
+| （0006）本チケット着手後の記録件数と deny | `session_id` = `595e717b-…` かつ `ts >= 2026-09-04T23:48` が **37 件**、うち `decision=="deny"` が **2 件**（両方 WF204 の `cd`） |
+| （0006）`decisions.jsonl` にキー `cwd` / `agent_id` が無い | `jq -r 'keys\|join(",")' \| sort \| uniq -c` の出力が **1 行**（`7506 decision,event,hook,id,note,session_id,target,ticket,tool,ts`） |
+| （0006）Agent の `tool_input` から機構が読むキー | `hook-common.sh:207-213` が拾うのは `subagent_type` / `model` / `run_in_background` の **3 つ**。作業ディレクトリに当たるキーは 0 件 |
+| （0006）起動プロンプトのひな形に worktree の欄が無い | `00-workflow-issue-mr-driven/assets/subagent-prompt.template.md` に `worktree` / `cwd` / 作業ディレクトリ の語が **0 件** |
+| （0006）`task-executor.md` の frontmatter のキー | `name` / `description` / `tools` / `model` の **4 個**。`isolation` は無い |
+| （0006）`.claude/settings.json` に `worktree` キーが無い | `grep -n "worktree" .claude/settings.json` = **0 件** |
+| （0006）`.gitignore` に `.claude/worktrees/` が無い | `cat .gitignore` に該当行 **0 件**（`logs/` / `wip/tmp/*` / `参考ディレクトリ/` / `.claude/settings.json.bak-*` はある） |
+| （0006）`.claude/` 配下が保護対象である | `jq '.common.protected' .claude/hooks/config/scope-limits.json` = `[".claude/**", ".gitignore", "apl/*/.gitignore", ".gitattributes"]` の **4 件** |
+| （0006）提供コマンド 5 本の本体に `git -C` が無い | `grep -rn "git -C\|GIT_DIR\|GIT_WORK_TREE\|--git-dir" .claude/skills/` が拾ったのは `20-common-step-commit-push/scripts/tests/test_push.sh:57` と `20-common-step-shell-script/scripts/test-lib.sh:71-75` の **テスト側のみ** |
+| （0006）フック側の `git -C` の件数 | `grep -rn "git -C" .claude/hooks/` = 本体 4 ファイル（`session-start.sh:113`／`subagent-stop-check.sh:83, 97`／`post-push-compact-prompt.sh:47, 63, 82, 133`／`post-push-usage-report.sh`）とテスト 2 ファイル |
+| （0006）`push.sh` 項目 1 が `git status --porcelain` の出力で落ちる | `push.sh:78`（`detail="$(git status --porcelain \| tr -d '\r' \| sed '/^$/d')"`）と `:79-81`（空でなければ `unmet` に積む） |
+| （0006）公式の出典が 4 URL・18 引用ある | e18 の表が **18 行**、URL は `sub-agents` / `worktrees` / `hooks` / `agents` の **4 本**、取得日はすべて 2026-09-04 |
+| （0006）DDR `i0009-55` の引用が一次資料に実在する | `hooks` ページの Note が DDR の引用文（`hooks.md:598-601`）と**同じ文言**（e18 の S15） |
+
 ## 設計への反映
 
 | # | 反映すること | 引き取り先 |
@@ -824,6 +1117,14 @@ git -C "$MAIN" status --porcelain   # 空であること（wip/tmp/ は .gitigno
 | 14 | （0005）提供コマンドのテストに worktree のケースが 1 件も無く、絶対パス起動のケースも無い（既存テストは一時リポジトリへ**コピーして相対起動**する形）。作業ツリー解決のテスト ID を提供コマンド側にも新設する必要がある | 0010（テスト ID の新設）／AI アセット実装 |
 | 15 | （0005）`logs/usage/<branch>.json` は再導出の経路が無く、作業ツリーを分けると対応工数の集計が割れる（e12）。`boundary.sh:399-403` が投稿後に**上書き**する形も、フック側の積み上げ（`post-push-usage-report.sh:51`）と噛み合っているか確かめる必要がある | 0010 |
 
+| 16 | （0006）`decisions.jsonl` に `cwd` も `agent_id` も記録されていない（e19）。`HOOK_AGENT_ID` は `hook_read_input` が読んでいる（`hook-common.sh:360`）のに `hook_record`（`hook-common.sh:654` の直前で組み立てる行）が落としている。並列を採るなら「どの作業ツリーの、メインかサブエージェントか」を後から追えないと切り分けができない。キーを 2 つ足すか、作業ツリーごとに `decisions.jsonl` が分かれることを前提に読む側を作るかの候補がある | 0010（AI アセット設計計画） |
+| 17 | （0006）`isolation: worktree` を採るなら `worktree.baseRef: "head"` の設定が必須で、これを欠くと機構が静かに無効化される（e20）。設定の追加は `.claude/settings.json`（`common.confirm` 対象）への変更なので、AI アセット設計 → 実装計画のレビューを通す | 0010／AI アセット実装 |
+| 18 | （0006）`.claude/worktrees/` を `.gitignore` に足す（e21）。公式が Tip で勧めており、足さないとサブエージェント worktree が残るたびに `push.sh` 項目 1（`push.sh:78`）が落ちる。`.gitignore` は `common.protected` なので設計を通す | 0010／AI アセット実装 |
+| 19 | （0006）隔離下では「引用符のないヒアドキュメント」を含む Bash コマンドが拒否され、この検査は無効にできない（e22）。本プロジェクトは長文をヒアドキュメントで一時スクリプトに書く運用が常態なので、`20-common-step-shell-script` などの共通ステップに書き分け（`<<'EOF'`）を明記するか、Write ツールで一時スクリプトを作る形に寄せる | 0010／AI アセット設計（共通ステップの文面） |
+| 20 | （0006）`scope.sh` の分類の穴を塞ぐとき（観点 E / 0008）、**隔離下でも通る形**を条件に入れる。本流への `cd` は Claude Code 側の git リダイレクト検査にも当たるので、`cd` を許す方向で塞ぐと隔離下で別の理由で止まる。`bash wip/tmp/<スクリプト>.sh` が `unknown` に落ちる件（本チケットで踏んだ）も同じ表に載せる | 0008／0010 |
+| 21 | （0006）`task-executor.md` の frontmatter は `name` / `description` / `tools` / `model` の 4 個で、公式が定義するフィールドのうち `isolation` のほか `skills` / `maxTurns` / `permissionMode` / `disallowedTools` / `effort` / `background` などを使っていない。並列の可否とは別に、エージェント定義の見直しの余地がある（本チケットでは調べていない） | 0010（材料として） |
+| 22 | （0006）サブエージェント worktree は `worktree-<名前>` という**別ブランチ**に成果を積み、終了時に自動では合流しない（S7）。1 issue = 1 ブランチ = 1 MR を保つなら合流の手順が要る。合流コストの見積もりは観点 D の担当 | 0007（観点 D）／0010 |
+
 ## 想定と異なった点
 
 | 計画時の見込み | 実際 | どう扱ったか |
@@ -837,6 +1138,13 @@ git -C "$MAIN" status --porcelain   # 空であること（wip/tmp/ は .gitigno
 | （0005）`CLAUDE_PROJECT_DIR` は常に設定されていると見込んでいた | 本セッションの Bash ツールでは**未設定**だった。`settings.json` がフックの起動に使っている以上フック経由では設定されているので、経路によって `__ss_load` の 2 段目が効いたり効かなかったりする | 「確かめられなかったこと」に上げ、実測手順 B2 に落とした |
 | （0005）提供コマンドのテストは worktree を扱っていないだろうと見込んでいた（0004 のフック側と同じ想定） | そのとおり 0 件だったが、**既存テストが一時リポジトリに `.claude` をコピーして相対起動する形**（`test_ticket.sh:12-23`）であることが、`__ss_load` の読み（相対起動なら `$PWD` のツリーに解決する）の裏取りになっていた | e10 の根拠として使い、e16 の B5 でも同じ形を使う設計にした |
 | （0005）`boundary.sh` の `merge_state()` の絞り込みは、汎用の作りだろうと見込んでいた | `:138-140` に「別の issue で `ready` まで終えた記録がそのまま残る」という**同じ失敗の再発防止のコメント**が明示されていた。つまり 1 度踏んで直した箇所で、`push.sh` にだけ横展開されていない | e13-1 の根拠にした。設計への反映 9 で共通化の候補として挙げた |
+
+| （0006）調査計画書は「Agent ツールに作業ディレクトリ／worktree を指定する手段があるか」と問いを立てていた | 手段は Agent ツールの引数ではなく、**エージェント定義の frontmatter `isolation: worktree`** だった。ツールの引数を探していると「無い」という誤った結論に着く | 観点は書き換えず、e17 で「探す場所が違っていた」と明示した。`subagent-prompt.template.md` に口が無いのは正しいことも併記した |
+| （0006）呼び出し元の起動プロンプトは「呼び出し元セッションの作業ディレクトリは固定であり、サブエージェントは既定でそれを引き継ぐ。この前提が崩せるのか」と前提を置いていた | 既定としては公式の記述どおりで正しい（S1）が、**前提は崩せる**。崩したあとに問題になるのは作業ディレクトリではなく**分岐元のブランチ**だった | e17 で既定を確認したうえで、重心を e20（分岐元）に置いた |
+| （0006）調査計画書のリスク欄は「観点 C が『別 worktree で動かせない』と出て、以降の観点が空振りする」を想定していた | 答えは肯定で、空振りは起きなかった。代わりに「動かせるが、そのまま載せると機構が静かに無効化される」という条件付きの肯定になった | 0007 以降は計画どおり続ける。ただし観点 D の合流コストは「サブエージェント worktree が `worktree-<名前>` という別ブランチを作る」ことを前提に見積もる必要がある（設計への反映 22） |
+| （0006）`decisions.jsonl` から「サブエージェント実行時の `cwd` の実値」を拾えると見込んでいた（調査計画書の「対象と方法」の観点 C 行） | **`cwd` は記録されていない**（キーは 10 個）。拾えるのは `session_id` と、記録がどのファイルに落ちたかだけだった | 拾えるもので代えた。`session_id` の一致からサブエージェントがセッションを共有することを示し（e19）、`cwd` そのものは実測 C2 に落とした。記録側の不足は設計への反映 16 に上げた |
+| （0006）0004 の実測手順 P2 の識別子 W1（`main` を基点にした作業ツリー = チケット 0 枚）は、あくまで実測を切り分けるための人工物だと見込んでいた | **既定設定のサブエージェント worktree そのもの**だった（分岐元が既定ブランチだから）。P2 の「W1 だけ無音」という予測は、そのまま「隔離サブエージェントでは機構が無音になる」という予測でもある | e20 で両者を結びつけた。0009 で P2 と C1 の結果を並べて読む |
+| （0006）Claude Code 側に worktree 隔離の強制があるとは想定していなかった | 隔離中は 4 つの検査が掛かり、うち File edits の検査が **0004 の e5（作業ツリーをまたぐ絶対パス書き込み）を外から塞ぐ**。一方で command shape の検査は無効化できず、本プロジェクトのヒアドキュメント運用に正面から当たる | e22 に表として整理し、追い風と逆風を分けて書いた |
 
 ## 残課題
 
@@ -853,3 +1161,11 @@ git -C "$MAIN" status --porcelain   # 空であること（wip/tmp/ は .gitigno
 | R9 | （0005）`logs/usage/<branch>.json` について、`boundary.sh:399-403` の**上書き**（`{posted, since_sha, url}` の 3 キーだけ）が、フック側の積み上げ（`post-push-usage-report.sh:51` が持つ `sessions` / `subagents` / `last_offset`）を消していないか。本チケットの担当範囲（worktree 分離）を超えるが、読んだ範囲で疑いが出た | 保留 P2 の別 issue（スコープ外で見つけたこと） |
 | R10 | （0005）e13 の 3 件を受け入れ条件 A1 の「動かない箇所」に載せるか、全体計画書の保留 P2 として別 issue に切り出すか。R6 と同じ判断 | 0009／0010（人間の判断） |
 | R11 | （0005）`__ss_load` の 1 段目は `..` を畳まずに `-d` で判定するため、`LOGGER_ROOT` に `…/x/../y` のような未正規化の文字列が入りうる（e10-1 の 6）。フック側は `__hc_winpath` で畳むので、同じディレクトリでも 2 つの根が別表記になる。比較する箇所は今は無いが、将来「本流と同じツリーか」を判定するなら効く | 0010 |
+| R12 | （0006）SubagentStart フックの `cwd` が、`isolation: worktree` のとき worktree 作成の前の値か後の値か。公式は `WorktreeCreate` と `SubagentStart` の発火順を書いていない。**観点 C の「どちらの `cwd` を読むか」のうち確定できたのは PreToolUse `Agent` 経路だけ**で、SubagentStart 経路は不明のまま残る | 0009（実測手順 C2） |
+| R13 | （0006）`isolation: worktree` が本環境の Claude Code 2.1.259 で実際に解釈されるか。公式は `isolation` の導入版を明記していない（同ページ内の他の記述は v2.1.203 / 210 / 246 などを挙げている） | 0009（実測手順 C1） |
+| R14 | （0006）`worktree.baseRef: "head"` のとき、サブエージェント worktree の分岐元がメイン会話の `HEAD`（= feature ブランチの先端）になるか。公式 S8 が明示しているのは「worktree の中では `"head"` はその worktree の `HEAD`」だけで、メイン会話が本流にいるときのサブエージェント worktree については書いていない | 0009（実測手順 C4） |
+| R15 | （0006）Claude Code の隔離検査（git リダイレクト・command shape）がフックのプロセスにも及ぶか。公式は対象を「a Bash, PowerShell, or Monitor command」と限っているが、フックが対象外だと明示した文は無い。及ぶなら `git -C "$HOOK_WORKTREE"` を持つフック 4 本が隔離下で止まる | 0009（実測手順 C3 の副産物）／0010 |
+| R16 | （0006）隔離下で提供コマンド 5 本が実際に走るか（`bash .claude/skills/…/ticket.sh`）。走らないなら A1（`isolation: worktree`）は成立せず、代替は A2 / A3 に倒れる | 0009（実測手順 C3 の (1)） |
+| R17 | （0006）`.worktreeinclude` で `logs/` を worktree へ複製したときに、進行状態（`merge-state.json` / `mr.json` / `review-state.json`）が二重になって何が起きるか。0005 の e13 は「残るほうが壊れる」と結論しているので、複製は 0005 が挙げた 3 件をそのまま worktree にも持ち込む | 0010（調査計画書の保留 P2） |
+| R18 | （0006）e20 を受け入れ条件 A1 の「動かない箇所」に載せるか、A4（並列採否）の材料に留めるか。0004 の R6・0005 の R10 と同じ種類の判断 | 0009／0010（人間の判断） |
+| R19 | （0006）並列の単位が「1 issue 内のチケット」ではなく「人間のセッション」になった場合（A2 / A3）、issue #50 の受け入れ条件 A4 に対する答えは「1 issue 内の並列は採らない」になる。その場合でも A1（worktree 上の健全性）は必要なのでフェーズ列は変わらない見込みだが、AI アセット設計の対象範囲は狭まる | 0010 |

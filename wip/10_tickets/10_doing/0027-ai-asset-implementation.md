@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "session-start.sh は注入その�
 allow:
   write: [".claude/hooks/**", "logs/**", "wip/**"]
   ops: ["read", "build-test", "hook-test", "remote-read"]
-started_at: ""
+started_at: "2026-09-04T10:35:42+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "056614e"
 ---
 
 # 0027 S4 中核: フック 3 行の追随とテスト 4 行・注入（SE-T01〜10・WE-T10）

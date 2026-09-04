@@ -135,7 +135,16 @@ read_review() {
 # 記録が現在の切れ目のものか。違えば none として扱う
 review_valid() { [ -n "$R_LAST_DONE" ] && [ "$R_LAST_DONE" = "$B_LAST_DONE" ] && [ "$R_TASK_TYPE" = "$B_TASK_TYPE" ]; }
 
-merge_state() { [ -f "$MERGE_JSON" ] && jq -r '.state // ""' "$MERGE_JSON" 2>/dev/null | tr -d '\r' || true; }
+# マージ前作業の進行状態。logs/ はブランチに紐づかないローカルの記録なので、別の issue で ready まで
+# 終えた記録がそのまま残る。現在の MR・ブランチと結びつかない記録は「無い」ものとして扱う
+# （そうしないと、同じ clone で次の issue を始めた瞬間から status が毎回 BD005 で止まる）
+merge_state() {
+  [ -f "$MERGE_JSON" ] || return 0
+  jq -r --argjson mr "${B_MR:-null}" --arg br "$(cur_branch)" '
+    if ((.mr // null) != null and $mr != null and ((.mr | tostring) != ($mr | tostring))) then ""
+    elif ((.branch // "") != "" and $br != "" and (.branch != $br)) then ""
+    else (.state // "") end' "$MERGE_JSON" 2>/dev/null | tr -d '\r' || true
+}
 
 wip_has_artifacts() {
   shopt -s nullglob
@@ -144,19 +153,22 @@ wip_has_artifacts() {
   [ "${#a[@]}" -gt 0 ]
 }
 
-# 実態からの再導出で見つけた矛盾。見つかれば BD005 で止める
+# 実態からの再導出で見つけた矛盾。見つかれば BD005 で止める。
+# 一覧は先に出し、result_ng には 1 行だけ渡す（最終行を `BD005:` に保つ — 提供コマンドの契約）
 check_conflicts() { # $1=依頼マーカーの一致件数（不明なら -1）
-  local dup="$1" ms found=""
+  local dup="$1" ms found="" n=0
   ms="$(merge_state)"
   case "$ms" in
     cleaned|pushed|ready)
-      if wip_has_artifacts; then found+="- merge-state が $ms なのに wip/ に成果物が残っている"$'\n'; fi ;;
+      if wip_has_artifacts; then found+="- merge-state が $ms なのに wip/ に成果物が残っている"$'\n'; n=$((n + 1)); fi ;;
   esac
   if [ "$dup" -ge 2 ] 2>/dev/null; then
     found+="- 同じ切れ目（$B_TASK_TYPE:$B_LAST_DONE）の依頼コメントが $dup 件ある"$'\n'
+    n=$((n + 1))
   fi
   if [ -n "$found" ]; then
-    result_ng 005 "進行状態を実態から一意に決められない。人間が確認すること:"$'\n'"$found" 1
+    printf '%s' "$found"
+    result_ng 005 "進行状態を実態から一意に決められない。矛盾 $n 件（上に列挙）。人間が確認すること" 1
   fi
 }
 
@@ -325,8 +337,16 @@ cmd_status() {
       fi
     fi
     check_conflicts "$dup"
-    write_review "$R_STATE" "$R_VIA" "$R_BASE" "$R_HEAD" "$R_URL" "$R_REQ_AT" "" "[]" "[]" ""
-    log_info "review-state を実態から再導出した state=$R_STATE"
+    # --offline はリモートの依頼マーカーを見ないので、記録が壊れている・無いときの R_STATE は
+    # 「不明」であって「none」ではない。書き戻すと不明が none として固まり、オンラインの status
+    # からは再導出の対象に見えなくなる（requested のまま記録を失った切れ目が二重依頼になる）。
+    # 書き戻すのはオンラインで実態を確かめたときだけにする
+    if [ "$offline" -eq 0 ]; then
+      write_review "$R_STATE" "$R_VIA" "$R_BASE" "$R_HEAD" "$R_URL" "$R_REQ_AT" "" "[]" "[]" ""
+      log_info "review-state を実態から再導出した state=$R_STATE"
+    else
+      log_info "offline なので review-state を書き戻さない（state=$R_STATE は暫定）"
+    fi
   else
     check_conflicts "$dup"
   fi
@@ -453,7 +473,10 @@ cmd_request() {
   [ "$standalone" -eq 1 ] || [ "$B_MR" != "null" ] || ng+="- MR が無い（--standalone を使うか MR を作る）"$'\n'
   read_review
   if review_valid && [ "$R_STATE" = "requested" ]; then ng+="- 現在の切れ目は既に requested（complete へ進む）"$'\n'; fi
-  [ -z "$ng" ] || result_ng 001 "レビュー依頼の前提を満たしていない:"$'\n'"$ng" 1
+  if [ -n "$ng" ]; then
+    printf '%s' "$ng"
+    result_ng 001 "レビュー依頼の前提を満たしていない。未充足 $(printf '%s' "$ng" | grep -c '^- ') 件（上に列挙）" 1
+  fi
 
   local url="" via="cli" tmp
   tmp="$(mktemp)"
@@ -502,7 +525,10 @@ cmd_skip() {
   fi
   [ "$B_REVIEW_REQUIRED" = "false" ] || ng+="- 人間レビューが要の切れ目は省略できない（レビューを依頼すること）"$'\n'
   [ -n "$reason" ] || ng+="- 理由が空（--reason <理由>）"$'\n'
-  [ -z "$ng" ] || result_ng 001 "レビューの省略の前提を満たしていない:"$'\n'"$ng" 1
+  if [ -n "$ng" ]; then
+    printf '%s' "$ng"
+    result_ng 001 "レビューの省略の前提を満たしていない。未充足 $(printf '%s' "$ng" | grep -c '^- ') 件（上に列挙）" 1
+  fi
   resolve_mr 1
   archive_review
   write_review "skipped" "cli" "" "$(head_sha)" "" "" "$(now_iso)" "[]" "[]" "$reason"
@@ -548,28 +574,62 @@ cmd_complete() {
     fi
   fi
 
-  # 機構が投稿したコメント（固定マーカー付き）を除く。ログイン名では除外しない
+  # 機構が投稿したコメント（固定マーカー付き）を除く。ログイン名では除外しない。
+  # 時刻の比較は必ずエポック秒に直してから行う: requested_at はローカルのオフセット表記（+09:00）で
+  # 記録され、ホストの created_at / submitted_at は UTC の Z 表記なので、ISO 文字列のまま辞書順で
+  # 比べると依頼直後の指摘が「依頼より前」と判定されて黙って落ちる。ep はどちらの表記も受ける。
+  # 変換に fromdateiso8601 を使わないのは、Windows の jq が strptime を持たず
+  # 「strptime/1 not implemented on this platform」で落ちるため（civil_days で日数を自前に計算する）
   local findings unresolved changes_req
   findings="$(printf '%s' "$data" | jq --arg since "$R_REQ_AT" '
-    [ (.threads // [])[] | select((.body // "") | contains("<!-- boundary:") | not)
+    def civil_days($y; $m; $d):
+      ( if $m <= 2 then $y - 1 else $y end ) as $yy
+      | ( ($yy / 400) | floor ) as $era
+      | ( $yy - $era * 400 ) as $yoe
+      | ( if $m > 2 then $m - 3 else $m + 9 end ) as $mp
+      | ( (((153 * $mp) + 2) / 5) | floor ) as $doym
+      | ( $doym + $d - 1 ) as $doy
+      | ( ($yoe * 365) + (($yoe / 4) | floor) - (($yoe / 100) | floor) + $doy ) as $doe
+      | ($era * 146097) + $doe - 719468;
+    def ep: . as $s
+      | if ($s == null or $s == "") then 0
+        else ( $s | sub("\\.[0-9]+"; "") ) as $t
+          | ( [$t | capture("^(?<y>[0-9]{4})-(?<mo>[0-9]{2})-(?<d>[0-9]{2})[T ](?<h>[0-9]{2}):(?<mi>[0-9]{2}):(?<se>[0-9]{2})(?<z>Z|[+-][0-9]{2}:?[0-9]{2})?$")] ) as $ms
+          | if ($ms | length) == 0 then 0
+            else ($ms[0]) as $m
+              | ( civil_days(($m.y | tonumber); ($m.mo | tonumber); ($m.d | tonumber)) * 86400
+                  + ($m.h | tonumber) * 3600 + ($m.mi | tonumber) * 60 + ($m.se | tonumber) ) as $base
+              | if ($m.z == null or $m.z == "Z") then $base
+                else ( $m.z | sub(":"; "") ) as $zz
+                  | ( (($zz[1:3] | tonumber) * 3600) + (($zz[3:5] | tonumber) * 60) ) as $off
+                  | if ($zz[0:1] == "+") then ($base - $off) else ($base + $off) end
+                end
+            end
+        end;
+    def after($se): ((. | ep) as $x | $se == 0 or $x == 0 or $x >= $se);
+    ($since | ep) as $se
+    | [ (.threads // [])[] | select((.body // "") | contains("<!-- boundary:") | not)
+        | select((.created_at // "") | after($se))
         | {kind: "thread", url: .url, author: .author, path: .path, line: .line,
            summary: ((.body // "") | split("\n")[0]), resolved: (.resolved // false)} ]
-    + [ (.reviews // [])[] | select($since == "" or (.submitted_at // "") >= $since)
+    + [ (.reviews // [])[] | select((.submitted_at // "") | after($se))
         | {kind: "review", url: .url, author: .author, path: null, line: null,
            summary: .state, resolved: true} ]
     + [ (.comments // [])[] | select((.body // "") | contains("<!-- boundary:") | not)
-        | select($since == "" or (.created_at // "") >= $since)
+        | select((.created_at // "") | after($se))
         | {kind: "comment", url: .url, author: .author, path: null, line: null,
            summary: ((.body // "") | split("\n")[0]), resolved: true} ]' | tr -d '\r')"
   unresolved="$(printf '%s' "$data" | jq -c '[(.threads // [])[] | select((.resolved // false) == false) | select((.body // "") | contains("<!-- boundary:") | not)]')"
   changes_req="$(printf '%s' "$data" | jq -r '[(.reviews // [])[] | select(.state == "CHANGES_REQUESTED")] | length')"
 
   if [ "$changes_req" != "0" ]; then
-    result_ng 003 "変更要求（CHANGES_REQUESTED）が残っている。--accept-unresolved では通せない。レビュアーが approve / dismiss するまで待つこと"$'\n'"$(printf '%s' "$data" | jq -r '(.reviews // [])[] | select(.state == "CHANGES_REQUESTED") | "- \(.author): \(.url)"')" 1
+    printf '%s' "$data" | jq -r '(.reviews // [])[] | select(.state == "CHANGES_REQUESTED") | "- \(.author): \(.url)"'
+    result_ng 003 "変更要求（CHANGES_REQUESTED）が $changes_req 件残っている（上に列挙）。--accept-unresolved では通せない。レビュアーが approve / dismiss するまで待つこと" 1
   fi
   local n_unres; n_unres="$(printf '%s' "$unresolved" | jq 'length')"
   if [ "$n_unres" != "0" ] && [ "$accept" -eq 0 ]; then
-    result_ng 003 "未解決のレビュースレッドが $n_unres 件ある。解決してもらうか、確認済みなら --accept-unresolved を付ける（変更要求は不可）:"$'\n'"$(printf '%s' "$unresolved" | jq -r '.[] | "- \(.url) \(.path):\(.line) \(.summary // .body)"')" 1
+    printf '%s' "$unresolved" | jq -r '.[] | "- \(.url) \(.path):\(.line) \(.summary // .body)"'
+    result_ng 003 "未解決のレビュースレッドが $n_unres 件ある（上に列挙）。解決してもらうか、確認済みなら --accept-unresolved を付ける（変更要求は不可）" 1
   fi
 
   local accepted="[]"

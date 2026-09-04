@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_boundary.sh — boundary.sh のテスト（仕様のテスト ID: BD-T01〜13）
+# test_boundary.sh — boundary.sh のテスト（仕様のテスト ID: BD-T01〜13、敵対的レビューの指摘の反映で BD-T14〜18）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_boundary*'
 set -uo pipefail
 
@@ -373,5 +373,119 @@ bd="$(st)"
 assert_eq "BD-T13" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type')"
 assert_eq "BD-T13" "0003" "$(printf '%s' "$bd" | tl_jq -r '.last_task.last_done')"
 assert_eq "BD-T13" "true" "$(printf '%s' "$bd" | tl_jq -r '.at_boundary')"
+
+# ================================================================ BD-T14
+# 依頼時刻（ローカルのオフセット表記）とホストの時刻（UTC の Z 表記）を辞書順で比べない。
+# 依頼の 1 秒後に付いたコメントは findings に入り、1 時間前のコメントは入らない
+reset_tickets
+mk_ticket 0001 investigation 20_done false
+mk_ticket 0002 design-plan 00_todo false
+commit_all
+printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[]},"reviews":{"nodes":[]}}}}}\n' > "$FIX/graphql.json"
+printf '[]\n' > "$FIX/comments.json"
+run_cmd bash "$B" request --body-file wip/req.md
+assert_exit "BD-T14" 0
+RAT="$(tl_jq -r '.requested_at' logs/review-state.json)"
+AFTER="$(date -u -d "$RAT +1 second" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
+BEFORE="$(date -u -d "$RAT -1 hour" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
+if [ -n "$AFTER" ] && [ -n "$BEFORE" ]; then
+  cat > "$FIX/comments.json" <<CMTEOF
+[{"html_url":"https://github.com/acme/demo/pull/1#issuecomment-90",
+  "body":"依頼の後に付いた指摘","created_at":"$AFTER","user":{"login":"reviewer"}},
+ {"html_url":"https://github.com/acme/demo/pull/1#issuecomment-91",
+  "body":"依頼より前の雑談","created_at":"$BEFORE","user":{"login":"reviewer"}}]
+CMTEOF
+  run_cmd bash "$B" complete
+  assert_exit "BD-T14" 0
+  assert_eq "BD-T14" "1" "$(tl_jq -r '[.findings[] | select(.kind == "comment")] | length' logs/review-state.json)"
+  assert_eq "BD-T14" "依頼の後に付いた指摘" "$(tl_jq -r '[.findings[] | select(.kind == "comment")][0].summary' logs/review-state.json)"
+else
+  pass "BD-T14"   # date -d が無い環境では時刻の作り分けができないので飛ばす
+fi
+
+# ================================================================ BD-T15
+# スレッドにも依頼時刻以降の絞り込みが掛かる（前の切れ目のスレッドが毎回再登場しない）
+reset_tickets
+mk_ticket 0001 investigation 20_done false
+mk_ticket 0002 design-plan 00_todo false
+commit_all
+printf '[]\n' > "$FIX/comments.json"
+printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[]},"reviews":{"nodes":[]}}}}}\n' > "$FIX/graphql.json"
+run_cmd bash "$B" request --body-file wip/req.md
+assert_exit "BD-T15" 0
+RAT="$(tl_jq -r '.requested_at' logs/review-state.json)"
+AFTER="$(date -u -d "$RAT +1 second" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
+BEFORE="$(date -u -d "$RAT -1 hour" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf '')"
+if [ -n "$AFTER" ] && [ -n "$BEFORE" ]; then
+  cat > "$FIX/graphql.json" <<GQLEOF
+{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[
+  {"id":"t1","isResolved":true,"comments":{"nodes":[{"url":"u1","path":"a.ts","line":1,
+    "body":"前の切れ目のスレッド","createdAt":"$BEFORE","author":{"login":"reviewer"}}]}},
+  {"id":"t2","isResolved":true,"comments":{"nodes":[{"url":"u2","path":"b.ts","line":2,
+    "body":"今回のスレッド","createdAt":"$AFTER","author":{"login":"reviewer"}}]}}
+]},"reviews":{"nodes":[]}}}}}
+GQLEOF
+  run_cmd bash "$B" complete
+  assert_exit "BD-T15" 0
+  assert_eq "BD-T15" "1" "$(tl_jq -r '[.findings[] | select(.kind == "thread")] | length' logs/review-state.json)"
+  assert_eq "BD-T15" "今回のスレッド" "$(tl_jq -r '[.findings[] | select(.kind == "thread")][0].summary' logs/review-state.json)"
+else
+  pass "BD-T15"
+fi
+printf '{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[]},"reviews":{"nodes":[]}}}}}\n' > "$FIX/graphql.json"
+
+# ================================================================ BD-T16
+# 複数項目のメッセージでも最終行は 1 行の BD00x:（提供コマンドの契約）。一覧はその前に出る
+reset_tickets
+mk_ticket 0001 investigation 20_done false
+mk_ticket 0002 investigation 10_doing false      # 切れ目ではない
+printf 'dirty\n' >> README.md; DIRTY=1
+run_cmd bash "$B" request --body-file wip/req.md
+assert_exit "BD-T16" 1
+assert_eq "BD-T16" "BD001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "BD-T16" "上に列挙"
+assert_contains "BD-T16" "- 未コミットの変更がある"
+commit_all
+
+reset_tickets
+mk_ticket 0001 investigation 20_done false
+mk_ticket 0002 design-plan 00_todo false
+run_cmd bash "$B" skip --reason ""
+assert_exit "BD-T16" 1
+assert_eq "BD-T16" "BD001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+printf '{"state":"ready"}\n' > logs/merge-state.json
+run_cmd bash "$B" status --offline
+assert_exit "BD-T16" 1
+assert_eq "BD-T16" "BD005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+rm -f logs/merge-state.json
+
+# ================================================================ BD-T17
+# status --offline は review-state.json を書き戻さない（不明を none として固めない）
+reset_tickets
+mk_ticket 0001 investigation 20_done false
+mk_ticket 0002 design-plan 00_todo false
+rm -f logs/review-state.json
+run_cmd bash "$B" status --offline
+assert_exit "BD-T17" 0
+if [ -f logs/review-state.json ]; then fail "BD-T17" "offline なのに review-state.json が作られた"; else pass "BD-T17"; fi
+printf '[]\n' > "$FIX/comments.json"
+run_cmd bash "$B" status
+assert_exit "BD-T17" 0
+if [ -f logs/review-state.json ]; then pass "BD-T17"; else fail "BD-T17" "online で再導出したのに書き戻されていない"; fi
+
+# ================================================================ BD-T18
+# 別の MR・別ブランチの merge-state.json は無視する（前の issue の残骸で毎回止まらない）
+reset_tickets
+mk_ticket 0001 investigation 20_done false
+mk_ticket 0002 design-plan 00_todo false
+printf '{"state":"ready","mr":999,"branch":"feature-999-other"}\n' > logs/merge-state.json
+run_cmd bash "$B" status --offline
+assert_exit "BD-T18" 0
+printf '{"state":"ready","branch":"%s"}\n' "$BRANCH" > logs/merge-state.json
+run_cmd bash "$B" status --offline
+assert_exit "BD-T18" 1
+assert_eq "BD-T18" "BD005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+rm -f logs/merge-state.json
 
 finish

@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: feedback-plan
-predecessors: ["0024", "0025", "0026", "0027", "0028", "0029", "0030", "0031", "0032", "0035", "0036", "0037"]
+predecessors: ["0024", "0025", "0026", "0027", "0028", "0029", "0030", "0031", "0032", "0035", "0036", "0037", "0038", "0039"]
 executor: main
 human_review: {required: false, reason: "承認③により人間レビューは敵対的レビューで代替する"}
 adversarial_review: {required: true, reason: "後続フェーズの要否を人間の代わりに検証する（全体計画の基準との差分）"}

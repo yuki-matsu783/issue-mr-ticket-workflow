@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり（work-defaults.m
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "remote-write:issue-create"]
-started_at: ""
+started_at: "2026-09-05T21:04:53+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "089a90e"
 ---
 
 # 0010 issue #52 の記録から改善候補を洗い出し後続フェーズを確定する

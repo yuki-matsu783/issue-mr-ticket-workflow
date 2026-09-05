@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "本フェーズの敵対的レビ
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T16:54:25+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "ae43bd7"
 ---
 
 # 0029 実装計画の穴 9 件を塞ぐ（敵対的レビュー）: チケットの宣言不足と復旧手順

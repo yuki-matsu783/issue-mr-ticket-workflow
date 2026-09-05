@@ -1064,7 +1064,7 @@ worktrees_have_doing() {
         <tbody>
           <tr><td>1</td><td>提供コマンド（チケット）</td><td><code>ticket.sh next</code> → <code>start 0026</code> → <code>complete 0026</code></td><td><code>next</code> が <code>{"current":null,"next":"0026",…}</code> を返し、<code>start</code> が <code>OK: … 作業中にした（基準点 cbd6fb5 / d4d2e93）</code></td></tr>
           <tr><td>2</td><td>提供コマンド（切れ目）</td><td><code>boundary.sh status</code></td><td>JSON が返る。<code>at_boundary:false</code> / <code>position:"in_task"</code> / <code>current:"0026"</code> / <code>mr:51</code>。<b>S7 で入れた「管理対象の作業ツリーが 0 なら <code>worktree.sh</code> を呼ばない」経路がそのまま通った</b></td></tr>
-          <tr><td>3</td><td>提供コマンド（コミット）</td><td><code>commit.sh</code></td><td>成功（このチケットの成果物のコミット）</td></tr>
+          <tr><td>3</td><td>提供コマンド（コミット）</td><td><code>commit.sh -m "docs: S9 …" &lt;3 ファイル&gt;</code></td><td><code>OK: 3 ファイルをコミットした（3d64bff）。除外: なし</code></td></tr>
           <tr><td>4</td><td>テスト</td><td><code>run-tests.sh --ids --timeout 300</code></td><td><code>OK: 28 本 / 243 件</code>（<a href="#f48">f48</a>）</td></tr>
         </tbody>
       </table>

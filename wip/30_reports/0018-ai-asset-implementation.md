@@ -809,7 +809,7 @@ worktrees_have_doing() {
 |---|---|---|---|
 | 1 | 提供コマンド（チケット） | `bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next` → `start 0026` → （最後に）`complete 0026` | `next` が `{"current":null,"next":"0026","type":"ai-asset-implementation",…}` を返し、`start` が `OK: … 作業中にした（開始 2026-09-06T04:34:23+09:00 / 基準点 cbd6fb5。OK: 1 ファイルをコミットした（d4d2e93））` |
 | 2 | 提供コマンド（切れ目） | `bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh status` | JSON が返る。`at_boundary:false` / `position:"in_task"` / `current:"0026"` / `last_task.tickets` = `0018`〜`0025` / `mr:51` / `host:"github"`。**S7 で入れた「管理対象の作業ツリーが 0 なら `worktree.sh` を呼ばない」経路がそのまま通った** |
-| 3 | 提供コマンド（コミット） | `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh …` | 成功（このチケットの成果物のコミット。ハッシュは作業ログ） |
+| 3 | 提供コマンド（コミット） | `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "docs: S9 …" <3 ファイル>` | `OK: 3 ファイルをコミットした（3d64bff）。除外: なし` |
 | 4 | テスト | `run-tests.sh --ids --timeout 300` | `OK: 28 本 / 243 件`（e48） |
 
 **`push.sh` を実行しない理由（DoD の明記どおり）。** ①push 前チェック **項目 2**（作業中のチケットが無い）は、実行者が必ず作業中チケット 1 枚を持っている状態でしか呼べないので**必ず `CP005`** になる。②`remote-write:push` は `scope-limits.json` の `types["ai-asset-implementation"].ops`（`read` / `build-test` / `hook-test` / `remote-read`）に**無い**ので、そもそもフックが通さない。代わりに次の 2 つで経路が残っていることを示した。

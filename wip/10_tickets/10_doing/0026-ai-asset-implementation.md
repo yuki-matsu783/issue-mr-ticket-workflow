@@ -66,7 +66,7 @@ base_sha: "cbd6fb5"
 - 全件テスト: `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids --timeout 300`（**1 本だけ**。並行実行しない）→ **`OK: 28 本 / 243 件`**。28 本すべて `PASS / exit 0 / failures=0`、`FAIL ID:` 空、**重複 ID なし**。所要 **21 分 44 秒**（04:40:12 → 05:01:56）
 - 割付表の機械テスト **37 / 37** が `PASS ID:` の一覧に含まれる（`HK-T01`・`HK-T05`・`HK-T06`・`HK-T12`・`HK-T15`・`HK-T21`・`HK-T22`・`WG-T14`・`WG-T19`〜`WG-T21`・`SG-T12`・`SG-T13`・`DC-T08`・`DC-T09`・`SA-T10`・`SA-T11`・`SP-T05`・`SP-T08`・`SP-T09`・`SE-T11`・`WT-T01`〜`WT-T12`・`TICKET-T13`・`CP-T12`・`BD-T20`・`BD-T21`）
 - 120 秒を超えたテスト: `test_boundary.sh` 165 秒・`test_finalize.sh` 153 秒・`test_workflow_guard.sh` 140 秒（**`--timeout 300` は今も要る** = R9 は閉じない）
-- 4 経路: `ticket.sh next` / `start 0026` OK・`boundary.sh status` OK（JSON）・`commit.sh` OK・`run-tests.sh` OK。**拒否 0 件**
+- 4 経路: `ticket.sh next` / `start 0026` OK（着手コミット `d4d2e93`）・`boundary.sh status` OK（JSON）・`commit.sh` OK（`OK: 3 ファイルをコミットした（3d64bff）。除外: なし`）・`run-tests.sh` OK。**拒否 0 件**
 - `push.sh` は**実行していない**（DoD の明記どおり。項目 2 で必ず `CP005`・`remote-write:push` が `ops` に無い）。`CP-T12` の PASS と `push.sh:171-179` の項目 5 の実装で代えた
 - `check-html.sh`: `OK: 検査 7 項目すべて通過（id 69 件 / リンク 62 件を確認。テンプレート: report）`
 

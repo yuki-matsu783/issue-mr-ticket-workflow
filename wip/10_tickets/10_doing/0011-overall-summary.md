@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり（work-defaults.m
 allow:
   write: ["wip/**"]
   ops: ["remote-write:draft-ready"]
-started_at: ""
+started_at: "2026-09-05T21:14:35+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "ddca044"
 ---
 
 # 0011 issue #52 の全体まとめと draft 解除

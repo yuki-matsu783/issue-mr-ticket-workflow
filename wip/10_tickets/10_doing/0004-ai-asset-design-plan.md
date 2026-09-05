@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T11:58:13+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "65de271"
 ---
 
 # 0004 hook機構.md への取り込みの AI アセット設計計画

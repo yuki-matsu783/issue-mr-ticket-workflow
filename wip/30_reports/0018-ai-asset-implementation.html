@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0018〜0027 AI アセット実装・テスト結果 — 入口の設定と hook-common.sh の作業ツリーの三分（S1・S2 分）</title>
+<title>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞（S1〜S3 分）</title>
 <style>
   /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
   * { box-sizing: border-box; }
@@ -126,12 +126,12 @@
 <div class="shell">
 
 <aside class="sidebar">
-  <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1 分）</p>
-  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 入口の設定と hook-common.sh の作業ツリーの三分（S1・S2 分）</h1>
+  <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1〜S3 分）</p>
+  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞（S1〜S3 分）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 8</span>
-    <span class="chip warn">△注意 2</span>
+    <span class="chip good">◎良 14</span>
+    <span class="chip warn">△注意 3</span>
     <span class="chip stop">✕問題 1</span>
   </p>
 
@@ -155,6 +155,13 @@
           <li><a href="#f9"><span class="mk good">◎</span> 9. 呼び手 3 本の WF209 / WF309 / WF605（S2 ⑤）</a></li>
           <li><a href="#f10"><span class="mk warn">△</span> 10. SG-T11 の退行の検出とホットパスの費用</a></li>
           <li><a href="#f11"><span class="mk stop">✕</span> 11. fail-closed の deny がツールを止めなかった</a></li>
+          <li><a href="#f12"><span class="mk good">◎</span> 12. 算術展開はクォートの中でも段を割らない（S3 P-1）</a></li>
+          <li><a href="#f13"><span class="mk good">◎</span> 13. 置換の閉じ括弧の後ろの語を引数にした（S3 P-2）</a></li>
+          <li><a href="#f14"><span class="mk good">◎</span> 14. git の限定適用 6 件を _sc_classify_git に集めた（S3 ②）</a></li>
+          <li><a href="#f15"><span class="mk good">◎</span> 15. cd を分類に足さないことを負のコントロールで固定（S3 ③）</a></li>
+          <li><a href="#f16"><span class="mk good">◎</span> 16. R52 の軽微 2 件と語彙表の重複検査（S3 ④）</a></li>
+          <li><a href="#f17"><span class="mk good">◎</span> 17. 通す向きと閉じる向きを実機で踏んだ（S3 ⑤）</a></li>
+          <li><a href="#f18"><span class="mk warn">△</span> 18. 全件テストが BC-T01 の退行を拾った</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -172,8 +179,8 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1 と 0019 / S2 分）</dd></div>
-    <div><dt>作成日</dt><dd>2026-09-05（0018）／更新 2026-09-05（0019）</dd></div>
+    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1・0019 / S2・0020 / S3 分）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05（0018）／更新 2026-09-05（0019・0020）</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
 </aside>
@@ -183,9 +190,10 @@
 <section id="overview" data-required>
   <p class="lead">S1（0018）は実装フェーズの<b>入口の設定</b>を 2 つ変えた。①<code>.claude/hooks/config/scope-limits.json</code> の <code>types["ai-asset-implementation"].allow</code> に <code>.gitignore</code> を足し（<code>.gitattributes</code> と同じ「<code>common.protected</code> を明示で判定順 (2) を通す」形）、②<code>.gitignore</code> に <code>.claude/worktrees/</code> を足した。①→② の順を守り、②が <code>WF201</code> にならず <b>判定 stage 5 の allow</b> で記録されたことをもって、変えた判定を実際に踏んだことを確かめた。機械テストは <code>HK-T01</code> / <code>HK-T02</code> とも PASS、<code>jq -e .</code> も成功、変更直後の <code>Write</code> と提供コマンド <code>ticket.sh next</code> も通り、機構は自分を止めていない。一方で <code>common.confirm</code> の壁は計画書の保留 P5 のとおり顕在化し、①の編集は呼び出し元のメインエージェントが代行した。さらに、宣言済みのパスでも <code>workflow-diff-check</code> が <code>WF601</code>（許可範囲外）を出し続けることが分かった。どちらも仕様どおりの振る舞いなので仕様は直さず、逸脱として記録した。</p>
   <p>S2（0019）は<b>中核 a</b>として <code>hook-common.sh</code> に作業ツリーの三分（<code>HOOK_ROOT</code> / <code>HOOK_WORKTREE</code> / <code>HOOK_SHARED_ROOT</code>）・作業ツリーの集合（<code>hook_worktrees</code>。<code>git</code> を呼ばない）・パスの 4 段の畳み込み（<code>hook_rel_path</code>）と「判定できない」の戻り値を入れ、<code>logs/</code> の置き場を §5 の根の列に合わせ、<code>decisions.jsonl</code> に <code>cwd</code> と <code>agent_id</code> を足した。値が往復する呼び手 3 本の分岐（<code>WF209</code> / <code>WF309</code> / <code>WF605</code>）も同じチケットで閉じた。<b>全フックのテスト 17 本・128 ID が PASS</b>（<code>--timeout 300</code>）。学びは 2 つで、①全通しが <code>SG-T11</code> の退行（<code>rm -rf .</code> が <code>WF302</code> → <code>WF309</code>）を拾ったこと、②中核を壊した瞬間に fail-closed の deny が記録されたのに<b>ツールは止まらなかった</b>こと（<a href="#f11">f11</a>）。</p>
+  <p>S3（0020）は<b>中核 b</b> として、全フックが読む共通ライブラリ 2 本の穴を閉じた。<code>cmdpos.sh</code> は §7-1 の正規化 2 件（①算術展開 <code>$(( ))</code> はダブルクォートの中でも<b>段を割らない</b> ②コマンド置換・プロセス置換は<b>開始と終了の対応</b>で畳み、閉じ括弧の後ろの語を新しい段の実行体にしない）を実装し、<code>scope.sh</code> は §8 の<b>限定適用 6 件</b>（<code>worktree list</code> だけ <code>read</code> / <code>branch</code> の書き込みオプション / <code>symbolic-ref</code> の代入形 / <code>reflog</code> の <code>show</code>・<code>exists</code> / <code>--output=&lt;file&gt;</code> は <code>write</code> / グローバル <code>-c</code>・<code>--config-env</code> は一律 <code>unknown</code>）を <code>_sc_classify_git</code> に集めた。<code>cd</code> は<b>分類に足さず</b>負のコントロール 5 件で固定し、R52 の軽微 2 件も直した。テストはすべて<b>先行</b>（59 件の FAIL を確認してから実装）で、<code>HK-T05</code> / <code>HK-T12</code> 332 件・<code>HK-T15</code> ほか 399 件・<code>HK-T02</code> 95 件、そして<b>全件 27 本 / 216 ID</b> が PASS。実機でも <code>git worktree list</code> / <code>git branch -a</code> / <code>git status --porcelain</code> は通り、<code>git branch -d</code> は <code>WF204</code> で止まった。ただし S2 と同じく<b>全件テストが退行を 1 件拾った</b>（<code>BC-T01</code>。置換の印で語を割ったせいで <code>ch$()mod</code> の実行体が <code>ch</code> に見え、難読化した <code>chmod</code> が素通りしていた）。直して負のコントロールを 7 件足した（<a href="#f18">f18</a>）。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>8</b><span>◎良</span></li>
-    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi good"><b>14</b><span>◎良</span></li>
+    <li class="kpi warn"><b>3</b><span>△注意</span></li>
     <li class="kpi stop"><b>1</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
@@ -196,6 +204,8 @@
         <li><b><code>common.confirm</code> のパスをサブエージェント実行者が書けない運用をこのまま続けてよいか</b>（<a href="#deviations">D3</a>・<a href="#deviations">D4</a>）。S1 は呼び出し元のメインエージェントが <code>scope-limits.json</code> の 1 行だけを代行して抜けた。同じ問題は S10（0027 / <code>.claude/settings.json</code>）でも起きるが、計画書は 0027 の実行者を最初からメインエージェントに置いているので実害は無い見込み。「サブエージェントに委ねたチケットの一部を呼び出し元が代行する」形自体の是非を判断してほしい</li>
         <li><b>fail-closed の deny がツールを止めなかった件</b>（<a href="#f11">f11</a> / 0019）。<code>hook-common.sh</code> に未定義関数の呼び出しがある状態で、拒否側 2 本が <code>WF209</code> / <code>WF309</code> を <code>decisions.jsonl</code> に記録したのに <code>Edit</code> は 2 回とも成功した。ロックアウトしない点は都合がよいが、実装計画書のロックアウト対策の前提（中核が壊れれば機構が止める）が成り立っていない。原因は特定できていないので、S3 以降の中核チケットの進め方も含めて判断してほしい</li>
         <li><b><code>hook_rel_path</code> の 4 段化で判定対象が広がったこと自体の副作用</b>（0019）。これまで「自ツリーの外」として無視されていたパスが <code>shared</code> / <code>other</code> として判定に入る。S2 では退行が 1 件（<code>SG-T11</code>）出て直したが、<code>workflow-guard</code> 側で同じ性質の見落としが無いかは <code>WG-T19</code>〜<code>WG-T21</code> / <code>SG-T12</code> / <code>SG-T13</code>（S4）を待たないと確定しない</li>
+        <li><b><code>cmdpos.sh</code> の段の並び順が「置換の中が先、外側が後」になったこと</b>（<a href="#f13">f13</a> / 0020）。<code>sed -n "$(grep …)" f.sh</code> は <code>grep</code> → <code>cut</code> → <code>sed</code> の順に積まれる。仕様 §7-9 は順序を定めていないので逸脱ではないが、呼び手が「段 0 が主コマンド」と暗黙に仮定していると振る舞いが変わる。呼び手 4 本（<code>workflow-guard</code> / <code>workflow-state-guard</code> / <code>block-direct-git</code> / <code>block-chmod</code>）はいずれも <code>for (( i = 0; i &lt; CP_COUNT; i++ ))</code> で全段を見る作りで、全フックのテストも通っているが、仕様に順序の記述が無いままでよいかを判断してほしい</li>
+        <li><b>規則 6（<code>-c</code> / <code>--config-env</code>）を「サブコマンドより前の位置」に限定したこと</b>（D11 / 0020）。文字どおり全引数を見ると <code>git log -c</code>（combined diff の読み取り）まで <code>unknown</code> に落ちる。グローバルオプションの位置に限る判定にしたので、<code>git branch -c old new</code> は規則 6 ではなく<b>規則 2</b> が閉じている（結果は同じ <code>unknown</code>）。この読み替えでよいか</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -207,6 +217,9 @@
         <li><b>呼び手 3 本の「判定できない」分岐に、S2 では専用の機械テストを足していない</b>（0019）。計画書は <code>SG-T13</code> を S4、<code>WF605</code> を S5 に割り付けており、S2 の「依存するテスト」は既存 3 本が<b>通り続けること</b>だけを求めている。この配分のままでよいか</li>
         <li><b><code>workflow-state-guard</code> の実在検査の根を直したこと</b>（<a href="#f9">f9</a> 後半 / 0019）が S2 の範囲を越えていないか。仕様の <code>SG-T12</code> が要求する振る舞いを満たすための修正だが、テストは S4 で入る。範囲外なら S4 へ戻す</li>
         <li><b><code>__hc_roots_n</code>（正規化済みの根のキャッシュ）を入れたこと</b>（0019）。仕様が要求したものではなく、§1 のホットパスの費用を下げるための実装判断。<code>HOOK_WORKTREE</code> を <code>__hc_resolve_worktree</code> の外で代入するとキャッシュが古くなる制約が増えた。残すか外すか</li>
+        <li><b>内部マーカを 2 バイト増やしたこと</b>（D8 / 0020）。§7-1 の表は内部プレースホルダを 3 つと定めるが、「段の区切りを置換の開始と終了の対応で決める」には素の括弧と置換の括弧を区別する印が要る。<code>\x05</code>（開始）/ <code>\x06</code>（終了）を足し、<b>出力には現れない</b>ようにしたうえで、入力に生のマーカが混じっていたら <code>_</code> へ潰す負のコントロールを 2 件足した。表に 2 行足す形で設計反映してよいか</li>
+        <li><b><code>git reflog HEAD</code> が <code>unknown</code> に落ちること</b>（D9 / 0020）。規則 4 は「<code>show</code> と <code>exists</code> だけ <code>read</code>」なので、ref を直接渡す読み取り形は閉じる側に落ちる。安全側なので<b>仕様の文言どおり</b>に実装したが、実運用で困るなら規則 4 に「位置引数が ref だけのときも <code>show</code>」を足す判断が要る</li>
+        <li><b><code>git branch</code> の束ねた短オプション（<code>-dr</code>）まで閉じたこと</b>（D10 / 0020）。列挙の完全一致だけでは <code>git branch -dr origin/topic</code> が素通りするため、単一ダッシュの語は 1 文字ずつ <code>dDmMcCfu</code> に照合した（<code>-a</code> <code>-v</code> <code>-vv</code> <code>-r</code> は通る）。強めた側なので確認してほしい</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -233,6 +246,10 @@
       <li><b>呼び手 3 本の「判定できない」分岐が実際の worktree 環境で期待どおり出ること</b>（0019）— 機械テストは偽のルート（<code>.git</code> ファイルと <code>.git/worktrees/&lt;名前&gt;/gitdir</code> の相互参照）で作った構成に対する検査で、<code>git worktree add</code> は使えない（<code>WF204</code>）。引き取り先: <code>SG-T13</code> / <code>DC-T08</code> / <code>DC-T09</code>（S4・S5）と S10 の実測</li>
       <li><b>f11（fail-closed の deny がツールを止めない）の原因</b>（0019）— 再現には中核を意図的に壊す必要があり、そのたびにロックアウトの危険を負う。1 度目の観測記録（<code>decisions.jsonl</code> の 4 行）だけを根拠として残し、追試はしていない。引き取り先: フィードバック計画（0028）</li>
       <li><b><code>shellcheck</code> による静的検査</b>（0019）— この環境に入っていない（<code>command not found</code>）。<code>bash -n</code> は変更した 4 本すべてで通した。引き取り先: 環境整備 / S9（0026）</li>
+      <li><b>閉じる側の 6 件を実機のフックで踏んだのは <code>git branch -d</code> の 1 件だけ</b>（0020）— <code>git worktree add</code> / <code>git checkout -b</code> / <code>git switch</code> は起動プロンプトが実行を禁じており、<code>git reflog expire</code> / <code>git symbolic-ref &lt;name&gt; &lt;ref&gt;</code> / <code>git -c …</code> は実行すると実害が出る。分類自体は <code>HK-T15</code> の 60 対で機械的に踏んでいる。引き取り先: S10（0027）の実測</li>
+      <li><b>規則 5（<code>--output=&lt;file&gt;</code>）が呼び手側で実際に <code>WF205</code> を出すこと</b>（0020）— <code>scope.sh</code> は分類と <code>SC_TARGETS</code> までを担い、<code>WF205</code> を決めるのは <code>workflow-guard</code> 側（S4 / 0021）。引き取り先: S4（0021）の <code>WG-T*</code></li>
+      <li><b>段の並び順（置換の中が先）に呼び手が依存していないこと</b>（0020）— 呼び手 4 本が <code>for (( i = 0; i &lt; CP_COUNT; i++ ))</code> で全段を見る作りであることは <code>grep</code> で確認したが、「段 0 を主コマンドとみなす」暗黙の仮定が本文の別の箇所に無いかまでは読み切っていない。引き取り先: 敵対的レビュー / S4（0021）</li>
+      <li><b>f11（fail-closed の deny がツールを止めない）の追試</b>（0020）— S3 は中核を 1 つずつ変えて毎回テストを通したので、機構が壊れた状態を作らずに済んだ。壊して追試することはロックアウトの危険を負うので行わなかった。引き取り先: フィードバック計画（0028）</li>
     </ul>
   </div>
 </section>
@@ -250,6 +267,14 @@
     <li>基準点: <code>9059a0f</code>（チケット 0019 の <code>base_sha</code>）。着手コミット <code>ea6d047</code></li>
     <li>実行コマンド: <code>run-tests.sh --filter '*test_hook_common*'</code> / 同 <code>--filter '*hooks*' --timeout 300 --ids</code> / 各テストの直接実行 / <code>bash -n</code>（変更した 4 本）</li>
     <li><code>shellcheck</code> はこの環境に無い（<code>command not found</code>）</li>
+  </ul>
+  <p>0020（S3）分:</p>
+  <ul>
+    <li>基準点: <code>6a12e35</code>（チケット 0020 の <code>base_sha</code>）。着手コミット <code>209d075</code></li>
+    <li>対象: <code>.claude/hooks/lib/cmdpos.sh</code>（429 行 → 498 行）と <code>.claude/hooks/lib/scope.sh</code>（419 行 → 473 行）。どちらも<b>全フックが読む共通ライブラリ</b></li>
+    <li>実行コマンド: <code>run-tests.sh --filter '*test_cmdpos*' / '*test_scope*' / '*config_integrity*' --timeout 300</code> / 全件 <code>--timeout 300 --ids</code> / <code>bash -n</code>（変更した 4 本）/ 実機のフックを通した <code>git worktree list</code>・<code>git branch -a</code>・<code>git status --porcelain</code>・<code>git branch -d no-such-branch-xyz</code></li>
+    <li>編集は計画書のロックアウト対策どおり <b>Edit ツールだけ</b>で行い、変更のたびに <code>bash -n</code> → 該当テスト → 実機の順で確かめた。復旧用に <code>git show 6a12e35:&lt;パス&gt;</code> の内容を <code>wip/tmp/0020/</code> に退避した（<b>使わずに済んだ</b>）</li>
+    <li>bash 5.2.12。<code>shellcheck</code> はこの環境に無い</li>
   </ul>
 </section>
 
@@ -428,6 +453,97 @@ allow:
         <p>事実として言えるのはここまでで、<b>原因は特定できていない</b>（<code>__wg_rel</code> の呼び出しはコマンド置換の中ではないので、「サブシェルで <code>exit 0</code> した」という説明は当たらない）。結果としてロックアウトは起きず復旧手順は使わずに済んだが、<b>「中核を壊しても機構が自分を止めてくれる」という前提が成り立っていない</b>。S3〜S10 は今回と同じく「1 つ変えるごとにテスト」で進める必要がある。仕様 §3 は打ち切り（timeout）を「フェイルクローズドの原則の唯一の穴」と書いているが、今回の事象は打ち切りではない（R8）。</p>
       </div>
     </li>
+    <li class="tl-item">
+      <span class="tl-dot good">12</span>
+      <h3 id="f12">算術展開 $(( )) をダブルクォートの中でも段を割らないようにした（S3 P-1）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T05 の新設 assert（変更前は count=2 / exe=n+1）</span></h3>
+      <p><code>_cp_normalize_to_reply</code> の <code>dq</code> 状態は <code>$</code> の次が <code>(</code> かどうかしか見ておらず、<code>$((</code> を<b>コマンド置換の開始</b>として扱っていた。そのため <code>echo "$((n+1))"</code> は <code>( ( n+1 ) )</code> に割れ、<code>n+1</code> が実行体の段になっていた（実測: 変更前は <code>count=2 / seg1: exe=n+1</code>）。読み取りだけのコマンドが分類外（<code>WF204</code>）で落ちる原因である。<code>dq</code> 状態にも <code>code</code> 状態と同じ検査（対応する <code>))</code> まで読み飛ばす）を入れた。<b>ダブルクォートの中では語を足さない</b>のが要点で、クォート全体を表す <code>_</code> は <code>"</code> を読んだ時点で既に出ているため、ここで足すと 1 語が 2 語になる。</p>
+      <pre><code>変更前: echo "$((n+1))"  → count=2  seg0: exe=echo / seg1: exe=n+1
+変更後: echo "$((n+1))"  → count=1  seg0: exe=echo sub=_ args=[_]
+        sed -n "$((s)),$((e))p" f.txt → count=1  seg0: exe=sed args=[-n _ f.txt]</code></pre>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">13</span>
+      <h3 id="f13">コマンド置換・プロセス置換を「開始と終了の対応」で畳み、閉じ括弧の後ろの語を引数にした（S3 P-2）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T05 の新設 assert（3 段 / 2 段 / 入れ子 / 未閉じ）</span></h3>
+      <p>これまで <code>$( )</code> / <code>` `</code> / <code>&lt;( )</code> / <code>&gt;( )</code> はすべて <code>(</code> <code>)</code> という<b>区切り文字</b>に潰されていたので、閉じ括弧の後ろに続く語が新しい段の実行体になっていた（<code>comm -12 &lt;(sort -u a.txt) b.txt</code> の <code>b.txt</code>、<code>sed -n "$(…)" path/to/file.sh</code> の <code>file.sh</code>）。仕様 §7-1 の「段の区切りは括弧の文字ではなく<b>置換の開始と終了の対応</b>で決める」を実装した。</p>
+      <ul>
+        <li>正規化は置換の開始・終了に<b>専用の内部マーカ</b>（<code>\x05</code> / <code>\x06</code>）を<b>空白なしで</b>置く。素の括弧（サブシェル・グループ）は従来どおり区切りのままなので取り違えない</li>
+        <li><code>cmdpos_parse</code> に<b>外側の段と組み立て途中の語のスタック</b>を持たせ、マーカで退避 → 中身を独立した段として出す → 復元する（<code>_cp_push_outer_segment</code> / <code>_cp_pop_outer_segment</code>）。閉じ括弧の後ろは<b>同じ語の続き</b>として積む</li>
+        <li>外側が <code>code</code> のときだけ 1 語の <code>_</code> を足す。<b>実行体の位置に来た <code>_</code> は従来どおり <code>_</code></b> なので <code>$(which git) push</code> は <code>exe=_ / args=[push] / gitlike=1</code> になり、呼び手は拒否側に倒せる</li>
+        <li>入力に生のマーカが混じっていたら正規化の入口で <code>_</code> に潰す（段の偽造を防ぐ負のコントロール 2 件）／閉じない置換でも中身の段を落とさない</li>
+      </ul>
+      <pre><code>sed -n "$(grep -n X f | cut -d: -f1),+45p" path/to/file.sh
+  → count=3  grep / cut / sed（sed の args=[-n _ path/to/file.sh]）
+comm -12 &lt;(sort -u a.txt) b.txt → count=2  sort / comm（args=[-12 _ b.txt]）
+tee &gt;(cat) out.txt              → count=2  cat / tee（args=[_ out.txt]）
+echo `git commit` x             → count=2  git commit / echo（args=[_ x]）
+echo "$(basename "$(pwd)")" tail.txt → count=3（入れ子でも外側の段は 1 つ）</code></pre>
+      <p><b>副作用として段の並び順が変わる</b>（置換の中の段が先、それを含む段が後）。仕様 §7-9 は順序を定めていないので逸脱ではないが、レビュー依頼に挙げた。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">14</span>
+      <h3 id="f14">scope.sh に git の限定適用 6 件を入れた（S3 ②）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T15 の 60 対（閉じる側と通す側）</span></h3>
+      <p><code>scope_classify</code> の <code>git</code> の分岐は「サブコマンド名が <code>_SC_GIT_READ_SUBCMDS</code> にあるか」だけを見ていたため、<code>git worktree add</code>（分類外で拒否＝<b>通す向きの穴</b>）と <code>git branch -d</code> / <code>git symbolic-ref &lt;name&gt; &lt;ref&gt;</code> / <code>git reflog expire</code> / <code>git &lt;read&gt; --output=&lt;file&gt;</code> / <code>git -c diff.external=&lt;コマンド&gt; …</code>（いずれも <code>read</code> のまま通る＝<b>閉じる向きの穴</b>）が開いていた。仕様 §8 の 6 件を <code>_sc_classify_git</code>（新設）に集約した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>規則</th><th>実装</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>git worktree</code> は <code>list</code> だけ <code>read</code></td><td>サブコマンドの後ろの最初の位置引数が <code>list</code> なら <code>read</code>、それ以外（<code>add</code> / <code>remove</code> / <code>move</code> / <code>prune</code> / <code>repair</code> / <code>lock</code> / <code>unlock</code> / 語を確定できない / 引数なし）は <code>unknown</code></td></tr>
+          <tr><td>2</td><td><code>git branch</code> は書き込みオプションで <code>unknown</code></td><td>14 語の完全一致に加え、<code>--set-upstream-to=</code> の等号形と、<b>束ねた短オプション</b>を 1 文字ずつ <code>dDmMcCfu</code> に照合</td></tr>
+          <tr><td>3</td><td><code>git symbolic-ref</code> は位置引数 2 つ以上か <code>-d</code> で <code>unknown</code></td><td>位置引数は <code>cmdpos_operands</code> で取る（コマンド文字列を再パースしない）</td></tr>
+          <tr><td>4</td><td><code>git reflog</code> は <code>show</code> / <code>exists</code>（省略時は <code>show</code>）だけ <code>read</code></td><td>位置引数が無ければ <code>show</code> とみなす</td></tr>
+          <tr><td>5</td><td><code>--output=&lt;file&gt;</code> は <code>write</code></td><td><b><code>read</code> に分類された形にだけ</b>後段で当てる（元々 <code>unknown</code> の形を緩めない）。出力先は <code>SC_TARGETS</code> へ</td></tr>
+          <tr><td>6</td><td>グローバルな <code>-c</code> / <code>--config-env</code> は一律 <code>unknown</code></td><td>設定名を見ない。<b>サブコマンドより前の位置</b>に限る。大文字小文字を畳まないので <code>git -C &lt;path&gt; status</code> は <code>read</code> のまま</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><code>config</code> / <code>remote</code> / <code>merge</code> / <code>push</code> の既存の分岐と白名簿の既定も同じ関数に移し、<b>判定の入口を 1 か所に集めた</b>（<code>branch</code> / <code>symbolic-ref</code> / <code>reflog</code> は白名簿にも載っているので、限定適用が先に効く順序を <code>case</code> の並びで保証している）。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">15</span>
+      <h3 id="f15">cd を分類に足さないことを負のコントロールで固定した（S3 ③）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T15 の負のコントロール 5 件と、作業中に実際に出た WF204</span></h3>
+      <p>DDR <code>i0050-04</code> のとおり <b><code>cd</code> は分類に足していない</b>（<code>unknown</code> → <code>WF204</code> のまま）。<code>read</code> に足すと <code>cd &lt;他の場所&gt; &amp;&amp; echo x &gt; a.txt</code> の書き込み先が自分の作業ツリーの相対パスとして判定され、作業ツリーの外への書き込みが通る（<code>hook_rel_path</code> は <code>cd</code> の効果を追跡しない）。「足していない」ことは差分では見えないので、<code>HK-T15</code> に<b>負のコントロール 5 件</b>（<code>cd /tmp</code> / <code>cd wip</code> / <code>cd wip &amp;&amp; ls</code> = <code>unknown read</code> / <code>pushd wip</code> / <code>popd</code>）を置いて固定した。作業中にも実際に <code>cd</code> を含むコマンドを 2 回 <code>WF204</code> で拒否されており、迂回せずルート相対表記で回した。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">16</span>
+      <h3 id="f16">R52 の軽微 2 件を直し、語彙表の重複を検査で固定した（S3 ④）<span class="chip good">◎良</span> <span class="basis">根拠: 重複検査が変更前に column を検出して FAIL した</span></h3>
+      <ul>
+        <li><code>_SC_READ_ONLY_CMDS</code> の末尾にあった 2 つ目の <code>column</code> を削った（<code>fold column od</code> の位置に 1 つ残る）</li>
+        <li><code>_SC_SHELL_KEYWORDS</code>（<code>for done fi esac case select coproc function</code>）を<b>全要素ループ</b>で踏む検査を <code>HK-T15</code> に足した</li>
+        <li>あわせて<b>3 つの語彙表それぞれに「重複を残さない」検査</b>を足した（<code>printf | sort | uniq -d</code> が空であること）。重複は「足したつもりが既にある」ことに気づけず、全要素ループも同じ語を 2 度踏むだけで空回りする</li>
+      </ul>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">17</span>
+      <h3 id="f17">通す向きと閉じる向きを実機のフックで 1 回ずつ踏んだ（S3 ⑤）<span class="chip good">◎良</span> <span class="basis">根拠: 4 コマンドの実行結果（3 件通過 / 1 件 WF204）</span></h3>
+      <p><code>scope.sh</code> を変えた直後に、<b>実際のフックを通して</b>次を 1 回ずつ実行した（テストは偽の設定を読むので、出荷される <code>scope-limits.json</code> と登録済みフックで踏み直す意味がある）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>コマンド</th><th>期待</th><th>実測</th></tr></thead>
+        <tbody>
+          <tr><td><code>git worktree list</code></td><td>規則 1 の<b>通す側</b>。変更前は分類外で <code>WF204</code></td><td>通った（本流 1 件を出力）</td></tr>
+          <tr><td><code>git branch -a</code></td><td>規則 2 の<b>通す側</b>（従来どおり <code>read</code>）</td><td>通った</td></tr>
+          <tr><td><code>git status --porcelain</code></td><td>既存の <code>read</code> 分類の回帰</td><td>通った</td></tr>
+          <tr><td><code>git branch -d no-such-branch-xyz</code></td><td>規則 2 の<b>閉じる側</b></td><td><code>WF204</code> で止まった（git は起動していない）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><code>cmdpos.sh</code> を変えた直後も <code>git status --porcelain</code> / <code>git branch -a</code> が通ることを確かめており、<b>2 本とも「1 つ変える → <code>bash -n</code> → 該当テスト → 実機」の順</b>を守った。f11（fail-closed の deny がツールを止めない）は機構を壊す状態を作らずに済んだため<b>再現の機会が無かった</b>。復旧手順は使わずに済んだ。なお作業中に <code>bash --version</code> / <code>cd</code> / <code>perl -i -pe</code> / <code>bash -c</code> がそれぞれ <code>WF204</code>×3 / <code>WF209</code> で拒否され、いずれも<b>迂回せず</b>別の手段に置き換えた（<code>bash -c</code> の <code>WF209</code> は f11 と対照的に<b>実際にツールを止めている</b>）。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">18</span>
+      <h3 id="f18">全件テストが BC-T01 の退行を拾った（置換の印で語を割っていた）<span class="chip warn">△注意</span> <span class="basis">根拠: 全件テスト 1 回目の FAIL 4 件 → 修正 → 2 回目 PASS</span></h3>
+      <p>担当テスト（<code>HK-T05</code> / <code>HK-T12</code> / <code>HK-T15</code> / <code>HK-T02</code>）がすべて通った後の<b>全件テスト 1 回目</b>で、<code>test_block_chmod.sh</code> の <code>BC-T01</code> が 4 件 FAIL した（<code>ch$()mod +x a</code> 系）。いずれも <b><code>allow</code> を返しており、難読化した <code>chmod</code> が素通りする</b>退行である。</p>
+      <ul>
+        <li>原因: 置換の印を<b>空白付き</b>で置いていたため <code>ch$()mod</code> が <code>ch</code> と <code>_mod</code> の 2 語に割れ、実行体が <code>ch</code> に見えた。<code>block-chmod</code> の制御方式 5 は「実行体を特定できない段」だけを拒否側に倒すので、<code>ch</code> は通ってしまう</li>
+        <li>変更前は <code>ch$</code> と <code>mod</code> に割れ、<code>ch$</code> が <code>$</code> を含むために<b>たまたま</b>閉じていた</li>
+        <li>直し方: 印を<b>空白なし</b>で置き、段の組み立て側で語を連結する（<code>_cp_split_marker_to_reply</code> と語のバッファ）。<code>ch$()mod</code> は bash と同じく 1 語になり、実行体は <code>ch_mod</code>（<code>_</code> を含み生の文字列に現れない）→ 特定できない → 拒否</li>
+        <li>固定: <code>HK-T05</code> に 7 件の assert を足した。<code>test_block_chmod.sh</code> は <code>passed=93 failures=0</code> に戻った</li>
+      </ul>
+      <div class="box warn">
+        <p class="label">学び</p>
+        <p>S2 の <code>SG-T11</code> と同じで、<b>中核の変更は担当テストが全通ししても他のフックのテストが退行を拾う</b>。計画書の「1 つ変えるごとにテスト」に加えて、<b>チケットを閉じる前に全件を回す</b>運用が実際に効いている（2 チケット連続で退行を検出した）。</p>
+      </div>
+    </li>
   </ol>
 </section>
 
@@ -466,6 +582,27 @@ allow:
     </tbody>
   </table>
   </div>
+  <p>0020（S3）分:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>bash -n</code>（変更した 2 本 + テスト 2 本）</td><td><code>cmdpos.sh</code> / <code>scope.sh</code> / <code>test_cmdpos.sh</code> / <code>test_scope.sh</code> すべて終了コード 0</td></tr>
+      <tr><td>テスト先行（<code>HK-T05</code> / <code>HK-T12</code>）</td><td>assert を書いた時点で <code>passed=304 failures=21</code>（21 件すべて新しい assert）→ 実装後 <code>passed=332 failures=0</code>（退行対策の 7 件を含む）</td></tr>
+      <tr><td>テスト先行（<code>HK-T15</code>）</td><td>assert を書いた時点で <code>failures=38</code>（<code>column</code> の重複検査 1 件を含む）→ 実装後 <code>passed=399 failures=0</code></td></tr>
+      <tr><td><code>run-tests.sh --filter '*test_cmdpos*' --timeout 300</code></td><td><code>PASS / exit 0</code>（1 本 / 2 件）</td></tr>
+      <tr><td><code>run-tests.sh --filter '*test_scope*' --timeout 300</code></td><td><code>PASS / exit 0 / passed=399 failures=0</code>（1 本 / 3 件）</td></tr>
+      <tr><td><code>run-tests.sh --filter '*config_integrity*' --timeout 300</code></td><td><code>PASS / exit 0 / passed=95 failures=0</code>（<code>classify_real</code> が出荷される <code>scope-limits.json</code> で <code>scope_classify</code> を実際に走らせる）</td></tr>
+      <tr><td>全件テスト（<code>run-tests.sh --timeout 300 --ids</code>）</td><td><b><code>OK: 27 本 / 216 件</code>（全 PASS / <code>FAIL ID:</code> 空 / 重複 ID なし）</b>。1 回目は <code>BC-T01</code> が 4 件 FAIL（<a href="#f18">f18</a>）、修正後の 2 回目で全通し</td></tr>
+      <tr><td>通す向きの回帰（実機）</td><td><code>git worktree list</code> / <code>git branch -a</code> / <code>git status --porcelain</code> の 3 件が通った</td></tr>
+      <tr><td>閉じる向き（実機）</td><td><code>git branch -d no-such-branch-xyz</code> が <code>WF204</code> で止まった</td></tr>
+      <tr><td><code>cd</code> の負のコントロール</td><td><code>HK-T15</code> に 5 件（すべて <code>unknown</code>）。作業中も実際に 2 回 <code>WF204</code> で拒否された</td></tr>
+      <tr><td>中核変更後に自分が動くか</td><td><code>Edit</code>・<code>Read</code>・<code>grep</code>・<code>run-tests.sh</code>（hook-test）・<code>ticket.sh</code> のいずれも止まらなかった。復旧手順は使わずに済んだ</td></tr>
+      <tr><td>変更が S3 の許可範囲に収まっているか</td><td><code>git diff 6a12e35 --stat</code> = <code>.claude/hooks/lib/</code> 4 ファイル / <code>wip/10_tickets/**</code> 1 枚 / <code>wip/30_reports/**</code> 2 ファイル。範囲外の差分なし</td></tr>
+      <tr><td>S3 が担当する参照更新</td><td>実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。<b>S3 の担当は 0 行</b></td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="assets">
@@ -482,10 +619,14 @@ allow:
       <tr><td>6</td><td><code>.claude/hooks/20-PreToolUse/workflow-guard.sh</code></td><td>フック</td><td>更新（<code>__wg_rel</code> の <code>WF209</code> 分岐）</td><td><code>10_spec/hooks/20-PreToolUse/workflow-guard.md</code> 制御方式 5</td><td>0019</td></tr>
       <tr><td>7</td><td><code>.claude/hooks/20-PreToolUse/workflow-state-guard.sh</code></td><td>フック</td><td>更新（<code>__sg_rel</code> の <code>WF309</code> 分岐・実在検査の根）</td><td><code>10_spec/hooks/20-PreToolUse/workflow-state-guard.md</code>「対象パスの畳み込み」・制御方式 2</td><td>0019</td></tr>
       <tr><td>8</td><td><code>.claude/hooks/22-PostToolUse/workflow-diff-check.sh</code></td><td>フック</td><td>更新（制御方式 0 の <code>WF605</code>・承認の記憶の <code>WF605</code>）</td><td><code>10_spec/hooks/22-PostToolUse/workflow-diff-check.md</code> 制御方式 0・<code>WF605</code></td><td>0019</td></tr>
+      <tr><td>9</td><td><code>.claude/hooks/lib/cmdpos.sh</code></td><td>フックの共通ライブラリ</td><td>更新（内部マーカ 2 種・<code>dq</code> の算術展開・置換の開始/終了の対応・<code>_cp_split_marker_to_reply</code> と <code>_cp_push_outer_segment</code> / <code>_cp_pop_outer_segment</code> 新設・<code>cmdpos_parse</code> の語のバッファ）</td><td><code>10_spec/フック共通仕様.md</code> §7-1（正規化）・§7-9（出力の形）</td><td>0020</td></tr>
+      <tr><td>10</td><td><code>.claude/hooks/lib/tests/test_cmdpos.sh</code></td><td>フックのテスト</td><td>更新（<code>case_hk_t05_substitution</code> 新設。28 assert）</td><td>同 §11 テスト（<code>HK-T05</code> / <code>HK-T12</code>）</td><td>0020</td></tr>
+      <tr><td>11</td><td><code>.claude/hooks/lib/scope.sh</code></td><td>フックの共通ライブラリ</td><td>更新（<code>_sc_classify_git</code> 新設・語彙表 3 種の追加・<code>column</code> の重複解消）</td><td><code>10_spec/フック共通仕様.md</code> §8「git の分類は『サブコマンド + オプション』で決める（限定適用 6 件）」「<code>cd</code> は分類に足さない」</td><td>0020</td></tr>
+      <tr><td>12</td><td><code>.claude/hooks/lib/tests/test_scope.sh</code></td><td>フックのテスト</td><td>更新（<code>case_hk_t15_git_subcmd_opts</code> 新設 = 60 対 + 出力先 + 通す向き + <code>cd</code> の負のコントロール。<code>case_classify</code> に全要素ループ 1 件と重複検査 3 件）</td><td>同 §11 テスト（<code>HK-T15</code>）</td><td>0020</td></tr>
     </tbody>
   </table>
   </div>
-  <p><code>.claude/skills/**</code> / <code>.claude/rules/**</code> / <code>.claude/agents/**</code> / <code>.claude/evals/**</code> / <code>.claude/settings.json</code> は S1・S2 では<b>1 件も触っていない</b>。<code>.claude/hooks/config/**</code> は S1 のみ。</p>
+  <p><code>.claude/skills/**</code> / <code>.claude/rules/**</code> / <code>.claude/agents/**</code> / <code>.claude/evals/**</code> / <code>.claude/settings.json</code> は S1〜S3 では<b>1 件も触っていない</b>。<code>.claude/hooks/config/**</code> は S1 のみ。</p>
 </section>
 
 <section id="tests">
@@ -502,6 +643,12 @@ allow:
       <tr><td>HK-T06</td><td><code>decisions.jsonl</code> の 1 行が §5 のスキーマ（12 キー）を満たし、<code>cwd</code> に判定時の作業ツリー、サブエージェント内では <code>agent_id</code> が入る。メインでは空文字（負のコントロール）</td><td>同上</td><td><b>PASS</b>（追記 / 0019）</td></tr>
       <tr><td>SG-T11</td><td>置き場ごとの削除（<code>rm -rf .</code> を含む）。<b>1 回目は FAIL</b>（<code>WF302</code> を期待して <code>WF309</code>）</td><td><code>run-tests.sh --filter '*hooks*' --timeout 300</code></td><td><b>PASS</b>（修正後 / 0019）</td></tr>
       <tr><td>全フック 17 本 / 128 ID</td><td><code>hook-common.sh</code> を読み込むフックの全テスト</td><td><code>run-tests.sh --filter '*hooks*' --timeout 300 --ids</code></td><td><b>全 PASS</b>（<code>FAIL ID:</code> 空 / 重複 ID なし / 0019）</td></tr>
+      <tr><td>HK-T05</td><td>§7-1 の正規化 2 件を負のコントロール付きで（算術展開が段を割らない / 置換の閉じ括弧の後ろの語が引数 / 実行体の位置の <code>_</code> / 素の括弧は従来どおり / 生の内部マーカで段を偽造できない / 語の途中の置換は語を割らない）</td><td><code>run-tests.sh --filter '*test_cmdpos*' --timeout 300</code></td><td><b>PASS</b>（新設 28 assert / <code>passed=332 failures=0</code> / 0020）</td></tr>
+      <tr><td>HK-T12</td><td>提供コマンドの識別はルート相対表記だけ（既存。置換の扱いを変えても退行しないこと）</td><td>同上</td><td><b>PASS</b>（0020）</td></tr>
+      <tr><td>HK-T15</td><td>限定適用 6 件を<b>閉じる側と通す側の対</b>で（60 対）。<code>--output=</code> の <code>SC_TARGETS</code>、<code>cd</code> の負のコントロール 5 件、語彙表の全要素ループと重複検査</td><td><code>run-tests.sh --filter '*test_scope*' --timeout 300</code></td><td><b>PASS</b>（新設 / <code>passed=399 failures=0</code> / 0020）</td></tr>
+      <tr><td>HK-T02</td><td>出荷される <code>scope-limits.json</code> を読んだうえで <code>classify_real</code> が <code>scope_classify</code> を実際に走らせる</td><td><code>run-tests.sh --filter '*config_integrity*' --timeout 300</code></td><td><b>PASS</b>（<code>passed=95 failures=0</code> / 0020）</td></tr>
+      <tr><td>BC-T01</td><td>難読化した <code>chmod</code> の拒否（既存）。<b>全件テスト 1 回目で 4 件 FAIL</b>（<a href="#f18">f18</a>）</td><td><code>run-tests.sh --timeout 300</code></td><td><b>PASS</b>（修正後 <code>passed=93 failures=0</code> / 0020）</td></tr>
+      <tr><td>全件 27 本 / 216 ID</td><td>リポジトリの全テスト（フック 17 本 + 提供コマンド 10 本）</td><td><code>run-tests.sh --timeout 300 --ids</code></td><td><b>全 PASS</b>（<code>OK: 27 本 / 216 件</code> / <code>FAIL ID:</code> 空 / 重複 ID なし / 0020）</td></tr>
     </tbody>
   </table>
   </div>
@@ -509,7 +656,9 @@ allow:
     <li>集計（S1）: <code>1 本 / 3 件</code>、<code>passed=95 failures=0</code>。集計（S2）: <code>17 本 / 128 件</code>、全 PASS、<code>FAIL</code> 0 件、重複 ID なし</li>
     <li>テスト先行: S1 は<b>適用していない</b>（既存のテストが読む設定値を変えるだけ）。S2 は <code>HK-T21</code> / <code>HK-T22</code> を<b>実装より先に書いて失敗を確認</b>してから実装し、<code>SG-T11</code> は<b>既存テストが退行を先に落とした</b>形で失敗を見てから直した</li>
     <li>呼び手 3 本の「判定できない」分岐に対する<b>新設テストは無い</b>。計画書が <code>SG-T13</code> を S4、<code>WF605</code> を S5 に割り付けているため（◇判断が欲しい に挙げた）</li>
-    <li><b>eval: 該当なし（0 件）</b>。S1・S2 とも設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセット（スキル・ルール・エージェント）を作成・変更していない。<b>このフェーズで eval は実行しない</b>（S5 以降で作る eval も定義まで）</li>
+    <li>（S3 / 0020）全件テストは <b>2 回</b>回した。1 回目（修正前）は <code>test_block_chmod.sh</code> のみ FAIL（<code>BC-T01</code> 4 件）、2 回目（修正後）は <b>27 本すべて PASS / 216 ID</b>。所要は 1 回あたり約 24 分（<code>test_workflow_guard.sh</code> が既定 120 秒に収まらないため <code>--timeout 300</code> が要る。既知の R9）</li>
+    <li>（S3 / 0020）<b>テスト先行</b>: <code>HK-T05</code> 側で 21 件、<code>HK-T15</code> 側で 38 件の FAIL を<b>実装より先に確認</b>してから実装した（合計 59 件）。重複検査は変更前に <code>column</code> を検出して FAIL し、検査が効くことを確かめてから直した。退行対策として <code>HK-T05</code> に 7 件の assert を追加</li>
+    <li><b>eval: 該当なし（0 件）</b>。S1〜S3 とも設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセット（スキル・ルール・エージェント）を作成・変更していない。<b>このフェーズで eval は実行しない</b>（S5 以降で作る eval も定義まで）</li>
   </ul>
 </section>
 
@@ -527,6 +676,11 @@ allow:
       <tr><td>frontmatter（0019）</td><td>S2 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 4 本）。チケット 0019 の frontmatter は変更していない</td><td>対象 0 件</td><td>OK</td></tr>
       <tr><td>参照更新一覧の消し込み（0019）</td><td>実装計画書の 7 行</td><td>S2 の担当 0 行</td><td>対象なし（全 7 行が S9 / 0026 担当）</td></tr>
       <tr><td>静的検査（0019）</td><td>変更した 4 本</td><td><code>bash -n</code> 4 / 4 OK、<code>shellcheck</code> は環境に無く未実施</td><td>一部未実施（「確かめられなかったこと」に記載）</td></tr>
+      <tr><td>プレースホルダ（0020）</td><td>変更した 4 本（<code>cmdpos.sh</code> / <code>scope.sh</code> / テスト 2 本）とこのレポート md / HTML</td><td>0 件</td><td>OK</td></tr>
+      <tr><td>frontmatter（0020）</td><td>S3 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 4 本）。チケット 0020 の <code>executor</code> / <code>human_review</code> は変更していない</td><td>対象 0 件</td><td>OK</td></tr>
+      <tr><td>参照更新一覧の消し込み（0020）</td><td>実装計画書の 7 行</td><td>S3 の担当 0 行</td><td>対象なし（全 7 行が S9 / 0026 担当）</td></tr>
+      <tr><td>静的検査（0020）</td><td>変更した 4 本</td><td><code>bash -n</code> 4 / 4 OK、<code>shellcheck</code> は環境に無く未実施</td><td>一部未実施（「確かめられなかったこと」に記載）</td></tr>
+      <tr><td>内部マーカが出力に漏れないこと（0020）</td><td><code>cmdpos_parse</code> の出力（<code>CP_EXE</code> / <code>CP_ARGS</code> / <code>CP_SUBCMD</code>）</td><td>マーカを含む期待値は 0 件。生のマーカを入力に混ぜた 2 件も <code>_</code> に潰れて段を偽造できない</td><td>OK</td></tr>
     </tbody>
   </table>
   </div>
@@ -546,6 +700,11 @@ allow:
       <tr><td>D5</td><td>実装計画書 S1 の識別子の誤記</td><td>計画書 L236:「①が済むまで②は <b>WF205</b> で止まる」</td><td>正しくは <code>WF201</code>（<code>Edit</code> / <code>Write</code> ツールの宣言範囲外）。同計画書 L151・L153 と 0018 の DoD は <code>WF201</code></td><td>計画書の誤記。S9 の全体検査で直すか設計反映へ渡す</td></tr>
       <tr><td>D6</td><td><code>workflow-diff-check</code> の <code>WF605</code> を、仕様の<b>制御方式 0</b>ではなく<b>制御方式 1 の後</b>に置いた（0019）</td><td>仕様は「0. 作業ツリーの確定 … 決められない → WF605 を伝えて抜ける」を 1 より前に置く</td><td>実装は <code>hook_enforce_enabled || hook_disabled</code> の<b>後</b></td><td>共通仕様 §3「停止中のフックは判定・注入を行わない」と両立させるため。<code>workflow-state-guard</code> 仕様は同じ状況に「0 は 1 の後に評価する」と明記しており、そちらに揃えた。仕様は直さず、diff-check 仕様にも同じ注記を足す案を設計反映へ</td></tr>
       <tr><td>D7</td><td><code>hook_read_state</code> が共通仕様 §1 の<b>1 回目の jq</b> ではなく<b>2 回目</b>にある（0019 で維持）</td><td>§1 の表は <code>review-state</code> / <code>merge-state</code> を 1 回目に置く</td><td>共有ルートの解決は <code>cwd</code>（= stdin）を読む <code>__hc_resolve_worktree</code> の後なので 1 回目には渡せない。既存の逸脱コメントを「作業ツリー」→「共有ルート」に読み替えて維持した</td><td>S2 で作った逸脱ではなく、三分の導入で理由が変わった逸脱。設計反映で §1 の表を実装に合わせる</td></tr>
+      <tr><td>D8</td><td>内部プレースホルダを<b>表の 3 つより 2 つ多く</b>使っている（0020）</td><td>§7-1 の表は <code>\x01</code> / <code>\x02</code> / <code>\x03</code> の 3 つを「用途を重ねない」と定める</td><td>置換の開始 <code>\x05</code> / 終了 <code>\x06</code> を足した。段の区切りを「置換の開始と終了の対応」で決めるには、素の括弧と置換の括弧を区別する印が要る。<b>出力には現れない</b>し、入力に生のマーカが混じっていたら先に <code>_</code> へ潰す</td><td>仕様は直さず記録。表に 2 行足す形で設計反映へ（負のコントロール 2 件で固定済み）</td></tr>
+      <tr><td>D9</td><td><code>git reflog &lt;ref&gt;</code>（サブコマンドを省いて ref を直接渡す読み取り形）が <code>unknown</code> に落ちる（0020）</td><td>§8 の規則 4: 「<code>show</code> と <code>exists</code> は <code>read</code>、それ以外は <code>unknown</code>。サブコマンド省略時は <code>show</code> とみなす」</td><td>位置引数が<b>無い</b>ときだけ <code>show</code> とみなす。<code>git reflog HEAD</code> は <code>unknown</code></td><td>仕様の文言どおり（安全側）に倒した。実運用で困るなら規則 4 に「位置引数が ref だけなら <code>show</code>」を足す</td></tr>
+      <tr><td>D10</td><td>規則 2 で<b>束ねた短オプション</b>（<code>git branch -dr x</code>）まで閉じている（0020）</td><td>§8 の規則 2 は <code>-d</code> <code>-D</code> <code>--delete</code> … の<b>列挙</b></td><td>列挙の完全一致に加え、単一ダッシュの語を 1 文字ずつ <code>dDmMcCfu</code> に照合する（<code>-a</code> <code>-v</code> <code>-vv</code> <code>-r</code> は通る）</td><td>列挙だけだと <code>-dr</code> が <code>read</code> で素通りするため強めた。仕様の意図に沿うが文言は「列挙」なので記録</td></tr>
+      <tr><td>D11</td><td>規則 6 を<b>サブコマンドより前の位置</b>に限定した（0020）</td><td>§8 の規則 6: 「<code>-c</code> / <code>--config-env</code> があればサブコマンドが何であれ <code>unknown</code> に倒す」</td><td>グローバルオプションの位置に現れたものだけを見る。<code>git log -c</code>（combined diff）や <code>git branch -c old new</code> は規則 6 では拾わない（後者は<b>規則 2</b> が <code>unknown</code> にする）</td><td>文字どおり全引数を見ると読み取り形まで落ちる。規則の見出し <code>git -c &lt;name&gt;=&lt;value&gt; …</code> がグローバル位置を示しているのでそちらに従った</td></tr>
+      <tr><td>D12</td><td>規則 5 を <b><code>read</code> に分類された形にだけ</b>当てている（0020）</td><td>§8 の規則 5 の見出しは <code>git &lt;read サブコマンド&gt; --output=&lt;file&gt;</code> だが、本文は <code>format-patch</code> など <code>read</code> でない形も例に挙げる</td><td><code>SC_CLASS</code> が <code>read</code> になった後で <code>--output</code> を探す。<code>git format-patch --output=…</code> は <code>unknown</code> のまま</td><td><code>unknown</code> を <code>write</code> に変えると<b>緩む</b>ため閉じる側に倒した。設計反映で本文の例を見出しに合わせる案</td></tr>
     </tbody>
   </table>
   </div>
@@ -560,6 +719,10 @@ allow:
     <li>実装計画書 S1 の <code>WF205</code> → <code>WF201</code> の訂正（D5）→ S9（0026）の全体検査</li>
     <li><code>workflow-diff-check</code> 仕様の制御方式 0 に「1（停止中）の後に評価する」注記を足す（D6。<code>workflow-state-guard</code> 仕様には既にある）→ 設計反映フェーズ</li>
     <li>フック共通仕様 §1 の副入力の表（1 回目 / 2 回目）を実装に合わせる（D7）→ 設計反映フェーズ</li>
+    <li>フック共通仕様 §7-1 の内部プレースホルダの表に、置換の開始 <code>\x05</code> / 終了 <code>\x06</code> の 2 行を足す（D8）→ 設計反映フェーズ</li>
+    <li>§8 の規則 4 に「位置引数が ref だけのときも <code>show</code> とみなす」を足すか、<code>git reflog HEAD</code> を閉じたままにするかを決める（D9）→ フィードバック計画（0028）→ 設計反映</li>
+    <li>§8 の規則 2 に「束ねた短オプションも同じ扱い」、規則 6 に「グローバルオプションの位置に限る」、規則 5 に「<code>read</code> に分類された形にだけ当てる」を明記する（D10・D11・D12）→ 設計反映フェーズ</li>
+    <li>§7-9 に段の並び順（置換の中の段が先、それを含む段が後）を書くか、「順序は定めない」を明記する（<a href="#f13">f13</a>）→ 設計反映フェーズ</li>
     <li>中核が壊れたときの fail-closed が実際には遮断にならない件（<a href="#f11">f11</a>）。仕様 §3 は打ち切りだけを「唯一の穴」と書いている → フィードバック計画（0028）→ 設計反映</li>
   </ol>
 </section>
@@ -579,6 +742,12 @@ allow:
       <tr><td>（0019）中核を壊せば機構が自分を止める（＝ロックアウト対策が要る）</td><td><code>decisions.jsonl</code> には deny が記録されたが、<b>ツールは止まらなかった</b>（<a href="#f11">f11</a>）。復旧手順は使わずに済んだ</td><td>止まらなかったこと自体を ✕問題として記録し、R8 でフィードバック計画へ渡す。運用は「1 つ変えるごとにテスト」を続ける</td></tr>
       <tr><td>（0019）<code>test_workflow_guard.sh</code> は既定の 120 秒で回る</td><td>149〜207 秒かかり <code>TIMEOUT</code>。9/4 の全通しでも 124 秒で、変更していないテストも同日比 1.6〜1.8 倍に伸びていた（機械の負荷）</td><td>全通しは 9/4 と同じ <code>--timeout 300</code> で行った。S2 の変更による退行ではないと判断（<a href="#f10">f10</a>）</td></tr>
       <tr><td>（0019）<code>shellcheck</code> を掛けられる</td><td>この環境に入っていない</td><td><code>bash -n</code> だけで確認し、「確かめられなかったこと」に残した</td></tr>
+      <tr><td>（0020）<code>$(which git) push</code> は変更前から実行体 <code>_</code> の段になっている（§7-1 の例）</td><td>変更前は <code>exe=$</code>（opaque）と <code>which</code> と <code>push</code> の<b>3 段</b>に割れており、<code>push</code> が独立した段の実行体になっていた</td><td>変更後は仕様どおり 2 段（<code>which git</code> と <code>exe=_ / args=[push] / gitlike=1</code>）。呼び手が「<code>_</code> かつ対象語を含む」で拒否側に倒せる形になった</td></tr>
+      <tr><td>（0020）<code>cmdpos.sh</code> を変えると <code>bash</code> で始まるすべての判定が崩れ、<code>git show</code> すら通らなくなり得る（計画書のロックアウト対策）</td><td>崩れなかった。<code>bash -n</code> → 該当テスト → 実機の順で 1 つずつ確かめ、退避しておいた基準点の内容（<code>wip/tmp/0020/</code>）は使わずに済んだ</td><td>手順は守った（Edit ツールだけで編集し、<code>git checkout</code> は使わない前提で退避を先に取った）</td></tr>
+      <tr><td>（0020）担当テストが全通しすれば中核の変更は安全</td><td><b>全件テストが <code>BC-T01</code> の退行を 4 件拾った</b>（<code>ch$()mod</code> の実行体が <code>ch</code> に見え、難読化した <code>chmod</code> が素通り）。S2 の <code>SG-T11</code> に続いて 2 チケット連続</td><td>直して <code>HK-T05</code> に負のコントロールを 7 件足した（<a href="#f18">f18</a>）。「チケットを閉じる前に全件を回す」運用を続ける</td></tr>
+      <tr><td>（0020）置換を 1 語の <code>_</code> に潰すとき、印を空白で区切っても差し支えない</td><td><code>ch$()mod</code> のように<b>語の途中</b>に置換がある形で語が割れ、bash が 1 語として実行するものを 2 語として解析していた</td><td>印を空白なしで置き、段の組み立て側で語を連結する形に直した。<code>cmdpos</code> は「bash が 1 語とみなすものは 1 語」を守る必要がある</td></tr>
+      <tr><td>（0020）閉じる向きの 6 件を実機で踏める</td><td>実機で踏めたのは <code>git branch -d</code> の 1 件だけ（他は実行すると実害が出るか、起動プロンプトが禁じている）</td><td>分類自体は <code>HK-T15</code> の 60 対で機械的に踏み、「確かめられなかったこと」に残した</td></tr>
+      <tr><td>（0020）語彙表の全要素ループは 3 つの表すべてに既にある</td><td><code>_SC_SHELL_KEYWORDS</code> だけ無く、<code>column</code> の重複も残っていた（R52 の指摘どおり）</td><td>全要素ループ 1 件と重複検査 3 件を足した。重複検査は変更前に <code>column</code> を検出して FAIL した（検査が効くことを確かめてから直した）</td></tr>
     </tbody>
   </table>
   </div>
@@ -597,6 +766,10 @@ allow:
     <li><b>R8</b> 中核が壊れたとき、fail-closed の deny が <code>decisions.jsonl</code> に残るのに<b>ツールが止まらない</b>（<a href="#f11">f11</a>）。原因未特定 → フィードバック計画（0028）</li>
     <li><b>R9</b> <code>test_workflow_guard.sh</code> が <code>run-tests.sh</code> の既定 120 秒に収まらない（9/4 時点で 124 秒）。全通しに <code>--timeout 300</code> が要る → S9（0026）/ フィードバック計画（0028）</li>
     <li><b>R10</b> <code>shellcheck</code> がこの環境に無く、シェルスクリプトの静的検査が <code>bash -n</code> だけになっている → 環境整備 / S9（0026）</li>
+    <li><b>R11</b> <code>git reflog HEAD</code>（ref 直渡し）が <code>unknown</code> に落ちる（D9）。読み取りだけの形が閉じる側にある → フィードバック計画（0028）→ 設計反映</li>
+    <li><b>R12</b> 段の並び順が「置換の中の段が先」になった（<a href="#f13">f13</a>）。呼び手 4 本が全段をループする作りであることは確認したが、仕様 §7-9 が順序を定めていないので、将来の呼び手が「段 0 が主コマンド」と仮定しうる → 敵対的レビュー / 設計反映（§7-9 に順序の有無を明記）</li>
+    <li><b>R13</b> 規則 5（<code>--output=&lt;file&gt;</code>）が呼び手側で <code>WF205</code> を出すことは未確認（<code>scope.sh</code> は分類と <code>SC_TARGETS</code> まで）→ S4（0021）の <code>WG-T*</code></li>
+    <li><b>R14</b> 閉じる向きの 6 件のうち、実機のフックで踏めたのは <code>git branch -d</code> の 1 件だけ → S10（0027）の実測</li>
   </ul>
 </section>
 

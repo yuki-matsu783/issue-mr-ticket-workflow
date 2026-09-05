@@ -1,18 +1,18 @@
 ---
 type: report
-title: 0018〜0027 AI アセット実装・テスト結果 — 入口の設定と hook-common.sh の作業ツリーの三分（S1・S2 分）
-description: issue #50 の AI アセット実装フェーズ（S1〜S10 / チケット 0018〜0027）が積み上げる実装結果レポート。S1 では scope-limits.json の allow に .gitignore を足し .claude/worktrees/ を無視した。S2 では hook-common.sh に作業ツリーの三分・作業ツリーの集合・パスの 4 段の畳み込み・共有ルートを入れ、decisions.jsonl に cwd と agent_id を足し、呼び手 3 本を WF209 / WF309 / WF605 に分岐させた。全フックのテスト 17 本 128 ID が PASS。SG-T11 の退行の検出と、fail-closed の deny がツールを止めなかった観察を記録した
+title: 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞（S1〜S3 分）
+description: issue #50 の AI アセット実装フェーズ（S1〜S10 / チケット 0018〜0027）が積み上げる実装結果レポート。S1 では scope-limits.json の allow に .gitignore を足し .claude/worktrees/ を無視した。S2 では hook-common.sh に作業ツリーの三分・作業ツリーの集合・パスの 4 段の畳み込み・共有ルートを入れ、decisions.jsonl に cwd と agent_id を足し、呼び手 3 本を WF209 / WF309 / WF605 に分岐させた。S3 では cmdpos.sh の正規化 2 件（算術展開は段を割らない / 置換の閉じ括弧の後ろの語を実行体にしない）と scope.sh の git の限定適用 6 件を入れ、cd は分類に足さないことを負のコントロールで固定した。全フックのテスト 17 本 128 ID が PASS。SG-T11 の退行の検出と、fail-closed の deny がツールを止めなかった観察を記録した
 tags: [report, ai-asset-implementation, issue-50]
-keywords: [scope-limits.json, .gitignore, .claude/worktrees/, common.confirm, WF203, WF601, ロックアウト対策, HK-T01, HK-T02, 判定順, hook-common.sh, HOOK_SHARED_ROOT, hook_worktrees, hook_rel_path, 作業ツリーの三分, 畳み込み, WF209, WF309, WF605, HK-T06, HK-T21, HK-T22, SG-T11, fail-closed]
+keywords: [scope-limits.json, .gitignore, .claude/worktrees/, common.confirm, WF203, WF601, ロックアウト対策, HK-T01, HK-T02, 判定順, hook-common.sh, HOOK_SHARED_ROOT, hook_worktrees, hook_rel_path, 作業ツリーの三分, 畳み込み, WF209, WF309, WF605, HK-T06, HK-T21, HK-T22, SG-T11, fail-closed, cmdpos.sh, scope.sh, 算術展開, コマンド置換, プロセス置換, git worktree list, 限定適用, 負のコントロール, HK-T05, HK-T12, HK-T15]
 ---
 
-# 0018〜0027 AI アセット実装・テスト結果 — 入口の設定と hook-common.sh の作業ツリーの三分（S1・S2 分）
+# 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞（S1〜S3 分）
 
 - 対象 issue: [#50](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50)
 - MR: [#51](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51)（draft）
 - ブランチ: `feature-50-worktree-parallel-tickets`
-- チケット: 0018〜0027（実装計画書 `wip/20_plans/0016-ai-asset-implementation-plan.md` の S1〜S10。**このレポートは各チケットが節を積み上げる器**で、現時点の内容は 0018（S1）と 0019（S2）分）
-- 作成日: 2026-09-05（0018）／更新: 2026-09-05（0019）
+- チケット: 0018〜0027（実装計画書 `wip/20_plans/0016-ai-asset-implementation-plan.md` の S1〜S10。**このレポートは各チケットが節を積み上げる器**で、現時点の内容は 0018（S1）・0019（S2）・0020（S3）分）
+- 作成日: 2026-09-05（0018）／更新: 2026-09-05（0019・0020）
 
 ## サマリ
 
@@ -24,10 +24,12 @@ S2（0019）は**中核 a**として `hook-common.sh` に作業ツリーの三�
 
 S2 で得た大きな学びは 2 つある。①全通しで **`SG-T11` の退行**（`rm -rf .` が `WF302` → `WF309` に化ける）を検出できた。「点だけの相対パス」を判定できない側に倒したのが原因で、置き場ごと消す形を拾えなくなる退行だった（e10）。②中核を壊した瞬間に **fail-closed の deny が `decisions.jsonl` に記録されたのに、対応する `Edit` は止まらなかった**（e11）。「中核を壊しても機構が自分を止める」という前提が成り立っておらず、原因は特定できていない。
 
-- ◎良 8 件 / △注意 2 件（e4・e10）/ ✕問題 1 件（e11）（節は e1〜e11 の 11 件。HTML ビューの章 ID は `f1`〜`f11` で 1 対 1）
-- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**
-- eval: **S1・S2 とも対象は 0 件**（設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセットを作っていない）。このフェーズでは eval を**実行しない**
-- 仕様からの逸脱: 7 件（D1〜D7。D6・D7 が S2 分）
+S3（0020）は**中核 b** として、全フックが読む共通ライブラリ 2 本の穴を閉じた。`cmdpos.sh` は §7-1 の正規化 2 件（①算術展開 `$(( ))` はダブルクォートの中でも**段を割らない** ②コマンド置換・プロセス置換は**開始と終了の対応**で畳み、閉じ括弧の後ろの語を新しい段の実行体にしない）を実装し、`scope.sh` は §8 の「サブコマンド + オプション」の**限定適用 6 件**（`worktree list` だけ `read` / `branch` の書き込みオプション / `symbolic-ref` の代入形 / `reflog` の `show`・`exists` / `--output=<file>` は `write` / グローバル `-c`・`--config-env` は一律 `unknown`）を `_sc_classify_git` に集めた。`cd` は**分類に足さず**、負のコントロールとして 5 件の assert で固定した。R52 の軽微 2 件（`_SC_READ_ONLY_CMDS` の `column` の重複・`_SC_SHELL_KEYWORDS` の全要素ループ）も同じチケットで直し、**一覧に重複を残さない検査**を 3 つの語彙表に足した。テストはすべて**先行**（`HK-T05` 側で 21 件・`HK-T15` 側で 38 件の FAIL を確認してから実装）で、最終は `HK-T05`/`HK-T12` 332 件・`HK-T15`/`HK-T11`/`HK-T16` 399 件・`HK-T02` 95 件、そして**全件 27 本 / 216 ID がすべて PASS**。実機でも `git worktree list` / `git branch -a` / `git status --porcelain` は通り、`git branch -d <名前>` は `WF204` で止まった（通す向きと閉じる向きの両方を 1 回ずつ踏んだ）。S2 で観測した e11（fail-closed の deny がツールを止めない）は、S3 では**中核を壊さずに済んだため再現の機会が無かった**。ただし S2 と同じく**全件テストが退行を 1 件拾った**（`BC-T01`。置換の印で語を割ったせいで `ch$()mod` の実行体が `ch` に見え、難読化した `chmod` が素通りしていた）。直して負のコントロールを 7 件足した（e18）。
+
+- ◎良 14 件 / △注意 3 件（e4・e10・e18）/ ✕問題 1 件（e11）（節は e1〜e18 の 18 件。HTML ビューの章 ID は `f1`〜`f18` で 1 対 1）
+- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**。S3 は `HK-T05` / `HK-T12` / `HK-T15` / `HK-T02` PASS（テスト先行で 59 件の FAIL を確認してから実装）に加え、**リポジトリの全テスト 27 本 216 ID が PASS / FAIL 0 / 重複 ID なし**
+- eval: **S1〜S3 とも対象は 0 件**（設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセットを作っていない）。このフェーズでは eval を**実行しない**
+- 仕様からの逸脱: 12 件（D1〜D12。D6・D7 が S2 分、D8〜D12 が S3 分）
 
 ### ◆特に見てほしい（0018 分）
 
@@ -49,6 +51,17 @@ S2 で得た大きな学びは 2 つある。①全通しで **`SG-T11` の退�
 - **`workflow-state-guard` の実在検査の根を直したこと（e9 後半）が S2 の範囲を越えていないか**。仕様の `SG-T12` が要求する振る舞い（他ツリーの `10_doing/` の既存チケットの更新は通す）を満たすための修正だが、テストは S4 で入る。範囲外なら S4 へ戻す
 - **`__hc_roots_n`（正規化済みの根のキャッシュ）を入れたこと**。仕様が要求したものではなく、§1 のホットパスの費用を下げるための実装判断である。`HOOK_WORKTREE` を `__hc_resolve_worktree` の外で代入するとキャッシュが古くなるという制約が増えた（コメントに明記）。残すか外すか
 
+### ◆特に見てほしい（0020 分）
+
+- **`cmdpos.sh` の段の並び順が「置換の中が先、外側が後」になったこと**（e13）。`sed -n "$(grep …)" f.sh` は `grep` → `cut` → `sed` の順に `CP_*` へ積まれる。仕様 §7-9 は段の**順序を定めていない**ので逸脱ではないが、呼び手が「段 0 が主コマンド」と暗黙に仮定していると振る舞いが変わる。呼び手 4 本（`workflow-guard` / `workflow-state-guard` / `block-direct-git` / `block-chmod`）はいずれも `for (( i = 0; i < CP_COUNT; i++ ))` で全段を見る作りで、全フックのテストも通っているが、仕様に順序の記述が無いままでよいか（§7-9 に「順序は定めない」と書くか、並び順を書くか）を判断してほしい
+- **規則 6（`-c` / `--config-env`）を「サブコマンドより前の位置」に限定したこと**（D11）。仕様は「`-c` / `--config-env` があればサブコマンドが何であれ `unknown`」と読めるが、そのまま実装すると `git log -c`（combined diff の読み取り）まで `unknown` に落ちる。**グローバルオプションの位置に限る**判定にしたので、`git branch -c old new`（ブランチのコピー）は規則 6 ではなく**規則 2** が閉じている（結果は同じ `unknown`）。この読み替えでよいか
+
+### ◇判断が欲しい（0020 分）
+
+- **内部マーカを 2 バイト増やしたこと**（D8）。§7-1 の表は内部プレースホルダを 3 つ（`\x01` / `\x02` / `\x03`）と定めているが、「段の区切りを括弧の文字ではなく置換の開始と終了の対応で決める」には、素の括弧（サブシェル）と置換の括弧を区別する印が要る。`\x05`（開始）/ `\x06`（終了）を足し、**出力には現れない**（段を組み立てるときに消費する）ようにしたうえで、入力に生のマーカが混じっていたら先に `_` へ潰す負のコントロールを 2 件足した。表に 2 行足す形で設計反映してよいか
+- **`git reflog HEAD` が `unknown` に落ちること**（D9）。仕様の規則 4 は「`show` と `exists` だけ `read`」なので、サブコマンドを省いて ref を直接渡す読み取り形（`git reflog HEAD`）は閉じる側に落ちる。安全側なので**仕様の文言どおりに実装した**が、実運用で困るなら規則 4 に「位置引数が ref だけのときも `show` とみなす」を足す判断が要る
+- **`git branch` の束ねた短オプション（`-dr`）まで閉じたこと**（D10）。仕様は `-d` `-D` … を列挙する形だが、`git branch -dr origin/topic` は実際に削除する形で、列挙の完全一致だけでは素通りする。単一ダッシュの語は 1 文字ずつ `dDmMcCfu` に照合する実装にした（`-a` `-v` `-vv` `-r` は通る）。強めた側なので確認してほしい
+
 ### ・細かいレビューは不要（ほぼ確実）
 
 - `.gitignore` の追記 2 行（コメント 1 行 + `.claude/worktrees/`）の文言と置き場所（末尾）
@@ -67,6 +80,10 @@ S2 で得た大きな学びは 2 つある。①全通しで **`SG-T11` の退�
 | 呼び手 3 本の「判定できない」分岐が**実際の worktree 環境で**期待どおり出ること（0019） | 機械テストは偽のルート（`.git` ファイルと `.git/worktrees/<名前>/gitdir` の相互参照）で作った構成に対する検査で、`git worktree add` は使えない（`WF204`）。実物の worktree での挙動は S10（0027）の実測まで確かめられない | `SG-T13` / `DC-T08` / `DC-T09`（S4・S5）と S10 の実測 |
 | e11（fail-closed の deny がツールを止めない）の原因（0019） | 再現させるには中核を意図的に壊す必要があり、そのたびにロックアウトの危険を負う。1 度目の観測記録（`decisions.jsonl` の 4 行）だけを根拠として残し、追試はしていない | フィードバック計画（0028） |
 | `shellcheck` による静的検査（0019） | この環境に `shellcheck` が入っていない（`command not found`）。`bash -n` は変更した 4 本すべてで通した | 環境整備 / S9（0026） |
+| 閉じる側の 6 件を**実機のフックで**踏んだのは `git branch -d` の 1 件だけ（0020） | `git worktree add` / `git checkout -b` / `git switch` は起動プロンプトが実行を禁じており、`git reflog expire` / `git symbolic-ref <name> <ref>` / `git -c …` は実行すると実害が出る（参照や設定を壊す）。分類そのものは `HK-T15` の 60 対で機械的に踏んでいる | S10（0027）の実測 |
+| 規則 5（`--output=<file>`）が呼び手側で実際に `WF205` を出すこと（0020） | `scope.sh` は分類と `SC_TARGETS` までを担い、`WF205` を決めるのは `workflow-guard` 側（S4 / 0021）。`git diff --output=…` を実際に走らせて確かめてはいない（走らせれば実際にファイルが書かれる） | S4（0021）の `WG-T*` |
+| 段の並び順（置換の中が先）に呼び手が依存していないこと（0020） | 呼び手 4 本（`workflow-guard` / `workflow-state-guard` / `block-direct-git` / `block-chmod`）が `for (( i = 0; i < CP_COUNT; i++ ))` で**全段を見る**作りであることは `grep` で確認した。ただし「段 0 を主コマンドとみなす」ような暗黙の仮定が本文の別の箇所に無いかまでは読み切っていない | 敵対的レビュー / S4（0021） |
+| e11（fail-closed の deny がツールを止めない）の追試（0020） | S3 は中核を 1 つずつ変えて毎回テストを通したので、機構が壊れた状態を作らずに済んだ。壊して追試することはロックアウトの危険を負うので行わなかった | フィードバック計画（0028） |
 
 ## 実施条件（測った対象・環境）
 
@@ -80,6 +97,14 @@ S2 で得た大きな学びは 2 つある。①全通しで **`SG-T11` の退�
 - 基準点: `9059a0f`（チケット 0019 の `base_sha`）。着手コミット `ea6d047`
 - 実行コマンド: `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_hook_common*'` / 同 `--filter '*hooks*' --timeout 300 --ids` / 各テストの直接実行（`bash .claude/hooks/.../tests/test_*.sh`）/ `bash -n <変更した 4 本>`
 - `shellcheck` はこの環境に無い（`command not found`）
+
+0020（S3）分:
+
+- 基準点: `6a12e35`（チケット 0020 の `base_sha`）。着手コミット `209d075`
+- 対象: `.claude/hooks/lib/cmdpos.sh`（429 行 → 498 行）と `.claude/hooks/lib/scope.sh`（419 行 → 473 行）。どちらも**全フックが読む共通ライブラリ**
+- 実行コマンド: `run-tests.sh --filter '*test_cmdpos*' --timeout 300` / 同 `--filter '*test_scope*' --timeout 300` / 同 `--filter '*config_integrity*' --timeout 300` / 同（全件）`--timeout 300` / `bash -n`（変更した 2 本）/ 実機のフックを通した `git worktree list`・`git branch -a`・`git status --porcelain`・`git branch -d no-such-branch-xyz`
+- 編集は計画書のロックアウト対策どおり **Edit ツールだけ**で行い（`sed -i` などを介さない）、変更のたびに `bash -n` → 該当テスト → 実機のコマンドの順で確かめた。復旧用に `git show 6a12e35:<パス>` の内容を `wip/tmp/0020/` に退避した（**使わずに済んだ**）
+- bash 5.2.12。`shellcheck` はこの環境に無い
 
 ## 実施した内容と結果
 
@@ -212,6 +237,92 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 - 結果としてロックアウトは起きず、復旧手順（`git show <base_sha>:<パス>` → Write）は使わずに済んだ。ただし**「中核を壊しても機構が自分を止めてくれる」という前提が成り立っていない**ことになるので、実装フェーズの残り（S3〜S10）は今回と同じく**1 つ変えるごとにテストを回す**運用で進める必要がある
 - 仕様 §3 は打ち切り（timeout）を「フェイルクローズドの原則の唯一の穴」と書いているが、今回の事象は打ち切りではない。フィードバック計画へ渡す（R8）
 
+### e12. 算術展開 `$(( ))` をダブルクォートの中でも段を割らないようにした（0020 / S3 ①-P-1）◎良
+
+`_cp_normalize_to_reply` の `dq` 状態は、`$` の次が `(` かどうかしか見ておらず、`$((` を**コマンド置換の開始**として扱っていた。そのため `echo "$((n+1))"` は `( ( n+1 ) )` に割れ、`n+1` が実行体の段になっていた（実測: 変更前は `count=2 / seg1: exe=n+1`）。読み取りだけのコマンドが分類外（`WF204`）で落ちる原因である。
+
+`dq` 状態にも `code` 状態と同じ検査（`${rest:1:2}` が `((` なら `_cp_skip_arithmetic_to_reply` で対応する `))` まで読み飛ばす）を入れた。**ダブルクォートの中では語を足さない**のが要点で、クォート全体を表す `_` は `"` を読んだ時点で既に出ているため、ここで `_` を足すと 1 語が 2 語になる。
+
+```
+変更前: echo "$((n+1))"          → count=2  seg0: exe=echo / seg1: exe=n+1
+変更後: echo "$((n+1))"          → count=1  seg0: exe=echo sub=_ args=[_]
+        sed -n "$((s)),$((e))p" f.txt → count=1 seg0: exe=sed args=[-n _ f.txt]
+```
+
+### e13. コマンド置換・プロセス置換を「開始と終了の対応」で畳み、閉じ括弧の後ろの語を引数にした（0020 / S3 ①-P-2）◎良
+
+これまで `$( )` / `` ` ` `` / `<( )` / `>( )` はすべて ` ( ` ` ) ` という**区切り文字**に潰されていたので、閉じ括弧の後ろに続く語が新しい段の実行体になっていた（実測: `comm -12 <(sort -u a.txt) b.txt` の `b.txt` が `exe=b.txt` の段、`sed -n "$(…)" path/to/file.sh` の `file.sh` が `exe=file.sh` の段）。仕様 §7-1 の「段の区切りは `(` `)` という文字そのものではなく、置換の**開始と終了の対応**で決める」を実装した。
+
+- 正規化は置換の開始・終了に**専用の内部マーカ**（`\x05` / `\x06`）を置く。素の括弧（サブシェル `( … )`・グループ `{ … }`）は従来どおり ` ( ` ` ) ` のままなので、両者を取り違えない
+- `cmdpos_parse` のトークン走査に**外側の段のスタック**（`sstack`）を持たせ、マーカを見たら組み立て途中の段を退避 → 置換の中身を独立した段として出す → 退避した段に戻す。閉じ括弧の後ろの語は戻した段の引数として積まれる（`_cp_pop_outer_segment`）
+- 外側が `code` のときだけ 1 語の `_` を足す（ダブルクォートの中は既に `_` があるため足さない）。**実行体の位置に来た `_` は従来どおり `_`** なので `$(which git) push` は `exe=_ / args=[push] / gitlike=1` になり、呼び手は拒否側に倒せる
+- 入力に生のマーカが混じっていたら正規化の入口で `_` に潰す（段の偽造を防ぐ負のコントロールを 2 件）
+- 閉じない置換（`echo $(git commit`）でも、走査の最後にスタックを畳んで中身の段を落とさない
+
+```
+変更後: sed -n "$(grep -n X f | cut -d: -f1),+45p" path/to/file.sh
+        → count=3  grep / cut / sed（sed の args=[-n _ path/to/file.sh]）
+        comm -12 <(sort -u a.txt) b.txt → count=2  sort / comm（args=[-12 _ b.txt]）
+        tee >(cat) out.txt              → count=2  cat / tee（args=[_ out.txt]）
+        echo `git commit` x             → count=2  git commit / echo（args=[_ x]）
+        echo "$(basename "$(pwd)")" tail.txt → count=3（入れ子でも外側の段は 1 つ）
+```
+
+**副作用として段の並び順が変わる**（置換の中の段が先に積まれ、それを含む外側の段が後になる）。仕様 §7-9 は順序を定めていないので逸脱ではないが、レビュー依頼に挙げた。
+
+### e14. `scope.sh` に git の限定適用 6 件を入れた（0020 / S3 ②）◎良
+
+`scope_classify` の `git` の分岐は「サブコマンド名が `_SC_GIT_READ_SUBCMDS` にあるか」だけを見ていたため、`git worktree add`（分類外で拒否＝**通す向きの穴**）と `git branch -d` / `git symbolic-ref <name> <ref>` / `git reflog expire` / `git <read> --output=<file>` / `git -c diff.external=<コマンド> …`（いずれも `read` のまま通る＝**閉じる向きの穴**）が開いていた。仕様 §8 の限定適用 6 件を `_sc_classify_git`（新設）に集約した。
+
+| # | 規則 | 実装 |
+|---|---|---|
+| 1 | `git worktree` は `list` だけ `read` | サブコマンドの後ろの最初の位置引数が `list` なら `read`、それ以外（`add` / `remove` / `move` / `prune` / `repair` / `lock` / `unlock` / 語を確定できない / 引数なし）は `unknown` |
+| 2 | `git branch` は書き込みオプションで `unknown` | `_SC_GIT_BRANCH_WRITE_OPTS`（14 語）の完全一致に加え、`--set-upstream-to=` の等号形と、**束ねた短オプション**を 1 文字ずつ `dDmMcCfu` に照合 |
+| 3 | `git symbolic-ref` は位置引数 2 つ以上か `-d` で `unknown` | 位置引数は `cmdpos_operands` で取る（コマンド文字列を再パースしない） |
+| 4 | `git reflog` は `show` / `exists`（省略時は `show`）だけ `read` | 位置引数が無ければ `show` とみなす |
+| 5 | `--output=<file>` / `--output <file>` は `write` | **`read` に分類された形にだけ**後段で当てる（元々 `unknown` の形を `write` に緩めない）。出力先は `SC_TARGETS` へ（複数なら US 区切り） |
+| 6 | グローバルな `-c` / `--config-env` は一律 `unknown` | 設定名を見ない。**サブコマンドより前の位置**に限る（`git log -c` = combined diff や `git branch -c` を巻き込まない）。大文字小文字を畳まないので `git -C <path> status` は `read` のまま |
+
+`config` / `remote` / `merge` / `push` の既存の分岐と `_SC_GIT_READ_SUBCMDS` の既定は同じ関数の中にそのまま移し、**判定の入口を 1 か所に集めた**（`branch` / `symbolic-ref` / `reflog` は白名簿にも載っているので、限定適用が先に効く順序を `case` の並びで保証している）。
+
+### e15. `cd` を分類に足さないことを負のコントロールで固定した（0020 / S3 ③）◎良
+
+DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` → `WF204` のまま）。`read` に足すと `cd <他の場所> && echo x > a.txt` の書き込み先が自分の作業ツリーの相対パスとして判定され、作業ツリーの外への書き込みが通る（`hook_rel_path` は `cd` の効果を追跡しない）。
+
+「足していない」ことは差分では見えないので、`HK-T15` に**負のコントロール 5 件**（`cd /tmp` / `cd wip` / `cd wip && ls` = `unknown read` / `pushd wip` / `popd`）を置いて固定した。今回の作業中にも実際に `cd` を含むコマンドを 2 回 `WF204` で拒否されており（作業ログ「拒否・確認・迂回の記録」）、迂回せずルート相対表記で回した。
+
+### e16. R52 の軽微 2 件を直し、語彙表の重複を検査で固定した（0020 / S3 ④）◎良
+
+- `_SC_READ_ONLY_CMDS` の末尾にあった 2 つ目の `column` を削った（`fold column od` の位置に 1 つ残る）
+- `_SC_SHELL_KEYWORDS`（`for done fi esac case select coproc function`）を**全要素ループ**で踏む検査を `HK-T15` に足した（`_SC_READ_ONLY_CMDS` と `_SC_GIT_READ_SUBCMDS` には既にあった）
+- あわせて **3 つの語彙表それぞれに「重複を残さない」検査**を足した（`printf | sort | uniq -d` が空であること）。重複は「足したつもりが既にある」ことに気づけず、全要素ループも同じ語を 2 度踏むだけで空回りするため。この検査は変更前に `column` を検出して FAIL した
+
+### e17. 通す向きと閉じる向きを実機のフックで 1 回ずつ踏み、機構が自分を止めないことを確かめた（0020 / S3 ⑤）◎良
+
+`scope.sh` を変えた直後に、**実際のフックを通して**次を 1 回ずつ実行した（テストは偽の設定を読むので、出荷される `scope-limits.json` と登録済みフックで踏み直す意味がある）。
+
+| コマンド | 期待 | 実測 |
+|---|---|---|
+| `git worktree list` | 規則 1 の**通す側**。変更前は分類外で `WF204` | 通った（本流 1 件を出力） |
+| `git branch -a` | 規則 2 の**通す側**（従来どおり `read`） | 通った |
+| `git status --porcelain` | 既存の `read` 分類の回帰 | 通った |
+| `git branch -d no-such-branch-xyz` | 規則 2 の**閉じる側** | `WF204` で止まった（git は起動していない） |
+
+`cmdpos.sh` を変えた直後も同様に `git status --porcelain` / `git branch -a` が通ることを確かめており、**2 本とも「1 つ変える → `bash -n` → 該当テスト → 実機」の順**を守った。S2 で観測した e11（fail-closed の deny がツールを止めない）は、S3 では機構を壊す状態を作らずに済んだため**再現の機会が無かった**（追試もしていない）。復旧手順（`git show <base_sha>:<パス>` → Write）は使わずに済んだ。
+
+なお、作業中に `bash --version` / `cd` / `perl -i -pe` / `bash -c` がそれぞれ `WF204` / `WF204` / `WF204` / `WF209` で拒否された。いずれも**迂回せず**、別の手段（`echo "$BASH_VERSION"` / ルート相対表記 / Edit ツールの `replace_all` / テストの直接実行）に置き換えた。`bash -c` の `WF209` は e11 と対照的に**実際にツールを止めている**（中核が健全なときの fail-closed は効いている）。
+
+### e18. 全件テストが `BC-T01` の退行を拾った（置換の印で語を割っていた）△注意
+
+`cmdpos.sh` と `scope.sh` の担当テスト（`HK-T05` / `HK-T12` / `HK-T15` / `HK-T02`）がすべて通った後の**全件テスト 1 回目**で、`test_block_chmod.sh` の `BC-T01` が 4 件 FAIL した（`ch$()mod +x a` / `ch$( : )mod +x a` / `ch$(echo)mod +x a` / `ch$()mod` 系）。いずれも **`allow` を返しており、難読化した `chmod` が素通りする**退行である。
+
+- 原因: 置換の印（`\x05` / `\x06`）を**空白付き**で置いていたため、`ch$()mod` が `ch` と `_mod` の 2 語に割れ、実行体が `ch` に見えた。`block-chmod` の制御方式 5 は「実行体を特定できない段」（`$` を含む / 全部 `_` / `_` を含むのに生の文字列に現れない）だけを拒否側に倒すので、`ch` は「特定できた実行体」として通ってしまう
+- 変更前は `ch$()mod` が `ch$` と `mod` に割れ、`ch$` が `$` を含むために拒否側へ倒れていた（**たまたま**閉じていた形）
+- 直し方: 印を**空白なし**で置き、段の組み立て側で語を連結するようにした（`_cp_split_marker_to_reply` で空白区切りのトークンを印で割り、`cur`（語のバッファ）を `_cp_push_outer_segment` / `_cp_pop_outer_segment` が退避・復元する）。`ch$()mod` は bash と同じく **1 語**になり、実行体は `ch_mod`（`_` を含み生の文字列に現れない）→ 特定できない → 拒否
+- 固定: `HK-T05` に 7 件の assert を足した（`ch$()mod` / `ch$( : )mod` / `ch$(echo)mod` / `chmod$()` / ``ch`echo`mod``）。`test_block_chmod.sh` は `passed=93 failures=0` に戻った
+
+**学び**: S2 の `SG-T11` と同じで、**中核の変更は担当テストが全通ししても他のフックのテストが退行を拾う**。計画書の「1 つ変えるごとにテスト」に加えて、**チケットを閉じる前に全件を回す**運用が実際に効いている（2 チケット連続で退行を検出した）。
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -240,6 +351,24 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 | 変更が S2 の許可範囲に収まっているか | `git diff 9059a0f --stat` = `.claude/hooks/**` 5 ファイル / `wip/10_tickets/**` 1 枚。いずれも `allow.write`（`wip/**`, `.claude/hooks/**`）の内側。範囲外の差分・未追跡ファイルなし |
 | S2 が担当する参照更新 | 実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。**S2 の担当は 0 行** |
 
+0020（S3）分:
+
+| 検証 | 結果 |
+|---|---|
+| `bash -n`（変更した 2 本 + テスト 2 本） | `cmdpos.sh` / `scope.sh` / `test_cmdpos.sh` / `test_scope.sh` すべて終了コード 0 |
+| テスト先行（`HK-T05` / `HK-T12`） | 新しい assert を書いた時点で `passed=304 failures=21`（21 件すべて新しい assert）→ `cmdpos.sh` 変更後 `passed=325 failures=0` |
+| テスト先行（`HK-T15`） | 新しい assert を書いた時点で `failures=38`（`column` の重複検査 1 件を含む）→ `scope.sh` 変更後 `passed=399 failures=0` |
+| `run-tests.sh --filter '*test_cmdpos*' --timeout 300` | `PASS / exit 0 / passed=325 failures=0`（1 本 / 2 件） |
+| `run-tests.sh --filter '*test_scope*' --timeout 300` | `PASS / exit 0 / passed=399 failures=0`（1 本 / 3 件） |
+| `run-tests.sh --filter '*config_integrity*' --timeout 300` | `PASS / exit 0 / passed=95 failures=0`（1 本 / 3 件。`classify_real` が出荷される `scope-limits.json` で `scope_classify` を実際に走らせる） |
+| 全件テスト（`run-tests.sh --timeout 300 --ids`） | **`OK: 27 本 / 216 件`（全 PASS / `FAIL ID:` 空 / 重複 ID なし）**。1 回目は `BC-T01` が 4 件 FAIL（e18）、修正後の 2 回目で全通し |
+| 通す向きの回帰（実機） | `git worktree list` / `git branch -a` / `git status --porcelain` の 3 件が通った |
+| 閉じる向き（実機） | `git branch -d no-such-branch-xyz` が `WF204` で止まった |
+| `cd` の負のコントロール | `HK-T15` に 5 件（`cd /tmp` / `cd wip` / `cd wip && ls` / `pushd` / `popd` がすべて `unknown`）。作業中も実際に 2 回 `WF204` で拒否された |
+| 中核変更後に自分が動くか | `Edit`（`.claude/hooks/**` と `wip/**`）・`Read`・`grep`・`run-tests.sh`（`hook-test`）・`ticket.sh` のいずれも止まらなかった。復旧手順は使わずに済んだ |
+| 変更が S3 の許可範囲に収まっているか | `git diff 6a12e35 --stat` = `.claude/hooks/lib/` 4 ファイル（本体 2・テスト 2）/ `wip/10_tickets/**` 1 枚 / `wip/30_reports/**` 2 ファイル。いずれも `allow.write`（`wip/**`, `.claude/hooks/**`）の内側。範囲外の差分なし（`wip/tmp/0020/` の退避 2 本は `.gitignore` 対象で追跡されない） |
+| S3 が担当する参照更新 | 実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。**S3 の担当は 0 行** |
+
 ## 作成・更新したアセットの一覧（仕様書の節との対応）
 
 | # | アセット | 種別 | 変更 | 仕様書の節 | チケット |
@@ -252,8 +381,12 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 | 6 | `.claude/hooks/20-PreToolUse/workflow-guard.sh` | フック | 更新（`__wg_rel` の `WF209` 分岐） | `10_spec/hooks/20-PreToolUse/workflow-guard.md` 制御方式 5（畳み込みの結果ごとの扱い） | 0019 |
 | 7 | `.claude/hooks/20-PreToolUse/workflow-state-guard.sh` | フック | 更新（`__sg_rel` の `WF309` 分岐・実在検査の根） | `10_spec/hooks/20-PreToolUse/workflow-state-guard.md`「対象パスの畳み込み」・制御方式 2 | 0019 |
 | 8 | `.claude/hooks/22-PostToolUse/workflow-diff-check.sh` | フック | 更新（制御方式 0 の `WF605`・承認の記憶の `WF605`） | `10_spec/hooks/22-PostToolUse/workflow-diff-check.md` 制御方式 0・`WF605` | 0019 |
+| 9 | `.claude/hooks/lib/cmdpos.sh` | フックの共通ライブラリ | 更新（内部マーカ 2 種の追加・`dq` の算術展開・置換の開始/終了の対応・`_cp_pop_outer_segment` 新設・`cmdpos_parse` のスタック走査） | `10_spec/フック共通仕様.md` §7-1（正規化）・§7-9（出力の形） | 0020 |
+| 10 | `.claude/hooks/lib/tests/test_cmdpos.sh` | フックのテスト | 更新（`case_hk_t05_substitution` 新設。21 assert） | 同 §11 テスト（`HK-T05` / `HK-T12`） | 0020 |
+| 11 | `.claude/hooks/lib/scope.sh` | フックの共通ライブラリ | 更新（`_sc_classify_git` 新設・語彙表 3 種の追加・`_SC_READ_ONLY_CMDS` の `column` の重複解消） | `10_spec/フック共通仕様.md` §8「git の分類は『サブコマンド + オプション』で決める（限定適用 6 件）」「`cd` は分類に足さない」 | 0020 |
+| 12 | `.claude/hooks/lib/tests/test_scope.sh` | フックのテスト | 更新（`case_hk_t15_git_subcmd_opts` 新設 = 60 対 + 出力先 + 通す向き + `cd` の負のコントロール。`case_classify` に全要素ループ 1 件と重複検査 3 件） | 同 §11 テスト（`HK-T15`） | 0020 |
 
-`.claude/skills/**` / `.claude/rules/**` / `.claude/agents/**` / `.claude/evals/**` / `.claude/settings.json` は S1・S2 では**1 件も触っていない**。`.claude/hooks/config/**` は S1 のみ（S2 は触っていない）。
+`.claude/skills/**` / `.claude/rules/**` / `.claude/agents/**` / `.claude/evals/**` / `.claude/settings.json` は S1〜S3 では**1 件も触っていない**。`.claude/hooks/config/**` は S1 のみ（S2・S3 は触っていない）。
 
 ## テスト結果
 
@@ -281,6 +414,22 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 - テスト先行: `HK-T21` / `HK-T22` は**実装より先に書いて失敗を確認**してから実装した（0019 の前半。作業ログ参照）。`SG-T11` は**既存テストが退行を先に落とした**形で、失敗を見てから直した
 - 呼び手 3 本の「判定できない」分岐に対する**新設テストは無い**。計画書が `SG-T13`（`WF309`）を S4、`WF605` を S5 に割り付けており、S2 の「依存するテスト」は既存 3 本が通り続けることだけを求めているため（◇判断が欲しい に挙げた）
 
+0020（S3）分:
+
+| テスト ID | 対象 | 実行コマンド | 結果 |
+|---|---|---|---|
+| HK-T05 | §7-1 の正規化 2 件を負のコントロール付きで。(a) `echo "$((n+1))"` が 1 段 (b) `sed -n "$(grep -n X f \| cut -d: -f1),+45p" path/to/file.sh` が 3 段で `file.sh` は引数 (c) `comm -12 <(sort -u a.txt) b.txt` が 2 段 (d) `$(which git) push` は実行体 `_` のまま。加えて素の括弧は従来どおり段を割ること・生の内部マーカで段を偽造できないこと・語の途中の置換は語を割らないこと（`ch$()mod`） | `run-tests.sh --filter '*test_cmdpos*' --timeout 300` | **PASS**（`case_hk_t05_substitution` 新設 28 assert。`passed=332 failures=0`） |
+| HK-T12 | 提供コマンドの識別はルート相対表記だけ（既存。置換の扱いを変えても退行しないこと） | 同上 | **PASS** |
+| HK-T15 | 限定適用 6 件を**閉じる側と通す側の対**で（60 対）。`git worktree list`=read / `git worktree add ../x`=unknown、`git branch -a`=read / `git branch -d x`=unknown ほか。`--output=` の `SC_TARGETS`、`cd`=unknown の負のコントロール 5 件、語彙表の全要素ループと重複検査 | `run-tests.sh --filter '*test_scope*' --timeout 300` | **PASS**（`case_hk_t15_git_subcmd_opts` 新設。`passed=399 failures=0`） |
+| HK-T11 / HK-T16 | 同じテストファイルが持つ glob と読み込み系 3 関数の戻り値（S3 の DoD には無いが同時に走る） | 同上 | **PASS**（参考） |
+| HK-T02 | 出荷される `scope-limits.json` を読んだうえで `classify_real` が `scope_classify` を実際に走らせる | `run-tests.sh --filter '*config_integrity*' --timeout 300` | **PASS**（`passed=95 failures=0`） |
+| BC-T01 | 難読化した `chmod` の拒否（既存）。**全件テスト 1 回目で 4 件 FAIL**（e18） | `run-tests.sh --timeout 300` | **PASS**（修正後 `passed=93 failures=0`） |
+| 全件 27 本 / 216 ID | リポジトリの全テスト（フック 17 本 + 提供コマンド 10 本） | `run-tests.sh --timeout 300 --ids` | **全 PASS**（`OK: 27 本 / 216 件` / `FAIL ID:` 空 / 重複 ID なし） |
+
+- 全件テストは **2 回**回した。1 回目（修正前）は `test_block_chmod.sh` のみ FAIL（`BC-T01` 4 件）、2 回目（修正後）は **27 本すべて PASS / 216 ID**。所要は 1 回あたり約 24 分（`test_workflow_guard.sh` が既定 120 秒に収まらないため `--timeout 300` が要る。既知の R9）
+- **テスト先行**: `HK-T05` 側は 21 件、`HK-T15` 側は 38 件の FAIL を**実装より先に確認**してから実装した（合計 59 件）。重複検査は変更前に `column` を検出して FAIL し、検査が効くことを確かめてから直した
+- 退行対策として `HK-T05` に 7 件の assert を追加（`ch$()mod` 系）。`case_hk_t05_substitution` は最終的に 28 assert
+
 ### eval
 
 | eval ID | 状態 |
@@ -301,6 +450,11 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 | frontmatter（0019） | S2 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 4 本）。チケット 0019 の frontmatter は変更していない | 対象 0 件 | OK |
 | 参照更新一覧の消し込み（0019） | 実装計画書の 7 行 | S2 の担当 0 行 | 対象なし（全 7 行が S9 / 0026 担当） |
 | 静的検査（0019） | 変更した 4 本 | `bash -n` 4 / 4 OK、`shellcheck` は環境に無く未実施 | 一部未実施（「確かめられなかったこと」に記載） |
+| プレースホルダ（0020） | 変更した 4 本（`cmdpos.sh` / `scope.sh` / テスト 2 本）とこのレポート md / HTML | 0 件（テンプレート由来の二重波かっこ・`TODO` / `TBD` とも。`TODO` / `TBD` はこの表と「検証の結果」の項目名を除く） | OK |
+| frontmatter（0020） | S3 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 4 本）。チケット 0020 の frontmatter は `ticket.sh` が書いた項目以外を変更していない（`executor` / `human_review` は変えていない） | 対象 0 件 | OK |
+| 参照更新一覧の消し込み（0020） | 実装計画書の 7 行 | S3 の担当 0 行 | 対象なし（全 7 行が S9 / 0026 担当） |
+| 静的検査（0020） | 変更した 4 本 | `bash -n` 4 / 4 OK、`shellcheck` は環境に無く未実施 | 一部未実施（「確かめられなかったこと」に記載） |
+| 内部マーカが出力に漏れないこと（0020） | `cmdpos_parse` の出力（`CP_EXE` / `CP_ARGS` / `CP_SUBCMD`） | `HK-T05` の 21 assert に `\x05` / `\x06` を含む期待値は 0 件。生のマーカを入力に混ぜた 2 件も `_` に潰れて段を偽造できない | OK |
 
 ## 仕様からの逸脱
 
@@ -315,6 +469,11 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 | D5 | 実装計画書 S1 の識別子の誤記 | 計画書 L236: 「①が済むまで②は **WF205** で止まる」 | 正しくは `WF201`（`Edit` / `Write` ツールの宣言範囲外）。同じ計画書の L151・L153 と 0018 の DoD は `WF201` と書いている | 計画書の誤記。設計文書ではないが、S9 の全体検査で直すか設計反映へ渡す |
 | D6 | `workflow-diff-check` の `WF605` を、仕様の**制御方式 0**（停止中の判定より前）ではなく**制御方式 1 の後**に置いた（0019） | `10_spec/hooks/22-PostToolUse/workflow-diff-check.md` は「0. 作業ツリーの確定 … 決められない → WF605 を伝えて抜ける」を 1 より前に置く | 実装は `hook_enforce_enabled \|\| hook_disabled` の**後**に置いた | 共通仕様 §3「停止中のフックは判定・注入を行わず `disabled` を 1 行残す」と両立させるため。`workflow-state-guard` 仕様は同じ状況に「0 は 1 の後に評価する」と明記しており、そちらに揃えた。仕様は直さず、diff-check 仕様にも同じ注記を足す案を設計反映へ |
 | D7 | `hook_read_state`（`review` / `merge` / `approvals` / `entry`）が共通仕様 §1 の**1 回目の jq** ではなく**2 回目**にある（0019 で維持） | §1 の表は `review-state` / `merge-state` を 1 回目に置く | 共有ルートの解決は `cwd`（= stdin）を読む `__hc_resolve_worktree` の後なので、1 回目には渡せない。既存の逸脱コメント（「作業ツリー」基準）を S2 で「共有ルート」基準に読み替えて維持した | S2 で作った逸脱ではなく、三分の導入で理由が変わった逸脱。設計反映で §1 の表を実装に合わせる |
+| D8 | 内部プレースホルダを**表の 3 つより 2 つ多く**使っている（0020） | §7-1 の表は `\x01`（複製リダイレクト）/ `\x02`（`&>`）/ `\x03`（データ）の 3 つを「用途を重ねない」と定める | 置換の開始 `\x05` / 終了 `\x06` を足した。段の区切りを「置換の開始と終了の対応」で決めるには、素の括弧と置換の括弧を区別する印が要る。**出力には現れない**（段の組み立てで消費する）し、入力に生のマーカが混じっていたら先に `_` へ潰す | 仕様は直さず記録。表に 2 行足す形で設計反映へ（負のコントロール 2 件で固定済み） |
+| D9 | `git reflog <ref>`（サブコマンドを省いて ref を直接渡す読み取り形）が `unknown` に落ちる（0020） | §8 の規則 4: 「`show` と `exists` は `read`、それ以外は `unknown`。サブコマンド省略時は `show` とみなす」 | 位置引数が**無い**ときだけ `show` とみなす実装にした。`git reflog HEAD` は位置引数が `HEAD` なので `unknown` | 仕様の文言どおり（安全側）に倒した。実運用で困るなら規則 4 に「位置引数が ref だけなら `show`」を足す。設計反映の候補 |
+| D10 | 規則 2 で**束ねた短オプション**（`git branch -dr x`）まで閉じている（0020） | §8 の規則 2 は `-d` `-D` `--delete` … の**列挙** | 列挙の完全一致に加え、単一ダッシュの語を 1 文字ずつ `dDmMcCfu` に照合する。`-a` `-v` `-vv` `-r` は通る | 列挙の完全一致だけだと `-dr` が `read` で素通りするため強めた。仕様の意図（穴を閉じる）に沿うが、文言は「列挙」なので記録する |
+| D11 | 規則 6 を**サブコマンドより前の位置**に限定した（0020） | §8 の規則 6: 「`-c` / `--config-env` があればサブコマンドが何であれ `unknown` に倒す」 | グローバルオプションの位置（サブコマンドの語より前）に現れた `-c` / `--config-env` だけを見る。`git log -c`（combined diff）や `git branch -c old new` は規則 6 では拾わない（後者は**規則 2** が `unknown` にする） | 文字どおり全引数を見ると読み取り形の `git log -c` まで落ちる。規則の見出しが `git -c <name>=<value> …` とグローバル位置を示しているのでそちらに従った。設計反映で「グローバル位置に限る」を明記する案 |
+| D12 | 規則 5 を **`read` に分類された形にだけ**当てている（0020） | §8 の規則 5 の見出しは `git <read サブコマンド> --output=<file>` だが、本文は `format-patch` など `read` に分類されない形も例に挙げる | `SC_CLASS` が `read` になった後で `--output` を探し、見つかれば `write` に変える。`git format-patch --output=…` は元々 `unknown` なので `unknown` のまま | `unknown` を `write` に変えると**緩む**（`write` は許可範囲内なら通る）ため、閉じる側に倒した。設計反映で本文の例を見出しに合わせる案 |
 
 ## 設計への反映
 
@@ -327,6 +486,10 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 | 5 | `workflow-diff-check` 仕様の制御方式 0 に「1（停止中）の後に評価する」注記を足す（D6。`workflow-state-guard` 仕様には既にある） | 設計反映フェーズ |
 | 6 | フック共通仕様 §1 の副入力の表（1 回目 / 2 回目）を実装に合わせる（D7） | 設計反映フェーズ |
 | 7 | 中核が壊れたときの fail-closed が実際には遮断にならない件（e11）。仕様 §3 は打ち切りだけを「唯一の穴」と書いている | フィードバック計画（0028）→ 設計反映 |
+| 8 | フック共通仕様 §7-1 の内部プレースホルダの表に、置換の開始 `\x05` / 終了 `\x06` の 2 行を足す（D8） | 設計反映フェーズ |
+| 9 | §8 の規則 4 に「位置引数が ref だけのときも `show` とみなす」を足すか、`git reflog HEAD` を閉じたままにするかを決める（D9） | フィードバック計画（0028）→ 設計反映 |
+| 10 | §8 の規則 2 に「束ねた短オプションも同じ扱い」、規則 6 に「グローバルオプションの位置に限る」、規則 5 に「`read` に分類された形にだけ当てる」を明記する（D10・D11・D12） | 設計反映フェーズ |
+| 11 | §7-9 に段の並び順（置換の中の段が先、それを含む段が後）を書くか、「順序は定めない」を明記する（e13） | 設計反映フェーズ |
 
 ## 想定と異なった点
 
@@ -341,6 +504,12 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 | （0019）中核を壊せば機構が自分を止める（＝ロックアウト対策が要る） | `decisions.jsonl` には deny が記録されたが、**ツールは止まらなかった**（e11）。復旧手順（`git show` → Write）は使わずに済んだ | 止まらなかったこと自体を ✕問題として記録し、R8 でフィードバック計画へ渡す。運用は「1 つ変えるごとにテスト」を続ける |
 | （0019）`test_workflow_guard.sh` は既定の 120 秒で回る | 149〜207 秒かかり `TIMEOUT`。9/4 の全通しでも 124 秒で、変更していないテストも同日比 1.6〜1.8 倍に伸びていた（機械の負荷） | 全通しは 9/4 と同じ `--timeout 300` で行った。S2 の変更による退行ではないと判断（e10） |
 | （0019）`shellcheck` を掛けられる | この環境に入っていない | `bash -n` だけで確認し、「確かめられなかったこと」に残した |
+| （0020）`$(which git) push` は変更前から実行体 `_` の段になっている（仕様 §7-1 の「潰れた語が実行体の位置にあるとき」の例） | 変更前は `exe=$` の段（`opaque=1`）と `exe=which` の段と `exe=push` の段の**3 段**に割れていた。`push` が独立した段の実行体になっており、`git` の引数として見えていなかった | 変更後は仕様どおり 2 段（`which git` と `exe=_ / args=[push] / gitlike=1`）。呼び手が「`_` かつ対象語を含む」で拒否側に倒せる形になった |
+| （0020）`cmdpos.sh` を変えると `bash` で始まるすべての判定が崩れ、`git show` すら通らなくなり得る（計画書のロックアウト対策） | 崩れなかった。`bash -n` → 該当テスト → 実機の順で 1 つずつ確かめ、退避しておいた基準点の内容（`wip/tmp/0020/`）は使わずに済んだ | 手順は守った（Edit ツールだけで編集し、`git checkout` は使わない前提で退避を先に取った） |
+| （0020）`scope.sh` の限定適用は「閉じる向き」が 5 件・「通す向き」が 1 件（計画書 S3） | そのとおりだが、**通す向きの 1 件（`git worktree list`）は変更前に実測していない**（変更後に通ることだけを確かめた）。閉じる向きは実機で 1 件（`git branch -d`）だけ踏んだ | 分類自体は `HK-T15` の 60 対で機械的に踏んでいる。実機で踏めない理由は「確かめられなかったこと」に記載 |
+| （0020）担当テスト（`HK-T05` / `HK-T12` / `HK-T15` / `HK-T02`）が全通しすれば中核の変更は安全 | **全件テストが `BC-T01` の退行を 4 件拾った**（`ch$()mod` の実行体が `ch` に見え、難読化した `chmod` が素通りしていた）。S2 の `SG-T11` に続いて 2 チケット連続 | 直して `HK-T05` に負のコントロールを 7 件足した（e18）。「チケットを閉じる前に全件を回す」運用を続ける |
+| （0020）置換を 1 語の `_` に潰すとき、印を空白で区切っても差し支えない | `ch$()mod` のように**語の途中**に置換がある形で語が割れ、bash が 1 語として実行するものを 2 語として解析していた | 印を空白なしで置き、段の組み立て側で語を連結する形に直した。`cmdpos` は「bash が 1 語とみなすものは 1 語」を守る必要がある |
+| （0020）語彙表の全要素ループは 3 つの表すべてに既にある | `_SC_SHELL_KEYWORDS` だけ無かった（R52 の指摘どおり）。加えて `column` の重複も残っていた | 全要素ループ 1 件と重複検査 3 件を足した。重複検査は変更前に `column` を検出して FAIL した（検査が効くことを確かめてから直した） |
 
 ## 残課題
 
@@ -356,3 +525,7 @@ WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-
 | R8 | 中核が壊れたとき、fail-closed の deny が `decisions.jsonl` に残るのに**ツールが止まらない**（e11）。原因未特定 | フィードバック計画（0028） |
 | R9 | `test_workflow_guard.sh` が `run-tests.sh` の既定 120 秒に収まらない（9/4 時点で 124 秒）。全通しに `--timeout 300` が要る | S9（0026）/ フィードバック計画（0028） |
 | R10 | `shellcheck` がこの環境に無く、シェルスクリプトの静的検査が `bash -n` だけになっている | 環境整備 / S9（0026） |
+| R11 | `git reflog HEAD`（ref 直渡し）が `unknown` に落ちる（D9）。読み取りだけの形が閉じる側にある | フィードバック計画（0028）→ 設計反映 |
+| R12 | 段の並び順が「置換の中の段が先」になった（e13）。呼び手 4 本が全段をループする作りであることは確認したが、仕様 §7-9 が順序を定めていないので、将来の呼び手が「段 0 が主コマンド」と仮定しうる | 敵対的レビュー / 設計反映（§7-9 に順序の有無を明記） |
+| R13 | 規則 5（`--output=<file>`）が呼び手側で `WF205` を出すことは未確認（`scope.sh` は分類と `SC_TARGETS` まで） | S4（0021）の `WG-T*` |
+| R14 | 閉じる向きの 6 件のうち、実機のフックで踏めたのは `git branch -d` の 1 件だけ（他は実行すると実害が出るか、起動プロンプトが禁じている） | S10（0027）の実測 |

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義（S1〜S8 分）</title>
+<title>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義・参照更新と全体検査（S1〜S9 分）</title>
 <style>
   /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
   * { box-sizing: border-box; }
@@ -126,12 +126,12 @@
 <div class="shell">
 
 <aside class="sidebar">
-  <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1〜S7 分）</p>
-  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義（S1〜S8 分）</h1>
+  <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1〜S9 分）</p>
+  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義・参照更新と全体検査（S1〜S9 分）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 30</span>
-    <span class="chip warn">△注意 7</span>
+    <span class="chip good">◎良 38</span>
+    <span class="chip warn">△注意 10</span>
     <span class="chip stop">✕問題 2</span>
   </p>
 
@@ -183,6 +183,17 @@
           <li><a href="#f37"><span class="mk warn">△</span> 37. last_task を既出の切れ目の補集合に。記録が issue をまたぐので MR で絞った（S7 ③）</a></li>
           <li><a href="#f38"><span class="mk good">◎</span> 38. at_boundary を全作業ツリーで見る。管理対象 0 なら worktree.sh を呼ばない（S7 ③）</a></li>
           <li><a href="#f39"><span class="mk good">◎</span> 39. 変更後の自分のコマンドで自分をコミット・完了した（S7 ロックアウト対策）</a></li>
+          <li><a href="#f40"><span class="mk good">◎</span> 40. SKILL.md に「切らない既定」と「発効の保留」・手順 2b / 2c（S8 ①）</a></li>
+          <li><a href="#f41"><span class="mk good">◎</span> 41. A3 の 1 ホップを「参照」の 1 行で満たし CLAUDE.md を触らなかった（S8 ①）</a></li>
+          <li><a href="#f42"><span class="mk good">◎</span> 42. 採番と push をスキル本文でも本流限定にした（S8 ②）</a></li>
+          <li><a href="#f43"><span class="mk good">◎</span> 43. 実施タスク共通の正に並列区間の追記規約と訂正の節（S8 ③）</a></li>
+          <li><a href="#f44"><span class="mk warn">△</span> 44. task-executor の isolation を条件付きにし定義には置かなかった（S8 ④）</a></li>
+          <li><a href="#f45"><span class="mk good">◎</span> 45. work-defaults に「並列してよいか」の列。HK-T02 を反転検査（S8 ⑤）</a></li>
+          <li><a href="#f46"><span class="mk warn">△</span> 46. 参照更新一覧 7 行を実体で数え直した — 5 行一致・2 行 +1（S9）</a></li>
+          <li><a href="#f47"><span class="mk good">◎</span> 47. プレースホルダと frontmatter を「変更した 35 アセット」に限って検査（S9）</a></li>
+          <li><a href="#f48"><span class="mk good">◎</span> 48. 全機械テスト 28 本 243 ID が通り割付表の 37 / 37 が PASS（S9）</a></li>
+          <li><a href="#f49"><span class="mk good">◎</span> 49. 本 issue の残りを 4 経路で確かめ push.sh は CP-T12 と項目 5 で代えた（S9）</a></li>
+          <li><a href="#f50"><span class="mk warn">△</span> 50. S9 が引き取る残課題 6 件の棚卸し — 3 件を閉じ 3 件を送った（S9）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -200,8 +211,8 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1・0019 / S2・0020 / S3・0021 / S4・0022 / S5・0023 / S6・0024 / S7・0025 / S8 分）</dd></div>
-    <div><dt>作成日</dt><dd>2026-09-05（0018）／更新 2026-09-05（0019・0020・0021）・2026-09-06（0022・0023・0024・0025）</dd></div>
+    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1・0019 / S2・0020 / S3・0021 / S4・0022 / S5・0023 / S6・0024 / S7・0025 / S8・0026 / S9 分）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05（0018）／更新 2026-09-05（0019・0020・0021）・2026-09-06（0022・0023・0024・0025・0026）</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
 </aside>
@@ -217,9 +228,11 @@
   <p>S6（0023）は<b>提供コマンド a</b> として <code>20-common-step-worktree</code> スキル本体と <code>scripts/worktree.sh</code>（<code>add</code> / <code>list</code> / <code>merge</code> / <code>remove</code>）を新設した。<b>中核（フック・<code>settings.json</code>）は 1 行も触っていない</b>。「本流かどうかの判定」（<code>.git</code> がディレクトリなら本流）は <code>wt_is_main_root()</code> という 1 つの関数に切り出し、S7（0024）の <code>ticket.sh</code> / <code>push.sh</code> がこの規則を共有する。<code>add</code> は既定でリポジトリの外（<code>&lt;リポジトリの親&gt;/&lt;リポジトリ名&gt;-wt/&lt;名前&gt;</code>）に切り、<code>logs/hooks/</code> と <code>logs/sh/</code> <b>だけ</b>を用意して進行状態 8 名を 1 つも複製しない。<code>merge</code> は前提 6 項目を<b>全対象まとめて先に</b>検査し、衝突は <code>git merge --abort</code> で戻して <code>WT004</code> で返す。合流の試みは共有ルートの <code>logs/worktree-merges.jsonl</code> に <code>merged</code> / <code>up-to-date</code> / <code>aborted</code> の 3 値で 1 行ずつ残る。テストは<b>先行</b>（<code>worktree.sh</code> が無い状態で <code>WT-T01</code>〜<code>WT-T12</code> を書いて FAIL を確認）で、<code>passed=160 failures=0</code> / <b><code>OK: 1 本 / 12 件</code></b>。<code>WG-T21</code>（S4 で入れた置き場引数の例外）も<b>S6 の実体</b>で踏み直して PASS。eval <code>WT-E01</code>〜<code>WT-E03</code> は<b>定義のみ・未実行</b>。最大の学びは <a href="#f30">f30</a> —— 「置き場がリポジトリの配下か」をパスの文字列で比べると Windows の綴りの二重性（<code>/tmp/x</code> と <code>C:/Users/…/Temp/x</code>）で素通りし、<b>リポジトリ直下に作業ツリーが作られた</b>。git 自身に綴りを解決させる形に直した。</p>
   <p>S7（0024）は<b>提供コマンド b</b> として <code>ticket.sh</code> / <code>push.sh</code> / <code>boundary.sh</code> の 3 本を改修し、採番と push を本流に一本化して切れ目の判定を全作業ツリーに広げた。①<code>ticket.sh</code> の <code>create</code> に <b>TK009</b>（作業ツリーでは採番せず終了 1、チケットを 1 枚も作らない。分岐は <code>cmd_create</code> の中だけに置き <code>start</code> / <code>complete</code> の経路に条件を足さない）②<code>push.sh</code> の push 前チェックに<b>項目 5</b>（本流で実行している。<code>wip/push-check-skip.md</code> に書いても飛ばせない）③<code>boundary.sh</code> の <code>last_task</code> を<b>既出の切れ目（<code>covered</code>）の補集合</b>で決める形（DDR <code>i0050-10</code>）と <code>at_boundary</code> の<b>全作業ツリー参照</b>（管理対象が 0 なら <code>worktree.sh</code> を呼ばない）。「本流かどうかの判定」は <code>worktree.sh</code> の 4 行をそのままコピーし、<b>3 本のバイト一致を機械テストで固定</b>した（共有ライブラリ化は <code>20-common-step-shell-script</code> 仕様の変更が要り許可範囲の外。DDR <code>i0009-36</code> と同じやり方）。<code>TICKET-T13</code> / <code>CP-T12</code> / <code>BD-T20</code> / <code>BD-T21</code> は 4 ID とも<b>テスト先行</b>で新設し、担当 3 本（<code>passed=139</code> / <code>62</code> / <code>142</code>）と<b>全件テスト 28 本 243 ID が 1 回で全通し</b>（他の退行 0 件）。<b>変更後の <code>commit.sh</code> → <code>ticket.sh complete</code> の並びで自分を閉じた</b>。学びは 2 つ ——（<a href="#f37">f37</a>）<code>covered</code> を仕様どおり全行から作ると<b>別 issue の切れ目が混ざる</b>（<code>logs/</code> は clone に溜まる一方、チケット番号は片付けのたびに 0001 から振り直される。実リポジトリでは <code>mr: null</code> の行の <code>0026,0025,0024</code> が本チケット自身を既出にしていた）ので現在の MR の記録だけを数える形にした（<a href="#f38">f38</a>）補集合で切ると<b>これまでレビューを一度も受けずに通過したチケットが表に出る</b> —— 本リポジトリでは <code>0010</code> と <code>0016</code> の切れ目の記録が無く、次の切れ目の <code>last_task</code> は <code>{0010}</code> になる。</p>
   <p>S8（0025）は<b>指示文の側</b>を仕様に合わせた。中核（フック・提供コマンド・<code>settings.json</code>）には 1 行も触れていない。①<code>00-workflow-issue-mr-driven/SKILL.md</code> に<b>作業ツリーの既定は「切らない」</b>・<b>並列実施（手順 2b）の発効の保留と解禁の条件 2 つ</b>・<b>手順 2c（合流を敵対的レビューと push のどちらよりも前に）</b>・手順 0-4・2-3・2-4・2-7・手順 3 の前置き・ヘッドレスの扱い・作業ツリーまわりの禁止事項 5 件・エラー時の対処 4 行を入れ、<b><code>20-common-step-worktree</code> への参照で受け入れ条件 A3（並行作業の手段へ 1 ホップ）を満たした</b>（<code>CLAUDE.md</code> は触っていない）。②<code>20-common-step-ticket</code> に採番の本流一本化（<code>TK009</code>）、<code>20-common-step-commit-push</code> に push 前チェック<b>項目 5</b>（本流限定・スキップ不可。0024 の残課題 <b>R34</b> の消し込み）。③<code>10-task-investigation-exec</code>（実施タスク共通の正）に並列区間のレポート追記規約・訂正の節・作業ディレクトリの決まり。④<code>.claude/agents/task-executor.md</code> に並列時の前提と <b><code>isolation: worktree</code> を置いてよい条件</b>（<code>settings.json</code> に <code>worktree.baseRef</code> があるときだけ・成果を残す作業には使わない）。⑤<code>.claude/rules/work-defaults.md</code> の表に<b>「並列してよいか」の列</b>を足し、計画タスクは常に直列・実施タスクは依存しないチケットどうしなら可・既定は並列にしない・<b>発効の保留中は「可」でも並列にしない</b>を明示した。⑥eval を 10 件（<code>WFD-E07</code>〜<code>E10</code> / <code>TXE-E07</code>〜<code>E09</code> と <code>TXE-E02</code> の更新 / <code>IVE-E05</code>・<code>E06</code>）<b>定義のみ</b>で追加した。機械テスト <code>HK-T02</code> は列を足した直後に PASS（<code>passed=95 failures=0</code>）で、<b>写しの 2 列目を 1 行だけ壊すと抽出が 15 → 14 行になる</b>ことも確かめた（反転検査。<a href="#f45">f45</a>）。<b>変更した 4 つのスキルはすべて Skill ツールで 1 回ずつ読み込めた</b>（frontmatter の破損なし）。学びは 3 つで、①計画書と DoD が言う「手順 3-0」は<b>いまの仕様書に存在しない</b>（0017 の設計で手順 2c へ移設。D24）②計画書の変更対象表に <code>assets/subagent-prompt.template.md</code> の行が無いが、仕様の OUT ひな形はこのテンプレートに「作業ツリーの置き場」を求めている（D25）③<code>HK-T02</code> は列を足しても壊れない（抽出が行頭 2 列しか見ない）。</p>
+  <p>S9（0026）は<b>参照更新の消し込みと全体検査</b>で、<b>アセットを 1 件も変えていない</b>（<code>git diff cbd6fb5 --stat</code> は <code>wip/</code> のチケット 1 枚とこのレポート md / HTML だけ）。計画書「参照更新一覧」の 7 行すべてで検索語を実行し、<b>5 行は期待値どおりかそれ以上・2 行は期待値より 1 行多い</b>。多い 2 行はどちらも<b>実装が正しく期待値の側が古い</b> —— #1 の <code>hook-common.sh:412</code>（<code>$HOOK_WORKTREE/logs/sh</code>）は S2 で新設した <code>__hc_relog</code> の本体で、フック共通仕様 §5 の根の列が <code>logs/sh/</code> を<b>ツリー</b>と定める以上そこに置くのが正しく、#5 の <code>test_workflow_guard.sh:533</code> は 0021 が <code>WG-T19</code> に足した<b>負のコントロールのコメント</b>でエラー識別子の増減ではない。計画時（<code>dd9b0a3</code>）の値と <code>git grep</code> で突き合わせ、#5 の 6 行と #6 の 53 行が<b>1 件も減っていない</b>ことも確かめた。プレースホルダは<b>この issue が変えた 35 アセット</b>に絞って <b>0 件</b>、frontmatter は <b>10 / 10</b>。全機械テストは <code>run-tests.sh --ids --timeout 300</code> で <b><code>OK: 28 本 / 243 件</code></b>（<code>FAIL</code> 0・重複 ID 0・所要 21 分 44 秒）、<b>割付表の機械テスト 37 件は 37 / 37 が PASS の一覧に含まれる</b>。本 issue の残りが回せることは <b>4 経路</b>（<code>ticket.sh next</code> / <code>boundary.sh status</code> / <code>commit.sh</code> / <code>run-tests.sh</code>）で確かめ、<b>拒否は 0 件</b>。<code>push.sh</code> は実行せず（項目 2 で必ず <code>CP005</code>・<code>remote-write:push</code> が <code>ops</code> に無い）、<code>CP-T12</code> の PASS と項目 5 の実装で代えた。</p>
+  <p>S9 の学びは 3 つ。①<b>「0 件を期待値にしない」という計画書の書き方が効いた</b>。#1 と #5 が食い違ったとき、0 件を成功条件にしていたら「検索語が間違っていた」のか「実装が違う」のかを切り分けられなかったが、件数と場所で書いてあったので<b>期待値の側が古い</b>と特定できた（D26）。②<b>計画書の期待値は実装に追い越される</b>。#1 は S2、#5 は S4 の時点で古くなっており、S9 まで誰も数え直していなかった（R44）。③<b>検査だけのステップは成果物がレポートだけになり、「本当に全部見たか」の機械的な裏付けが無い</b>。参照更新一覧を TSV にして <code>run-tests.sh</code> に載せる案を R45 に残した。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>35</b><span>◎良</span></li>
-    <li class="kpi warn"><b>8</b><span>△注意</span></li>
+    <li class="kpi good"><b>38</b><span>◎良</span></li>
+    <li class="kpi warn"><b>10</b><span>△注意</span></li>
     <li class="kpi stop"><b>2</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
@@ -245,6 +258,8 @@
         <li><b>並列実施の「発効の保留」を、スキル本文でどこまで強く書くか</b>（<a href="#f40">f40</a> / 0025）。手順 2b は「解禁されたときの手順」を 6 段そのまま残したうえで、冒頭に「この手順そのものが現在は使えない」「ユーザーの明示の指示があっても並列にしない」と書き、冒頭の禁止事項にも 1 行置いた。<b>手順の本文が残っている以上、読み飛ばして実行される余地は残る</b>（機構は止めない —— <code>worktree.sh add</code> は提供コマンドなので通る）。手順ごと畳んで「解禁されたら書き戻す」形にするか、いまの形（保留の宣言 + 手順の併記）でよいかを判断してほしい。eval <code>WFD-E10</code> はこの点を測るために定義した（未実行）</li>
         <li><b>DoD が言う「手順 3-0」を手順 3 の前置きとして実装したこと</b>（D24 / 0025）。仕様書には手順 3-0 が無く（0017 の設計で手順 2c へ移設され、DDR <code>i0050-09</code> に記録が残るだけ）、計画書の変更対象 #19 と本チケットの DoD だけが古い番号を指している。<b>仕様書の現物に合わせた</b>が、DoD の文言と 1:1 で対応しないので、この読み替えでよいかを確認してほしい</li>
         <li><b><code>.claude/rules/work-defaults.md</code> の「並列してよいか」の列を 5 列目（敵対的レビューの次）に置いたこと</b>（0025）。<code>HK-T02</code> の抽出は行頭 2 列しか見ないのでどこでも壊れないが、全体計画が提案文に引用する順序（実行者 → 人間レビュー → 敵対的レビュー → 並列可否 → 理由 → 調整条件）を優先した。要件は列の位置を定めていない</li>
+        <li><b>参照更新一覧 #1 と #5 を「期待値の側が古い」と判断してアセットを直さずに締めたこと</b>（<a href="#f46">f46</a> / D26 / 0026）。#1 は <code>hook-common.sh:412</code> の <code>$HOOK_WORKTREE/logs/sh</code> が 1 行残る（期待値 2 行 / 実測 3 行）。フック共通仕様 §5 の根の列が <code>logs/sh/</code> を<b>ツリー</b>、<code>20-common-step-worktree</code> 仕様 <code>add</code> 6 が「作業ツリーに <code>logs/hooks/</code> と <code>logs/sh/</code> の 2 つだけを作る」と定めるので、この 1 行を共有ルートへ移すと<b>仕様に反する</b>。#5 は <code>test_workflow_guard.sh:533</code> のコメントが 1 行増えている（期待値 6 行 / 実測 7 行）が、計画時の 6 行は内容が同じまま全部残っており（<code>git grep -n 'WF207' dd9b0a3</code> と突き合わせた）、<b>エラー識別子の削除・追加は 0 件</b>。DoD の文言は「2 行だけ」「6 行のまま」なので、<b>この 2 行だけは DoD を字句どおりには満たしていない</b>。判断の根拠が足りるかを見てほしい</li>
+        <li><b><code>push.sh</code> を実行しないままチケットを閉じたこと</b>（<a href="#f49">f49</a> / 0026）。DoD がそう明記しており（項目 2 で必ず <code>CP005</code>・<code>remote-write:push</code> が <code>ops</code> に無い）、<code>CP-T12</code> の PASS と <code>push.sh:171-179</code> の項目 5 の実装で代えたが、「本流での push が実際に通る」ことは<b>このフェーズで一度も踏んでいない</b>（<code>CP-T12</code> の負のコントロールが一時リポジトリで踏んでいるだけ）。切れ目で呼び出し元が push するときが実質的な初回になる</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -271,6 +286,9 @@
         <li><b><code>assets/subagent-prompt.template.md</code> に 2 行足したこと</b>（D25 / 0025）。計画書の変更対象表に行が無い（表は <code>SKILL.md</code> だけを挙げる）が、仕様の OUT ひな形はこのテンプレートに「作業ツリーの置き場（並列で起動するときだけ）」を要求している。テンプレートは <code>.claude/skills/**</code> で <code>allow.write</code> の内側なので足したが、<b>計画の範囲を 1 ファイル広げた</b>ことになる。範囲外なら S9（0026）へ戻す</li>
         <li><b>eval の「効果ありの判定基準」の合格ライン</b>（0025）。シナリオが増えたので <code>WFD</code> は 6 中 4 → <b>10 中 7</b>、<code>TXE</code> は 6 中 4 → <b>9 中 6</b>、<code>IVE</code> は 4 中 3 → <b>6 中 4</b> にした。仕様はシナリオの内容だけを定め、合格ラインを定めていない（既存の比率 2/3〜3/4 に合わせた実装判断）</li>
         <li><b>並列区間の追記規約が他の 6 つの実施スキルに文言として現れないこと</b>（0025）。<code>10-task-investigation-exec</code> が「実施タスク共通の正」で、他の実施スキルは参照するだけの作りなので<b>参照で足りている</b>と判断した。ただし実際に並列で走るのは調査以外のフェーズのほうが多い見込みなので、各スキルに 1 行ずつ再掲するかを判断してほしい（再掲は「手順を再掲しない」原則と衝突する）</li>
+        <li><b><code>.gitignore</code> を <code>ai-asset-implementation</code> の <code>allow</code> に残したまま締めたこと</b>（R2 → R42 / 0026）。0018 が「残す側に倒した」と書いたが、S9 で選び直す余地があるという整理だった。実際には<b>選べない</b> —— 外すには <code>.claude/hooks/config/scope-limits.json</code> の編集が要り、このパスは <code>common.confirm</code> なのでサブエージェント実行者からは <code>WF203</code>（ヘッドレスで deny）で触れない。外す判断をするなら<b>呼び出し元の代行</b>が要る。残す前提でよいか</li>
+        <li><b>R21（<code>post-push-*</code> の共有ルート化を固定するテスト）と R28（合流の記録の 4 KB 切り詰め）を S9 で閉じなかったこと</b>（0026）。どちらも計画書が「S9（0026）の全体検査」を引き取り先に挙げていたが、<b>S9 はテストを新設しないステップ</b>（計画書「依存するテスト」の割り付けにも S9 の行が無い）なので、検査ではなくテストの新設が要る。設計反映 → 次の実装フェーズへ回す整理でよいか</li>
+        <li><b>参照更新一覧の消し込みを機械化する案</b>（R45 / 0026）。S9 の成果物はレポートの散文だけで、「7 行すべてを実行した」ことの機械的な裏付けが無い。検索語・除外・期待値（件数の下限と上限、または残るファイルの集合）を TSV に置き <code>run-tests.sh</code> に載せる案を検討してよいか。ただし期待値が実装に追い越される問題（R44）はテスト化しても残る（テスト自身が古くなる）</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -319,6 +337,10 @@
       <li><b>書いた指示文が実際に振る舞いを変えるか</b>（0025）— S8 が変えたのはすべて指示文（スキル本文・エージェント定義・ルール）で、機械テストを持たない。効果を測る手段は eval だが、このフェーズでは<b>実行しない</b>。定義（<code>WFD-E07</code>〜<code>E10</code> / <code>TXE-E07</code>〜<code>E09</code> / <code>IVE-E05</code>・<code>E06</code>）まで作って人間の判断に委ねた</li>
       <li><b><code>00-workflow-issue-mr-driven</code> を編集した後に「新しいプロンプトを 1 回通す」こと</b>（0025）— 計画書のロックアウト対策 S8 が求めるが、<b>サブエージェントにはユーザープロンプトが無い</b>（<code>UserPromptSubmit</code> が発火しない）ので実行者からは踏めない。Skill ツールでの読み込み（4 / 4 成功）と frontmatter のキー検査で代え、呼び出し元の次のプロンプトへ渡した（R40）</li>
       <li><b>並列区間の追記規約が実際の並列区間で守られること</b>（0025）— 並列実施そのものの発効が保留されており、このフェーズでは並列区間が発生しない。<code>IVE-E05</code> を定義（未実行）して代えた</li>
+      <li><b><code>push.sh</code> が本流で実際に通ること</b>（0026）— 実行者は作業中チケットを必ず 1 枚持つので push 前チェック<b>項目 2</b> で必ず <code>CP005</code> になり、かつ <code>remote-write:push</code> が <code>ai-asset-implementation</code> の <code>ops</code> に無い。<code>CP-T12</code> の PASS（負のコントロール「同じリポジトリの本流では項目 5 が通る」を含む）と <code>push.sh:171-179</code> の実装で代えた → 切れ目の <code>push</code>（呼び出し元が行う）</li>
+      <li><b>参照更新の消し込みを「見落としなく全部やった」ことの機械的な裏付け</b>（0026）— S9 の成果物はレポートと作業ログの散文だけで、7 行の検索を実行した記録を機械で検証する手段が無い（<code>workflow-diff-check</code> の許可範囲検査も <code>push.sh</code> の項目 3 も、検索を実行したかどうかは見ない）。検索語と期待値を TSV に置いて <code>run-tests.sh</code> に載せる案を R45 に残した</li>
+      <li><b><code>post-push-*</code> の共有ルート化をテストで区別すること</b>（0026。0022 から持ち越し）— S9 は<b>テストを新設しないステップ</b>（計画書「依存するテスト」の割り付けに S9 の行が無い）。<code>grep -c worktree</code> が両テストとも 0 のままであることだけを再確認した → 設計反映 → 次の実装フェーズ（R21 / R43）</li>
+      <li><b>合流の記録の 4 KB 切り詰め</b>（0026。0023 から持ち越し）— 同じ理由。<code>grep -n '4096'</code> は <code>worktree.sh:18</code> の 1 件だけで、<code>test_worktree.sh</code> に踏むケースが無いことを再確認した → フィードバック計画（0028）（R28 / R43）</li>
     </ul>
   </div>
 </section>
@@ -362,6 +384,15 @@
     <li>編集は <b>Edit ツールだけ</b>で行った。復旧は <code>git checkout</code> を使わず <code>git show c152f9f:&lt;パス&gt;</code> → Write の手順を用意したが、<b>使わずに済んだ</b></li>
     <li><code>git worktree add</code> は<b>テストスクリプトの中で一時リポジトリに対してだけ</b>呼んでいる（作業リポジトリに対しては 1 度も実行していない）</li>
     <li><code>shellcheck</code> はこの環境に無い</li>
+  </ul>
+  <p>0026（S9）分:</p>
+  <ul>
+    <li>基準点: <code>cbd6fb5</code>（チケット 0026 の <code>base_sha</code>）。着手コミット <code>d4d2e93</code></li>
+    <li>対象: <b>アセットの変更 0 件</b>。検索と検査の対象は「この issue が <code>.claude/</code> 配下で変更した 35 ファイル」（<code>git diff --name-only $(git merge-base main HEAD)..HEAD -- .claude/agents .claude/evals .claude/hooks .claude/rules .claude/skills</code>。merge-base は <code>7d5983b</code>）と、参照更新一覧が指定する検索範囲（<code>.claude/</code> 全体から <code>.claude/docs/**</code> を除いたもの）</li>
+    <li>実行コマンド: 参照更新の <code>grep -rn</code> 7 種（+ <code>git grep -n … dd9b0a3</code> による計画時との突き合わせ 3 種）／プレースホルダの <code>grep -n '&#123;&#123;…&#125;&#125;'</code> と <code>grep -nw 'TODO\|TBD'</code>（対象を <code>$(git diff --name-only …)</code> で 35 ファイルに絞る）／frontmatter のキー列挙 10 ファイル／<code>run-tests.sh --ids --timeout 300</code>（全件・<b>1 本だけ</b>。並行実行しない）／<code>ticket.sh next</code> / <code>start</code> / <code>complete</code>／<code>boundary.sh status</code>／<code>commit.sh</code></li>
+    <li><b><code>push.sh</code> は実行していない</b>（DoD の明記どおり。理由は <a href="#f49">f49</a>）</li>
+    <li>全件テストの所要は <b>21 分 44 秒</b>（04:40:12 → 05:01:56）。<code>--timeout 300</code> を指定しないと 3 本が打ち切られる</li>
+    <li><code>shellcheck</code> はこの環境に無い（S9 はシェルスクリプトを変えていないので <code>bash -n</code> の対象も 0 本）</li>
   </ul>
 </section>
 
@@ -983,6 +1014,79 @@ worktrees_have_doing() {
       </ul>
       <p><b><code>HK-T02</code> の確認（列を足した直後）。</b> <code>run-tests.sh --filter '*config_integrity*' --timeout 300</code> → <code>PASS / passed=95 failures=0</code>（列を足す前と同じ件数 = 退行なし）。抽出は <b>15 行</b>（<code>scope-limits.json</code> / <code>task-types.tsv</code> と同じ集合）。<b>反転検査</b>: 写し（<code>wip/tmp/wd-inverted.md</code>。検査後に削除）で 1 行の 2 列目を <code>Subagent</code> に置き換えると抽出が <b>15 → 14 行</b>になり <code>assert_eq</code> が落ちる。作業リポジトリの <code>work-defaults.md</code> は 1 バイトも壊していない。</p>
     </li>
+    <li>
+      <h3 id="f46">参照更新一覧 7 行を実体で数え直した — 5 行は期待値どおり、2 行は +1 行で理由が付いた（0026 / S9）<span class="chip warn">△注意</span> <span class="basis">根拠: 7 種の grep と、計画時 dd9b0a3 との git grep 突き合わせ</span></h3>
+      <p>計画書の「参照更新一覧」は<b>期待値を「残るもの」で書く</b>形（0 件を成功条件にしない）なので、7 行すべてで検索語を実行し、件数と場所を突き合わせた。<b>5 行（#2・#3・#4・#6・#7）は期待値どおりかそれ以上</b>で、<b>2 行（#1・#5）は期待値より 1 行多い</b>。どちらも<b>実装が正しく計画書の期待値の側が古い</b>ので、アセットは 1 行も直していない。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>検索語</th><th>期待値</th><th>実測</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>grep -rn 'HOOK_WORKTREE/logs/' --include="*.sh" .claude/</code></td><td><code>logs/hooks/</code> の <b>2 行</b>だけ</td><td><b>3 行</b>: <code>subagent-stop-check.sh:211</code>・<code>hook-common.sh:746</code>（ともに <code>logs/hooks/decisions.jsonl</code>）・<code>hook-common.sh:412</code>（<code>logs/sh</code>）</td><td><b>+1 行</b></td></tr>
+          <tr><td>1b</td><td><code>grep -rn 'HOOK_SHARED_ROOT/logs/' --include="*.sh" .claude/</code></td><td><b>22 行以上</b></td><td><b>22 行</b>（<code>mr.json</code> 7・<code>sessions</code> 4・<code>merge-state.json</code> 4・<code>locks</code> 3・<code>$__se_sf</code> 2・<code>usage</code> 2・<code>review-state.json</code> 1・<code>push-state.json</code> 1）</td><td>一致</td></tr>
+          <tr><td>2</td><td><code>grep -rn '20-common-step-worktree' … skills/ agents/ rules/ evals/</code></td><td>アセット側 <b>5 ファイル以上</b>（列挙の 7 つを含む）</td><td><b>16 ファイル / 41 行</b>。列挙の 7 つをすべて含む</td><td>一致（超過）</td></tr>
+          <tr><td>3</td><td><code>grep -rn 'worktree\.sh' --include="*.md" --include="*.sh" .claude/</code>（docs 除外）</td><td>アセット側 <b>6 ファイル以上</b></td><td><b>19 ファイル / 69 行</b>。列挙の 6 つ（実体・テスト・<code>SKILL.md</code>・<code>boundary.sh</code>・<code>00-workflow-issue-mr-driven/SKILL.md</code>・eval 定義）をすべて含む</td><td>一致（超過）</td></tr>
+          <tr><td>4</td><td><code>grep -rn 'HOOK_SHARED_ROOT' --include="*.sh" .claude/</code></td><td><code>hook-common.sh</code> の定義 <b>1 か所</b> + 参照 <b>22 行以上</b>、<code>test_hook_common.sh</code> にも現れる</td><td><b>33 行 / 5 ファイル</b>。<code>hook-common.sh</code> 13（代入は 38 行目の固定と 339 行目の貼り直しの <b>2 か所</b>）・<code>session-start.sh</code> 8・<code>post-push-usage-report.sh</code> 4・<code>post-push-compact-prompt.sh</code> 3・<code>test_hook_common.sh</code> 5</td><td>一致（代入 2 か所は §2 が「<code>__hc_resolve_worktree</code> でも同じ代入を繰り返して固定を保つ」と定めるとおり）</td></tr>
+          <tr><td>5</td><td><code>grep -rn 'WF207' --include="*.sh" .claude/</code></td><td><b>6 行のまま</b>（<code>workflow-guard.sh</code> 2・<code>test_workflow_guard.sh</code> 4）。番号の増減なし</td><td><b>7 行</b>（<code>workflow-guard.sh</code> 123・150 / <code>test_workflow_guard.sh</code> 83・279・280・281・<b>533</b>）</td><td><b>+1 行</b></td></tr>
+          <tr><td>6</td><td><code>grep -rn 'TK00[0-9]' … | grep -v '^\.claude/docs'</code></td><td><b>54 行以上</b>、既存 53 行は減らない</td><td><b>64 行</b>。計画時（<code>dd9b0a3</code>）の 53 行はファイル別に見ても 1 件も減っていない</td><td>一致（超過）</td></tr>
+          <tr><td>7</td><td><code>grep -rn 'worktree-merges' …</code>（docs 除外）</td><td>アセット側 <b>3 か所以上</b></td><td><b>5 行 / 4 ファイル</b>（<code>worktree.sh</code> 1・<code>test_worktree.sh</code> 1・<code>20-common-step-worktree/SKILL.md</code> 2・<code>00-workflow-issue-mr-driven/SKILL.md</code> 1）</td><td>一致（超過）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>#1 の +1 行（<code>hook-common.sh:412</code> = <code>$HOOK_WORKTREE/logs/sh</code>）は、直すべきものではない。</b> フック共通仕様 §5 の根の列は <code>logs/sh/&lt;name&gt;.log</code> を<b>ツリー</b>（作業ツリー側）と定めており、<code>20-common-step-worktree</code> 仕様 <code>add</code> 6 も「作業ツリーのルートに <code>logs/hooks/</code> と <code>logs/sh/</code> の 2 つだけを作る」と書く。この 1 行は S2（0019）で新設した <code>__hc_relog</code>（作業ツリーが確定した時点で logger の出力先だけを貼り替える関数）の本体で、<b>共有ルートへ移すと仕様に反する</b>。計画書の除外欄が「<code>logs/sh/</code> は logger 経由でこの検索に現れない」と書いたのは <code>__hc_relog</code> が S2 で生まれる前の見立てで、0022 のレポート（<a href="#f27">f27</a>）が既に「3 行」と記録していたのと同じ数字である。</p>
+      <p><b>#5 の +1 行（<code>test_workflow_guard.sh:533</code>）も、直すべきものではない。</b> 計画時（<code>dd9b0a3</code>）の 6 行は <code>git grep -n 'WF207' dd9b0a3 -- '.claude/*.sh'</code> と現在の出力を突き合わせると<b>内容が同じまま全部残っている</b>（行番号だけ移動: <code>workflow-guard.sh</code> 113→123・138→150、<code>test_workflow_guard.sh</code> 239〜241→279〜281）。増えた 1 行は 0021 が <code>WG-T19</code> に足した<b>コメント</b>で、<b>エラー識別子の削除・追加は 0 件</b>。文言の検査も通っている —— <code>workflow-guard.sh:150</code> の <code>hook_deny WF207</code> に「<b>この作業ツリーで</b> <code>bash .claude/skills/20-common-step-ticket/scripts/ticket.sh</code> を使い」が入っている。</p>
+    </li>
+    <li>
+      <h3 id="f47">プレースホルダと frontmatter を「変更した 35 アセット」に限って検査した（0026 / S9）<span class="chip good">◎良</span> <span class="basis">根拠: 二重波かっこ 0 件 / TODO・TBD 0 件 / frontmatter 10 / 10</span></h3>
+      <p>対象は <code>git diff --name-only $(git merge-base main HEAD)..HEAD -- .claude/agents .claude/evals .claude/hooks .claude/rules .claude/skills</code> が返す <b>35 ファイル</b>（<code>.claude/docs/**</code> は実装フェーズの <code>deny</code> なので対象外）。リポジトリ全体ではなく<b>この issue が変えたものだけ</b>に絞ったのは、既存アセットの <code>$TODO</code> 変数のような無関係なヒットで検査が濁るのを避けるため。</p>
+      <ul>
+        <li><b>二重波かっこ</b>: 生のヒットは 29 行。うち 15 行は <code>assets/subagent-prompt.template.md</code>（<b>テンプレートは対象外</b> —— <code>20-common-step-ai-asset-creator</code> 手順 7）、14 行は <code>ticket.sh</code> の<b>置換表</b>（テンプレートを埋める側のコードで、埋め残しではない）。この 2 つを除いた<b>残存は 0 件</b></li>
+        <li><b><code>TODO</code> / <code>TBD</code></b>: <code>grep -nw</code> のヒットは 7 行で、すべて <code>readonly TODO="$TICKETS/00_todo"</code> 系の<b>シェル変数</b>（<code>boundary.sh</code> 2・<code>ticket.sh</code> 5）。プレースホルダとしての残存は <b>0 件</b></li>
+        <li><b>frontmatter</b>: <b>10 / 10 OK</b>。スキル 5 本 = <code>name</code> / <code>description</code> の <b>2 キーちょうど</b>／<code>agents/task-executor.md</code> = 4 キー（<b><code>isolation</code> は無い</b> —— <code>settings.json</code> に <code>worktree.baseRef</code> が無いため。<a href="#f44">f44</a> の判断どおり）／eval 4 本 = 5 キー（<code>eval.template.md</code> どおり）／<code>rules/work-defaults.md</code> = 7 キー。<b><code>paths</code> ではなく <code>applies_when</code></b> なのは、<code>00_requirement/rules/ルール体系.md</code> が「行動ルールで <code>paths</code> に馴染まないものは <code>applies_when</code> で宣言する」と定めるため（他の 3 ルールは <code>paths</code>）</li>
+      </ul>
+    </li>
+    <li>
+      <h3 id="f48">全機械テスト 28 本 / 243 ID が 1 回で通り、割付表の機械テスト 37 / 37 が PASS の一覧に入った（0026 / S9）<span class="chip good">◎良</span> <span class="basis">根拠: run-tests.sh --ids --timeout 300 → OK: 28 本 / 243 件・FAIL 0・重複 0</span></h3>
+      <p><code>bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --ids --timeout 300</code> を <b>1 本だけ</b>（並行実行しない）走らせた。所要 <b>21 分 44 秒</b>（04:40:12 → 05:01:56）。</p>
+      <ul>
+        <li><b><code>OK: 28 本 / 243 件</code></b>。28 本すべて <code>PASS / exit 0 / failures=0</code>、<code>FAIL ID:</code> は<b>空</b>、<b>重複 ID なし</b></li>
+        <li>0025 の全通しと<b>本数・件数とも同じ</b>（28 本 / 243 件）。S9 は 1 行もアセットを変えていないので、増減が無いのが期待どおり</li>
+        <li><b>割付表の機械テスト 37 件はすべて <code>PASS ID:</code> の一覧に含まれる</b>（照合表は「テスト結果」）</li>
+        <li><b><code>--timeout 300</code> は今も要る</b>（R9 は閉じない）。<code>test_workflow_guard.sh</code> <b>140 秒</b>・<code>test_boundary.sh</code> 165 秒・<code>test_finalize.sh</code> 153 秒は既定の 120 秒を超える</li>
+        <li><b>テスト先行は適用していない</b>（S9 は新設テスト 0 件。回帰を見るステップ）。反転検査の対象も無い</li>
+      </ul>
+    </li>
+    <li>
+      <h3 id="f49">本 issue の残りが回せることを 4 経路で確かめ、push.sh は CP-T12 と項目 5 の実装で代えた（0026 / S9）<span class="chip good">◎良</span> <span class="basis">根拠: 4 経路とも成功・拒否 0 件 / CP-T12 PASS（passed=62 failures=0）</span></h3>
+      <p>計画書のリスク 7 が求める確認。<b><code>push.sh</code> は実行していない</b>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>経路</th><th>実行したもの</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>提供コマンド（チケット）</td><td><code>ticket.sh next</code> → <code>start 0026</code> → <code>complete 0026</code></td><td><code>next</code> が <code>{"current":null,"next":"0026",…}</code> を返し、<code>start</code> が <code>OK: … 作業中にした（基準点 cbd6fb5 / d4d2e93）</code></td></tr>
+          <tr><td>2</td><td>提供コマンド（切れ目）</td><td><code>boundary.sh status</code></td><td>JSON が返る。<code>at_boundary:false</code> / <code>position:"in_task"</code> / <code>current:"0026"</code> / <code>mr:51</code>。<b>S7 で入れた「管理対象の作業ツリーが 0 なら <code>worktree.sh</code> を呼ばない」経路がそのまま通った</b></td></tr>
+          <tr><td>3</td><td>提供コマンド（コミット）</td><td><code>commit.sh</code></td><td>成功（このチケットの成果物のコミット）</td></tr>
+          <tr><td>4</td><td>テスト</td><td><code>run-tests.sh --ids --timeout 300</code></td><td><code>OK: 28 本 / 243 件</code>（<a href="#f48">f48</a>）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b><code>push.sh</code> を実行しない理由（DoD の明記どおり）。</b> ①push 前チェック <b>項目 2</b>（作業中のチケットが無い）は、実行者が必ず作業中チケット 1 枚を持つ状態でしか呼べないので<b>必ず <code>CP005</code></b> になる。②<code>remote-write:push</code> は <code>scope-limits.json</code> の <code>types["ai-asset-implementation"].ops</code> に<b>無い</b>。代わりに <b><code>CP-T12</code> の PASS</b>（作業ツリーからの <code>push.sh</code> が項目 5 未充足の <code>CP005</code>・スキップ不可・リモートにサブブランチが増えない。<b>負のコントロール</b>「同じリポジトリの本流では項目 5 が通る」を同じ ID に含む）と <b>項目 5 の実装</b>（<code>push.sh:171-179</code>。<code>ITEM_NAMES[5]="本流で実行している"</code>、スキップ記録の読み取りは項目 1〜3 に限り項目 4・5 は <code>FIXED_REQUESTED</code> に集めて無視する）で経路が残っていることを示した。実際の push は切れ目で呼び出し元が行う。</p>
+    </li>
+    <li>
+      <h3 id="f50">S9 が引き取ると書かれていた残課題 6 件を棚卸しし、3 件を閉じ 3 件を送った（0026 / S9）<span class="chip warn">△注意</span> <span class="basis">根拠: R2 / R40 を締め、R9 / R10 / R21 / R28 を再確認して送った</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>残課題</th><th>S9 での扱い</th></tr></thead>
+        <tbody>
+          <tr><td><b>R2</b>（<code>.gitignore</code> を <code>allow</code> に恒久的に残すか）</td><td><b>残す側で締める</b>。外すには <code>.claude/hooks/config/scope-limits.json</code> の編集が要るが、このパスは <code>common.confirm</code> でサブエージェント実行者からは <code>WF203</code>（ヘッドレスで deny）になり触れない（0018 の D3 と同じ壁）。0018 の判断をそのまま採る</td></tr>
+          <tr><td><b>R9</b>（<code>test_workflow_guard.sh</code> が 120 秒に収まらない）</td><td><b>閉じない</b>。この回も 140 秒で <code>--timeout 300</code> が要る（<a href="#f48">f48</a>）。フィードバック計画（0028）へ</td></tr>
+          <tr><td><b>R10</b>（<code>shellcheck</code> が無い）</td><td><b>閉じない</b>。今も不在。S9 はスクリプトを変えていないので <code>bash -n</code> の対象も 0 本。環境整備の課題として残す</td></tr>
+          <tr><td><b>R21</b>（<code>post-push-*</code> の共有ルート化を固定するテストが無い）</td><td><b>閉じない</b>。<code>grep -c worktree</code> が両テストとも <b>0</b>。<b>S9 はテストを新設しないステップ</b>なので、<code>grep</code>（3 行 / 22 行）と <code>HK-T21</code> の PASS を根拠として重ねるにとどめた。新設は設計反映 → 次の実装へ</td></tr>
+          <tr><td><b>R28</b>（合流の記録の 4 KB 切り詰めが未検査）</td><td><b>閉じない</b>。<code>grep -n '4096'</code> は <code>worktree.sh:18</code>（<code>MERGE_LOG_MAX</code>）の 1 件だけで、<code>test_worktree.sh</code> に踏むケースが無い。フィードバック計画（0028）へ</td></tr>
+          <tr><td><b>R40</b>（<code>00-workflow-issue-mr-driven</code> の編集後に新しいプロンプトを 1 回通す確認）</td><td><b>閉じる</b>。呼び出し元（メインエージェント）から回答があった: 0025 の完了後も <code>WF204</code> / <code>WF205</code> が実際に拒否を返し、提供コマンドは通り、振り分けの宣言も維持されている。<b><code>entry-skills.txt</code> の照合が実運用で機能している</b>ことが確かめられた</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
   </ol>
 </section>
 
@@ -1128,6 +1232,20 @@ worktrees_have_doing() {
       <tr><td>全件テスト（<code>run-tests.sh --timeout 300 --ids</code>。0025）</td><td><b><code>OK: 28 本 / 243 件</code></b>（全 PASS / <code>FAIL ID:</code> 空 / 重複 ID なし）。S8 は機械テストを新設していないので ID 数は 0024 と同じ</td></tr>
       <tr><td>S8 が担当する参照更新</td><td><b>0 行</b>（全 7 行が S9 / 0026 担当）。ただし 0024 の残課題 <b>R34</b>（<code>20-common-step-commit-push/SKILL.md</code> の「4 項目」）は S8 で消し込んだ</td></tr>
       <tr><td>書き戻し（復旧）の発生</td><td><b>0 件</b>。<code>git show &lt;base_sha&gt;:&lt;パス&gt;</code> からの書き戻しは行っていない</td></tr>
+      <tr><td colspan="2"><b>0026（S9）分</b></td></tr>
+      <tr><td>参照更新一覧 #1（旧名側 / 新名側）</td><td><code>HOOK_WORKTREE/logs/</code> = <b>3 行</b>（期待値 2 行 / +1 は仕様どおりの <code>logs/sh</code>）。<code>HOOK_SHARED_ROOT/logs/</code> = <b>22 行</b>（期待値 22 行以上。一致）</td></tr>
+      <tr><td>参照更新一覧 #2 / #3</td><td><code>20-common-step-worktree</code> = <b>16 ファイル / 41 行</b>（期待値 5 以上）。<code>worktree.sh</code> = <b>19 ファイル / 69 行</b>（期待値 6 以上）。どちらも計画書が列挙したファイルを全部含む</td></tr>
+      <tr><td>参照更新一覧 #4</td><td><code>HOOK_SHARED_ROOT</code> = <b>33 行 / 5 ファイル</b>。<code>hook-common.sh</code> の代入は 38 行目（固定）と 339 行目（貼り直し）、参照は 22 行、<code>test_hook_common.sh</code> に 5 行</td></tr>
+      <tr><td>参照更新一覧 #5</td><td><code>WF207</code> = <b>7 行</b>（期待値 6 行 / +1 は負のコントロールのコメント）。計画時 <code>dd9b0a3</code> の 6 行は内容が同じまま全部残る。<code>workflow-guard.sh:150</code> の文言に「この作業ツリーで」が入っている</td></tr>
+      <tr><td>参照更新一覧 #6 / #7</td><td><code>TK00[0-9]</code> = <b>64 行</b>（期待値 54 以上。計画時 53 行はファイル別に見ても 1 件も減っていない）。<code>worktree-merges</code> = <b>5 行 / 4 ファイル</b>（期待値 3 以上）</td></tr>
+      <tr><td>プレースホルダ（変更した 35 アセット）</td><td>二重波かっこの残存 <b>0 件</b>（テンプレートと <code>ticket.sh</code> の置換表を除く）。<code>TODO</code> / <code>TBD</code> の残存 <b>0 件</b>（7 行はすべて <code>$TODO</code> シェル変数）</td></tr>
+      <tr><td>frontmatter（変更したアセット）</td><td><b>10 / 10 OK</b>（スキル 5 = 2 キー / エージェント 1 = 4 キー / eval 4 = 5 キー / ルール 1 = 7 キー）</td></tr>
+      <tr><td>全件テスト（<code>run-tests.sh --ids --timeout 300</code>）</td><td><b><code>OK: 28 本 / 243 件</code></b>。28 本すべて PASS、<code>FAIL ID:</code> 空、<b>重複 ID なし</b>。所要 21 分 44 秒</td></tr>
+      <tr><td>割付表の機械テスト 37 件</td><td><b>37 / 37 が <code>PASS ID:</code> の一覧に含まれる</b></td></tr>
+      <tr><td>本 issue の残りが回せるか（4 経路）</td><td><code>ticket.sh next</code> / <code>start</code> OK・<code>boundary.sh status</code> OK（JSON）・<code>commit.sh</code> OK・<code>run-tests.sh</code> OK。<b>拒否された経路は 0 件</b></td></tr>
+      <tr><td><code>push.sh</code>（5 つ目の経路）</td><td><b>実行していない</b>（項目 2 で必ず <code>CP005</code>・<code>remote-write:push</code> が <code>ops</code> に無い）。<code>CP-T12</code> の PASS と <code>push.sh:171-179</code> の項目 5 の実装で代えた</td></tr>
+      <tr><td>S9 のアセット差分</td><td><b>0 行</b>。<code>git diff cbd6fb5 --name-only</code> は <code>wip/</code> だけ（チケット 1 枚とレポート md / HTML）</td></tr>
+      <tr><td>書き戻し（復旧）の発生（0026）</td><td><b>0 件</b>。中核を触っていないので復旧手順は使っていない</td></tr>
     </tbody>
   </table>
   </div>
@@ -1183,6 +1301,7 @@ worktrees_have_doing() {
       <tr><td>42</td><td><code>.claude/evals/00-workflow-issue-mr-driven.md</code></td><td>eval 定義</td><td>更新（<code>WFD-E07</code>〜<code>E10</code> を新設。目的と合格ラインを 10 中 7 に更新）</td><td><code>00-workflow-issue-mr-driven</code> 仕様「テスト観点（eval）」（<b>定義のみ・未実行</b>）</td><td>0025</td></tr>
       <tr><td>43</td><td><code>.claude/evals/task-executor.md</code></td><td>eval 定義</td><td>更新（<code>TXE-E07</code>〜<code>E09</code> を新設、<code>TXE-E02</code> を仕様の更新分に合わせた。合格ラインを 9 中 6 に更新）</td><td><code>task-executor</code> 仕様「テスト観点（eval）」（<b>定義のみ・未実行</b>）</td><td>0025</td></tr>
       <tr><td>44</td><td><code>.claude/evals/10-task-investigation-exec.md</code></td><td>eval 定義</td><td>更新（<code>IVE-E05</code>・<code>E06</code> を新設。合格ラインを 6 中 4 に更新）</td><td><code>10-task-investigation-exec</code> 仕様「テスト観点（eval）」（<b>定義のみ・未実行</b>）</td><td>0025</td></tr>
+      <tr><td>—</td><td>（0026 / S9 はアセットを 1 件も作成・変更していない）</td><td>—</td><td><b>なし</b></td><td>S9 は「参照更新一覧の消し込みと全体検査」のステップで、検索の結果 7 行とも<b>直すべき箇所が無かった</b>（期待値との差 2 件はいずれも実装が正しく期待値の側が古い。<a href="#f46">f46</a>）。成果物はこのレポート md / HTML とチケット 1 枚だけ</td><td>0026</td></tr>
     </tbody>
   </table>
   </div>
@@ -1251,6 +1370,22 @@ worktrees_have_doing() {
       <tr><td>TICKET-T01〜T12 / CP-T01〜T11 / BD-T01〜T19</td><td>既存の回帰</td><td>上の 3 コマンド</td><td><b>全 PASS</b>（1 件も落ちていない / 0024）</td></tr>
       <tr><td>全件 28 本 / 243 ID</td><td>リポジトリの全テスト（フック 17 本 + 提供コマンド 11 本）</td><td><code>run-tests.sh --timeout 300</code></td><td><b>全 PASS</b>（<code>OK: 28 本 / 243 件</code> / FAIL 0 / 0024）</td></tr>
       <tr><td>全件 28 本 / 239 ID</td><td>リポジトリの全テスト（フック 17 本 + 提供コマンド 11 本）</td><td><code>run-tests.sh --ids --timeout 300</code></td><td><b>全 PASS</b>（<code>OK: 28 本 / 239 件</code> / <code>FAIL ID:</code> 空 / 重複 ID なし。227 → 239 は S6 の新設 12 ID / 0023）</td></tr>
+      <tr><td colspan="4"><b>0026（S9）分 — 全件の回帰（新設 0 件）。割付表の機械テスト 37 件の照合</b></td></tr>
+      <tr><td>HK-T01（S1）</td><td><code>test_config_integrity.sh</code>（passed=95 / failures=0）</td><td rowspan="14"><code>run-tests.sh --ids --timeout 300</code>（全件・1 本だけ）</td><td><b>PASS</b></td></tr>
+      <tr><td>HK-T06 / HK-T21 / HK-T22（S2）</td><td><code>test_hook_common.sh</code>（238 / 0）</td><td><b>PASS</b>（3 / 3）</td></tr>
+      <tr><td>HK-T05 / HK-T12（S3）</td><td><code>test_cmdpos.sh</code>（332 / 0）</td><td><b>PASS</b>（2 / 2）</td></tr>
+      <tr><td>HK-T15（S3）</td><td><code>test_scope.sh</code>（399 / 0）</td><td><b>PASS</b></td></tr>
+      <tr><td>WG-T14 / WG-T19 / WG-T20 / WG-T21（S4）</td><td><code>test_workflow_guard.sh</code>（217 / 0）</td><td><b>PASS</b>（4 / 4）</td></tr>
+      <tr><td>SG-T12 / SG-T13（S4）</td><td><code>test_workflow_state_guard.sh</code>（109 / 0）</td><td><b>PASS</b>（2 / 2）</td></tr>
+      <tr><td>DC-T08 / DC-T09（S5）</td><td><code>test_workflow_diff_check.sh</code>（69 / 0）</td><td><b>PASS</b>（2 / 2）</td></tr>
+      <tr><td>SA-T10 / SA-T11（S5）</td><td><code>test_subagent_start_check.sh</code>（86 / 0）</td><td><b>PASS</b>（2 / 2）</td></tr>
+      <tr><td>SP-T05 / SP-T08 / SP-T09（S5）</td><td><code>test_subagent_stop_check.sh</code>（82 / 0）</td><td><b>PASS</b>（3 / 3）</td></tr>
+      <tr><td>SE-T11（S5）</td><td><code>test_session_start.sh</code>（68 / 0）</td><td><b>PASS</b></td></tr>
+      <tr><td>WT-T01〜WT-T12（S6）</td><td><code>test_worktree.sh</code>（160 / 0）</td><td><b>PASS</b>（12 / 12）</td></tr>
+      <tr><td>TICKET-T13（S7）</td><td><code>test_ticket.sh</code>（139 / 0）</td><td><b>PASS</b></td></tr>
+      <tr><td>CP-T12（S7）</td><td><code>test_push.sh</code>（62 / 0）</td><td><b>PASS</b></td></tr>
+      <tr><td>BD-T20 / BD-T21（S7）</td><td><code>test_boundary.sh</code>（142 / 0）</td><td><b>PASS</b>（2 / 2）</td></tr>
+      <tr><td>全件 28 本 / 243 ID（0026）</td><td>リポジトリの全テスト</td><td><code>run-tests.sh --ids --timeout 300</code></td><td><b>全 PASS</b>（<code>OK: 28 本 / 243 件</code> / <code>FAIL ID:</code> 空 / 重複 ID なし。所要 21 分 44 秒）</td></tr>
     </tbody>
   </table>
   </div>
@@ -1270,6 +1405,10 @@ worktrees_have_doing() {
     <li>（S8 / 0025）<b>機械テストは <code>HK-T02</code> の 1 件だけ</b>（<code>run-tests.sh --filter '*config_integrity*' --timeout 300</code> → <code>PASS / passed=95 failures=0</code>。<code>work-defaults.md</code> に列を足した<b>直後</b>に実行）。<b>テスト先行は適用していない</b> —— S8 は機械テストを 1 件も新設しておらず、計画書も既存の <code>HK-T02</code> を「列を足した後に必ず回す」とだけ定めている。代わりに 0021 で定めた<b>反転検査</b>で識別力を測った（写しの 2 列目を 1 行だけ壊すと抽出が 15 → 14 行になり <code>assert_eq</code> が落ちる）。全件テストは <b><code>28 本 / 243 ID</code> が全 PASS</b>（S8 は ID を増やしていない）</li>
     <li>（S8 / 0025）<b>スキル本文・エージェント定義・ルールは機械テストを持たない</b>ので、計画書のロックアウト対策どおり「変更したスキルを Skill ツールで実際に読み込めること」を 1 回ずつ確かめた（<b>4 / 4 成功</b>）</li>
     <li><b>eval: S8（0025）は 9 件を新設・1 件を更新（すべて定義のみ・未実行）</b>。<code>.claude/evals/00-workflow-issue-mr-driven.md</code> に <code>WFD-E07</code>（指示が無ければ作業ツリーを切らない）・<code>WFD-E08</code>（<b>A3 の 1 ホップ</b>。<code>20-common-step-worktree</code> へ辿り手順を再掲せず <code>CLAUDE.md</code> を書き換えない）・<code>WFD-E09</code>（切れ目で <code>list</code> → <code>merge</code> → <code>remove</code> を敵対的レビューと push より前に行い、合流の後に <code>status</code> をやり直す）・<code>WFD-E10</code>（<b>発効の保留</b>。指示されても手順 2b を始めず <code>worktree.sh add</code> と並列起動が 0 件）。<code>.claude/evals/task-executor.md</code> に <code>TXE-E07</code>（置き場を渡されたらその中だけ・<code>create</code> / push / 合流をしない）・<code>TXE-E08</code>（置き場が無ければ自分で切らず返す）・<code>TXE-E09</code>（<code>cwd</code> が呼び出し元と同じなら<b>始めずに返す</b>）と <code>TXE-E02</code> の更新。<code>.claude/evals/10-task-investigation-exec.md</code> に <code>IVE-E05</code>（自分の節だけを追記）・<code>IVE-E06</code>（完了済みチケットを戻さず訂正の節へ）。<b>並列と切れ目のシナリオは機構が止めない場面なので、拒否 0 件を合格の材料にせず実行ログのコマンド列で数えることを各定義に明記した</b>。<b>このフェーズで eval は実行しない</b></li>
+    <li>（S9 / 0026）<b>テスト先行は適用していない</b>。S9 は新設テスト 0 件で、既存 243 件の<b>回帰</b>を見るステップだからである（計画書「依存するテスト」も S9 に新設を割り付けていない）。反転検査の対象も無い</li>
+    <li>（S9 / 0026）<b>割付表の機械テスト 37 件は 37 / 37 が <code>PASS ID:</code> の一覧に含まれる</b>。<code>FAIL ID:</code> が空なので、割付表に無い残り 206 件も全部通っている。0025 の全通しと本数・件数が同じ（28 本 / 243 件）で、S9 はアセットを 1 行も変えていないので増減が無いのが期待どおり</li>
+    <li>（S9 / 0026）<b><code>--timeout 300</code> は今も必要</b>（R9）。<code>test_workflow_guard.sh</code> 140 秒・<code>test_boundary.sh</code> 165 秒・<code>test_finalize.sh</code> 153 秒が既定の 120 秒を超える</li>
+    <li><b>eval: S9（0026）は該当なし（0 件）</b>。アセットを 1 件も作成・変更していない。既存 13 件（<code>WT-E01</code>〜<code>E03</code> / <code>WFD-E07</code>〜<code>E10</code> / <code>TXE-E02</code>・<code>E07</code>〜<code>E09</code> / <code>IVE-E05</code>・<code>E06</code>）は<b>定義済み・未実行のまま</b>で、S9 でも 1 件も実行していない</li>
   </ul>
 </section>
 
@@ -1320,6 +1459,14 @@ worktrees_have_doing() {
       <tr><td>静的検査（0025）</td><td>変更した 9 ファイル</td><td>シェルスクリプトは <b>0 本</b>（<code>bash -n</code> の対象なし）。Markdown のみ</td><td>対象なし</td></tr>
       <tr><td>ルールの表が壊れていないこと（0025）</td><td><code>.claude/rules/work-defaults.md</code></td><td>既定値の表は 15 行 + 見出し + 区切りで全行 7 列。<code>HK-T02</code> の抽出は 15 行</td><td>OK</td></tr>
       <tr><td>反転検査を戻し切ったか（0025）</td><td><code>wip/tmp/wd-inverted.md</code>（写し）</td><td><b>作業リポジトリのファイルは 1 バイトも壊していない</b>（写しを別ファイルに作った）。写しは検査後に削除済み</td><td>OK</td></tr>
+      <tr><td><b>プレースホルダ（0026 / フェーズ全体）</b></td><td><b>この issue が変更した 35 アセット</b>（<code>git diff --name-only $(git merge-base main HEAD)..HEAD -- .claude/agents .claude/evals .claude/hooks .claude/rules .claude/skills</code>）とこのレポート md / HTML</td><td>二重波かっこの残存 <b>0 件</b>（生のヒット 29 行のうち 15 行は <code>assets/subagent-prompt.template.md</code> = 規約で対象外、14 行は <code>ticket.sh</code> の置換表 = 埋める側のコード）。<code>TODO</code> / <code>TBD</code> の残存 <b>0 件</b>（ヒット 7 行はすべて <code>$TODO</code> シェル変数）</td><td>OK</td></tr>
+      <tr><td><b>frontmatter（0026 / フェーズ全体）</b></td><td>変更したアセットのうち frontmatter を持つ 10 ファイル</td><td><b>10 / 10 OK</b>。スキル 5 = <code>name</code> / <code>description</code> の 2 キーちょうど／<code>agents/task-executor.md</code> = 4 キー（<code>isolation</code> なし）／eval 4 = 5 キー／<code>rules/work-defaults.md</code> = 7 キー（<code>applies_when</code>。行動ルールの形）</td><td>OK</td></tr>
+      <tr><td><b>参照更新一覧の消し込み（0026）</b></td><td>実装計画書の <b>7 行すべて</b>（S9 が全行を担当）</td><td><b>7 / 7 実行</b>。5 行は期待値どおりかそれ以上。2 行（#1・#5）は期待値より 1 行多いが、増分はいずれも仕様どおり（#1 = <code>logs/sh</code>、#5 = 負のコントロールのコメント）。<b>アセットの修正は 0 行</b></td><td>OK（差分の理由は <a href="#f46">f46</a>）</td></tr>
+      <tr><td><b>全機械テストの回帰（0026）</b></td><td>リポジトリの全テスト</td><td><code>run-tests.sh --ids --timeout 300</code> = <b><code>OK: 28 本 / 243 件</code></b>、<code>FAIL</code> <b>0 件</b>、<b>重複 ID 0 件</b>。割付表の機械テスト <b>37 / 37</b> が PASS の一覧に含まれる</td><td>OK</td></tr>
+      <tr><td><b>本 issue の残りが回せるか（0026）</b></td><td><code>commit.sh</code> / <code>boundary.sh status</code> / <code>ticket.sh next</code> / <code>run-tests.sh</code> の 4 経路</td><td><b>4 / 4 成功。拒否は 0 件</b>（<code>WF2xx</code> / <code>CP0xx</code> / <code>TK0xx</code> のいずれも出ていない）。<code>push.sh</code> は実行せず <code>CP-T12</code> の PASS と項目 5 の実装で代えた（<a href="#f49">f49</a>）</td><td>OK</td></tr>
+      <tr><td><b>S9 の変更が許可範囲に収まっているか（0026）</b></td><td><code>git diff cbd6fb5 --stat</code></td><td><code>wip/10_tickets/10_doing/0026-*.md</code> と <code>wip/30_reports/0018-*.md</code> / <code>.html</code> だけ。<code>allow.write</code>（<code>wip/**</code>, <code>.claude/**</code>）の内側で、<b><code>.claude/**</code> への差分は 0 件</b></td><td>OK</td></tr>
+      <tr><td><b>静的検査（0026）</b></td><td>S9 が変更したシェルスクリプト</td><td><b>0 本</b>（<code>bash -n</code> の対象なし）。<code>shellcheck</code> は環境に無いまま（R10）</td><td>対象なし</td></tr>
+      <tr><td><b>md と HTML の対の整合（0026 / 訂正）</b></td><td>このレポートの md と HTML</td><td><b>3 か所のずれを直した</b>。①「作成・更新したアセットの一覧」が md は #41 まで・HTML は #44 まであり、eval 定義 3 ファイル（#42〜#44。0025 が作成）の行が <b>md 側に無かった</b> → md に 3 行足して揃えた ②HTML の件数タイル（◎良 30 / △注意 7）とサイドバーの <code>kind</code>（「実装（S1〜S7 分）」）が 0025 時点で止まっていた → S9 の値に更新した ③HTML の目次が <code>f39</code> までしか無く <code>f40</code>〜<code>f45</code> が欠けていた → <code>f46</code>〜<code>f50</code> と一緒に足した。<b>完了済みチケット 0025 には触っていない</b>（誤りはこの表に記録する。<code>10-task-investigation-exec</code> の訂正の規約）</td><td>OK</td></tr>
     </tbody>
   </table>
   </div>
@@ -1357,9 +1504,11 @@ worktrees_have_doing() {
       <tr><td>D23</td><td><b>既出集合（<code>covered</code>）を現在の MR の切れ目に限った</b>（0024）</td><td><code>00-workflow-issue-mr-driven</code> 仕様「切れ目の判定（正）」<code>last_task</code> 1: 「<code>covered</code> を作る = <code>logs/review-history.jsonl</code> の<b>各行</b>の <code>boundary.tickets</code> ∪ 現在の <code>logs/review-state.json</code> の <code>boundary.tickets</code>」（絞り込みの条件が無い）</td><td><code>logs/mr.json</code> の <code>mr</code> と一致する記録だけを数える（MR が分からないときは全件 = 拒否側）。<code>logs/</code> は clone に溜まり続ける一方、チケット番号は片付けのたびに 0001 から振り直されるので、絞らないと別 issue の同じ番号でいまのチケットが既出扱いになる（実リポジトリの <code>mr: null</code> の行に <code>0026,0025,0024</code> があり、本チケット自身が落ちた）</td><td>仕様は直さず記録。<code>last_task</code> 1 に「現在の MR の記録に限る」を足す案を設計反映へ。<code>BD-T20</code> に負のコントロール込みで固定済み</td></tr>
       <tr><td>D24</td><td><b>計画書と DoD が言う「手順 3-0」が、いまの仕様書に存在しない</b>（0025）</td><td>実装計画書 変更対象 #19 と S8 の行、チケット 0025 の DoD 1 行目が「概要／手順 2b／2c／<b>3-0</b>／参照ナレッジ」と書く</td><td>仕様書に手順 3-0 は無い。0017 の設計で<b>手順 2c へ移設</b>され（DDR <code>i0050-09</code>）、<code>grep -rn '手順 3-0' .claude/docs/</code> は DDR の記録 1 件だけを返す。<b>仕様書の現物</b>（手順 2c と手順 3 の前置き）に合わせて実装した</td><td>仕様は直さず記録。計画書の「3-0」を「手順 3 の前置き」に読み替える案を設計反映へ。DoD 1 行目はこの読み替えで充足したものとして扱った</td></tr>
       <tr><td>D25</td><td><b>計画書の変更対象表に <code>assets/subagent-prompt.template.md</code> の行が無い</b>（0025）</td><td>実装計画書 変更対象 #19 は <code>SKILL.md</code> だけを挙げる</td><td>仕様書「OUT ひな形」はこのテンプレートに「<b>作業ツリーの置き場（並列で起動するときだけ）</b>」を含めることを求めている。テンプレートは <code>.claude/skills/**</code> で <code>allow.write</code> の内側なので、文脈に 1 行・禁止事項に 1 行を足した</td><td>計画の範囲を 1 ファイル広げた。範囲外なら S9（0026）へ戻す判断を◇に上げた。設計反映では計画書の表に行を足す案</td></tr>
+      <tr><td>D26</td><td><b>参照更新一覧の期待値が 2 行で実体と +1 ずれる</b>（0026。<b>仕様ではなく計画書との差</b>）</td><td>実装計画書「参照更新一覧」 #1 の期待値「<code>logs/hooks/</code> の <b>2 行</b>だけが残る（<code>logs/sh/</code> は logger 経由でこの検索に現れない）」／同 #5 の期待値「同じ <b>6 行</b>が残る」</td><td>#1 は <b>3 行</b>（+1 = <code>hook-common.sh:412</code> の <code>$HOOK_WORKTREE/logs/sh</code>。S2 で新設した <code>__hc_relog</code> の本体で、フック共通仕様 §5 の根の列が <code>logs/sh/</code> を<b>ツリー</b>と定めるので作業ツリー側が正）。#5 は <b>7 行</b>（+1 = 0021 が <code>WG-T19</code> に足した負のコントロールのコメント。エラー識別子の削除・追加は 0 件）</td><td><b>仕様も実装も直さない</b>。計画書の期待値の側が古い。設計反映では計画書の 2 行の期待値を実体に合わせる案（#32・#33）。<b>仕様との食い違いではない</b>ので、フィードバック計画では「計画書の精度」の話として扱う</td></tr>
     </tbody>
   </table>
   </div>
+  <p><b>S1〜S9 分の逸脱一覧はここで締める（0026 / S9）。</b> 全 <b>26 件</b>（D1〜D26）で、内訳は S1 が D1〜D5、S2 が D6・D7、S3 が D8〜D12、S4 が D13・D14、S5 が D15〜D18、S6 が D19〜D22、S7 が D23、S8 が D24・D25、S9 が D26。<b>設計文書（<code>.claude/docs/**</code>）は 26 件のどれについても 1 文字も直していない</b>（実装フェーズの <code>deny</code>）。26 件すべてに「扱い」列があり、宙に浮いた項目は無い。引き取り先は「設計への反映」の表とフィードバック計画（0028）で、そこから設計反映フェーズへ渡る。S10（0027）が新たに見つけた食い違いは <b>D27 以降</b>として同じ表に足す。</p>
 </section>
 
 <section id="next" data-required>
@@ -1396,6 +1545,8 @@ worktrees_have_doing() {
     <li>実装計画書 変更対象の表に <b><code>.claude/skills/00-workflow-issue-mr-driven/assets/subagent-prompt.template.md</code></b> の行を足す（D25）。仕様の OUT ひな形がこのテンプレートに「作業ツリーの置き場」を求めている以上、<code>SKILL.md</code> だけを対象にすると仕様を満たせない → 設計反映フェーズ / 計画の見直し</li>
     <li><code>task-executor</code> 仕様「<code>isolation: worktree</code> を使う条件」に、<b>この条件が機械的に検査されないこと</b>を注記する（<a href="#f44">f44</a>）。<code>settings.json</code> に <code>worktree.baseRef</code> が無いのに <code>isolation</code> が書かれた状態を検出する手段が無い。検査を足すなら <code>test_config_integrity.sh</code> に 1 件加える案 → 設計反映フェーズ / フィードバック計画（0028）</li>
     <li>eval の「効果ありの判定基準」の<b>合格ライン</b>を、仕様側かレビュー観点のどこかに決めておく。S8 は既存の比率に合わせて <code>WFD</code> 10 中 7・<code>TXE</code> 9 中 6・<code>IVE</code> 6 中 4 にしたが、根拠は「既存に合わせた」だけである → フィードバック計画（0028）</li>
+    <li>実装計画書「参照更新一覧」 #1 の期待値を「<code>logs/hooks/</code> の 2 行」→「<b><code>logs/hooks/</code> の 2 行と <code>logs/sh</code> の 1 行の計 3 行</b>」に、#5 を「6 行」→「<b>7 行</b>（<code>workflow-guard.sh</code> 2・<code>test_workflow_guard.sh</code> 5）」に直す（D26）。<b>期待値を「残るもの」で書く</b>という計画書自身の原則は正しく、値だけが実装より古い → 設計反映フェーズ / 計画の見直し</li>
+    <li>フック共通仕様 §5 の根の列（<code>logs/sh/</code> = ツリー）と、実装計画書 #1 の除外欄（「<code>logs/sh/</code> は logger 経由でこの検索に現れない」）が食い違う（D26）。<b>仕様が正</b>で、<code>hook-common.sh</code> の <code>__hc_relog</code> は §5 どおり作業ツリー側へ貼り替えている。参照更新の検索語を作るときは「logger 経由だから現れない」という前提を置かない → 設計反映フェーズ</li>
   </ol>
 </section>
 
@@ -1448,6 +1599,11 @@ worktrees_have_doing() {
       <tr><td>（0025）プレースホルダ検査はテンプレートでも 0 件でなければならない</td><td>テンプレートは<b>対象外</b>（<code>20-common-step-ai-asset-creator</code> 手順 7 が「<code>assets/*.template.*</code> は対象外」と定める）</td><td>テンプレートを除いた 9 ファイルで 0 件を確認した。テンプレートに足した 2 行は意図的にプレースホルダ記法を含む</td></tr>
       <tr><td>（0025）中核を触らないので「自分が止まらないこと」の確認は要らない</td><td>要る。<b>振り分けスキルの frontmatter を壊すと <code>workflow-entry</code> が宣言を受け付けなくなる</b></td><td>Skill ツールでの読み込みを 4 スキルとも 1 回ずつ行った。ただし「新しいプロンプトを 1 回通す」は<b>サブエージェントには踏めない</b>ので、確かめられなかったこととして呼び出し元へ渡した（R40）</td></tr>
       <tr><td>（0025）<code>work-defaults.md</code> に列を足すと <code>HK-T02</code> が壊れるかもしれない</td><td>壊れない。抽出の正規表現が<b>行頭 2 列</b>しか見ないため</td><td>列を足した直後に <code>HK-T02</code> を回して PASS を確認し、さらに写しで 2 列目を壊して 15 → 14 行になる（= テストが落ちる）ことを確かめた（<a href="#f45">f45</a>）</td></tr>
+      <tr><td>（0026）参照更新一覧の 7 行は、消し込みの<b>作業</b>（旧名を新名へ直す編集）が S9 に残っている</td><td><b>編集の残りは 0 行</b>だった。S1〜S8 が各ステップの中で移し終えており、S9 でやることは<b>数え直しと突き合わせ</b>だけだった</td><td>アセットの差分 0 行でチケットを閉じた（<code>git diff cbd6fb5 --stat</code> は <code>wip/</code> だけ）</td></tr>
+      <tr><td>（0026）参照更新一覧は期待値どおりの件数になる</td><td><b>2 行が +1 ずれた</b>（#1 が 3 行 / #5 が 7 行）。どちらも<b>実装が正しく計画書の期待値の側が古い</b></td><td>アセットは直さず、差の理由を <a href="#f46">f46</a> と D26 に記録し、計画書の期待値を直す案を「設計への反映」に置いた。<b>「0 件を成功条件にしない」という計画書の書き方のおかげで、この差が「検索語の誤り」ではなく「期待値の古さ」だと切り分けられた</b></td></tr>
+      <tr><td>（0026）全件テストは 10 分前後で終わる</td><td><b>21 分 44 秒</b>かかった（04:40:12 → 05:01:56）。28 本のうち 3 本（<code>test_boundary.sh</code> 165 秒・<code>test_finalize.sh</code> 153 秒・<code>test_workflow_guard.sh</code> 140 秒）が既定の 120 秒を超える</td><td>並行実行せず 1 本だけ走らせて完走させた。<code>--timeout 300</code> は今後も要る（R9 は閉じない）</td></tr>
+      <tr><td>（0026）<code>.gitignore</code> を <code>allow</code> から外すかどうかを S9 で選べる（R2）</td><td><b>選べない</b>。外すには <code>.claude/hooks/config/scope-limits.json</code> の編集が要り、このパスは <code>common.confirm</code> なのでサブエージェント実行者からは <code>WF203</code>（ヘッドレスで deny）で触れない</td><td>0018 の「残す側に倒す」判断をそのまま採って R2 を締め、外す判断が要るなら呼び出し元の代行が要ることを◇に上げた</td></tr>
+      <tr><td>（0026）<code>push.sh</code> の経路も 1 回は踏める</td><td>踏めない。<b>2 つの理由が重なる</b> —— 実行者は作業中チケットを必ず 1 枚持つので項目 2 で <code>CP005</code>、かつ <code>remote-write:push</code> が <code>ai-asset-implementation</code> の <code>ops</code> に無い</td><td>DoD の明記どおり <code>CP-T12</code> の PASS（負のコントロール「本流では項目 5 が通る」を含む）と <code>push.sh:171-179</code> の実装で代えた（<a href="#f49">f49</a>）</td></tr>
     </tbody>
   </table>
   </div>
@@ -1497,6 +1653,10 @@ worktrees_have_doing() {
     <li><b>R39</b> <code>agents/task-executor.md</code> の <b><code>isolation: worktree</code> を置いてよい条件が機械的に検査されない</b>（<a href="#f44">f44</a>）。S10（0027）が <code>worktree.baseRef</code> を一時的に置いて取り除く手順を守らないと、条件が成り立たないまま定義だけが残る経路がある → S10（0027）/ 設計反映（#30）</li>
     <li><b>R40</b> <b><code>00-workflow-issue-mr-driven</code> の編集後に「新しいプロンプトを 1 回通す」確認が踏めていない</b>。サブエージェントにはユーザープロンプトが無く <code>workflow-entry</code>（<code>UserPromptSubmit</code>）が発火しない。Skill ツールでの読み込みと frontmatter のキー検査で代えたが、<code>entry-skills.txt</code> の照合が実際に通ることは呼び出し元の次のプロンプトで確かめる必要がある → 呼び出し元（<code>00-workflow-issue-mr-driven</code>）の次のプロンプト</li>
     <li><b>R41</b> 並列区間の追記規約（<code>10-task-investigation-exec</code>）を、他の 6 つの実施スキルに再掲するかどうか。共通手順の正は 1 か所という原則からは参照で足りるが、実際に並列で走るのは調査以外のフェーズのほうが多い見込み → フィードバック計画（0028）/ 切れ目のレビュー</li>
+    <li><b>R42</b> <b>0026 で閉じた残課題</b>: <b>R2</b>（<code>.gitignore</code> を <code>allow</code> に残すか）は「残す」で締めた（外すには <code>common.confirm</code> の <code>scope-limits.json</code> を触る必要があり、実行者からは <code>WF203</code> で触れない）。<b>R40</b>（<code>00-workflow-issue-mr-driven</code> 編集後に新しいプロンプトを 1 回通す確認）は、呼び出し元が「0025 完了後も <code>WF204</code> / <code>WF205</code> が実際に拒否を返し、提供コマンドは通り、振り分けの宣言も維持されている」と観測したことで閉じた → 閉じた（記録のみ）</li>
+    <li><b>R43</b> <b>0026 で閉じなかった残課題</b>: <b>R9</b>（<code>test_workflow_guard.sh</code> が 120 秒に収まらない。この回も 140 秒）・<b>R10</b>（<code>shellcheck</code> が環境に無い）・<b>R21</b>（<code>post-push-*</code> の共有ルート化を固定するテストが無い。<code>grep -c worktree</code> が両テストとも 0）・<b>R28</b>（合流の記録の 4 KB 切り詰めが未検査。<code>grep -n '4096'</code> は <code>worktree.sh:18</code> の 1 件だけ）。<b>S9 は新設テストを持たないステップ</b>なので、R21 と R28 はテストの新設が要る = 設計反映 → 次の実装フェーズへ → フィードバック計画（0028）→ 設計反映</li>
+    <li><b>R44</b> <b>参照更新一覧の期待値が実装に追い越された</b>（D26）。#1 は S2 が <code>__hc_relog</code> を新設した時点で、#5 は S4 が負のコントロールのコメントを足した時点で、それぞれ古くなった。<b>計画書の期待値は「その時点のスナップショット」であって、後続ステップが変えたら追随しない</b>。次の実装計画では、期待値に「このステップで増える分を含む」旨か、消し込みステップで数え直す前提を明記する → フィードバック計画（0028）→ 次の実装計画</li>
+    <li><b>R45</b> <b>S9 のような「検査だけのステップ」は、成果物が md のみでアセット差分が 0 行になる</b>。<code>workflow-diff-check</code> の許可範囲検査も <code>push.sh</code> の項目 3（md と html の対）も通るが、<b>「本当に全部見たか」を機械的に裏付ける手段が無い</b>（検索を実行した記録は作業ログとレポートの散文だけ）。参照更新一覧の消し込みをスクリプト化して <code>run-tests.sh</code> に載せる案（検索語と期待値を TSV に置き、件数を assert する）を検討したい → フィードバック計画（0028）</li>
   </ul>
 </section>
 

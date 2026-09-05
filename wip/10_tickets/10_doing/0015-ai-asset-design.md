@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T13:57:46+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "0d12e2f"
 ---
 
 # 0015 AI アセット設計: 並列実施の運用・入口・エージェント定義と、横断文書・用語辞書の整合

@@ -42,14 +42,14 @@ base_sha: "6a12e35"
 
 - 着手。基準点 6a12e35。復旧用に `git show 6a12e35:<パス>` の内容を `wip/tmp/0020/{cmdpos,scope}.sh.base` に退避した
 - 仕様 §7-1・§8 と計画書 S3 を読み、変更点を 4 つに割った: (P-1) 算術展開が段を割らない (P-2) 置換の閉じ括弧の後ろの語を実行体にしない (S-1) git の限定適用 6 件 (S-2) R52 の軽微 2 件
-- 次: テスト先行（test_cmdpos.sh → 失敗確認 → cmdpos.sh、test_scope.sh → 失敗確認 → scope.sh）
+- 進め方はテスト先行に決めた（test_cmdpos.sh → 失敗確認 → cmdpos.sh、test_scope.sh → 失敗確認 → scope.sh）
 - P-1・P-2 完了: test_cmdpos.sh に `case_hk_t05_substitution` を追加 → 21 件 FAIL を確認 → cmdpos.sh を変更 → 325 件 PASS
 - S-1・S-2 完了: test_scope.sh に `case_hk_t15_git_subcmd_opts` と一覧の重複検査を追加 → 38 件 FAIL を確認 → scope.sh を変更 → 399 件 PASS
 - 通す向き・閉じる向きを実機で確認: `git worktree list` / `git branch -a` / `git status --porcelain` は通り、`git branch -d no-such-branch-xyz` は WF204 で止まった
 - 全件テスト 1 回目で `test_block_chmod.sh` の `BC-T01` が 4 件 FAIL（`ch$()mod +x a` 系）。原因は置換の印を空白付きで置いたため語が割れ、実行体が `ch` に見えたこと。印を空白なしで置き、段の組み立て側で語を連結する形に直した（`_cp_split_marker_to_reply` / `_cp_push_outer_segment`）。退行を固定する assert を 7 件足して `test_cmdpos.sh` は 332 件 PASS、`test_block_chmod.sh` は 93 件 PASS
 - 全件テスト 2 回目: `OK: 27 本 / 216 件`（全 PASS / `FAIL ID:` 空 / 重複 ID なし）
 - レポート `wip/30_reports/0018-ai-asset-implementation.md` に e12〜e18 と D8〜D12 を追記し、HTML の対（f12〜f18）も更新して `check-html.sh` 7 項目を通した
-- 次: コミット → 完了
+- コミット `7282c12`（7 ファイル / 除外なし）。DoD 8 件すべて根拠付きで充足。本チケットの作業は完了
 
 ### うまくいったこと
 

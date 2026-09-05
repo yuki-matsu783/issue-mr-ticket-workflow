@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ai-asset-design タスクの敵�
 allow:
   write: [".claude/docs/00_requirement/hook機構.md"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-05T12:40:54+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "0a3bcc5"
 ---
 
 # 0008 hook機構.md に §17.4 承認画面例〜§20.2 を取り込む（追加提供分）

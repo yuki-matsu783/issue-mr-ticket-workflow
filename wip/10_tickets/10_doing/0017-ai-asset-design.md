@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "設計フェーズの敵対的レ
 allow:
   write: ["wip/**", ".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T15:11:31+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "d824198"
 ---
 
 # 0017 設計の穴 7 件を塞ぐ（敵対的レビュー）: 並列の実行手段・合流の順序・last_task の持ち越し

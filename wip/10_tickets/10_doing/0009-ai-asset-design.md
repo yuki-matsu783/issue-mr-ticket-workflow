@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "ai-asset-design タスクの敵�
 allow:
   write: [".claude/docs/00_requirement/hook機構.md"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-05T12:47:42+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "95f3bba"
 ---
 
 # 0009 敵対的レビューの指摘 7 件を hook機構.md に反映する

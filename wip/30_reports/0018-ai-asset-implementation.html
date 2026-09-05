@@ -194,6 +194,10 @@
           <li><a href="#f48"><span class="mk good">◎</span> 48. 全機械テスト 28 本 243 ID が通り割付表の 37 / 37 が PASS（S9）</a></li>
           <li><a href="#f49"><span class="mk good">◎</span> 49. 本 issue の残りを 4 経路で確かめ push.sh は CP-T12 と項目 5 で代えた（S9）</a></li>
           <li><a href="#f50"><span class="mk warn">△</span> 50. S9 が引き取る残課題 6 件の棚卸し — 3 件を閉じ 3 件を送った（S9）</a></li>
+          <li><a href="#f51"><span class="mk good">◎</span> 51. 解禁の条件 2 は 6 つの機械テストの PASS で満たされている（S10）</a></li>
+          <li><a href="#f52"><span class="mk bad">✕</span> 52. 解禁の条件 1 の実測 — 3 点のうち 2 点が肯定、1 点は規約の不一致（S10）</a></li>
+          <li><a href="#f53"><span class="mk warn">△</span> 53. 判定の提案 — 発効の方向。ただし本チケットでは発効しない（S10）</a></li>
+          <li><a href="#f54"><span class="mk good">◎</span> 54. 発効に要る残りの作業（次フェーズへ渡す）（S10）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -1087,6 +1091,59 @@ worktrees_have_doing() {
       </table>
       </div>
     </li>
+    <li>
+      <h3 id="f51">解禁の条件 2 は 6 つの機械テストの PASS で満たされている（0027 / S10）<span class="chip good">◎良</span> <span class="basis">根拠: 3 回の run-tests.sh がいずれも FAIL 0</span></h3>
+      <p><code>DDR i0050-08</code> の解禁の条件 2（割り付けた作業ツリーの中の書き込みに <code>workflow-guard</code> の判定が効くことを機械テストで固定した）を、次の実行で確かめた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>テスト ID</th><th>実行コマンド</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td><code>WG-T19</code> / <code>WG-T20</code> / <code>WG-T21</code></td><td><code>run-tests.sh --filter '*workflow_guard*' --timeout 300 --ids</code></td><td><code>OK: 1 本 / 21 件</code>。<code>FAIL ID:</code> は空</td></tr>
+          <tr><td><code>DC-T08</code> / <code>DC-T09</code></td><td><code>run-tests.sh --filter '*diff_check*' --timeout 300 --ids</code></td><td><code>OK: 1 本 / 9 件</code>。<code>FAIL ID:</code> は空</td></tr>
+          <tr><td><code>SA-T10</code> / <code>SP-T09</code></td><td><code>run-tests.sh --filter '*subagent*' --timeout 300 --ids</code></td><td><code>OK: 2 本 / 20 件</code>。<code>FAIL ID:</code> は空</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>条件 2 は満たされている。</p>
+    </li>
+    <li>
+      <h3 id="f52">解禁の条件 1 の実測 — 3 点のうち 2 点が肯定、1 点は規約の不一致（0027 / S10）<span class="chip bad">✕問題</span> <span class="basis">根拠: isolation: worktree のサブエージェントを 3 回起動して観測</span></h3>
+      <p><code>.claude/settings.json</code> に <code>"worktree": {"baseRef": "head"}</code> を一時的に置き、<code>isolation: worktree</code> のサブエージェントを 3 回起動して観測した。設定は観測後に取り除いてある（<code>git diff .claude/settings.json</code> が空）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>観測する点</th><th>予測（設計時）</th><th>実測</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>分岐元が呼び出し元の HEAD か</td><td>既定ブランチから切られる（<code>e20</code>）</td><td><code>git log --oneline -1</code> が <code>787cebf chore: チケット 0027 に着手</code> = <b>呼び出し元の HEAD</b>。<code>wip/10_tickets/10_doing/</code> に <code>0027-ai-asset-implementation.md</code> が見えており、<code>00_todo/</code> は <code>0028-feedback-plan.md</code> のみ</td><td><b>肯定</b>。<code>worktree.baseRef</code> を置けば分岐元は呼び出し元の HEAD になる</td></tr>
+          <tr><td>2</td><td>ブランチ名の規約</td><td><code>worktree-&lt;名前&gt;</code> で <code>worktree.sh</code> の管理対象外</td><td>ブランチは <code>worktree-agent-a0194b10452b44141</code>。<code>worktree.sh remove</code> は <code>WT005</code> で拒否</td><td><b>否定</b>。予測どおり管理対象にならず、合流も片付けもできない</td></tr>
+          <tr><td>3</td><td>成果を載せたまま作業ツリーが消えないか</td><td>変更が無ければ自動で片付けられるため、機構は必ず clean になり成果が消える（<code>i0050-08</code> の決め手）</td><td><b>2 通りに分かれた</b>。(a) 書き込み先が <code>wip/tmp/</code>（gitignore 対象）だけのとき → 作業ツリー・ブランチ・成果のすべてが消えた。(b) 追跡対象の置き場（<code>wip/30_reports/</code>）に 1 ファイル作ったとき → <code>git worktree list</code> に残り、ブランチも成果も残った</td><td><b>条件付きで肯定</b>。「git から見て変更がある」ことが残存の条件であり、機構が必ず clean になるわけではない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>あわせて観測できたこと（予定外）</b>: 隔離した作業ツリーの中でサブエージェントが <code>echo &gt; wip/30_reports/…</code> を実行したところ <b><code>WF205</code> で拒否された</b>。実物の作業ツリーの中で <code>workflow-guard</code> が働いた最初の観測であり、<code>WG-T19</code> / <code>WG-T20</code> が疑似の作業ツリーで固定した振る舞いを実物で裏づける（残課題 <code>R16</code> に対する部分的な回答）。</p>
+    </li>
+    <li>
+      <h3 id="f53">判定の提案 — 発効の方向。ただし本チケットでは発効しない（0027 / S10）<span class="chip warn">△注意</span> <span class="basis">根拠: i0050-08 の決め手が実測で崩れた</span></h3>
+      <p><b>提案: 保留の据え置きをやめ、発効の方向で次フェーズが手当てする。</b></p>
+      <p>根拠は <a href="#f52">f52</a> の 3 点。<code>i0050-08</code> が保留を選んだ決め手は「機構はチケットごとにコミットするので終了時の作業ツリーは必ず clean になり、それは自動で片付けられる条件そのもの」だった。<b>この読みは実測で崩れた</b>。コミットは git から見た変更であり、消えたのは gitignore 対象だけを書いた場合に限られる。残る障害は 2 番目（ブランチ名の規約が <code>worktree.sh</code> の管理対象の定義と合わない）だけで、これは定義を合わせれば解ける。</p>
+      <p><b>本チケットでは発効しない。</b> 解禁の条件 1 の第 2 択は「3 点が確かめられ、<b>かつ</b> <code>worktree.sh</code> の管理対象の定義と <code>merge</code> の前提検査 6 をそれに合わせて改めた」であり、後半は <code>.claude/skills/**</code>（本チケットの <code>allow.write</code> は <code>.claude/settings.json</code> のみ）と <code>.claude/docs/**</code>（実装フェーズの <code>deny</code>）の変更を要する。肯定側へ進むと仕様違反になる。</p>
+    </li>
+    <li>
+      <h3 id="f54">発効に要る残りの作業（次フェーズへ渡す）（0027 / S10）<span class="chip good">◎良</span> <span class="basis">根拠: 6 件すべてに対象と理由を付けた</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>作業</th><th>対象</th><th>なぜ本チケットでできないか</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>worktree.sh</code> の管理対象の定義を、隔離が作る <code>worktree-agent-&lt;id&gt;</code> 形のブランチも含む形に広げる（または隔離を使わない形に決め直す）</td><td><code>.claude/skills/20-common-step-worktree/scripts/worktree.sh</code></td><td><code>allow.write</code> の外</td></tr>
+          <tr><td>2</td><td><code>merge</code> の前提検査 6（同じ issue のブランチか）を、広げた命名規約に合わせて改める</td><td>同上</td><td>同上</td></tr>
+          <tr><td>3</td><td><code>20-common-step-worktree</code> の要件・仕様の「管理対象」「共通の入口 3」を 1・2 に合わせる</td><td><code>.claude/docs/**</code></td><td>実装フェーズの <code>deny</code></td></tr>
+          <tr><td>4</td><td><code>10_spec/skills/00-workflow-issue-mr-driven.md</code> の「解禁の条件」を実測の結果に合わせて書き直す</td><td><code>.claude/docs/**</code></td><td>同上</td></tr>
+          <tr><td>5</td><td><code>DDR i0050-08</code> の決め手（clean だから消える）が実測で崩れたことを記録し、決定を差し替える</td><td><code>.claude/docs/20_ddr/</code></td><td>同上</td></tr>
+          <tr><td>6</td><td>隔離が作った作業ツリーを提供コマンドで片付けられるようにする（実測で残った <code>agent-a0194b10452b44141</code> は <code>worktree.sh remove</code> が <code>WT005</code>、<code>git worktree remove</code> が <code>WF204</code> で、人間の手を借りるしかなかった）</td><td><code>.claude/skills/**</code> と <code>.claude/docs/**</code></td><td>同上</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>1〜6 はいずれもフィードバック計画（0028）→ 設計反映フェーズが引き取る。</p>
+    </li>
   </ol>
 </section>
 
@@ -1656,6 +1713,9 @@ worktrees_have_doing() {
     <li><b>R42</b> <b>0026 で閉じた残課題</b>: <b>R2</b>（<code>.gitignore</code> を <code>allow</code> に残すか）は「残す」で締めた（外すには <code>common.confirm</code> の <code>scope-limits.json</code> を触る必要があり、実行者からは <code>WF203</code> で触れない）。<b>R40</b>（<code>00-workflow-issue-mr-driven</code> 編集後に新しいプロンプトを 1 回通す確認）は、呼び出し元が「0025 完了後も <code>WF204</code> / <code>WF205</code> が実際に拒否を返し、提供コマンドは通り、振り分けの宣言も維持されている」と観測したことで閉じた → 閉じた（記録のみ）</li>
     <li><b>R43</b> <b>0026 で閉じなかった残課題</b>: <b>R9</b>（<code>test_workflow_guard.sh</code> が 120 秒に収まらない。この回も 140 秒）・<b>R10</b>（<code>shellcheck</code> が環境に無い）・<b>R21</b>（<code>post-push-*</code> の共有ルート化を固定するテストが無い。<code>grep -c worktree</code> が両テストとも 0）・<b>R28</b>（合流の記録の 4 KB 切り詰めが未検査。<code>grep -n '4096'</code> は <code>worktree.sh:18</code> の 1 件だけ）。<b>S9 は新設テストを持たないステップ</b>なので、R21 と R28 はテストの新設が要る = 設計反映 → 次の実装フェーズへ → フィードバック計画（0028）→ 設計反映</li>
     <li><b>R44</b> <b>参照更新一覧の期待値が実装に追い越された</b>（D26）。#1 は S2 が <code>__hc_relog</code> を新設した時点で、#5 は S4 が負のコントロールのコメントを足した時点で、それぞれ古くなった。<b>計画書の期待値は「その時点のスナップショット」であって、後続ステップが変えたら追随しない</b>。次の実装計画では、期待値に「このステップで増える分を含む」旨か、消し込みステップで数え直す前提を明記する → フィードバック計画（0028）→ 次の実装計画</li>
+    <li><b>R46</b> <b><code>DDR i0050-08</code> の決め手が実測で崩れた</b>（<a href="#f52">f52</a> の 3 番目）。保留の理由は「機構は必ず clean になるので隔離の作業ツリーは自動で片付けられ、成果が消える」だったが、実測では<b>追跡対象に変更があれば作業ツリーもブランチも成果も残る</b>。消えたのは gitignore 対象だけを書いた場合。決定そのものを差し替える必要がある → フィードバック計画（0028）→ 設計反映</li>
+    <li><b>R47</b> <b>発効に要る残りの作業 6 件</b>（<a href="#f54">f54</a>）。<code>worktree.sh</code> の管理対象の定義を隔離が作る <code>worktree-agent-&lt;id&gt;</code> 形に広げる / <code>merge</code> の前提検査 6 を合わせる / <code>20-common-step-worktree</code> の要件・仕様 / <code>00-workflow-issue-mr-driven</code> 仕様の「解禁の条件」/ <code>i0050-08</code> の差し替え / 隔離の作業ツリーを提供コマンドで片付けられるようにする。いずれも <code>.claude/skills/**</code> と <code>.claude/docs/**</code> で、実装フェーズの許可範囲の外 → フィードバック計画（0028）→ 設計反映</li>
+    <li><b>R48</b> <b>S10 で閉じた残課題</b>: <b>R16</b>（<code>WG-T19</code> / <code>WG-T20</code> は疑似の作業ツリーでしか確かめていない）は部分的に閉じた —— 実物の隔離作業ツリーの中でサブエージェントの書き込みが <code>WF205</code> で拒否され、<code>workflow-guard</code> が実物の作業ツリーで働くことを観測した（<a href="#f52">f52</a>）。<b>R27・R33・R35</b>（<code>worktree.sh</code> の <code>merge</code> / <code>remove</code>・<code>BD-T21</code>・<code>TK009</code> と項目 5 を実機で踏んでいない）は<b>閉じていない</b> —— 実測で作った作業ツリーは管理対象外（<code>WT005</code>）で対象にできなかった。<b>R39</b>（<code>isolation</code> を置いてよい条件が機械的に検査されない）は、S10 が <code>worktree.baseRef</code> を取り除いたことで当座は成立しているが、検査の手段は無いままである → フィードバック計画（0028）→ 設計反映</li>
     <li><b>R45</b> <b>S9 のような「検査だけのステップ」は、成果物が md のみでアセット差分が 0 行になる</b>。<code>workflow-diff-check</code> の許可範囲検査も <code>push.sh</code> の項目 3（md と html の対）も通るが、<b>「本当に全部見たか」を機械的に裏付ける手段が無い</b>（検索を実行した記録は作業ログとレポートの散文だけ）。参照更新一覧の消し込みをスクリプト化して <code>run-tests.sh</code> に載せる案（検索語と期待値を TSV に置き、件数を assert する）を検討したい → フィードバック計画（0028）</li>
   </ul>
 </section>

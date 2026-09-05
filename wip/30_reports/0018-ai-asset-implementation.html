@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義・参照更新と全体検査（S1〜S9 分）</title>
+<title>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義・参照更新と全体検査・発効の判定・敵対的レビューの指摘 7 件の反映（S1〜S10 と 0030 分）</title>
 <style>
   /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
   * { box-sizing: border-box; }
@@ -126,13 +126,13 @@
 <div class="shell">
 
 <aside class="sidebar">
-  <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1〜S9 分）</p>
-  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義・参照更新と全体検査（S1〜S9 分）</h1>
+  <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1〜S10 と 0030 分）</p>
+  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化・スキル / ルール / エージェントと eval 定義・参照更新と全体検査・発効の判定・敵対的レビューの指摘 7 件の反映（S1〜S10 と 0030 分）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 38</span>
-    <span class="chip warn">△注意 10</span>
-    <span class="chip stop">✕問題 2</span>
+    <span class="chip good">◎良 44</span>
+    <span class="chip warn">△注意 14</span>
+    <span class="chip stop">✕問題 3</span>
   </p>
 
   <nav class="toc" id="toc" data-required>
@@ -198,6 +198,13 @@
           <li><a href="#f52"><span class="mk bad">✕</span> 52. 解禁の条件 1 の実測 — 3 点のうち 2 点が肯定、1 点は規約の不一致（S10）</a></li>
           <li><a href="#f53"><span class="mk warn">△</span> 53. 判定の提案 — 発効の方向。ただし本チケットでは発効しない（S10）</a></li>
           <li><a href="#f54"><span class="mk good">◎</span> 54. 発効に要る残りの作業（次フェーズへ渡す）（S10）</a></li>
+          <li><a href="#f55"><span class="mk good">◎</span> 55. 指摘 1 — 畳み込みを最長一致にして根の配下の作業ツリーを保護に戻した（0030）</a></li>
+          <li><a href="#f56"><span class="mk good">◎</span> 56. 指摘 2 — 相互参照を確かめられない候補は本流に倒さず WF209 で止めた（0030）</a></li>
+          <li><a href="#f57"><span class="mk good">◎</span> 57. 指摘 3 — git branch の位置引数によるブランチ作成を unknown にした（0030）</a></li>
+          <li><a href="#f58"><span class="mk good">◎</span> 58. 指摘 4 — 既出判定にブランチを併記し、分からないときは 0 件に倒した（0030）</a></li>
+          <li><a href="#f59"><span class="mk warn">△</span> 59. 指摘 6 — 合流の記録の上限判定をバイト長にした（0030）</a></li>
+          <li><a href="#f60"><span class="mk warn">△</span> 60. 指摘 7 — 置き場の照合を git 目線の綴りに揃えた（0030）</a></li>
+          <li><a href="#f61"><span class="mk warn">△</span> 61. 指摘 5 — e52 (b) と e53 / e54 の訂正（実装の変更を伴わない）（0030）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -215,8 +222,8 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1・0019 / S2・0020 / S3・0021 / S4・0022 / S5・0023 / S6・0024 / S7・0025 / S8・0026 / S9 分）</dd></div>
-    <div><dt>作成日</dt><dd>2026-09-05（0018）／更新 2026-09-05（0019・0020・0021）・2026-09-06（0022・0023・0024・0025・0026）</dd></div>
+    <div><dt>チケット</dt><dd>0018〜0027 と 0030（現時点の内容は 0018 / S1・0019 / S2・0020 / S3・0021 / S4・0022 / S5・0023 / S6・0024 / S7・0025 / S8・0026 / S9・0027 / S10・0030 / 敵対的レビューの指摘 7 件の反映）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05（0018）／更新 2026-09-05（0019・0020・0021）・2026-09-06（0022・0023・0024・0025・0026・0027・0030）</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
 </aside>
@@ -234,10 +241,12 @@
   <p>S8（0025）は<b>指示文の側</b>を仕様に合わせた。中核（フック・提供コマンド・<code>settings.json</code>）には 1 行も触れていない。①<code>00-workflow-issue-mr-driven/SKILL.md</code> に<b>作業ツリーの既定は「切らない」</b>・<b>並列実施（手順 2b）の発効の保留と解禁の条件 2 つ</b>・<b>手順 2c（合流を敵対的レビューと push のどちらよりも前に）</b>・手順 0-4・2-3・2-4・2-7・手順 3 の前置き・ヘッドレスの扱い・作業ツリーまわりの禁止事項 5 件・エラー時の対処 4 行を入れ、<b><code>20-common-step-worktree</code> への参照で受け入れ条件 A3（並行作業の手段へ 1 ホップ）を満たした</b>（<code>CLAUDE.md</code> は触っていない）。②<code>20-common-step-ticket</code> に採番の本流一本化（<code>TK009</code>）、<code>20-common-step-commit-push</code> に push 前チェック<b>項目 5</b>（本流限定・スキップ不可。0024 の残課題 <b>R34</b> の消し込み）。③<code>10-task-investigation-exec</code>（実施タスク共通の正）に並列区間のレポート追記規約・訂正の節・作業ディレクトリの決まり。④<code>.claude/agents/task-executor.md</code> に並列時の前提と <b><code>isolation: worktree</code> を置いてよい条件</b>（<code>settings.json</code> に <code>worktree.baseRef</code> があるときだけ・成果を残す作業には使わない）。⑤<code>.claude/rules/work-defaults.md</code> の表に<b>「並列してよいか」の列</b>を足し、計画タスクは常に直列・実施タスクは依存しないチケットどうしなら可・既定は並列にしない・<b>発効の保留中は「可」でも並列にしない</b>を明示した。⑥eval を 10 件（<code>WFD-E07</code>〜<code>E10</code> / <code>TXE-E07</code>〜<code>E09</code> と <code>TXE-E02</code> の更新 / <code>IVE-E05</code>・<code>E06</code>）<b>定義のみ</b>で追加した。機械テスト <code>HK-T02</code> は列を足した直後に PASS（<code>passed=95 failures=0</code>）で、<b>写しの 2 列目を 1 行だけ壊すと抽出が 15 → 14 行になる</b>ことも確かめた（反転検査。<a href="#f45">f45</a>）。<b>変更した 4 つのスキルはすべて Skill ツールで 1 回ずつ読み込めた</b>（frontmatter の破損なし）。学びは 3 つで、①計画書と DoD が言う「手順 3-0」は<b>いまの仕様書に存在しない</b>（0017 の設計で手順 2c へ移設。D24）②計画書の変更対象表に <code>assets/subagent-prompt.template.md</code> の行が無いが、仕様の OUT ひな形はこのテンプレートに「作業ツリーの置き場」を求めている（D25）③<code>HK-T02</code> は列を足しても壊れない（抽出が行頭 2 列しか見ない）。</p>
   <p>S9（0026）は<b>参照更新の消し込みと全体検査</b>で、<b>アセットを 1 件も変えていない</b>（<code>git diff cbd6fb5 --stat</code> は <code>wip/</code> のチケット 1 枚とこのレポート md / HTML だけ）。計画書「参照更新一覧」の 7 行すべてで検索語を実行し、<b>5 行は期待値どおりかそれ以上・2 行は期待値より 1 行多い</b>。多い 2 行はどちらも<b>実装が正しく期待値の側が古い</b> —— #1 の <code>hook-common.sh:412</code>（<code>$HOOK_WORKTREE/logs/sh</code>）は S2 で新設した <code>__hc_relog</code> の本体で、フック共通仕様 §5 の根の列が <code>logs/sh/</code> を<b>ツリー</b>と定める以上そこに置くのが正しく、#5 の <code>test_workflow_guard.sh:533</code> は 0021 が <code>WG-T19</code> に足した<b>負のコントロールのコメント</b>でエラー識別子の増減ではない。計画時（<code>dd9b0a3</code>）の値と <code>git grep</code> で突き合わせ、#5 の 6 行と #6 の 53 行が<b>1 件も減っていない</b>ことも確かめた。プレースホルダは<b>この issue が変えた 35 アセット</b>に絞って <b>0 件</b>、frontmatter は <b>10 / 10</b>。全機械テストは <code>run-tests.sh --ids --timeout 300</code> で <b><code>OK: 28 本 / 243 件</code></b>（<code>FAIL</code> 0・重複 ID 0・所要 21 分 44 秒）、<b>割付表の機械テスト 37 件は 37 / 37 が PASS の一覧に含まれる</b>。本 issue の残りが回せることは <b>4 経路</b>（<code>ticket.sh next</code> / <code>boundary.sh status</code> / <code>commit.sh</code> / <code>run-tests.sh</code>）で確かめ、<b>拒否は 0 件</b>。<code>push.sh</code> は実行せず（項目 2 で必ず <code>CP005</code>・<code>remote-write:push</code> が <code>ops</code> に無い）、<code>CP-T12</code> の PASS と項目 5 の実装で代えた。</p>
   <p>S9 の学びは 3 つ。①<b>「0 件を期待値にしない」という計画書の書き方が効いた</b>。#1 と #5 が食い違ったとき、0 件を成功条件にしていたら「検索語が間違っていた」のか「実装が違う」のかを切り分けられなかったが、件数と場所で書いてあったので<b>期待値の側が古い</b>と特定できた（D26）。②<b>計画書の期待値は実装に追い越される</b>。#1 は S2、#5 は S4 の時点で古くなっており、S9 まで誰も数え直していなかった（R44）。③<b>検査だけのステップは成果物がレポートだけになり、「本当に全部見たか」の機械的な裏付けが無い</b>。参照更新一覧を TSV にして <code>run-tests.sh</code> に載せる案を R45 に残した。</p>
+  <p>0030（追加チケット）は<b>敵対的レビュー（<code>claude-fable-5-1</code>）が返した 7 件の指摘</b>を実装に反映した。閾値 0.5 以上を全件採用し、統制が素通りする 2 件を先に直した。①<b>指摘 1</b>: <code>hook_rel_path</code> の畳み込みを前方一致の順から<b>最長一致</b>に変えた（根の配下の作業ツリーのパスが短いほうの根に畳まれ、<code>.claude/worktrees/x/wip/10_tickets/20_done/a.md</code> というルート相対に化けて <code>workflow-state-guard</code> の保護から外れていた）。②<b>指摘 2</b>: 作業ツリーだと自称しているのに相互参照を確かめられない候補を <code>HOOK_ROOT</code> に倒さず <code>HOOK_WORKTREE_STATE=unknown</code> にし、<code>workflow-guard</code> を <code>WF209</code> で止めた（<b><code>HK-T22</code> の既存の期待値を 1 行変えた</b>。理由は <a href="#f56">f56</a>）。③<b>指摘 3</b>: <code>git branch &lt;名前&gt;</code> の位置引数によるブランチ作成を <code>unknown</code> に。④<b>指摘 4</b>: 切れ目の既出判定を「<code>mr</code> 一致、または <code>mr</code> が両方 <code>null</code> で <code>branch</code> 一致」にし、<b>どちらも分からないときは全件ではなく 0 件</b>に倒した。⑤<b>指摘 6</b>: 合流の記録の 4 KB 判定を文字数からバイト長に。⑥<b>指摘 7</b>: <code>worktree.sh add</code> の <code>&lt;置き場&gt;</code> を git 目線の綴りに揃えた。⑦<b>指摘 5</b> は実装の変更を伴わないレポートの訂正で、<a href="#f52">f52</a> / <a href="#f53">f53</a> / <a href="#f54">f54</a> に訂正の引用ブロックを足した（過去の節の本文は 1 文字も書き換えていない）。テストは<b>先行</b>（22 件の FAIL を確認。後から書いた <code>SG-T12</code> は反転検査）で、<b>リポジトリの全テストが FAIL 0</b> で通った。</p>
+  <p>0030 の学びは 3 つ。①<b>「バイトで数える」不具合は C ロケールでは再現しない</b>。この環境は <code>LANG</code> も <code>LC_ALL</code> も空で、bash の <code>${#x}</code> はそもそもバイト数を返す。テストを <code>env LC_ALL=C.UTF-8</code> で走らせ、さらに <code>git config core.quotePath false</code> にして初めて、文字数 2569 / バイト数 5289 の食い違いを作れた（<a href="#f59">f59</a>）。②<b>既存テストの期待値を変えるときは、その期待値が固定していた振る舞いが仕様に反することを示す必要がある</b>（<a href="#f56">f56</a>）。③<b>畳み込みを最長一致にしても、集合を読めないときに全部を <code>unknown</code> へ倒すのは危険</b>。<code>.git/worktrees</code> が壊れた環境で全パスが deny になり機構ごと止まるので、自ツリー・共有ルートで畳めたものはそのまま返す形にした（D27・D28）。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>38</b><span>◎良</span></li>
-    <li class="kpi warn"><b>10</b><span>△注意</span></li>
-    <li class="kpi stop"><b>2</b><span>✕問題</span></li>
+    <li class="kpi good"><b>44</b><span>◎良</span></li>
+    <li class="kpi warn"><b>14</b><span>△注意</span></li>
+    <li class="kpi stop"><b>3</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
@@ -264,6 +273,9 @@
         <li><b><code>.claude/rules/work-defaults.md</code> の「並列してよいか」の列を 5 列目（敵対的レビューの次）に置いたこと</b>（0025）。<code>HK-T02</code> の抽出は行頭 2 列しか見ないのでどこでも壊れないが、全体計画が提案文に引用する順序（実行者 → 人間レビュー → 敵対的レビュー → 並列可否 → 理由 → 調整条件）を優先した。要件は列の位置を定めていない</li>
         <li><b>参照更新一覧 #1 と #5 を「期待値の側が古い」と判断してアセットを直さずに締めたこと</b>（<a href="#f46">f46</a> / D26 / 0026）。#1 は <code>hook-common.sh:412</code> の <code>$HOOK_WORKTREE/logs/sh</code> が 1 行残る（期待値 2 行 / 実測 3 行）。フック共通仕様 §5 の根の列が <code>logs/sh/</code> を<b>ツリー</b>、<code>20-common-step-worktree</code> 仕様 <code>add</code> 6 が「作業ツリーに <code>logs/hooks/</code> と <code>logs/sh/</code> の 2 つだけを作る」と定めるので、この 1 行を共有ルートへ移すと<b>仕様に反する</b>。#5 は <code>test_workflow_guard.sh:533</code> のコメントが 1 行増えている（期待値 6 行 / 実測 7 行）が、計画時の 6 行は内容が同じまま全部残っており（<code>git grep -n 'WF207' dd9b0a3</code> と突き合わせた）、<b>エラー識別子の削除・追加は 0 件</b>。DoD の文言は「2 行だけ」「6 行のまま」なので、<b>この 2 行だけは DoD を字句どおりには満たしていない</b>。判断の根拠が足りるかを見てほしい</li>
         <li><b><code>push.sh</code> を実行しないままチケットを閉じたこと</b>（<a href="#f49">f49</a> / 0026）。DoD がそう明記しており（項目 2 で必ず <code>CP005</code>・<code>remote-write:push</code> が <code>ops</code> に無い）、<code>CP-T12</code> の PASS と <code>push.sh:171-179</code> の項目 5 の実装で代えたが、「本流での push が実際に通る」ことは<b>このフェーズで一度も踏んでいない</b>（<code>CP-T12</code> の負のコントロールが一時リポジトリで踏んでいるだけ）。切れ目で呼び出し元が push するときが実質的な初回になる</li>
+        <li><b><code>HK-T22</code> の既存の期待値を 1 行変えたこと</b>（<a href="#f56">f56</a> / 0030）。「相互参照を辿れないので本流に倒れる」を「<code>HOOK_WORKTREE_STATE</code> が <code>unknown</code>」に差し替えた。<b>テストが固定していた振る舞いのほうが仕様（§2「判定できないときの倒し方」）に反していた</b>という理由で変えている。0022 の学び②（「集合を読めない」は <code>HOOK_WORKTREE_STATE</code> に現れない）が古くなるので、そこに依存した設計判断（案内側 2 本が自前で <code>hook_worktrees</code> を呼ぶ形）を残すか一本化するかを判断してほしい（R49）</li>
+        <li><b><code>workflow-guard</code> に「作業ツリーを確定できないときは deny」を足したこと</b>（<a href="#f56">f56</a> / 0030）。作業中チケットの枚数を数える前に置いたので、<b>リポジトリのどこかで <code>.git</code> の相互参照が壊れると、その cwd からの書き込み・実行がすべて <code>WF209</code> になる</b>（読み取り・起動・宣言は通す）。統制としては正しい側だが、ロックアウトに最も近い変更なのでレビューしてほしい。自分の cwd はリポジトリのルートで上向き探索に入らず、実際に止まらないことは変更後の全操作で確かめている</li>
+        <li><b><code>git branch &lt;名前&gt;</code> を <code>unknown</code> にしたこと</b>（<a href="#f57">f57</a> / 0030）。<code>--list &lt;pattern&gt;</code> は <code>read</code> に戻すが、<code>git branch &lt;既存の名前&gt;</code>（作成でなくエラーになる形）も <code>unknown</code> になる。日常の摩擦が増える側の変更である</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -291,7 +303,10 @@
         <li><b>eval の「効果ありの判定基準」の合格ライン</b>（0025）。シナリオが増えたので <code>WFD</code> は 6 中 4 → <b>10 中 7</b>、<code>TXE</code> は 6 中 4 → <b>9 中 6</b>、<code>IVE</code> は 4 中 3 → <b>6 中 4</b> にした。仕様はシナリオの内容だけを定め、合格ラインを定めていない（既存の比率 2/3〜3/4 に合わせた実装判断）</li>
         <li><b>並列区間の追記規約が他の 6 つの実施スキルに文言として現れないこと</b>（0025）。<code>10-task-investigation-exec</code> が「実施タスク共通の正」で、他の実施スキルは参照するだけの作りなので<b>参照で足りている</b>と判断した。ただし実際に並列で走るのは調査以外のフェーズのほうが多い見込みなので、各スキルに 1 行ずつ再掲するかを判断してほしい（再掲は「手順を再掲しない」原則と衝突する）</li>
         <li><b><code>.gitignore</code> を <code>ai-asset-implementation</code> の <code>allow</code> に残したまま締めたこと</b>（R2 → R42 / 0026）。0018 が「残す側に倒した」と書いたが、S9 で選び直す余地があるという整理だった。実際には<b>選べない</b> —— 外すには <code>.claude/hooks/config/scope-limits.json</code> の編集が要り、このパスは <code>common.confirm</code> なのでサブエージェント実行者からは <code>WF203</code>（ヘッドレスで deny）で触れない。外す判断をするなら<b>呼び出し元の代行</b>が要る。残す前提でよいか</li>
-        <li><b>R21（<code>post-push-*</code> の共有ルート化を固定するテスト）と R28（合流の記録の 4 KB 切り詰め）を S9 で閉じなかったこと</b>（0026）。どちらも計画書が「S9（0026）の全体検査」を引き取り先に挙げていたが、<b>S9 はテストを新設しないステップ</b>（計画書「依存するテスト」の割り付けにも S9 の行が無い）なので、検査ではなくテストの新設が要る。設計反映 → 次の実装フェーズへ回す整理でよいか</li>
+        <li><b>集合を読めないときに「畳めたものはそのまま返す」ことにした判断</b>（D27 / D28 / 0030）。指摘 1 の直し方は「候補の根のうち最長一致」だが、厳密にやるには毎回 <code>hook_worktrees</code> を読む必要がある。読めないときに全部を <code>unknown</code>（= 全 deny）に倒すと <code>.git/worktrees</code> が壊れた環境で機構ごと止まるので、<b>自ツリー・共有ルートで畳めたものは畳んだ結果を返し、畳めないときだけ「判定できない」</b>にした。この妥協でよいか</li>
+        <li><b>切れ目の記録に <code>branch</code> を足したこと</b>（D30 / 0030）。<code>logs/review-state.json</code> のスキーマに <code>branch</code> は無いが、<code>merge-state.json</code> は既に持っており <code>merge_state()</code> が同じ判定をしているので揃えた。設計反映でスキーマに足す案でよいか</li>
+        <li><b><code>git branch</code> の値を取るオプションの一覧が網羅でないこと</b>（D29 / 0030）。9 件を列挙した。漏れたオプションの値は位置引数として数えられ <code>read</code> が <code>unknown</code> に落ちる（<b>安全側</b>）。列挙方式のままでよいか</li>
+        <li><b>R21（<code>post-push-*</code> の共有ルート化を固定するテスト）と R28（合流の記録の 4 KB 切り詰め）を S9 で閉じなかったこと</b>（0026。<b>R28 は 0030 の <code>WT-T06</code> で閉じた</b>）。どちらも計画書が「S9（0026）の全体検査」を引き取り先に挙げていたが、<b>S9 はテストを新設しないステップ</b>（計画書「依存するテスト」の割り付けにも S9 の行が無い）なので、検査ではなくテストの新設が要る。設計反映 → 次の実装フェーズへ回す整理でよいか</li>
         <li><b>参照更新一覧の消し込みを機械化する案</b>（R45 / 0026）。S9 の成果物はレポートの散文だけで、「7 行すべてを実行した」ことの機械的な裏付けが無い。検索語・除外・期待値（件数の下限と上限、または残るファイルの集合）を TSV に置き <code>run-tests.sh</code> に載せる案を検討してよいか。ただし期待値が実装に追い越される問題（R44）はテスト化しても残る（テスト自身が古くなる）</li>
       </ul>
     </div>
@@ -1119,6 +1134,7 @@ worktrees_have_doing() {
         </tbody>
       </table>
       </div>
+      <blockquote><p><b>【0030 の訂正】(b) の観測は「未コミットの変更がある場合」に限る。</b> 表の 3 行目 (b) で残ったのは、追跡対象の置き場（<code>wip/30_reports/</code>）に<b>未コミットの</b>ファイルを 1 つ作った状態の作業ツリーである。<code>i0050-08</code> の決め手が問題にしたのは「<code>commit.sh</code> でコミットし <code>ticket.sh complete</code> を通した <b>clean な</b>作業ツリー（コミットはあるが差分は無い）」で、<b>その状態は観測していない</b>。判定列の「『git から見て変更がある』ことが残存の条件」は実測ではなく (a) と (b) からの<b>推定</b>である（R50）。</p></blockquote>
       <p><b>あわせて観測できたこと（予定外）</b>: 隔離した作業ツリーの中でサブエージェントが <code>echo &gt; wip/30_reports/…</code> を実行したところ <b><code>WF205</code> で拒否された</b>。実物の作業ツリーの中で <code>workflow-guard</code> が働いた最初の観測であり、<code>WG-T19</code> / <code>WG-T20</code> が疑似の作業ツリーで固定した振る舞いを実物で裏づける（残課題 <code>R16</code> に対する部分的な回答）。</p>
     </li>
     <li>
@@ -1126,6 +1142,7 @@ worktrees_have_doing() {
       <p><b>提案: 保留の据え置きをやめ、発効の方向で次フェーズが手当てする。</b></p>
       <p>根拠は <a href="#f52">f52</a> の 3 点。<code>i0050-08</code> が保留を選んだ決め手は「機構はチケットごとにコミットするので終了時の作業ツリーは必ず clean になり、それは自動で片付けられる条件そのもの」だった。<b>この読みは実測で崩れた</b>。コミットは git から見た変更であり、消えたのは gitignore 対象だけを書いた場合に限られる。残る障害は 2 番目（ブランチ名の規約が <code>worktree.sh</code> の管理対象の定義と合わない）だけで、これは定義を合わせれば解ける。</p>
       <p><b>本チケットでは発効しない。</b> 解禁の条件 1 の第 2 択は「3 点が確かめられ、<b>かつ</b> <code>worktree.sh</code> の管理対象の定義と <code>merge</code> の前提検査 6 をそれに合わせて改めた」であり、後半は <code>.claude/skills/**</code>（本チケットの <code>allow.write</code> は <code>.claude/settings.json</code> のみ）と <code>.claude/docs/**</code>（実装フェーズの <code>deny</code>）の変更を要する。肯定側へ進むと仕様違反になる。</p>
+      <blockquote><p><b>【0030 の訂正】2 点。</b>①<b>「この読みは実測で崩れた」は言い過ぎ</b>である。根拠にした <a href="#f52">f52</a> (b) は<b>未コミットの変更がある</b>作業ツリーの観測で、決め手が言う「clean な作業ツリー」は観測していない。正しくは「決め手の前提のうち『gitignore 対象しか書かなければ消える』側だけが確かめられ、clean + 未合流コミットの場合は未観測」である。②<b>「残る障害は 2 番目（ブランチ名）だけ」も誤り</b>。隔離の置き場は <code>&lt;root&gt;/.claude/worktrees/&lt;名前&gt;</code> = <b>リポジトリの配下</b>で、<code>20-common-step-worktree</code> 仕様の禁止事項・<code>WT002</code> の 1 経路目・DDR <code>i0050-03</code> が禁じる場所である。<b>3 番目の障害として数え直す</b>（<a href="#f54">f54</a> に項目 7 を足した）。なお 0030 の指摘 1 で <code>hook_rel_path</code> を最長一致に直したので、<b>この置き場に対する保護漏れは塞がっている</b>（<a href="#f55">f55</a>）が、置き場そのものが仕様違反である点は変わらない。</p></blockquote>
     </li>
     <li>
       <h3 id="f54">発効に要る残りの作業（次フェーズへ渡す）（0027 / S10）<span class="chip good">◎良</span> <span class="basis">根拠: 6 件すべてに対象と理由を付けた</span></h3>
@@ -1143,6 +1160,89 @@ worktrees_have_doing() {
       </table>
       </div>
       <p>1〜6 はいずれもフィードバック計画（0028）→ 設計反映フェーズが引き取る。</p>
+      <blockquote>
+        <p><b>【0030 の訂正】項目を 1 つ足す（7）。</b> 上の表は隔離の<b>置き場</b>を障害に数えていない。隔離が作る作業ツリーは <code>&lt;root&gt;/.claude/worktrees/&lt;名前&gt;</code> = <b>リポジトリの配下</b>で、<code>20-common-step-worktree</code> 仕様の禁止事項・<code>WT002</code> の 1 経路目・DDR <code>i0050-03</code> が禁じる場所である。発効するなら「置き場をリポジトリの外に置けるか」「置けないなら禁止事項の側を改めるか」を決める必要がある。<b>畳み込み側（<code>hook_rel_path</code>）の整合は 0030 の指摘 1 で取った</b>（<a href="#f55">f55</a>）ので、残るのは仕様の禁止事項との整合だけである。</p>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>#</th><th>作業</th><th>対象</th><th>なぜ本チケットでできないか</th></tr></thead>
+          <tbody>
+            <tr><td>7</td><td>隔離の置き場がリポジトリ配下であることと、<code>20-common-step-worktree</code> の禁止事項・<code>WT002</code>・DDR <code>i0050-03</code> との整合を決める</td><td><code>.claude/docs/**</code> と <code>.claude/skills/**</code></td><td>実装フェーズの <code>deny</code> / 0027 の <code>allow.write</code> の外</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </blockquote>
+    </li>
+    <li>
+      <h3 id="f55">指摘 1 — 畳み込みを最長一致にして、根の配下の作業ツリーを保護に戻した（0030）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T22 実装前 FAIL 5 → PASS / SG-T12 は反転検査</span></h3>
+      <p><code>hook_rel_path</code>（<code>hook-common.sh</code>）は §2 の 1〜3 を<b>前方一致で順に</b>試していた。そのため、根の配下に置かれた作業ツリー — §2 が正当と認める <code>git worktree add ./sub-wt</code> と、隔離が作る <code>&lt;root&gt;/.claude/worktrees/&lt;名前&gt;</code>（0027 の実測で実在が確認されている）— のパスは短いほうの根（本流）に<b>先に</b>畳まれ、<code>.claude/worktrees/x/wip/10_tickets/20_done/a.md</code> のようなルート相対になっていた。<code>workflow-state-guard</code> は <code>wip/10_tickets/20_done</code> にも <code>state_files</code> にも一致しないので<b>許可する</b>。§2 の「1〜3 のどれかに畳めたパスはそのツリーの中のパスとして判定に掛ける」が成り立っていなかった。</p>
+      <p>直したのは 1 か所で、<b>候補の根（自ツリー・共有ルート・集合の各要素）のうち最長一致を採る</b>形にした（同じ長さなら 1 &gt; 2 &gt; 3 の順で、従来と同じ）。集合は「自ツリー・共有ルートで畳めた」ときも見る（入れ子の作業ツリーはそれらより必ず長い根になる）。</p>
+      <p>テストは<b>先行</b>。<code>HK-T22</code> に <code>&lt;root&gt;/sub-wt</code> と <code>&lt;root&gt;/.claude/worktrees/nw</code> の 2 つの足場を足し、実装前に <b>5 件の FAIL</b> を確認してから直した。負のコントロールは 2 つ（接頭辞が同じだけの別ディレクトリは共有ルートのまま／<code>&lt;root&gt;/wip/b.md</code> も共有ルートのまま）。<code>SG-T12</code> にも同じ足場を足し、根の配下の作業ツリーの完了チケット = <code>WF303</code>・作業中の新規 = <code>WF302</code>・<code>logs/mr.json</code> と <code>logs/review-state.json</code> = <code>WF301</code> を固定した。この 5 件は<b>書いた時点で通ってしまった</b>ので、最長一致を一時的に「最初の一致」へ戻す<b>反転検査</b>で 5 件だけが FAIL することを確かめてから戻した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>検査</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td><code>test_hook_common.sh</code></td><td>実装前 FAIL 5（+ 指摘 2 分 2）→ 実装後 <code>passed=252 failures=0</code></td></tr>
+          <tr><td><code>test_workflow_state_guard.sh</code></td><td><code>passed=116 failures=0</code>。反転検査で <code>SG-T12</code> の 5 件だけが FAIL することを確認</td></tr>
+          <tr><td>負のコントロール</td><td><code>sub-wt-x</code>（接頭辞が同じ別ディレクトリ）は <code>shared</code> のまま。同一リポジトリの外は従来どおり <code>outside</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+    <li>
+      <h3 id="f56">指摘 2 — 相互参照を確かめられない候補は本流に倒さず「判定できない」にし、WF209 で止めた（0030）<span class="chip good">◎良</span> <span class="basis">根拠: WG-T20 実装前 FAIL 2 → PASS / HK-T22 の期待値を 1 件差し替え</span></h3>
+      <p><code>__hc_resolve_worktree</code> は、cwd の上向き探索で見つけた候補が <code>.git</code> ファイルを持ち <code>gitdir:</code> が <code>&lt;HOOK_ROOT&gt;/.git/worktrees/</code> を指している（＝<b>この根の作業ツリーだと自称している</b>）のに相互参照を確かめられない場合、<code>HOOK_WORKTREE_STATE=ok</code> のまま <code>HOOK_ROOT</code> に倒していた。<code>workflow-guard</code> は本流の <code>10_doing/</code> を数えるので、<b>本流が 0 枚ならその作業ツリーの中の全操作が判定に入らず通る</b>（<code>i0050-08</code> が言う「静かな無効化」と同じ形）。</p>
+      <p>直したのは 2 か所。①<code>__hc_is_worktree_of</code> の戻り値を 3 値にした（0 = 作業ツリー / 1 = 自称もしていない / <b>2 = 自称しているのに確かめられない</b>）。②<code>__hc_resolve_worktree</code> は 2 を受けたら <code>HOOK_WORKTREE_STATE="unknown"</code> にして返す。<code>workflow-state-guard</code> は <code>hook_rel_path</code> が 2 を返すので既に <code>WF309</code> になるが、<b><code>workflow-guard</code> はパスを 1 つも含まないコマンドだと判定に入らない</b>ので、作業中チケットの枚数を数える前に「作業ツリーを確定できないときは <code>WF209</code>」を足した（読み取り・起動・宣言は通す）。</p>
+      <p><b>既存の期待値を 1 つ変えた。</b> <code>HK-T22</code> は集合を読めない状態を作った直後に <code>assert_eq "HK-T22" "$root" "$HOOK_WORKTREE"</code>（<code># 相互参照を辿れないので本流に倒れる</code>）を置いていた。この期待値が固定していた振る舞いこそが本指摘の穴なので、<code>HOOK_WORKTREE_STATE == "unknown"</code> に差し替えた。<b>変えた理由</b>は「フック共通仕様 §2 の『判定できないときの倒し方』と矛盾していたから」で、<b>テストが誤った振る舞いを固定していた</b>側である。あわせて「集合を読めないが作業ツリーは確定している（cwd が本流）」ケースを別に立て、畳めるものは畳むことを残した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>検査</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td><code>test_hook_common.sh</code></td><td><code>passed=252 failures=0</code>（<code>HK-T22</code> の 2 件が実装前 FAIL）</td></tr>
+          <tr><td><code>test_workflow_guard.sh</code></td><td>実装前 FAIL 2（どちらも <code>allow</code>）→ 実装後 <code>passed=222 failures=0</code></td></tr>
+          <tr><td>既存テストへの影響</td><td><code>test_subagent_start_check.sh</code> 86 / <code>test_subagent_stop_check.sh</code> 82 / <code>test_workflow_diff_check.sh</code> 69 すべて FAIL 0（<code>SA-T11</code> の <code>WF804</code> は期待値を変えずに通る）</td></tr>
+          <tr><td>自分が止まらないこと</td><td>変更後に <code>Edit</code>・テスト実行・<code>commit.sh</code> を実行して拒否 0 件。自分の cwd はリポジトリのルートなので上向き探索の while ループに入らない</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+    <li>
+      <h3 id="f57">指摘 3 — git branch の位置引数によるブランチ作成を unknown にした（0030）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T15 実装前 FAIL 5 → passed=412 failures=0</span></h3>
+      <p><code>scope.sh</code> の限定適用 2（<code>git branch</code>）は<b>書き込みオプションの有無</b>だけで判定していたので、オプション無しでブランチを作る <code>git branch &lt;名前&gt;</code> / <code>git branch &lt;名前&gt; &lt;始点&gt;</code> / <code>git branch -t &lt;名前&gt; origin/x</code> が <code>read</code> のまま通っていた。同じ結果を生む <code>git checkout -b</code> / <code>git switch -c</code> は <code>unknown</code> → <code>WF204</code> で止まるので、閉じたつもりの穴が位置引数の側に残っていた（<code>HK-T15</code> の 60 対に作成形は 1 つも無かった）。</p>
+      <p>直し方は指摘のとおりで、<b>サブコマンドの後ろの位置引数が 1 つ以上あれば <code>unknown</code></b>、ただし <code>--list</code> / <code>-l</code> があるときは <code>read</code> に戻す。値を取るオプション（<code>_SC_GIT_BRANCH_VALUE_OPTS</code> = <code>--contains</code> / <code>--no-contains</code> / <code>--merged</code> / <code>--no-merged</code> / <code>--points-at</code> / <code>--sort</code> / <code>--format</code> / <code>--color</code> / <code>--abbrev</code>）の<b>次の語は位置引数に数えない</b>。<code>--sort=-committerdate</code> のような <code>=</code> 付きは <code>-</code> で始まるので従来どおり読み飛ばす。</p>
+      <p><code>HK-T15</code> に 13 対を足した（実装前に 5 件の FAIL を確認）: <code>git branch topic</code> / <code>topic HEAD</code> / <code>-t topic origin/x</code> / <code>--track topic origin/x</code> / <code>-a topic</code> = <b>unknown</b>、<code>--list topic</code> / <code>--list</code> / <code>-a --list</code> / <code>--merged main</code> / <code>--no-merged main</code> / <code>--points-at HEAD</code> / <code>--no-contains HEAD</code> / <code>--sort=-committerdate</code> = <b>read</b>。既存の 60 対は<b>すべて期待値を変えずに通った</b>。</p>
+    </li>
+    <li>
+      <h3 id="f58">指摘 4 — 切れ目の既出判定にブランチを併記し、分からないときは 0 件に倒した（0030）<span class="chip good">◎良</span> <span class="basis">根拠: BD-T20 実装前 FAIL 3 → passed=147 failures=0</span></h3>
+      <p><code>boundary.sh</code> の既出判定（<code>covered</code>）は行を <code>mr</code> で選んでいたが、行の <code>mr</code> は書き込み時の <code>B_MR</code> で決まる。(a) 単独実行モードでは全行が <code>null</code>・<code>mr.json</code> も無いので <code>$mr == ""</code> で<b>全件</b>を数えており、D23 が塞いだつもりの取りこぼしが残っていた。(b) 同じ issue の中で <code>mr.json</code> が後からできると、それ以前に <code>null</code> で記録された切れ目が <code>covered</code> から外れ、そのチケットが次の切れ目の <code>last_task</code> に<b>再び入る</b>（二重計上）。0024 の D23 が書いた「MR が分からないときは全件 = 拒否側」は<b>逆</b>で、<code>covered</code> を広げる方向はチケットをレビューから落とす<b>緩い側</b>である。</p>
+      <p>直したのは 2 か所。①<code>write_review</code> が切れ目の記録に <b><code>branch</code></b>（書き込み時の <code>cur_branch</code>）を残す。②<code>load_covered</code> が数える行を「<code>mr</code> が現在の MR と一致」<b>または</b>「行の <code>mr</code> が <code>null</code> かつ行の <code>branch</code> が現在のブランチと一致」にし、<b>MR も branch も分からないときは 0 件</b>（レビューが重複する側）に倒す。<code>merge_state()</code> が既に同じ形を採っているので、それに揃えた。</p>
+      <p><code>BD-T20</code> に 4 ケースを足した（実装前に 3 件の FAIL を確認）: ①<code>mr:null</code> + 現在のブランチの行は <code>mr.json</code> があっても既出に数える（<b>二重計上の防止</b>）②別ブランチの <code>null</code> 行は数えない ③<code>mr.json</code> が無いとき、別ブランチの <code>null</code> 行は数えない（<b>全件に倒さない</b>）④<code>mr.json</code> が無くても同じブランチの <code>null</code> 行は数える。既存の 2 件は期待値を変えずに通った。</p>
+    </li>
+    <li>
+      <h3 id="f59">指摘 6 — 合流の記録の上限判定をバイト長にした（0030）<span class="chip warn">△注意</span> <span class="basis">根拠: WT-T06 実装前は文字数 2569 / バイト数 5289 で切り詰めが起きなかった</span></h3>
+      <p><code>worktree.sh</code> の <code>record_merge</code> は 1 行の上限を <code>${#line}</code>（<b>文字数</b>）で見ていたが、フック共通仕様 §5 の「1 行は 4 KB 未満」は<b>バイト</b>である。<code>hook-common.sh</code> は同じ規則を <code>__hc_bytelen</code>（<code>LC_ALL=C</code> の局所代入）で判定している。<code>worktree.sh</code> に同じ実装の <code>bytelen</code> を置いて直した。</p>
+      <p><b>再現には 2 つの条件が要った</b>（どちらも足場の話）。①この環境は <code>LANG</code> も <code>LC_ALL</code> も空（<b>C ロケール</b>）で、bash の <code>${#x}</code> はそもそもバイト数を返す。テストの <code>merge</code> 実行を <code>env LC_ALL=C.UTF-8</code> に変え、<code>${#"あああ"}</code> が <b>3</b> を返すことを前提として assert した。②git は既定（<code>core.quotePath=true</code>）で非 ASCII のパスを 8 進エスケープして出すため、記録の行が ASCII だけになる。テストの一時リポジトリで <code>git config core.quotePath false</code> にした。</p>
+      <p>この 2 つを揃えて、日本語のパス 40 本を双方で書き換える衝突を作ったところ、<b>実装前は文字数 2569 / バイト数 5289 で切り詰めが起きず</b>、実装後は 4 KB 未満に収まり末尾に <code>…</code> が入った。これは 0023 から 3 チケット持ち越されていた残課題 <b>R28</b> を<b>閉じる</b>ものでもある。</p>
+    </li>
+    <li>
+      <h3 id="f60">指摘 7 — 置き場の照合を git 目線の綴りに揃えた（0030）<span class="chip warn">△注意</span> <span class="basis">根拠: WT-T02 (d') 実装前は WT007 に落ちていた</span></h3>
+      <p><code>worktree.sh</code> の <code>abs_path</code> は <code>/c/…</code> を <code>C:/…</code> に揃えないので、相対の <code>&lt;置き場&gt;</code> を与えると <code>dest</code> は <code>$PWD</code> 基準の綴りになり、<code>git worktree list</code> 由来の <code>WL_PATHS</code>（<code>C:/…</code>）と <code>worktree_index_by_path</code> で一致しない。<code>WT002</code> の 4 経路目（実体だけ消した登録が残っている）を素通りしていた。</p>
+      <p>直し方は<b>存在する最深の祖先を実際に辿ってネイティブ表記を取る</b> <code>native_path</code>（<code>cd &lt;祖先&gt; &amp;&amp; { pwd -W || pwd; }</code>）を置き、<code>canon_worktree_path</code> の「存在しないパス」の枝と <code>cmd_add</code> の <code>dest</code> に通した。<code>abs_path</code> の中で <code>/c/</code> → <code>C:/</code> を畳む案は、<code>/tmp/…</code>（MSYS のマウント）を解けないので採らなかった。</p>
+      <p><code>WT-T02</code> に (d') を足した（実装前は素通りした結果 <code>git worktree add</code> 自身が失敗して <b><code>WT007</code></b> になっていた）。実装後は期待どおり <b><code>WT002</code>「作業ツリーが既に登録」</b>で止まる（<code>passed=169 failures=0</code>）。</p>
+    </li>
+    <li>
+      <h3 id="f61">指摘 5 — e52 (b) と e53 / e54 の訂正（実装の変更を伴わない）（0030）<span class="chip warn">△注意</span> <span class="basis">根拠: 過去の節の本文の差分 0 行・引用ブロック 3 つを追加</span></h3>
+      <p>指摘 5 はレポートの訂正だけで、実装は変えていない。<b>過去の節の本文は 1 文字も書き換えず</b>、0009 / 0011 が採った形（節の末尾に「【&lt;チケット&gt; の訂正】…」の引用ブロックを足す）に倣った。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>訂正した箇所</th><th>元の記述</th><th>正しい内容</th></tr></thead>
+        <tbody>
+          <tr><td>C24</td><td><a href="#f52">f52</a> の表 3 行目 (b) と判定列</td><td>「追跡対象の置き場に 1 ファイル作ったとき → 残った」「『git から見て変更がある』ことが残存の条件」</td><td>(b) の観測は<b>未コミットの</b>変更がある場合。<code>i0050-08</code> の決め手が問題にした「clean な作業ツリー」は<b>未観測</b>。判定列は実測ではなく推定</td></tr>
+          <tr><td>C25</td><td><a href="#f53">f53</a> の「この読みは実測で崩れた」</td><td>「決め手は実測で崩れた。残る障害は 2 番目（ブランチ名）だけ」</td><td>崩れたと言えるのは「gitignore 対象しか書かなければ消える」側だけ。<b>障害は 3 つ</b>（ブランチ名の規約・置き場がリポジトリ配下・clean 時の挙動が未確認）</td></tr>
+          <tr><td>C26</td><td><a href="#f54">f54</a> の表（6 項目）</td><td>隔離の置き場を障害に数えていない</td><td><b>項目 7 を追加</b>: 置き場が <code>&lt;root&gt;/.claude/worktrees/</code> = リポジトリ配下であることと、仕様の禁止事項・<code>WT002</code>・DDR <code>i0050-03</code> との整合。畳み順との整合は指摘 1 で取った（<a href="#f55">f55</a>）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>C24〜C26 の番号は 0004 レポートの C1〜C23（0011 の訂正表）と重ならないように続けた。</b></p>
     </li>
   </ol>
 </section>
@@ -1306,6 +1406,29 @@ worktrees_have_doing() {
     </tbody>
   </table>
   </div>
+  <p class="note">0030（敵対的レビューの指摘 7 件）分:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>bash -n</code>（変更した 11 本）</td><td><code>hook-common.sh</code> / <code>scope.sh</code> / <code>workflow-guard.sh</code> / <code>boundary.sh</code> / <code>worktree.sh</code> とテスト 5 本・すべて終了コード 0</td></tr>
+      <tr><td>指摘 1（<code>test_hook_common.sh</code>）</td><td>実装前 <b>FAIL 5</b> → 実装後 <code>passed=252 failures=0</code></td></tr>
+      <tr><td>指摘 1（<code>test_workflow_state_guard.sh</code>）</td><td><code>passed=116 failures=0</code>。<b>反転検査</b>で <code>SG-T12</code> の 5 件だけが FAIL することを確認し、戻した</td></tr>
+      <tr><td>指摘 2（<code>test_workflow_guard.sh</code>）</td><td>実装前 <b>FAIL 2</b> → 実装後 <code>passed=222 failures=0</code></td></tr>
+      <tr><td>指摘 2（既存テストへの影響）</td><td><code>test_subagent_start_check.sh</code> 86 / <code>test_subagent_stop_check.sh</code> 82 / <code>test_workflow_diff_check.sh</code> 69 すべて FAIL 0</td></tr>
+      <tr><td>指摘 3（<code>test_scope.sh</code>）</td><td>実装前 <b>FAIL 5</b> → 実装後 <code>passed=412 failures=0</code></td></tr>
+      <tr><td>指摘 4（<code>test_boundary.sh</code>）</td><td>実装前 <b>FAIL 3</b> → 実装後 <code>passed=147 failures=0</code></td></tr>
+      <tr><td>指摘 6・7（<code>test_worktree.sh</code>）</td><td>実装前 <b>FAIL 3</b> → 実装後 <code>passed=169 failures=0</code></td></tr>
+      <tr><td>指摘 6 の足場の前提</td><td><code>LC_ALL=C.UTF-8</code> で <code>${#"あああ"}</code> が <b>3</b> を返すことをテスト自身が assert。<code>core.quotePath=false</code> にしないと食い違いを作れない</td></tr>
+      <tr><td>指摘 5（レポートの訂正）</td><td>f52・f53・f54 の末尾に引用ブロックを 3 つ追加。<b>過去の節の本文の差分は 0 行</b></td></tr>
+      <tr><td>変更が 0030 の許可範囲に収まっているか</td><td><code>git diff df90f04 --stat</code> は <code>.claude/hooks/**</code>・<code>.claude/skills/**</code>・<code>wip/**</code> だけ。<code>allow.write</code> の内側</td></tr>
+      <tr><td>中核変更後に自分が動くか</td><td>中核 3 本を変えた直後に <code>Edit</code>・テスト実行・<code>commit.sh</code> を各 1 回以上実行し、<b>拒否 0 件</b></td></tr>
+      <tr><td>書き戻し（復旧）の発生（0030）</td><td><b>0 件</b>。反転検査は Edit で戻した</td></tr>
+      <tr><td>0030 が担当する参照更新</td><td><b>0 行</b>（新しい旧名・識別子を作っていない）</td></tr>
+      <tr><td>全件テスト（0030）</td><td><b><code>OK: 28 本 / 243 件</code></b>。28 本すべて PASS、<code>FAIL ID:</code> 空、<b>重複 ID なし</b>。所要 27 分 13 秒（07:19:40 → 07:46:53）。<b>新設 ID は 0 件</b>なので件数は 0026 と同じ 243</td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="assets">
@@ -1359,9 +1482,21 @@ worktrees_have_doing() {
       <tr><td>43</td><td><code>.claude/evals/task-executor.md</code></td><td>eval 定義</td><td>更新（<code>TXE-E07</code>〜<code>E09</code> を新設、<code>TXE-E02</code> を仕様の更新分に合わせた。合格ラインを 9 中 6 に更新）</td><td><code>task-executor</code> 仕様「テスト観点（eval）」（<b>定義のみ・未実行</b>）</td><td>0025</td></tr>
       <tr><td>44</td><td><code>.claude/evals/10-task-investigation-exec.md</code></td><td>eval 定義</td><td>更新（<code>IVE-E05</code>・<code>E06</code> を新設。合格ラインを 6 中 4 に更新）</td><td><code>10-task-investigation-exec</code> 仕様「テスト観点（eval）」（<b>定義のみ・未実行</b>）</td><td>0025</td></tr>
       <tr><td>—</td><td>（0026 / S9 はアセットを 1 件も作成・変更していない）</td><td>—</td><td><b>なし</b></td><td>S9 は「参照更新一覧の消し込みと全体検査」のステップで、検索の結果 7 行とも<b>直すべき箇所が無かった</b>（期待値との差 2 件はいずれも実装が正しく期待値の側が古い。<a href="#f46">f46</a>）。成果物はこのレポート md / HTML とチケット 1 枚だけ</td><td>0026</td></tr>
+      <tr><td>45</td><td><code>.claude/hooks/lib/hook-common.sh</code></td><td>フックの共通ライブラリ</td><td>更新（<code>hook_rel_path</code> の畳み込みを<b>最長一致</b>に／<code>__hc_is_worktree_of</code> の戻り値を 3 値に／自称しているのに確かめられない候補を <code>HOOK_WORKTREE_STATE=unknown</code> に）</td><td><code>フック共通仕様</code> §2「畳み込み」1〜3・「判定できないときの倒し方」・「worktree であることの確認は省けない」</td><td>0030</td></tr>
+      <tr><td>46</td><td><code>.claude/hooks/lib/tests/test_hook_common.sh</code></td><td>フックのテスト</td><td>更新（<code>HK-T22</code> に根の配下の作業ツリー 2 種の足場と 8 assert。<b>既存の期待値 1 件を差し替え</b>）</td><td>同 §11 テスト（<code>HK-T22</code>）</td><td>0030</td></tr>
+      <tr><td>47</td><td><code>.claude/hooks/20-PreToolUse/workflow-guard.sh</code></td><td>フック</td><td>更新（作業中チケットを数える前に「作業ツリーを確定できないときは <code>WF209</code>」）</td><td><code>workflow-guard</code> 仕様 制御方式 1・<code>WF209</code>／<code>フック共通仕様</code> §2</td><td>0030</td></tr>
+      <tr><td>48</td><td><code>.claude/hooks/20-PreToolUse/tests/test_workflow_guard.sh</code></td><td>フックのテスト</td><td>更新（<code>WG-T20</code> に 5 assert）</td><td>同 テスト観点（<code>WG-T20</code>）</td><td>0030</td></tr>
+      <tr><td>49</td><td><code>.claude/hooks/20-PreToolUse/tests/test_workflow_state_guard.sh</code></td><td>フックのテスト</td><td>更新（<code>SG-T12</code> に根の配下の作業ツリー 2 種と 7 assert）</td><td><code>workflow-state-guard</code> 仕様 テスト観点（<code>SG-T12</code>）</td><td>0030</td></tr>
+      <tr><td>50</td><td><code>.claude/hooks/lib/scope.sh</code></td><td>フックの共通ライブラリ</td><td>更新（限定適用 2 に<b>位置引数の検査</b>／<code>_SC_GIT_BRANCH_VALUE_OPTS</code> を新設）</td><td><code>フック共通仕様</code> §8 限定適用 2</td><td>0030</td></tr>
+      <tr><td>51</td><td><code>.claude/hooks/lib/tests/test_scope.sh</code></td><td>フックのテスト</td><td>更新（<code>HK-T15</code> に <code>git branch</code> の作成形・一覧形 13 対）</td><td>同 §11 テスト（<code>HK-T15</code>）</td><td>0030</td></tr>
+      <tr><td>52</td><td><code>.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh</code></td><td>提供コマンド</td><td>更新（<code>write_review</code> が <code>branch</code> を記録／<code>load_covered</code> の絞り込みを作り替え）</td><td><code>00-workflow-issue-mr-driven</code> 仕様「切れ目の判定（正）」<code>last_task</code> 1（<b>スキーマに <code>branch</code> は無い。D30</b>）</td><td>0030</td></tr>
+      <tr><td>53</td><td><code>.claude/skills/00-workflow-issue-mr-driven/scripts/tests/test_boundary.sh</code></td><td>提供コマンドのテスト</td><td>更新（<code>BD-T20</code> に 4 ケース）</td><td>同「テスト観点」（<code>BD-T20</code>）</td><td>0030</td></tr>
+      <tr><td>54</td><td><code>.claude/skills/20-common-step-worktree/scripts/worktree.sh</code></td><td>提供コマンド</td><td>更新（<code>bytelen</code> / <code>native_path</code> を新設。上限判定をバイト長に／置き場の綴りを git 目線に）</td><td><code>フック共通仕様</code> §5／<code>20-common-step-worktree</code> 仕様 <code>add</code> 3（<code>WT002</code>）</td><td>0030</td></tr>
+      <tr><td>55</td><td><code>.claude/skills/20-common-step-worktree/scripts/tests/test_worktree.sh</code></td><td>提供コマンドのテスト</td><td>更新（<code>WT-T02</code> に (d')／<code>WT-T06</code> にバイト長の切り詰め。<b>R28 の消し込み</b>）</td><td>同「テスト観点」（<code>WT-T02</code> / <code>WT-T06</code>）</td><td>0030</td></tr>
     </tbody>
   </table>
   </div>
+  <p><b>0030（敵対的レビューの反映）は中核（<code>.claude/hooks/**</code>）を再び触った</b>（45〜51）。<code>.claude/hooks/config/**</code> と <code>.claude/settings.json</code> は 0030 でも <b>0 件</b>。<code>.claude/docs/**</code> は 0018〜0030 を通して <b>1 文字も変えていない</b>。</p>
   <p>S6 で <code>.claude/skills/**</code> と <code>.claude/evals/**</code> に初めて触った。S6 は <code>.claude/hooks/**</code> / <code>.claude/rules/**</code> / <code>.claude/agents/**</code> / <code>.claude/settings.json</code> / <code>.claude/hooks/config/**</code> を<b>1 件も触っていない</b>（中核の変更なし）。<code>.claude/rules/**</code> / <code>.claude/agents/**</code> / <code>.claude/settings.json</code> は S1〜S6 を通して<b>1 件も触っていない</b>。</p>
   <p><code>.claude/skills/**</code> / <code>.claude/evals/**</code> は S1〜S5 では<b>1 件も触っていない</b>。<code>.claude/hooks/config/**</code> は S1 のみ。<b><code>workflow-state-guard.sh</code> は S4 の対象だったが変更が要らなかった</b>ので、この表には本体としての行を置かない（7 行目の S2 が最後の変更）。<b><code>workflow-diff-check.sh</code> も S5 の対象だったが変更 0 行</b>なので、本体の行は 8 行目の S2 が最後で、S5 はテスト（16 行目）だけを足している。</p>
   <p><b>S8（0025）で <code>.claude/rules/**</code> と <code>.claude/agents/**</code> に初めて触った</b>（S1〜S7 は 0 件）。S8 は <code>.claude/hooks/**</code> / <code>.claude/hooks/config/**</code> / <code>.claude/settings.json</code> を<b>1 件も触っていない</b>（中核の変更なし）。<code>.claude/settings.json</code> は S1〜S8 を通して 0 件（S10 / 0027 が一時的に触る予定）。</p>
@@ -1442,6 +1577,13 @@ worktrees_have_doing() {
       <tr><td>TICKET-T13（S7）</td><td><code>test_ticket.sh</code>（139 / 0）</td><td><b>PASS</b></td></tr>
       <tr><td>CP-T12（S7）</td><td><code>test_push.sh</code>（62 / 0）</td><td><b>PASS</b></td></tr>
       <tr><td>BD-T20 / BD-T21（S7）</td><td><code>test_boundary.sh</code>（142 / 0）</td><td><b>PASS</b>（2 / 2）</td></tr>
+      <tr><td>HK-T22（0030）</td><td>指摘 1・2。根の配下の作業ツリー 2 種が最長一致でそのツリーに畳まれる／自称しているのに確かめられない候補は <code>HOOK_WORKTREE_STATE=unknown</code></td><td><code>test_hook_common.sh</code>（252 / 0）</td><td><b>PASS</b>（実装前 FAIL 7）</td></tr>
+      <tr><td>WG-T20（0030）</td><td>指摘 2。相互参照を確かめられない cwd からの書き込み・実行が <code>WF209</code>、読み取りは allow、戻せば allow</td><td><code>test_workflow_guard.sh</code>（222 / 0）</td><td><b>PASS</b>（実装前 FAIL 2）</td></tr>
+      <tr><td>SG-T12（0030）</td><td>指摘 1。根の配下の作業ツリーの <code>20_done</code> = <code>WF303</code>・<code>10_doing</code> の新規 = <code>WF302</code>・進行状態 = <code>WF301</code>。負のコントロール 2 件</td><td><code>test_workflow_state_guard.sh</code>（116 / 0）</td><td><b>PASS</b>（反転検査で識別力を確認）</td></tr>
+      <tr><td>HK-T15（0030）</td><td>指摘 3。<code>git branch</code> の作成形 5 = unknown / 一覧形 8 = read の 13 対</td><td><code>test_scope.sh</code>（412 / 0）</td><td><b>PASS</b>（実装前 FAIL 5）</td></tr>
+      <tr><td>BD-T20（0030）</td><td>指摘 4。<code>null</code> 行 → <code>mr.json</code> 出現の順・別ブランチ・MR 不明時の 4 ケース</td><td><code>test_boundary.sh</code>（147 / 0）</td><td><b>PASS</b>（実装前 FAIL 3）</td></tr>
+      <tr><td>WT-T02 / WT-T06（0030）</td><td>指摘 7（相対パスの置き場でも <code>WT002</code>）・指摘 6（UTF-8 ロケール + <code>core.quotePath=false</code> でバイト長の切り詰めを踏む）</td><td><code>test_worktree.sh</code>（169 / 0）</td><td><b>PASS</b>（実装前 FAIL 3）</td></tr>
+      <tr><td>全件 28 本 / 243 ID（0030）</td><td>リポジトリの全テスト</td><td><code>run-tests.sh --ids --timeout 300</code></td><td><b>全 PASS</b>（<code>OK: 28 本 / 243 件</code>・<code>FAIL ID:</code> 空・重複 ID なし。所要 27 分 13 秒。<b>新設 ID は 0 件</b>なので件数は 0026 と同じ）</td></tr>
       <tr><td>全件 28 本 / 243 ID（0026）</td><td>リポジトリの全テスト</td><td><code>run-tests.sh --ids --timeout 300</code></td><td><b>全 PASS</b>（<code>OK: 28 本 / 243 件</code> / <code>FAIL ID:</code> 空 / 重複 ID なし。所要 21 分 44 秒）</td></tr>
     </tbody>
   </table>
@@ -1465,6 +1607,9 @@ worktrees_have_doing() {
     <li>（S9 / 0026）<b>テスト先行は適用していない</b>。S9 は新設テスト 0 件で、既存 243 件の<b>回帰</b>を見るステップだからである（計画書「依存するテスト」も S9 に新設を割り付けていない）。反転検査の対象も無い</li>
     <li>（S9 / 0026）<b>割付表の機械テスト 37 件は 37 / 37 が <code>PASS ID:</code> の一覧に含まれる</b>。<code>FAIL ID:</code> が空なので、割付表に無い残り 206 件も全部通っている。0025 の全通しと本数・件数が同じ（28 本 / 243 件）で、S9 はアセットを 1 行も変えていないので増減が無いのが期待どおり</li>
     <li>（S9 / 0026）<b><code>--timeout 300</code> は今も必要</b>（R9）。<code>test_workflow_guard.sh</code> 140 秒・<code>test_boundary.sh</code> 165 秒・<code>test_finalize.sh</code> 153 秒が既定の 120 秒を超える</li>
+    <li>（0030）<b>テスト先行</b>: 指摘 1・2・3・4・6・7 はいずれも<b>実装前の FAIL を確認</b>してから直した（合計 22 件）。後から書いた <code>SG-T12</code> の 5 件だけが「書いた時点で通る」形だったので、<b>反転検査</b>（<code>hook_rel_path</code> の最長一致を一時的に最初の一致へ戻す）で識別力を測り、戻し切りを確認した</li>
+    <li>（0030）<b>既存の期待値を変えたのは 1 件だけ</b>（<code>HK-T22</code> の「本流に倒れる」→「<code>unknown</code>」。理由は <a href="#f56">f56</a>）。他の既存 ID は 1 つも期待値を変えていない。<b>0030 で新設した ID は 0 件</b>（既存 7 ID にケースを足した）</li>
+    <li><b>eval: 0030 は該当なし（0 件）</b>。フック 2 本・共通ライブラリ 2 本・提供コマンド 2 本とそのテスト 5 本（いずれも機械実行できる）だけを触った。既存 13 件は<b>定義済み・未実行のまま</b></li>
     <li><b>eval: S9（0026）は該当なし（0 件）</b>。アセットを 1 件も作成・変更していない。既存 13 件（<code>WT-E01</code>〜<code>E03</code> / <code>WFD-E07</code>〜<code>E10</code> / <code>TXE-E02</code>・<code>E07</code>〜<code>E09</code> / <code>IVE-E05</code>・<code>E06</code>）は<b>定義済み・未実行のまま</b>で、S9 でも 1 件も実行していない</li>
   </ul>
 </section>
@@ -1524,6 +1669,13 @@ worktrees_have_doing() {
       <tr><td><b>S9 の変更が許可範囲に収まっているか（0026）</b></td><td><code>git diff cbd6fb5 --stat</code></td><td><code>wip/10_tickets/10_doing/0026-*.md</code> と <code>wip/30_reports/0018-*.md</code> / <code>.html</code> だけ。<code>allow.write</code>（<code>wip/**</code>, <code>.claude/**</code>）の内側で、<b><code>.claude/**</code> への差分は 0 件</b></td><td>OK</td></tr>
       <tr><td><b>静的検査（0026）</b></td><td>S9 が変更したシェルスクリプト</td><td><b>0 本</b>（<code>bash -n</code> の対象なし）。<code>shellcheck</code> は環境に無いまま（R10）</td><td>対象なし</td></tr>
       <tr><td><b>md と HTML の対の整合（0026 / 訂正）</b></td><td>このレポートの md と HTML</td><td><b>3 か所のずれを直した</b>。①「作成・更新したアセットの一覧」が md は #41 まで・HTML は #44 まであり、eval 定義 3 ファイル（#42〜#44。0025 が作成）の行が <b>md 側に無かった</b> → md に 3 行足して揃えた ②HTML の件数タイル（◎良 30 / △注意 7）とサイドバーの <code>kind</code>（「実装（S1〜S7 分）」）が 0025 時点で止まっていた → S9 の値に更新した ③HTML の目次が <code>f39</code> までしか無く <code>f40</code>〜<code>f45</code> が欠けていた → <code>f46</code>〜<code>f50</code> と一緒に足した。<b>完了済みチケット 0025 には触っていない</b>（誤りはこの表に記録する。<code>10-task-investigation-exec</code> の訂正の規約）</td><td>OK</td></tr>
+      <tr><td><b>プレースホルダ（0030）</b></td><td>変更した 11 本のシェルスクリプトとこのレポート md / HTML</td><td>二重波かっこ・<code>TODO</code> / <code>TBD</code> の残存 <b>0 件</b>（<code>TODO</code> のヒットは <code>boundary.sh</code> の <code>readonly TODO=</code> 系と検査項目名）</td><td>OK</td></tr>
+      <tr><td><b>frontmatter（0030）</b></td><td>0030 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 11 本）。チケット 0030 の frontmatter は <code>ticket.sh</code> が書いた項目以外を変更していない</td><td>対象 0 件</td><td>OK</td></tr>
+      <tr><td><b>参照更新一覧の消し込み（0030）</b></td><td>実装計画書の 7 行</td><td>0030 の担当 <b>0 行</b>（新しい旧名・識別子を作っていない）</td><td>対象なし</td></tr>
+      <tr><td><b>静的検査（0030）</b></td><td>変更した 11 本</td><td><code>bash -n</code> <b>11 / 11 OK</b>、<code>shellcheck</code> は環境に無いまま（R10）</td><td>一部未実施</td></tr>
+      <tr><td><b>反転検査を戻し切ったか（0030）</b></td><td><code>hook-common.sh</code>（最長一致を一時的に最初の一致へ戻した）</td><td>戻した後に <code>test_workflow_state_guard.sh</code> が <code>passed=116 failures=0</code> に復し、コミット済みの内容と一致</td><td>OK</td></tr>
+      <tr><td><b>既存の期待値を変えた件数（0030）</b></td><td>既存の機械テスト</td><td><b>1 件</b>（<code>HK-T22</code>）。理由は <a href="#f56">f56</a> に記録。他の既存 ID は 0 件</td><td>OK（理由付きで記録）</td></tr>
+      <tr><td><b>診断用の一時ファイル（0030）</b></td><td><code>wip/tmp/</code></td><td>ロケール確認用の <code>wip/tmp/locale-check.sh</code> は <code>bash wip/tmp/*.sh</code> が <code>WF204</code> で拒否されたため<b>実行できず削除</b>（R51 の再現。診断はテスト本体の一時的な <code>printf</code> で代えた）</td><td>OK（迂回していない）</td></tr>
     </tbody>
   </table>
   </div>
@@ -1565,6 +1717,19 @@ worktrees_have_doing() {
     </tbody>
   </table>
   </div>
+  <p class="note">0030（敵対的レビューの指摘 7 件の反映）分（<b>0027 は新しい食い違いを見つけていないので、番号は D27 から始まる</b>。下の「S1〜S9 分の逸脱一覧はここで締める」の段落は 0026 時点の締めで、書き換えずそのまま残している）:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>逸脱</th><th>仕様・計画の記述</th><th>実装の実態</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td>D27</td><td><b>畳み込みの候補を「順」ではなく「最長一致」で選んだ</b>（0030 / 指摘 1）</td><td><code>フック共通仕様</code> §2「畳み込みは次の<b>順</b>で行う 1 → 2 → 3」</td><td>1〜3 の候補のうち<b>最長一致</b>を採る（同じ長さなら 1 &gt; 2 &gt; 3）。順に前方一致を試すと、同 §2 が正当と認める「根の配下の作業ツリー」が短いほうの根に畳まれ、「1〜3 のどれかに畳めたパスはそのツリーの中のパスとして判定に掛ける」が成り立たない</td><td>仕様は直さず記録。§2 に「候補の根のうち最長一致」を足す案を設計反映へ（#34）。<code>HK-T22</code> / <code>SG-T12</code> に固定済み</td></tr>
+      <tr><td>D28</td><td><b>集合を読めないとき、自ツリー・共有ルートで畳めたパスは「判定できない」に倒さない</b>（0030 / 指摘 1）</td><td>同 §2「作業ツリーの集合を<b>読めなかったとき</b>は、4（無関係）に倒さず『判定できない』を返す」</td><td>集合を読めなくても、自ツリー・共有ルートで畳めたパスはその結果を返す（畳めないときだけ「判定できない」）。全部を「判定できない」にすると <code>.git/worktrees</code> が壊れた環境で全パスが deny になり、機構自身が止まって復旧もできない。<b>0019 の実装（<code>HK-T22</code> の「1 で畳めるものは集合を読まない」）と同じ側</b>で、0030 で新たに緩めたわけではない</td><td>仕様は直さず記録。§2 に「畳めなかった場合に限る」と明記する案を設計反映へ（#35）</td></tr>
+      <tr><td>D29</td><td><b><code>git branch</code> の「値を取るオプション」を 9 件の列挙で持った</b>（0030 / 指摘 3）</td><td>同 §8 限定適用 2 は「書き込みオプションがあれば <code>unknown</code>」としか書かず、位置引数にも値を取るオプションにも触れていない</td><td>位置引数が 1 つ以上あれば <code>unknown</code>（<code>--list</code> / <code>-l</code> があれば <code>read</code>）とし、9 件のオプションの<b>次の語</b>は位置引数に数えない。列挙から漏れたオプションの値は位置引数として数えられ <code>unknown</code> に落ちる（安全側）</td><td>仕様は直さず記録。限定適用 2 に位置引数の規則と一覧を足す案を設計反映へ（#37）。<code>HK-T15</code> に 13 対を固定済み</td></tr>
+      <tr><td>D30</td><td><b>切れ目の記録に <code>branch</code> を足した</b>（0030 / 指摘 4）</td><td><code>00-workflow-issue-mr-driven</code> 仕様の <code>logs/review-state.json</code> のスキーマに <code>branch</code> は無い。<code>last_task</code> 1 も「各行の <code>boundary.tickets</code>」としか書かない（D23 の MR 絞り込みも実装側の追加）</td><td><code>write_review</code> が <code>branch</code> を記録し、<code>covered</code> は「<code>mr</code> 一致、または <code>mr</code> が両方 <code>null</code> かつ <code>branch</code> 一致」の行から作る。<b>MR も branch も分からないときは 0 件</b>（D23 の「全件 = 拒否側」は逆だった）。<code>merge-state.json</code> は既に <code>branch</code> を持ち <code>merge_state()</code> が同じ判定をしている</td><td>仕様は直さず記録。スキーマに <code>branch</code> を足し <code>last_task</code> 1 に絞り込みの規則（D23 の訂正を含む）を書く案を設計反映へ（#38）。<code>BD-T20</code> に固定済み</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>0030 分の逸脱は D27〜D30 の 4 件で、通算 30 件（D1〜D30）。</b> いずれも <code>.claude/docs/**</code> を 1 文字も直していない。</p>
   <p><b>S1〜S9 分の逸脱一覧はここで締める（0026 / S9）。</b> 全 <b>26 件</b>（D1〜D26）で、内訳は S1 が D1〜D5、S2 が D6・D7、S3 が D8〜D12、S4 が D13・D14、S5 が D15〜D18、S6 が D19〜D22、S7 が D23、S8 が D24・D25、S9 が D26。<b>設計文書（<code>.claude/docs/**</code>）は 26 件のどれについても 1 文字も直していない</b>（実装フェーズの <code>deny</code>）。26 件すべてに「扱い」列があり、宙に浮いた項目は無い。引き取り先は「設計への反映」の表とフィードバック計画（0028）で、そこから設計反映フェーズへ渡る。S10（0027）が新たに見つけた食い違いは <b>D27 以降</b>として同じ表に足す。</p>
 </section>
 
@@ -1604,6 +1769,13 @@ worktrees_have_doing() {
     <li>eval の「効果ありの判定基準」の<b>合格ライン</b>を、仕様側かレビュー観点のどこかに決めておく。S8 は既存の比率に合わせて <code>WFD</code> 10 中 7・<code>TXE</code> 9 中 6・<code>IVE</code> 6 中 4 にしたが、根拠は「既存に合わせた」だけである → フィードバック計画（0028）</li>
     <li>実装計画書「参照更新一覧」 #1 の期待値を「<code>logs/hooks/</code> の 2 行」→「<b><code>logs/hooks/</code> の 2 行と <code>logs/sh</code> の 1 行の計 3 行</b>」に、#5 を「6 行」→「<b>7 行</b>（<code>workflow-guard.sh</code> 2・<code>test_workflow_guard.sh</code> 5）」に直す（D26）。<b>期待値を「残るもの」で書く</b>という計画書自身の原則は正しく、値だけが実装より古い → 設計反映フェーズ / 計画の見直し</li>
     <li>フック共通仕様 §5 の根の列（<code>logs/sh/</code> = ツリー）と、実装計画書 #1 の除外欄（「<code>logs/sh/</code> は logger 経由でこの検索に現れない」）が食い違う（D26）。<b>仕様が正</b>で、<code>hook-common.sh</code> の <code>__hc_relog</code> は §5 どおり作業ツリー側へ貼り替えている。参照更新の検索語を作るときは「logger 経由だから現れない」という前提を置かない → 設計反映フェーズ</li>
+    <li>（0030）フック共通仕様 §2「作業ツリーをまたぐパスの畳み込み」に「候補の根のうち<b>最長一致</b>を採る（同じ長さなら 1 &gt; 2 &gt; 3）」を足す（D27）</li>
+    <li>（0030）同 §2 の「集合を読めなかったときは『判定できない』」に「<b>畳めなかった場合に限る</b>」を足す（D28）。畳めたパスまで deny に倒すと機構自身が止まって復旧できない</li>
+    <li>（0030）同 §2 の解決順に「候補が<b>この根の作業ツリーだと自称している</b>のに相互参照が成立しないときは、<code>HOOK_ROOT</code> に倒さず『判定できない』」を明記する（指摘 2）</li>
+    <li>（0030）同 §8 限定適用 2（<code>git branch</code>）に「<b>位置引数が 1 つ以上あれば <code>unknown</code></b>（<code>--list &lt;pattern&gt;</code> は <code>read</code>）」と値を取るオプションの一覧を足す（D29）</li>
+    <li>（0030）<code>00-workflow-issue-mr-driven</code> 仕様の <code>logs/review-state.json</code> のスキーマに <b><code>branch</code></b> を足し、<code>last_task</code> 1 の絞り込みを「<code>mr</code> 一致、または両方 <code>null</code> かつ <code>branch</code> 一致。どちらも分からなければ <b>0 件</b>」と書く（D30。<b>#25 の D23 の訂正を含む</b>）</li>
+    <li>（0030）<code>20-common-step-worktree</code> 仕様の合流の記録に「1 行の上限は<b>バイト</b>」を明記する（指摘 6）</li>
+    <li>（0030）同仕様の <code>add</code> に「<code>&lt;置き場&gt;</code> は <b>git 目線の綴りに揃えてから</b>登録と照合する」を足す（指摘 7）</li>
   </ol>
 </section>
 
@@ -1660,6 +1832,10 @@ worktrees_have_doing() {
       <tr><td>（0026）参照更新一覧は期待値どおりの件数になる</td><td><b>2 行が +1 ずれた</b>（#1 が 3 行 / #5 が 7 行）。どちらも<b>実装が正しく計画書の期待値の側が古い</b></td><td>アセットは直さず、差の理由を <a href="#f46">f46</a> と D26 に記録し、計画書の期待値を直す案を「設計への反映」に置いた。<b>「0 件を成功条件にしない」という計画書の書き方のおかげで、この差が「検索語の誤り」ではなく「期待値の古さ」だと切り分けられた</b></td></tr>
       <tr><td>（0026）全件テストは 10 分前後で終わる</td><td><b>21 分 44 秒</b>かかった（04:40:12 → 05:01:56）。28 本のうち 3 本（<code>test_boundary.sh</code> 165 秒・<code>test_finalize.sh</code> 153 秒・<code>test_workflow_guard.sh</code> 140 秒）が既定の 120 秒を超える</td><td>並行実行せず 1 本だけ走らせて完走させた。<code>--timeout 300</code> は今後も要る（R9 は閉じない）</td></tr>
       <tr><td>（0026）<code>.gitignore</code> を <code>allow</code> から外すかどうかを S9 で選べる（R2）</td><td><b>選べない</b>。外すには <code>.claude/hooks/config/scope-limits.json</code> の編集が要り、このパスは <code>common.confirm</code> なのでサブエージェント実行者からは <code>WF203</code>（ヘッドレスで deny）で触れない</td><td>0018 の「残す側に倒す」判断をそのまま採って R2 を締め、外す判断が要るなら呼び出し元の代行が要ることを◇に上げた</td></tr>
+      <tr><td>（0030）「1 行は 4 KB 未満」を文字数で見ている不具合は、日本語のパスを並べれば再現する</td><td><b>再現しない</b>。この環境は <code>LANG</code> も <code>LC_ALL</code> も空（<b>C ロケール</b>）で <code>${#x}</code> はバイト数を返す。さらに git は既定で非 ASCII を 8 進エスケープするので記録が ASCII だけになる</td><td>テストの <code>merge</code> 実行を <code>env LC_ALL=C.UTF-8</code> にし、一時リポジトリを <code>core.quotePath=false</code> にして文字数 2569 / バイト数 5289 の食い違いを作った。<b>足場が成立していること自体を assert</b>してから判定を呼ぶ形にした（<a href="#f59">f59</a>）</td></tr>
+      <tr><td>（0030）<code>abs_path</code> で <code>/c/…</code> を <code>C:/…</code> に畳めば綴りの二重性は解ける</td><td>解けない。この環境の一時リポジトリは <b><code>/tmp/tmp.XXXX</code></b>（MSYS のマウント）で、ドライブレターの規則では畳めない</td><td>存在する最深の祖先を実際に辿ってネイティブ表記を取る <code>native_path</code> を置いた（<a href="#f60">f60</a>）</td></tr>
+      <tr><td>（0030）敵対的レビューの指摘 2 を直しても既存テストは全部そのまま通る</td><td><b><code>HK-T22</code> の 1 件は通らない</b>。「相互参照を辿れないので本流に倒れる」が、まさに指摘 2 が塞ごうとした振る舞いを固定していた</td><td>期待値を <code>HOOK_WORKTREE_STATE == "unknown"</code> に差し替え、<b>変えた理由</b>を <a href="#f56">f56</a> と「見てほしい点」に書いた。0022 の学び②が古くなる点は R49 に上げた</td></tr>
+      <tr><td>（0030）<code>hook_rel_path</code> を最長一致にすると、集合を読めない環境では全部が「判定できない」になる</td><td>そのとおりになるので<b>倒し方を分けた</b>。自ツリー・共有ルートで畳めたものはそのまま返し、畳めないときだけ「判定できない」にした</td><td>D28 として記録。全部を deny にすると機構自身が止まり復旧もできない</td></tr>
       <tr><td>（0026）<code>push.sh</code> の経路も 1 回は踏める</td><td>踏めない。<b>2 つの理由が重なる</b> —— 実行者は作業中チケットを必ず 1 枚持つので項目 2 で <code>CP005</code>、かつ <code>remote-write:push</code> が <code>ai-asset-implementation</code> の <code>ops</code> に無い</td><td>DoD の明記どおり <code>CP-T12</code> の PASS（負のコントロール「本流では項目 5 が通る」を含む）と <code>push.sh:171-179</code> の実装で代えた（<a href="#f49">f49</a>）</td></tr>
     </tbody>
   </table>
@@ -1716,6 +1892,11 @@ worktrees_have_doing() {
     <li><b>R46</b> <b><code>DDR i0050-08</code> の決め手が実測で崩れた</b>（<a href="#f52">f52</a> の 3 番目）。保留の理由は「機構は必ず clean になるので隔離の作業ツリーは自動で片付けられ、成果が消える」だったが、実測では<b>追跡対象に変更があれば作業ツリーもブランチも成果も残る</b>。消えたのは gitignore 対象だけを書いた場合。決定そのものを差し替える必要がある → フィードバック計画（0028）→ 設計反映</li>
     <li><b>R47</b> <b>発効に要る残りの作業 6 件</b>（<a href="#f54">f54</a>）。<code>worktree.sh</code> の管理対象の定義を隔離が作る <code>worktree-agent-&lt;id&gt;</code> 形に広げる / <code>merge</code> の前提検査 6 を合わせる / <code>20-common-step-worktree</code> の要件・仕様 / <code>00-workflow-issue-mr-driven</code> 仕様の「解禁の条件」/ <code>i0050-08</code> の差し替え / 隔離の作業ツリーを提供コマンドで片付けられるようにする。いずれも <code>.claude/skills/**</code> と <code>.claude/docs/**</code> で、実装フェーズの許可範囲の外 → フィードバック計画（0028）→ 設計反映</li>
     <li><b>R48</b> <b>S10 で閉じた残課題</b>: <b>R16</b>（<code>WG-T19</code> / <code>WG-T20</code> は疑似の作業ツリーでしか確かめていない）は部分的に閉じた —— 実物の隔離作業ツリーの中でサブエージェントの書き込みが <code>WF205</code> で拒否され、<code>workflow-guard</code> が実物の作業ツリーで働くことを観測した（<a href="#f52">f52</a>）。<b>R27・R33・R35</b>（<code>worktree.sh</code> の <code>merge</code> / <code>remove</code>・<code>BD-T21</code>・<code>TK009</code> と項目 5 を実機で踏んでいない）は<b>閉じていない</b> —— 実測で作った作業ツリーは管理対象外（<code>WT005</code>）で対象にできなかった。<b>R39</b>（<code>isolation</code> を置いてよい条件が機械的に検査されない）は、S10 が <code>worktree.baseRef</code> を取り除いたことで当座は成立しているが、検査の手段は無いままである → フィードバック計画（0028）→ 設計反映</li>
+    <li><b>R49</b> <b><code>HOOK_WORKTREE_STATE</code> に寄せるか、フックが自前で <code>hook_worktrees</code> を呼ぶかが二重になっている</b>（0030 / <a href="#f56">f56</a>）。0022 は「『集合を読めない』は <code>HOOK_WORKTREE_STATE</code> に現れない」を前提に案内側 2 本へ <code>__sa_worktree_ok</code> / <code>__sp_worktree_ok</code> を置いた。0030 で「自称しているのに確かめられない」が <code>unknown</code> に載るようになり、<b>2 つの検出経路が併存</b>している。一本化するかを決めたい ／ フィードバック計画（0028）→ 設計反映</li>
+    <li><b>R50</b> <b>clean な（コミット済みで差分の無い）隔離作業ツリーが自動で片付けられるかは未観測</b>（0030 / <a href="#f61">f61</a> の C24）。0027 の実測 (b) は<b>未コミットの</b>変更がある場合で、<code>i0050-08</code> の決め手が問題にした状態は観測していない。発効の判断に効く ／ フィードバック計画（0028）→ 設計反映（R46 と対）</li>
+    <li><b>R51-b</b> <b><code>bash wip/tmp/*.sh</code> を走らせる経路が無い</b>（既知の R51 の再現。0030 でロケール確認に使おうとして <code>WF204</code>）／ 別 issue（保留 P2）</li>
+    <li><b>R52-b</b> <b><code>git branch</code> の「値を取るオプション」の一覧が列挙で網羅していない</b>（0030 / D29）。漏れは安全側だが摩擦が増える ／ フィードバック計画（0028）</li>
+    <li><b>R53-b</b> <b>0030 で閉じた残課題</b>: <b>R28</b>（合流の記録の 4 KB 切り詰めを踏んでいない）は <code>WT-T06</code> に組み込んで<b>閉じた</b>。<b>R16 / R27 / R33 / R35</b>（実機・実物の作業ツリーで踏んでいない）は 0030 でも<b>閉じていない</b> ／ 記録のみ</li>
     <li><b>R45</b> <b>S9 のような「検査だけのステップ」は、成果物が md のみでアセット差分が 0 行になる</b>。<code>workflow-diff-check</code> の許可範囲検査も <code>push.sh</code> の項目 3（md と html の対）も通るが、<b>「本当に全部見たか」を機械的に裏付ける手段が無い</b>（検索を実行した記録は作業ログとレポートの散文だけ）。参照更新一覧の消し込みをスクリプト化して <code>run-tests.sh</code> に載せる案（検索語と期待値を TSV に置き、件数を assert する）を検討したい → フィードバック計画（0028）</li>
   </ul>
 </section>

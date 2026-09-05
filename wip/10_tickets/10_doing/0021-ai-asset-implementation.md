@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/hooks/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-05T23:17:56+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "e348c12"
 ---
 
 # 0021 S4 中核 c: 拒否側フック 2 本と A1-6 を閉じる機械テスト

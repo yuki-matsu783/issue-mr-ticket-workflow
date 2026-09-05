@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/hooks/config/**", ".gitignore"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-05T17:49:40+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9c2e4d7"
 ---
 
 # 0018 S1 設定・定義: scope-limits.json と .gitignore、実装結果レポートの起こし

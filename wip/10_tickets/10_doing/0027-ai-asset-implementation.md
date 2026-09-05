@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/settings.json"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-06T05:28:48+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "450a201"
 ---
 
 # 0027 S10 並列実施の発効の可否の判定（実効性の確認）

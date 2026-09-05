@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（追記が 1 文�
 allow:
   write: ["wip/**", ".claude/docs/00_requirement/hook機構.md"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T12:16:51+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "11f6f92"
 ---
 
 # 0006 hook機構.md の末尾へ §12.2 の続き〜補遺を取り込む（後半）

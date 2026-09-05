@@ -27,8 +27,25 @@ HOOK_TOOL=""; HOOK_AGENT_ID=""; HOOK_AGENT_TYPE=""; HOOK_PROMPT_ID=""; HOOK_COMM
 HOOK_SUBAGENT_TYPE=""; HOOK_MODEL=""; HOOK_DOING_COUNT=0
 HOOK_PROMPT=""; HOOK_SOURCE=""; HOOK_RESPONSE_STATUS=""; HOOK_RESPONSE_AGENT_ID=""; HOOK_RUN_IN_BACKGROUND=""
 HOOK_AGENT_TRANSCRIPT_PATH=""; HOOK_FM_KEYS_TOUCHED=0; HOOK_DRAFT=""
-# 作業ツリー（§2）。スクリプトの置き場は常に HOOK_ROOT、logs/ と wip/ はこちらを基準にする
+# 作業ツリーの三分（§2）。1 つの名前で兼ねない
+#   HOOK_ROOT        = 置き場（フック・共通ライブラリ・settings.json の実体）
+#   HOOK_WORKTREE    = 判定対象の作業ツリー（wip/・判定記録・実行ログ。cwd から解決する）
+#   HOOK_SHARED_ROOT = 共有ルート（issue / ブランチ / MR に属する進行状態・ロック・集計・セッション状態）
+# HOOK_SHARED_ROOT の値は HOOK_ROOT と同一に固定し、環境変数・設定ファイルからの上書きを受け付けない
+# （外から動かせると workflow-state-guard の保護対象そのものを外せる）。既存の環境変数を無視するため
+# `${HOOK_SHARED_ROOT:-...}` の形にしない。__hc_resolve_worktree でも同じ代入を繰り返して固定を保つ
 HOOK_WORKTREE="$HOOK_ROOT"
+HOOK_SHARED_ROOT="$HOOK_ROOT"
+# 作業ツリーを確定できたか（ok / unknown）。unknown のとき hook_rel_path は「判定できない」を返し、
+# 呼び手は §2「判定できないときの倒し方」に従う（拒否側は deny、案内側は additionalContext）
+HOOK_WORKTREE_STATE="ok"
+# 同一リポジトリの作業ツリーの集合（hook_worktrees が埋める。入力 1 件のあいだキャッシュする）
+__HC_WT_SET=(); __HC_WT_STATE=""
+# 正規化済みの根（__hc_resolve_worktree が埋める）。hook_rel_path は書き込み対象の数だけ呼ばれる
+# ホットパス（§1）なので、呼ぶたびに根を畳み直さずここを読む。空なら __hc_roots_n が遅延で埋める
+__HC_ROOT_N=""; __HC_WT_N=""
+# hook_rel_path の戻り（REPLY と対で読む）
+REPLY_ROOT=""; REPLY_KIND=""
 # 区切りバイト。stdin のフィールドは 0x1E、副入力はセクション 0x1D・レコード 0x1E・キー/値 0x1F
 __HC_US=$'\x1e'
 __HC_GS=$'\x1d'
@@ -318,15 +335,84 @@ __hc_is_worktree_of() {
 }
 __hc_resolve_worktree() {
   local d root
-  __hc_winpath "$HOOK_ROOT"; root="$REPLY"
+  # 共有ルートは毎回 HOOK_ROOT に貼り直す（環境変数で先に置かれていても勝たせない。§2）
+  HOOK_SHARED_ROOT="$HOOK_ROOT"
   HOOK_WORKTREE="$HOOK_ROOT"
-  [[ -n "${HOOK_CWD:-}" ]] || return 0
-  __hc_winpath "$HOOK_CWD"; d="$REPLY"
-  [[ "${d,,}" == "${root,,}" ]] && return 0
-  while [[ -n "$d" ]]; do
-    if [[ -d "$d/.claude" ]] && __hc_is_worktree_of "$d" "$root"; then HOOK_WORKTREE="$d"; return 0; fi
-    case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac
-  done
+  HOOK_WORKTREE_STATE="ok"
+  __HC_WT_SET=(); __HC_WT_STATE=""      # 作業ツリーの集合のキャッシュは入力ごとに捨てる
+  __hc_winpath "$HOOK_ROOT"; root="$REPLY"
+  __HC_ROOT_N="$root"; __HC_WT_N="$root"   # 正規化済みの根。hook_rel_path はホットパスなので毎回は畳まない
+  # 置き場そのものを正規化できない = どのツリーの話かを決められない（§2 の「判定できない」）
+  if [[ -z "$root" ]]; then HOOK_WORKTREE_STATE="unknown"; return 0; fi
+  if [[ -n "${HOOK_CWD:-}" ]]; then
+    __hc_winpath "$HOOK_CWD"; d="$REPLY"
+    # cwd はあるのに正規化できない（`.` だけ・根を越える `..` など）→ 作業ツリーを確定できない。
+    # cwd が空（そもそも渡されていない）のは確定できないことではなく、HOOK_ROOT に倒れるだけ
+    if [[ -z "$d" ]]; then HOOK_WORKTREE_STATE="unknown"; __hc_relog; return 0; fi
+    if [[ "${d,,}" != "${root,,}" ]]; then
+      while [[ -n "$d" ]]; do
+        if [[ -d "$d/.claude" ]] && __hc_is_worktree_of "$d" "$root"; then
+          HOOK_WORKTREE="$d"; __HC_WT_N="$d"; break
+        fi
+        case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac
+      done
+    fi
+  fi
+  __hc_relog
+  return 0
+}
+# 正規化済みの根を（まだ無ければ）用意する。通常は __hc_resolve_worktree が入力ごとに埋めるので何もしない。
+# hook_read_input を通さずに hook_rel_path / hook_worktrees を呼ぶ経路（テスト・提供コマンド）への保険。
+# 注: HOOK_WORKTREE をこの関数と __hc_resolve_worktree の外で代入するとキャッシュが古くなる
+__hc_roots_n() {
+  [[ -z "$__HC_ROOT_N" ]] || return 0
+  __hc_winpath "$HOOK_ROOT"; __HC_ROOT_N="$REPLY"
+  __hc_winpath "$HOOK_WORKTREE"; __HC_WT_N="$REPLY"
+  return 0
+}
+# ---- 同一リポジトリの作業ツリーの集合（§2）----
+# HOOK_ROOT と、<HOOK_ROOT>/.git/worktrees/<名前>/gitdir に登録されているすべての作業ツリーのルート。
+# 読み取りは glob と組み込みの読み込みだけで行い、git を呼ばない（ホットパスの fork 上限。§1）。
+# 登録が stale（指し先が実在しない）でも集合に残す — この集合は「保護してよい範囲」を広げるためだけに使い、
+# HOOK_WORKTREE の決定には使わないので、余分に含めても緩まない。
+# 結果は __HC_WT_SET（正規化済みのルート）に置く。戻り 0 = 集合を作れた / 1 = 読めなかった
+# （呼び手は §2 のとおり「無関係」ではなく「判定できない」に倒す）
+hook_worktrees() {
+  local gd f s ng=0
+  case "$__HC_WT_STATE" in ok) return 0 ;; unreadable) return 1 ;; esac
+  __hc_roots_n
+  __HC_WT_SET=("$__HC_ROOT_N")
+  gd="$HOOK_ROOT/.git/worktrees"
+  if [[ -e "$gd" ]]; then
+    # 在るのに列挙できない（ディレクトリでない・読めない・辿れない）＝ 集合を作れない
+    if [[ ! -d "$gd" || ! -r "$gd" || ! -x "$gd" ]]; then
+      __HC_WT_STATE="unreadable"; __HC_WT_SET=(); return 1
+    fi
+    shopt -q nullglob && ng=1
+    shopt -s nullglob
+    for f in "$gd"/*/gitdir; do
+      s="$(<"$f")" || s=""
+      s="${s//$'\r'/}"; s="${s//$'\n'/}"
+      [[ -n "$s" ]] || continue
+      __hc_winpath "$s"; s="$REPLY"
+      s="${s%/.git}"                       # 登録は <作業ツリー>/.git を指す
+      [[ -n "$s" ]] && __HC_WT_SET+=("$s")
+    done
+    (( ng )) || shopt -u nullglob
+  fi
+  __HC_WT_STATE="ok"
+  return 0
+}
+
+# 実行ログ（logs/sh/）は作業ツリー側（§5 の根の列）。logger は読み込み時の LOGGER_ROOT で出力先を決めるので、
+# 作業ツリーが確定した時点で出力先だけを貼り替える。LOGGER_ROOT 自体は動かさない
+# （LOGGER_ROOT は「読み込み行が解決した置き場」で、スクリプトの実体を探すのに使われるため。§2）
+__hc_relog() {
+  [[ "$HOOK_WORKTREE" != "$HOOK_ROOT" ]] || return 0
+  local d="$HOOK_WORKTREE/logs/sh"
+  mkdir -p "$d" 2>/dev/null || return 0
+  LOGGER_DIR="$d"
+  [[ -n "${LOGGER_SOURCE:-}" ]] && LOGGER_FILE="$d/$LOGGER_SOURCE.log"
   return 0
 }
 
@@ -391,9 +477,10 @@ __hc_state_arg() {
 }
 
 # hook_read_state [review] [merge] [approvals] [entry]
-#   作業ツリーと session_id に依存する副入力を 1 回の jq でまとめて読む（§1 の 2 回目。要るフックだけが呼ぶ）。
-#   §1 の表は review-state / merge-state を 1 回目に置くが、§2 が logs/ を作業ツリー側と定めており、作業ツリーは
-#   cwd（= stdin）を読んで初めて決まるため 1 回目には渡せない。よって 2 回目に移している（逸脱。0032 で書き戻す）。
+#   共有ルートと session_id に依存する副入力を 1 回の jq でまとめて読む（§1 の 2 回目。要るフックだけが呼ぶ）。
+#   進行状態・セッション状態はいずれも共有ルート側（§5 の根の列）。§1 の表は review-state / merge-state を
+#   1 回目に置くが、共有ルートの解決は cwd（= stdin）を読む __hc_resolve_worktree の後なので 1 回目には渡せない。
+#   よって 2 回目に移している（逸脱。0032 で書き戻す）。
 #   戻り 1 = jq 不在（呼び手が扱いを決める）
 hook_read_state() {
   local a out sec nm want
@@ -409,10 +496,10 @@ hook_read_state() {
     for a in "${names[@]}"; do [[ "$a" == "$nm" ]] && want=1; done
     if (( want )); then
       case "$nm" in
-        review)    __hc_state_arg review    "$HOOK_WORKTREE/logs/review-state.json" ;;
-        merge)     __hc_state_arg merge     "$HOOK_WORKTREE/logs/merge-state.json" ;;
-        approvals) __hc_state_arg approvals "$HOOK_WORKTREE/logs/sessions/$HOOK_SESSION_ID/approvals.json" ;;
-        entry)     __hc_state_arg entry     "$HOOK_WORKTREE/logs/sessions/$HOOK_SESSION_ID/entry.json" ;;
+        review)    __hc_state_arg review    "$HOOK_SHARED_ROOT/logs/review-state.json" ;;
+        merge)     __hc_state_arg merge     "$HOOK_SHARED_ROOT/logs/merge-state.json" ;;
+        approvals) __hc_state_arg approvals "$HOOK_SHARED_ROOT/logs/sessions/$HOOK_SESSION_ID/approvals.json" ;;
+        entry)     __hc_state_arg entry     "$HOOK_SHARED_ROOT/logs/sessions/$HOOK_SESSION_ID/entry.json" ;;
       esac
     else
       __HC_STATE_ARG=(--argjson "$nm" null)
@@ -599,9 +686,10 @@ hc_json_write() {
 #   強制解放を実行ログに 1 行残す（打ち切りでは trap も || も効かないため。§3・DDR i0009-60）。
 #   2 秒で取れなければ 1 を返す。2 秒と 60 秒はこの関数が持ち、呼び手は指定しない。
 #   注: find を 1 回起動するため、ホットパス（§1 の 5 本）からは呼ばない
+#   置き場は共有ルート（§5）。ロックはブランチ単位の資源なので作業ツリーごとに分けると排他が成立しない
 hc_lock() {
   local name="$1" d i
-  d="$HOOK_WORKTREE/logs/locks/$name.lock"
+  d="$HOOK_SHARED_ROOT/logs/locks/$name.lock"
   mkdir -p "${d%/*}" 2>/dev/null || return 1
   if [[ -d "$d" ]] && [[ -n "$(find "$d" -maxdepth 0 -mmin "+$__HC_LOCK_STALE_MIN" 2>/dev/null)" ]]; then
     if rmdir "$d" 2>/dev/null; then log_warn "陳腐化したロックを強制解放した name=$name"; fi
@@ -621,7 +709,7 @@ hc_lock() {
 hc_unlock() {
   local name="$1" n
   local -a keep=()
-  rmdir "$HOOK_WORKTREE/logs/locks/$name.lock" 2>/dev/null || true
+  rmdir "$HOOK_SHARED_ROOT/logs/locks/$name.lock" 2>/dev/null || true
   for n in ${__HC_LOCKS[@]+"${__HC_LOCKS[@]}"}; do
     [[ "$n" == "$name" ]] || keep+=("$n")
   done
@@ -631,7 +719,7 @@ hc_unlock() {
 __hc_unlock_all() {
   local n
   for n in ${__HC_LOCKS[@]+"${__HC_LOCKS[@]}"}; do
-    rmdir "$HOOK_WORKTREE/logs/locks/$n.lock" 2>/dev/null || true
+    rmdir "$HOOK_SHARED_ROOT/logs/locks/$n.lock" 2>/dev/null || true
   done
   __HC_LOCKS=()
 }
@@ -650,7 +738,11 @@ hook_record() {
   __hc_json_str "$id"; id="$REPLY"
   # HOOK_EVENT も外部（stdin）由来なので、他のフィールドと同じくエスケープを通す（rules/logger.md のセキュリティ節）
   __hc_json_str "$HOOK_EVENT"; local ev="$REPLY"
-  line="{\"ts\":\"$ts\",\"session_id\":\"$HOOK_SESSION_ID\",\"hook\":\"$HOOK_NAME\",\"event\":\"$ev\",\"decision\":\"$decision\",\"id\":\"$id\",\"tool\":\"$tool\",\"target\":\"$target\",\"ticket\":\"$ticket\",\"note\":\"$note\"}"
+  # 合流後も「どの作業ツリーで誰が何をしたか」を辿れるように、判定時の作業ツリーと agent_id を残す（§5・DDR i0050-02）。
+  # agent_id はメインエージェントでは空文字（サブエージェント内のツール呼び出しにだけ付く。§2）
+  __hc_json_str "$HOOK_WORKTREE"; local cwd="$REPLY"
+  __hc_json_str "$HOOK_AGENT_ID"; local aid="$REPLY"
+  line="{\"ts\":\"$ts\",\"session_id\":\"$HOOK_SESSION_ID\",\"agent_id\":\"$aid\",\"cwd\":\"$cwd\",\"hook\":\"$HOOK_NAME\",\"event\":\"$ev\",\"decision\":\"$decision\",\"id\":\"$id\",\"tool\":\"$tool\",\"target\":\"$target\",\"ticket\":\"$ticket\",\"note\":\"$note\"}"
   hc_append_jsonl "$HOOK_WORKTREE/logs/hooks/decisions.jsonl" "$line" || log_warn "decisions.jsonl に追記できない"
   log_info "decision=$decision id=$id tool=$tool target=$target"
   return 0
@@ -740,8 +832,10 @@ hook_fail_closed() {
   return 0
 }
 
-# ---- セッション状態（§5。session_id ごとに分離）----
-hook_session_dir() { REPLY="$HOOK_WORKTREE/logs/sessions/$HOOK_SESSION_ID"; }
+# ---- セッション状態（§5。session_id ごとに分離。置き場は共有ルート）----
+# 宣言・承認の記憶は issue と MR に属するので、作業ツリーごとに分けると worktree の中で
+# 宣言が無い扱い（WF102）になり承認を取り直すことになる（DDR i0050-02）
+hook_session_dir() { REPLY="$HOOK_SHARED_ROOT/logs/sessions/$HOOK_SESSION_ID"; }
 hook_session_read() { # $1=ファイル名 → 内容を出力（無ければ何も出さず 1）
   hook_session_dir
   [[ -f "$REPLY/$1" ]] || return 1
@@ -753,17 +847,61 @@ hook_session_write() { # $1=ファイル名 $2=内容。置き換えは hc_json_
   hc_json_write "$dir/$1" "$2"
 }
 
-# ---- パス正規化（リポジトリルート相対。REPLY に返し、出力もする）----
+# ---- 作業ツリーをまたぐパスの畳み込み（§2）----
+# $1=正規化済みの絶対パス $2=根（正規化済み） → 配下なら 0 で __HC_UNDER にその根からの相対パス。
+# 比較は大文字小文字を無視する（Windows のファイルシステムに合わせる。区切りと `.` `..` は __hc_winpath が畳む）
+__hc_under() {
+  local p="$1" r="$2"
+  [[ -n "$r" ]] || return 1
+  if [[ "${p,,}" == "${r,,}" ]]; then __HC_UNDER="."; return 0; fi
+  if [[ "${p,,}" == "${r,,}/"* ]]; then __HC_UNDER="${p:$(( ${#r} + 1 ))}"; return 0; fi
+  return 1
+}
+# hook_rel_path <パス>
+#   §2 の 4 段で「どのツリーの、ルート相対のどのパスか」を決める。
+#     1 HOOK_WORKTREE の配下 → REPLY_KIND=worktree
+#     2 共有ルートの配下      → REPLY_KIND=shared
+#     3 作業ツリーの集合のいずれかの配下 → REPLY_KIND=other（REPLY_ROOT がそのツリー）
+#     4 どれの配下でもない    → REPLY_KIND=outside（同一リポジトリの外と確定）
+#   正規化そのものに失敗した / 作業ツリーを確定できない / 集合を読めなかったときは 4 に倒さず
+#   「判定できない」（REPLY_KIND=unknown）を返す。呼び手は §2「判定できないときの倒し方」に従う。
+#   戻り 0 = 畳めた / 1 = 畳めない（外と確定）/ 2 = 判定できない
+#   REPLY = ルート相対パス（4 では正規化した絶対パス、判定できないときは空）、REPLY_ROOT = そのツリーのルート。
+#   互換: 従来どおり REPLY を stdout にも出す（既存の呼び手は `>/dev/null` して REPLY を読む）
 hook_rel_path() {
-  local p="${1:-}" root="$HOOK_WORKTREE" lr lp
-  p="${p//\\//}"
-  # /c/Users/... → C:/Users/...
-  if [[ "$p" =~ ^/([A-Za-z])/(.*)$ ]]; then p="${BASH_REMATCH[1]^^}:/${BASH_REMATCH[2]}"; fi
-  if [[ "$root" =~ ^/([A-Za-z])/(.*)$ ]]; then root="${BASH_REMATCH[1]^^}:/${BASH_REMATCH[2]}"; fi
-  lr="${root,,}"; lp="${p,,}"
-  if [[ "$lp" == "$lr/"* ]]; then p="${p:$(( ${#root} + 1 ))}"; elif [[ "$lp" == "$lr" ]]; then p="."; fi
-  while [[ "$p" == ./* ]]; do p="${p:2}"; done
-  while [[ "$p" == *//* ]]; do p="${p//\/\///}"; done
-  REPLY="$p"
-  printf '%s\n' "$p"
+  local p="${1:-}" np root i
+  REPLY=""; REPLY_ROOT=""; REPLY_KIND="unknown"
+  # どのツリーの話かが決まっていなければ、相対パスの起点そのものが無い
+  if [[ "$HOOK_WORKTREE_STATE" != "ok" ]]; then printf '\n'; return 2; fi
+  __hc_roots_n
+  __hc_winpath "$p"; np="$REPLY"
+  if [[ -z "$np" ]]; then
+    # 入力そのものが空 = 畳む対象が無い（判定できない）。一方 `.` / `./.` のように点だけの相対パスも
+    # 正規化の結果は空になるが、これは「自ツリーのルート」を指す正当な入力なので下の相対解決へ回す
+    # （判定できないに倒すと `rm -rf .` が置き場ごと消す形として拾えなくなる。SG-T11）
+    if [[ -z "$p" ]]; then REPLY=""; printf '\n'; return 2; fi
+    np="."
+  fi
+  # 相対パスは自ツリー基準で絶対に直してから畳む（呼び手はコマンド行の裸のパスも渡す）
+  case "$np" in
+    /*|[A-Za-z]:/*) ;;
+    *) __hc_winpath "$__HC_WT_N/$np"; np="$REPLY"
+       if [[ -z "$np" ]]; then REPLY=""; printf '\n'; return 2; fi ;;
+  esac
+  root="$__HC_WT_N"
+  if __hc_under "$np" "$root"; then
+    REPLY="$__HC_UNDER"; REPLY_ROOT="$root"; REPLY_KIND="worktree"; printf '%s\n' "$REPLY"; return 0
+  fi
+  root="$__HC_ROOT_N"                       # 共有ルートは HOOK_ROOT に固定（§2）なので同じ正規化結果
+  if __hc_under "$np" "$root"; then
+    REPLY="$__HC_UNDER"; REPLY_ROOT="$root"; REPLY_KIND="shared"; printf '%s\n' "$REPLY"; return 0
+  fi
+  if ! hook_worktrees; then REPLY=""; REPLY_KIND="unknown"; printf '\n'; return 2; fi
+  for (( i = 0; i < ${#__HC_WT_SET[@]}; i++ )); do
+    root="${__HC_WT_SET[i]}"
+    if __hc_under "$np" "$root"; then
+      REPLY="$__HC_UNDER"; REPLY_ROOT="$root"; REPLY_KIND="other"; printf '%s\n' "$REPLY"; return 0
+    fi
+  done
+  REPLY="$np"; REPLY_ROOT=""; REPLY_KIND="outside"; printf '%s\n' "$REPLY"; return 1
 }

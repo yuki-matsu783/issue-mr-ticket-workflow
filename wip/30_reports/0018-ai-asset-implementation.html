@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0018〜0027 AI アセット実装・テスト結果 — 実装フェーズの許可範囲の設定と .claude/worktrees/ の無視（S1 分）</title>
+<title>0018〜0027 AI アセット実装・テスト結果 — 入口の設定と hook-common.sh の作業ツリーの三分（S1・S2 分）</title>
 <style>
   /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
   * { box-sizing: border-box; }
@@ -127,12 +127,12 @@
 
 <aside class="sidebar">
   <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1 分）</p>
-  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 実装フェーズの許可範囲の設定と .claude/worktrees/ の無視（S1 分）</h1>
+  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 入口の設定と hook-common.sh の作業ツリーの三分（S1・S2 分）</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 3</span>
-    <span class="chip warn">△注意 1</span>
-    <span class="chip stop">✕問題 0</span>
+    <span class="chip good">◎良 8</span>
+    <span class="chip warn">△注意 2</span>
+    <span class="chip stop">✕問題 1</span>
   </p>
 
   <nav class="toc" id="toc" data-required>
@@ -148,6 +148,13 @@
           <li><a href="#f2"><span class="mk good">◎</span> 2. .gitignore に .claude/worktrees/ を足した</a></li>
           <li><a href="#f3"><span class="mk good">◎</span> 3. 変えた判定を踏み、自分が止まらないことを確かめた</a></li>
           <li><a href="#f4"><span class="mk warn">△</span> 4. common.confirm の壁と WF601 の見え方のずれ</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. 作業ツリーの三分と共有ルートの固定（S2 ①）</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 作業ツリーの集合を git なしで作った（S2 ②）</a></li>
+          <li><a href="#f7"><span class="mk good">◎</span> 7. hook_rel_path の 4 段の畳み込み（S2 ③）</a></li>
+          <li><a href="#f8"><span class="mk good">◎</span> 8. logs/ の根と decisions.jsonl の cwd / agent_id（S2 ④）</a></li>
+          <li><a href="#f9"><span class="mk good">◎</span> 9. 呼び手 3 本の WF209 / WF309 / WF605（S2 ⑤）</a></li>
+          <li><a href="#f10"><span class="mk warn">△</span> 10. SG-T11 の退行の検出とホットパスの費用</a></li>
+          <li><a href="#f11"><span class="mk stop">✕</span> 11. fail-closed の deny がツールを止めなかった</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
@@ -165,8 +172,8 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1 分）</dd></div>
-    <div><dt>作成日</dt><dd>2026-09-05</dd></div>
+    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1 と 0019 / S2 分）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05（0018）／更新 2026-09-05（0019）</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
 </aside>
@@ -175,10 +182,11 @@
 
 <section id="overview" data-required>
   <p class="lead">S1（0018）は実装フェーズの<b>入口の設定</b>を 2 つ変えた。①<code>.claude/hooks/config/scope-limits.json</code> の <code>types["ai-asset-implementation"].allow</code> に <code>.gitignore</code> を足し（<code>.gitattributes</code> と同じ「<code>common.protected</code> を明示で判定順 (2) を通す」形）、②<code>.gitignore</code> に <code>.claude/worktrees/</code> を足した。①→② の順を守り、②が <code>WF201</code> にならず <b>判定 stage 5 の allow</b> で記録されたことをもって、変えた判定を実際に踏んだことを確かめた。機械テストは <code>HK-T01</code> / <code>HK-T02</code> とも PASS、<code>jq -e .</code> も成功、変更直後の <code>Write</code> と提供コマンド <code>ticket.sh next</code> も通り、機構は自分を止めていない。一方で <code>common.confirm</code> の壁は計画書の保留 P5 のとおり顕在化し、①の編集は呼び出し元のメインエージェントが代行した。さらに、宣言済みのパスでも <code>workflow-diff-check</code> が <code>WF601</code>（許可範囲外）を出し続けることが分かった。どちらも仕様どおりの振る舞いなので仕様は直さず、逸脱として記録した。</p>
+  <p>S2（0019）は<b>中核 a</b>として <code>hook-common.sh</code> に作業ツリーの三分（<code>HOOK_ROOT</code> / <code>HOOK_WORKTREE</code> / <code>HOOK_SHARED_ROOT</code>）・作業ツリーの集合（<code>hook_worktrees</code>。<code>git</code> を呼ばない）・パスの 4 段の畳み込み（<code>hook_rel_path</code>）と「判定できない」の戻り値を入れ、<code>logs/</code> の置き場を §5 の根の列に合わせ、<code>decisions.jsonl</code> に <code>cwd</code> と <code>agent_id</code> を足した。値が往復する呼び手 3 本の分岐（<code>WF209</code> / <code>WF309</code> / <code>WF605</code>）も同じチケットで閉じた。<b>全フックのテスト 17 本・128 ID が PASS</b>（<code>--timeout 300</code>）。学びは 2 つで、①全通しが <code>SG-T11</code> の退行（<code>rm -rf .</code> が <code>WF302</code> → <code>WF309</code>）を拾ったこと、②中核を壊した瞬間に fail-closed の deny が記録されたのに<b>ツールは止まらなかった</b>こと（<a href="#f11">f11</a>）。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>3</b><span>◎良</span></li>
-    <li class="kpi warn"><b>1</b><span>△注意</span></li>
-    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+    <li class="kpi good"><b>8</b><span>◎良</span></li>
+    <li class="kpi warn"><b>2</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
   </ul>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
@@ -186,6 +194,8 @@
       <p class="sub">判断に困っている</p>
       <ul>
         <li><b><code>common.confirm</code> のパスをサブエージェント実行者が書けない運用をこのまま続けてよいか</b>（<a href="#deviations">D3</a>・<a href="#deviations">D4</a>）。S1 は呼び出し元のメインエージェントが <code>scope-limits.json</code> の 1 行だけを代行して抜けた。同じ問題は S10（0027 / <code>.claude/settings.json</code>）でも起きるが、計画書は 0027 の実行者を最初からメインエージェントに置いているので実害は無い見込み。「サブエージェントに委ねたチケットの一部を呼び出し元が代行する」形自体の是非を判断してほしい</li>
+        <li><b>fail-closed の deny がツールを止めなかった件</b>（<a href="#f11">f11</a> / 0019）。<code>hook-common.sh</code> に未定義関数の呼び出しがある状態で、拒否側 2 本が <code>WF209</code> / <code>WF309</code> を <code>decisions.jsonl</code> に記録したのに <code>Edit</code> は 2 回とも成功した。ロックアウトしない点は都合がよいが、実装計画書のロックアウト対策の前提（中核が壊れれば機構が止める）が成り立っていない。原因は特定できていないので、S3 以降の中核チケットの進め方も含めて判断してほしい</li>
+        <li><b><code>hook_rel_path</code> の 4 段化で判定対象が広がったこと自体の副作用</b>（0019）。これまで「自ツリーの外」として無視されていたパスが <code>shared</code> / <code>other</code> として判定に入る。S2 では退行が 1 件（<code>SG-T11</code>）出て直したが、<code>workflow-guard</code> 側で同じ性質の見落としが無いかは <code>WG-T19</code>〜<code>WG-T21</code> / <code>SG-T12</code> / <code>SG-T13</code>（S4）を待たないと確定しない</li>
       </ul>
     </div>
     <div class="focus want" id="focus-want" data-required>
@@ -194,6 +204,9 @@
       <ul>
         <li><b><code>workflow-diff-check</code> の <code>WF601</code> が、宣言済みの <code>common.confirm</code> パスを許可範囲外として報告する件</b>（<a href="#f4">f4</a> / D4）。差分検査が「宣言」ではなく「<code>scope_classify</code> の分類が <code>allow</code> か」で判定するために起きる。AI が「巻き戻すべき差分」と誤読して成果を消す事故が起こり得る。<b>このフェーズでは直さず</b>フィードバック計画（0028）へ渡す案で進めてよいか</li>
         <li><b><code>.gitignore</code> を <code>allow</code> に残すか</b>。S1 の目的は 1 度きりの編集で達成される。<b>残す側に倒した</b>（<code>.gitattributes</code> と同じ扱いにしておくほうが、以後のフェーズが設定変更から始めずに済む）</li>
+        <li><b>呼び手 3 本の「判定できない」分岐に、S2 では専用の機械テストを足していない</b>（0019）。計画書は <code>SG-T13</code> を S4、<code>WF605</code> を S5 に割り付けており、S2 の「依存するテスト」は既存 3 本が<b>通り続けること</b>だけを求めている。この配分のままでよいか</li>
+        <li><b><code>workflow-state-guard</code> の実在検査の根を直したこと</b>（<a href="#f9">f9</a> 後半 / 0019）が S2 の範囲を越えていないか。仕様の <code>SG-T12</code> が要求する振る舞いを満たすための修正だが、テストは S4 で入る。範囲外なら S4 へ戻す</li>
+        <li><b><code>__hc_roots_n</code>（正規化済みの根のキャッシュ）を入れたこと</b>（0019）。仕様が要求したものではなく、§1 のホットパスの費用を下げるための実装判断。<code>HOOK_WORKTREE</code> を <code>__hc_resolve_worktree</code> の外で代入するとキャッシュが古くなる制約が増えた。残すか外すか</li>
       </ul>
     </div>
     <div class="focus skip" id="focus-skip" data-required>
@@ -202,6 +215,9 @@
       <ul>
         <li><code>.gitignore</code> の追記 2 行（コメント 1 行 + <code>.claude/worktrees/</code>）の文言と置き場所（末尾）</li>
         <li>実装計画書 S1 の記述 <code>WF205</code> は <code>WF201</code> の誤記（D5）。同じ計画書の別の 2 か所と実測は <code>WF201</code></li>
+        <li><code>hook_worktrees</code> が stale な登録を集合に残すこと（仕様がそう定めている。緩まない理由もコメントに書いた）</li>
+        <li><code>hook_rel_path</code> の互換の取り方（<code>REPLY</code> を stdout にも出し続ける）。既存の呼び手 3 本はいずれも <code>&gt;/dev/null</code> して <code>REPLY</code> を読む形のまま</li>
+        <li><code>test_workflow_guard.sh</code> が 120 秒に収まらないこと（S2 の変更で始まった話ではなく、9/4 の全通しでも 124 秒。全通しは <code>--timeout 300</code> で行う）</li>
       </ul>
     </div>
   </div>
@@ -214,6 +230,9 @@
       <li><b><code>.gitignore</code> の <code>.claude/worktrees/</code> が実際に効くこと</b>（<code>push.sh</code> 項目 1 が落ちないこと）— <code>push.sh</code> は S1 の <code>allow.ops</code> に無く、<code>.claude/worktrees/</code> が作られる状況（サブエージェント隔離）も S10 まで発生しない。引き取り先: S10（0027）の実測 / 切れ目の push</li>
       <li><b><code>scope-limits.json</code> の編集がサブエージェント実行者でも通る条件</b> — 判定順 (4) の <code>WF203</code>（ask）はヘッドレスで deny になるため、実行者からは 1 度も成功させられなかった（代行で回避）。引き取り先: フィードバック計画（0028）</li>
       <li><b><code>HK-T02</code> が <code>.gitignore</code> の追加そのものを検査しているか</b> — <code>HK-T02</code> は 3 つのキー集合の照合と <code>commands.build-test</code> の振る舞いを見るテストで、<code>types[*].allow</code> の中身の網羅は見ない。追加の妥当性はテストではなく仕様書 §8 との突き合わせで確かめた（D1）。引き取り先: S9（0026）の全体検査</li>
+      <li><b>呼び手 3 本の「判定できない」分岐が実際の worktree 環境で期待どおり出ること</b>（0019）— 機械テストは偽のルート（<code>.git</code> ファイルと <code>.git/worktrees/&lt;名前&gt;/gitdir</code> の相互参照）で作った構成に対する検査で、<code>git worktree add</code> は使えない（<code>WF204</code>）。引き取り先: <code>SG-T13</code> / <code>DC-T08</code> / <code>DC-T09</code>（S4・S5）と S10 の実測</li>
+      <li><b>f11（fail-closed の deny がツールを止めない）の原因</b>（0019）— 再現には中核を意図的に壊す必要があり、そのたびにロックアウトの危険を負う。1 度目の観測記録（<code>decisions.jsonl</code> の 4 行）だけを根拠として残し、追試はしていない。引き取り先: フィードバック計画（0028）</li>
+      <li><b><code>shellcheck</code> による静的検査</b>（0019）— この環境に入っていない（<code>command not found</code>）。<code>bash -n</code> は変更した 4 本すべてで通した。引き取り先: 環境整備 / S9（0026）</li>
     </ul>
   </div>
 </section>
@@ -225,6 +244,12 @@
     <li>ブランチ: <code>feature-50-worktree-parallel-tickets</code></li>
     <li>実行コマンド: <code>bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*config_integrity*'</code> / 同 <code>--ids</code> / <code>jq -e . .claude/hooks/config/scope-limits.json</code></li>
     <li><code>jq</code> 1.6</li>
+  </ul>
+  <p>0019（S2）分:</p>
+  <ul>
+    <li>基準点: <code>9059a0f</code>（チケット 0019 の <code>base_sha</code>）。着手コミット <code>ea6d047</code></li>
+    <li>実行コマンド: <code>run-tests.sh --filter '*test_hook_common*'</code> / 同 <code>--filter '*hooks*' --timeout 300 --ids</code> / 各テストの直接実行 / <code>bash -n</code>（変更した 4 本）</li>
+    <li><code>shellcheck</code> はこの環境に無い（<code>command not found</code>）</li>
   </ul>
 </section>
 
@@ -311,6 +336,98 @@ allow:
         <p>差分検査は「宣言したか」ではなく「<code>scope_classify</code> の分類が <code>allow</code> か」で見ている。実装フェーズの残り（S2〜S10）でも出続けるので、巻き戻しの誤爆に注意が要る。</p>
       </div>
     </li>
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">作業ツリーの三分を入れ、共有ルートを HOOK_ROOT に固定した（0019 / S2 ①）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T21 PASS（環境変数での上書きが効かないことの負のコントロール込み）</span></h3>
+      <p><code>hook-common.sh</code> に <code>HOOK_SHARED_ROOT</code> と <code>HOOK_WORKTREE_STATE</code> を足し、フック共通仕様 §2 の 3 つの根（置き場 <code>HOOK_ROOT</code> / 判定対象の作業ツリー <code>HOOK_WORKTREE</code> / 共有ルート <code>HOOK_SHARED_ROOT</code>）を別々の変数で持つようにした。<code>HOOK_SHARED_ROOT</code> は<b>上書きの口を作らない</b> — <code>${HOOK_SHARED_ROOT:-…}</code> の形にせず、宣言時と <code>__hc_resolve_worktree</code> の冒頭の 2 か所で無条件に <code>HOOK_ROOT</code> を代入し直す。仕様の理由（進行状態の置き場を外から動かせると <code>workflow-state-guard</code> の保護対象そのものを外せる）をコメントに残した。<code>HK-T21</code> は入力を流す前に <code>HOOK_SHARED_ROOT=$TMP_REPO/evil-shared</code> を置き、読み込み後に <code>HOOK_ROOT</code> へ戻っていることを assert する。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">同一リポジトリの作業ツリーの集合を git なしで作った（0019 / S2 ②）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T22 PASS（集合を読めない / 集合が空 を別々に assert）</span></h3>
+      <p><code>&lt;HOOK_ROOT&gt;/.git/worktrees/*/gitdir</code> を glob で列挙し、各ファイルを組み込みの <code>$(&lt;file)</code> で読み、<code>/.git</code> を落として集合 <code>__HC_WT_SET</code> に入れる。<code>git</code> は 1 度も呼ばない（§1 のホットパスの fork 上限）。集合は入力 1 件のあいだキャッシュし、<code>__hc_resolve_worktree</code> が入力ごとに捨てる。</p>
+      <ul>
+        <li><b>stale な登録も残す</b>。この集合は「保護してよい範囲」を広げるためだけに使い、<code>HOOK_WORKTREE</code> の決定には使わないので、余分に含めても判定は緩まない</li>
+        <li><code>.git/worktrees</code> が<b>在るのに列挙できない</b>ときだけ <code>unreadable</code> にして戻り 1。<b>存在しない（worktree が 1 つも無い）のは正常</b>で、集合は <code>HOOK_ROOT</code> の 1 件になる</li>
+      </ul>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">7</span>
+      <h3 id="f7">hook_rel_path を 4 段の畳み込みにし、「判定できない」を戻り値で返すようにした（0019 / S2 ③）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T22 PASS（負のコントロール 3 種を含む）</span></h3>
+      <p>呼び手は <code>REPLY</code>（ルート相対パス）・<code>REPLY_ROOT</code>（そのツリーのルート）・<code>REPLY_KIND</code>・戻り値の 4 つを読む。比較の前に <code>__hc_winpath</code> で <code>.</code> / <code>..</code> を畳み、<code>\</code> と <code>/</code> の差と大文字小文字を吸収する。相対パスは自ツリー基準で絶対に直してから畳む。互換のため <code>REPLY</code> を stdout にも出す。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>段</th><th>条件</th><th><code>REPLY_KIND</code></th><th>戻り</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>HOOK_WORKTREE</code> の配下</td><td><code>worktree</code></td><td>0</td></tr>
+          <tr><td>2</td><td>共有ルートの配下</td><td><code>shared</code></td><td>0</td></tr>
+          <tr><td>3</td><td>作業ツリーの集合のいずれかの配下</td><td><code>other</code></td><td>0</td></tr>
+          <tr><td>4</td><td>どれの配下でもない（同一リポジトリの外と確定）</td><td><code>outside</code></td><td>1</td></tr>
+          <tr><td>—</td><td>作業ツリーを確定できない / 正規化に失敗 / 集合を読めない</td><td><code>unknown</code></td><td><b>2</b></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">8</span>
+      <h3 id="f8">logs/ の置き場を §5 の根の列に合わせ、decisions.jsonl に cwd と agent_id を足した（0019 / S2 ④）<span class="chip good">◎良</span> <span class="basis">根拠: HK-T06 / HK-T21 PASS と、実運用の decisions.jsonl の 1 行</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>記録</th><th>根</th><th>実装</th></tr></thead>
+        <tbody>
+          <tr><td>判定記録 <code>logs/hooks/decisions.jsonl</code></td><td>ツリー</td><td><code>hook_record</code></td></tr>
+          <tr><td>実行ログ <code>logs/sh/</code></td><td>ツリー</td><td><code>__hc_relog</code> が <code>LOGGER_DIR</code> / <code>LOGGER_FILE</code> だけを貼り替える（<code>LOGGER_ROOT</code> は動かさない）</td></tr>
+          <tr><td>進行状態（<code>review-state</code> / <code>merge-state</code>）</td><td>共有</td><td><code>hook_read_state</code></td></tr>
+          <tr><td>ロック <code>logs/locks/</code></td><td>共有</td><td><code>hc_lock</code> / <code>hc_unlock</code>（ブランチ単位の資源なのでツリーごとに分けると排他が成立しない）</td></tr>
+          <tr><td>セッション状態 <code>logs/sessions/&lt;id&gt;/</code></td><td>共有</td><td><code>hook_session_dir</code>（宣言・承認は issue と MR に属する）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><code>decisions.jsonl</code> の 1 行に <code>agent_id</code>（サブエージェント内のツール呼び出しにだけ付く。メインでは空文字）と <code>cwd</code>（判定時の作業ツリー）を足した。<b>このチケットの実作業でも実際に出ている</b>。</p>
+      <details>
+        <summary>根拠を見る（ロックアウト確認の Write が残した 1 行）</summary>
+        <pre><code>{"ts":"2026-09-05T21:03:58+09:00","agent_id":"a20098422793dfc22",
+ "cwd":"c:/Users/taniyama/Desktop/git/issue-mr-ticket-workflow",
+ "hook":"workflow-guard","decision":"allow","id":"","tool":"Write",
+ "target":"wip/tmp/0019-lockout-check.txt","note":"判定 5 / 種類 ai-asset-implementation"}</code></pre>
+      </details>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">9</span>
+      <h3 id="f9">呼び手 3 本を「判定できない」の規約どおりに分岐させた（0019 / S2 ⑤）<span class="chip good">◎良</span> <span class="basis">根拠: 既存の 3 本のテストが全 PASS（退行なし）</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>呼び手</th><th>側</th><th>判定できないとき</th><th>実装</th></tr></thead>
+        <tbody>
+          <tr><td><code>workflow-guard</code></td><td>拒否</td><td>deny <code>WF209</code></td><td><code>__wg_rel</code> が戻り 2 を受けて <code>hook_deny WF209</code>。4 段目（同一リポジトリの外）は絶対パスのまま返るので既存の検査が拾う（文面を「同一リポジトリのどの作業ツリーの外」に直した）</td></tr>
+          <tr><td><code>workflow-state-guard</code></td><td>拒否</td><td>deny <code>WF309</code></td><td><code>__sg_rel</code> が戻り 2 を受けて <code>hook_deny WF309</code>。外と<b>確定</b>した場合はここに来ず従来どおり許可</td></tr>
+          <tr><td><code>workflow-diff-check</code></td><td>案内</td><td><code>WF605</code> を additionalContext</td><td>制御方式 0 として <code>HOOK_WORKTREE_STATE != ok</code> で <code>hook_notify</code> して抜ける。承認の記憶の走査で個別のパスが畳めなかった場合も <code>WF605</code> を 1 段落足す</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>あわせて <code>workflow-state-guard</code> の<b>実在検査の根</b>を直した。<code>10_doing/</code> への新規作成だけを <code>WF302</code> にする判定は <code>[[ ! -e "$HOOK_WORKTREE/$p" ]]</code> で見ていたが、他の作業ツリーへ畳まれたパス（<code>REPLY_KIND=other</code>）では自ツリーに同名が無いだけで<b>既存チケットの更新まで拒否</b>になる。畳んだ根（<code>REPLY_ROOT</code>）から見るように変えた。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">10</span>
+      <h3 id="f10">退行 1 件（SG-T11）を全フックのテストで検出して直した／ホットパスの費用を測った <span class="chip warn">△注意</span> <span class="basis">根拠: 1 回目 FAIL → 修正 → 2 回目 PASS の 2 回の実行</span></h3>
+      <p><code>--filter '*hooks*'</code> の全通しで <code>SG-T11</code> が 1 件落ちた: <b><code>rm -rf .</code> が <code>WF302</code> ではなく <code>WF309</code></b>。原因は <code>hook_rel_path</code> が「正規化の結果が空」を一律に「判定できない」に倒していたこと。<code>.</code> / <code>./</code> / <code>./.</code> は <code>__hc_winpath</code> の結果が空文字になるが、これは<b>自ツリーのルートを指す正当な入力</b>である。入力そのものが空のときだけ 2 を返すように直し、<code>HK-T22</code> に 3 つの assert を足して固定した。<b>置き場ごと消す形を拾えなくなる退行</b>だったので、負のコントロールの価値がそのまま出た。</p>
+      <p>ホットパスの費用も測った。<code>__hc_roots_n</code> を入れて正規化済みの根を入力ごとに 1 回だけ作るようにした。一時計測（測定後に削除）で 1 回あたり <b>1.5〜2.2 ms</b>（2000 回で 3.0〜4.4 秒。Windows の Git Bash）で、1 回のフック起動あたり数回の呼び出しなら §1 の 1 秒の目安には影響しない。なお <code>test_workflow_guard.sh</code> は既定の 120 秒に収まらない（今回 149〜207 秒）が、9/4 の全通し（<code>--timeout 300</code>）でも 124 秒かかっており、同日の他のテストも 1.6〜1.8 倍に伸びていた（機械の負荷）。<b>全フックの確認は <code>--timeout 300</code> で行った</b>。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot stop">11</span>
+      <h3 id="f11">中核を壊した瞬間、fail-closed の deny が記録されたのにツールは止まらなかった <span class="chip stop">✕問題</span> <span class="basis">根拠: decisions.jsonl の 4 行と、対応する 2 回の Edit の成功</span></h3>
+      <p><code>__hc_roots_n</code> を「呼ぶ側」だけ先に入れ、定義を入れる前に 2 回 <code>Edit</code> した瞬間（<code>hook-common.sh</code> に未定義関数の呼び出しがある状態）、<code>decisions.jsonl</code> に次の 2 組が残った。</p>
+      <details>
+        <summary>根拠を見る（decisions.jsonl の抜粋）</summary>
+        <pre><code>20:50:48 workflow-state-guard deny WF309 機構の不調 — フックの内部エラー（hook-common.sh:867）…
+20:50:48 workflow-guard       deny WF209 機構の不調 — フックの内部エラー（hook-common.sh:867）…
+20:51:01 （同じ 2 行）</code></pre>
+      </details>
+      <p><code>hook_fail</code> → <code>hook_deny</code> の経路（<code>__hc_on_err</code> の ERR トラップ）が正しく発火し、拒否側 2 本が deny を<b>記録</b>している。ところが<b>対応する <code>Edit</code> は 2 回とも成功し、ツールは止まらなかった</b>（ファイルには両方の編集が入っており、直後の <code>bash -n</code> も通った）。</p>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>事実として言えるのはここまでで、<b>原因は特定できていない</b>（<code>__wg_rel</code> の呼び出しはコマンド置換の中ではないので、「サブシェルで <code>exit 0</code> した」という説明は当たらない）。結果としてロックアウトは起きず復旧手順は使わずに済んだが、<b>「中核を壊しても機構が自分を止めてくれる」という前提が成り立っていない</b>。S3〜S10 は今回と同じく「1 つ変えるごとにテスト」で進める必要がある。仕様 §3 は打ち切り（timeout）を「フェイルクローズドの原則の唯一の穴」と書いているが、今回の事象は打ち切りではない（R8）。</p>
+      </div>
+    </li>
   </ol>
 </section>
 
@@ -332,6 +449,23 @@ allow:
     </tbody>
   </table>
   </div>
+  <p>0019（S2）分:</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>bash -n</code>（変更した 4 本）</td><td><code>hook-common.sh</code> / <code>workflow-guard.sh</code> / <code>workflow-state-guard.sh</code> / <code>workflow-diff-check.sh</code> すべて終了コード 0</td></tr>
+      <tr><td><code>run-tests.sh --filter '*test_hook_common*'</code></td><td><code>PASS / exit 0 / passed=238 failures=0</code>（<code>HK-T01</code>〜<code>HK-T22</code>）</td></tr>
+      <tr><td><code>run-tests.sh --filter '*hooks*' --timeout 300 --ids</code></td><td><code>OK: 17 本 / 128 件</code>。全 17 本 PASS、<code>FAIL ID:</code> 空、重複 ID なし</td></tr>
+      <tr><td>退行の検出と修正</td><td>既定の 120 秒で回した 1 回目に <code>SG-T11</code> が FAIL（<code>rm -rf .</code> → <code>WF309</code>）。<code>hook_rel_path</code> を直し、<code>HK-T22</code> に assert を 3 つ足して再実行し PASS</td></tr>
+      <tr><td>中核変更後に自分が動くか</td><td><code>Write</code>（<code>wip/tmp/0019-lockout-check.txt</code>）と <code>Read</code> が成功。<code>decisions.jsonl</code> に <code>workflow-guard allow / 判定 5</code> が 1 行</td></tr>
+      <tr><td><code>decisions.jsonl</code> の新しい列が実運用でも入るか</td><td>上の 1 行が <code>"agent_id":"a20098422793dfc22"</code> と <code>"cwd":"c:/Users/…/issue-mr-ticket-workflow"</code> を持つ</td></tr>
+      <tr><td><code>WF605</code> の誤爆</td><td><code>decisions.jsonl</code> に <code>"id":"WF605"</code> は <b>0 件</b></td></tr>
+      <tr><td>変更が S2 の許可範囲に収まっているか</td><td><code>git diff 9059a0f --stat</code> = <code>.claude/hooks/**</code> 5 ファイル / <code>wip/10_tickets/**</code> 1 枚。範囲外の差分・未追跡ファイルなし</td></tr>
+      <tr><td>S2 が担当する参照更新</td><td>実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。<b>S2 の担当は 0 行</b></td></tr>
+    </tbody>
+  </table>
+  </div>
 </section>
 
 <section id="assets">
@@ -343,10 +477,15 @@ allow:
       <tr><td>1</td><td><code>.claude/hooks/config/scope-limits.json</code></td><td>フックの設定</td><td>更新（1 行）</td><td><code>10_spec/フック共通仕様.md</code> §8「上限設定」（<code>ai-asset-implementation</code> の行）</td><td>0018</td></tr>
       <tr><td>2</td><td><code>.gitignore</code></td><td>リポジトリ設定</td><td>更新（2 行追加）</td><td>設計計画書 結論方針 P10 後半 / 設計結果 残課題 R55（仕様書に節は無い）</td><td>0018</td></tr>
       <tr><td>3</td><td><code>wip/30_reports/0018-ai-asset-implementation.md</code> / <code>.html</code></td><td>成果物（レポート）</td><td>新規</td><td><code>10_spec/skills/10-task-ai-asset-implementation-exec.md</code>「OUT ひな形」</td><td>0018</td></tr>
+      <tr><td>4</td><td><code>.claude/hooks/lib/hook-common.sh</code></td><td>フックの共通ライブラリ</td><td>更新</td><td><code>10_spec/フック共通仕様.md</code> §2「作業ツリーの三分」「同一リポジトリの作業ツリーの集合」「作業ツリーをまたぐパスの畳み込み」「判定できないときの倒し方」／§5「記録と状態」の根の列</td><td>0019</td></tr>
+      <tr><td>5</td><td><code>.claude/hooks/lib/tests/test_hook_common.sh</code></td><td>フックのテスト</td><td>更新（<code>HK-T06</code> 追記・<code>HK-T21</code>・<code>HK-T22</code> 新設）</td><td>同 §11 テスト（<code>HK-T06</code> / <code>HK-T21</code> / <code>HK-T22</code>）</td><td>0019</td></tr>
+      <tr><td>6</td><td><code>.claude/hooks/20-PreToolUse/workflow-guard.sh</code></td><td>フック</td><td>更新（<code>__wg_rel</code> の <code>WF209</code> 分岐）</td><td><code>10_spec/hooks/20-PreToolUse/workflow-guard.md</code> 制御方式 5</td><td>0019</td></tr>
+      <tr><td>7</td><td><code>.claude/hooks/20-PreToolUse/workflow-state-guard.sh</code></td><td>フック</td><td>更新（<code>__sg_rel</code> の <code>WF309</code> 分岐・実在検査の根）</td><td><code>10_spec/hooks/20-PreToolUse/workflow-state-guard.md</code>「対象パスの畳み込み」・制御方式 2</td><td>0019</td></tr>
+      <tr><td>8</td><td><code>.claude/hooks/22-PostToolUse/workflow-diff-check.sh</code></td><td>フック</td><td>更新（制御方式 0 の <code>WF605</code>・承認の記憶の <code>WF605</code>）</td><td><code>10_spec/hooks/22-PostToolUse/workflow-diff-check.md</code> 制御方式 0・<code>WF605</code></td><td>0019</td></tr>
     </tbody>
   </table>
   </div>
-  <p><code>.claude/skills/**</code> / <code>.claude/hooks/*.sh</code> / <code>.claude/rules/**</code> / <code>.claude/agents/**</code> / <code>.claude/evals/**</code> / <code>.claude/settings.json</code> は S1 では<b>1 件も触っていない</b>。</p>
+  <p><code>.claude/skills/**</code> / <code>.claude/rules/**</code> / <code>.claude/agents/**</code> / <code>.claude/evals/**</code> / <code>.claude/settings.json</code> は S1・S2 では<b>1 件も触っていない</b>。<code>.claude/hooks/config/**</code> は S1 のみ。</p>
 </section>
 
 <section id="tests">
@@ -358,13 +497,19 @@ allow:
       <tr><td>HK-T01</td><td><code>settings.json</code> の登録表（PreToolUse <code>Agent</code> の行が無いことの負のコントロール。S1 では <code>settings.json</code> を変えないことの確認として踏む）</td><td><code>run-tests.sh --filter '*config_integrity*'</code></td><td><b>PASS</b></td></tr>
       <tr><td>HK-T02</td><td><code>scope-limits.json</code> の 3 つのキー集合の照合と <code>commands.build-test</code> の振る舞い</td><td>同上</td><td><b>PASS</b></td></tr>
       <tr><td>HK-T09</td><td>同じテストファイル（<code>test_config_integrity.sh</code>）が持つ 3 件目。S1 の DoD には無いが同時に走る</td><td>同上</td><td><b>PASS</b>（参考）</td></tr>
+      <tr><td>HK-T21</td><td>作業ツリーの三分と <code>logs/</code> の根。環境変数での <code>HOOK_SHARED_ROOT</code> 上書きが効かないこと・作業ツリーが 1 つなら 3 つとも同じ値になること（負のコントロール 2 種）</td><td><code>run-tests.sh --filter '*test_hook_common*'</code></td><td><b>PASS</b>（新設 / 0019）</td></tr>
+      <tr><td>HK-T22</td><td><code>hook_rel_path</code> の 4 段の畳み込み。外の絶対パスは畳めない・集合が空なだけなら「判定できない」にならない（負のコントロール）、集合を読めないときは「判定できない」、点だけの相対パスは自ツリーのルート</td><td>同上</td><td><b>PASS</b>（新設 / 0019）</td></tr>
+      <tr><td>HK-T06</td><td><code>decisions.jsonl</code> の 1 行が §5 のスキーマ（12 キー）を満たし、<code>cwd</code> に判定時の作業ツリー、サブエージェント内では <code>agent_id</code> が入る。メインでは空文字（負のコントロール）</td><td>同上</td><td><b>PASS</b>（追記 / 0019）</td></tr>
+      <tr><td>SG-T11</td><td>置き場ごとの削除（<code>rm -rf .</code> を含む）。<b>1 回目は FAIL</b>（<code>WF302</code> を期待して <code>WF309</code>）</td><td><code>run-tests.sh --filter '*hooks*' --timeout 300</code></td><td><b>PASS</b>（修正後 / 0019）</td></tr>
+      <tr><td>全フック 17 本 / 128 ID</td><td><code>hook-common.sh</code> を読み込むフックの全テスト</td><td><code>run-tests.sh --filter '*hooks*' --timeout 300 --ids</code></td><td><b>全 PASS</b>（<code>FAIL ID:</code> 空 / 重複 ID なし / 0019）</td></tr>
     </tbody>
   </table>
   </div>
   <ul>
-    <li>集計: <code>1 本 / 3 件</code>、<code>passed=95 failures=0</code>、<code>FAIL</code> 0 件、重複 ID なし</li>
-    <li>テスト先行（失敗確認 → 実装 → 成功）は<b>適用していない</b>。S1 は既存のテストが読む設定値を変えるだけで、新しいテストを足していないため（計画書「依存するテスト」も S1 に新設テストを割り付けていない）</li>
-    <li><b>eval: 該当なし（0 件）</b>。S1 は設定ファイルのみを変更し、機械検証できない指示文のアセット（スキル・ルール・エージェント）を作成・変更していない。<b>このフェーズで eval は実行しない</b>（S5 以降で作る eval も定義まで）</li>
+    <li>集計（S1）: <code>1 本 / 3 件</code>、<code>passed=95 failures=0</code>。集計（S2）: <code>17 本 / 128 件</code>、全 PASS、<code>FAIL</code> 0 件、重複 ID なし</li>
+    <li>テスト先行: S1 は<b>適用していない</b>（既存のテストが読む設定値を変えるだけ）。S2 は <code>HK-T21</code> / <code>HK-T22</code> を<b>実装より先に書いて失敗を確認</b>してから実装し、<code>SG-T11</code> は<b>既存テストが退行を先に落とした</b>形で失敗を見てから直した</li>
+    <li>呼び手 3 本の「判定できない」分岐に対する<b>新設テストは無い</b>。計画書が <code>SG-T13</code> を S4、<code>WF605</code> を S5 に割り付けているため（◇判断が欲しい に挙げた）</li>
+    <li><b>eval: 該当なし（0 件）</b>。S1・S2 とも設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセット（スキル・ルール・エージェント）を作成・変更していない。<b>このフェーズで eval は実行しない</b>（S5 以降で作る eval も定義まで）</li>
   </ul>
 </section>
 
@@ -378,6 +523,10 @@ allow:
       <tr><td>frontmatter の必須項目</td><td>上記 md（<code>type</code> / <code>title</code> / <code>description</code> / <code>tags</code> / <code>keywords</code>）</td><td>5 / 5</td><td>OK。S1 は frontmatter を持つアセットを作成・変更していない</td></tr>
       <tr><td>参照更新一覧の消し込み</td><td>実装計画書の 7 行</td><td>S1 の担当 0 行</td><td>対象なし（全 7 行が S9 / 0026 担当）</td></tr>
       <tr><td>HTML ビュー</td><td><code>wip/30_reports/0018-ai-asset-implementation.html</code></td><td><code>check-html.sh</code> 7 項目</td><td>OK（出力は作業ログ）</td></tr>
+      <tr><td>プレースホルダ（0019）</td><td>変更した 4 本のシェルスクリプトとこのレポート md / HTML</td><td>0 件</td><td>OK</td></tr>
+      <tr><td>frontmatter（0019）</td><td>S2 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 4 本）。チケット 0019 の frontmatter は変更していない</td><td>対象 0 件</td><td>OK</td></tr>
+      <tr><td>参照更新一覧の消し込み（0019）</td><td>実装計画書の 7 行</td><td>S2 の担当 0 行</td><td>対象なし（全 7 行が S9 / 0026 担当）</td></tr>
+      <tr><td>静的検査（0019）</td><td>変更した 4 本</td><td><code>bash -n</code> 4 / 4 OK、<code>shellcheck</code> は環境に無く未実施</td><td>一部未実施（「確かめられなかったこと」に記載）</td></tr>
     </tbody>
   </table>
   </div>
@@ -395,6 +544,8 @@ allow:
       <tr><td>D3</td><td><code>common.confirm</code> のパスは、チケットで宣言しても<b>サブエージェント実行者には書けない</b></td><td>実装計画書 保留 P5 が予告（「サブエージェントは確認に答えられないので deny になり得る」）</td><td>そのとおり deny。呼び出し元のメインエージェントが編集を代行した</td><td>迂回せず代行という保留 P5 の運用に従った。是非は切れ目のレビューで人間に確認する</td></tr>
       <tr><td>D4</td><td><code>workflow-diff-check</code> の <code>WF601</code> が、<b>チケットが宣言済みのパスを「許可範囲外」として報告する</b></td><td>チケット 0018 の <code>allow.write</code> に <code>.claude/hooks/config/**</code> がある</td><td><code>common.confirm</code> のパスは <code>scope_classify</code> が <code>confirm</code>（<code>WF203</code>）に分類するため <code>allow</code> にならず、差分検査が列挙し続ける</td><td><b>巻き戻さない</b>（巻き戻すと S1 の成果が消える）。宣言ではなく分類で見ている点の是非をフィードバック計画へ</td></tr>
       <tr><td>D5</td><td>実装計画書 S1 の識別子の誤記</td><td>計画書 L236:「①が済むまで②は <b>WF205</b> で止まる」</td><td>正しくは <code>WF201</code>（<code>Edit</code> / <code>Write</code> ツールの宣言範囲外）。同計画書 L151・L153 と 0018 の DoD は <code>WF201</code></td><td>計画書の誤記。S9 の全体検査で直すか設計反映へ渡す</td></tr>
+      <tr><td>D6</td><td><code>workflow-diff-check</code> の <code>WF605</code> を、仕様の<b>制御方式 0</b>ではなく<b>制御方式 1 の後</b>に置いた（0019）</td><td>仕様は「0. 作業ツリーの確定 … 決められない → WF605 を伝えて抜ける」を 1 より前に置く</td><td>実装は <code>hook_enforce_enabled || hook_disabled</code> の<b>後</b></td><td>共通仕様 §3「停止中のフックは判定・注入を行わない」と両立させるため。<code>workflow-state-guard</code> 仕様は同じ状況に「0 は 1 の後に評価する」と明記しており、そちらに揃えた。仕様は直さず、diff-check 仕様にも同じ注記を足す案を設計反映へ</td></tr>
+      <tr><td>D7</td><td><code>hook_read_state</code> が共通仕様 §1 の<b>1 回目の jq</b> ではなく<b>2 回目</b>にある（0019 で維持）</td><td>§1 の表は <code>review-state</code> / <code>merge-state</code> を 1 回目に置く</td><td>共有ルートの解決は <code>cwd</code>（= stdin）を読む <code>__hc_resolve_worktree</code> の後なので 1 回目には渡せない。既存の逸脱コメントを「作業ツリー」→「共有ルート」に読み替えて維持した</td><td>S2 で作った逸脱ではなく、三分の導入で理由が変わった逸脱。設計反映で §1 の表を実装に合わせる</td></tr>
     </tbody>
   </table>
   </div>
@@ -407,6 +558,9 @@ allow:
     <li><code>common.confirm</code> のパスをサブエージェント実行者が扱えない件の恒久的な扱い（型の <code>allow</code> で <code>confirm</code> を上書きできる形にするか、実行者をメインエージェントに固定するか、代行を正式な運用として書くか）（D3）→ フィードバック計画（0028）→ 設計反映</li>
     <li><code>workflow-diff-check</code> が宣言済みの <code>confirm</code> パスを許可範囲外として報告する件（D4）→ フィードバック計画（0028）→ 設計反映（<code>workflow-diff-check</code> 仕様 / <code>scope.sh</code>）</li>
     <li>実装計画書 S1 の <code>WF205</code> → <code>WF201</code> の訂正（D5）→ S9（0026）の全体検査</li>
+    <li><code>workflow-diff-check</code> 仕様の制御方式 0 に「1（停止中）の後に評価する」注記を足す（D6。<code>workflow-state-guard</code> 仕様には既にある）→ 設計反映フェーズ</li>
+    <li>フック共通仕様 §1 の副入力の表（1 回目 / 2 回目）を実装に合わせる（D7）→ 設計反映フェーズ</li>
+    <li>中核が壊れたときの fail-closed が実際には遮断にならない件（<a href="#f11">f11</a>）。仕様 §3 は打ち切りだけを「唯一の穴」と書いている → フィードバック計画（0028）→ 設計反映</li>
   </ol>
 </section>
 
@@ -421,6 +575,10 @@ allow:
       <tr><td><code>.gitignore</code> を先に編集しようとすると <code>WF205</code> で止まる（計画書 L236）</td><td>止まるのは <code>WF201</code>（<code>Edit</code> ツールの宣言範囲外）。<code>WF205</code> は<b>コマンドによる書き込み</b>の識別子</td><td>D5 として記録。実測では①→②の順を守ったので、②は最初から allow で通った</td></tr>
       <tr><td>中核を変えた直後は何かが止まりうる</td><td><code>Write</code>・<code>ticket.sh next</code>・<code>run-tests.sh</code> のいずれも止まらなかった</td><td>ロックアウト対策の復旧手順（<code>git show</code> → <code>Write</code>）は使わずに済んだ</td></tr>
       <tr><td>（想定外）<code>mkdir -p wip/tmp</code> が通る</td><td><code>WF205</code> で拒否された。コマンドで書いてよいのは <code>wip/tmp/**</code> と <code>logs/**</code> で、<b>ディレクトリ <code>wip/tmp</code> そのもの</b>はパターンに含まれない</td><td>ディレクトリは既に存在していたので実害なし。R3 として残す</td></tr>
+      <tr><td>（0019）<code>hook_rel_path</code> の 4 段化は「これまで無視していたパスを判定に入れる」変更なので、<b>通っていた書き込みが落ちる</b>のが主なリスク（計画書のリスク 1）</td><td>落ちたのは書き込みではなく <code>rm -rf .</code>（<code>WF302</code> → <code>WF309</code>）。「範囲が広がる」方向ではなく「判定できないに倒しすぎる」方向の退行</td><td>既存の <code>SG-T11</code> が拾った。<code>hook_rel_path</code> を直し、<code>HK-T22</code> に負のコントロールを足して固定した（<a href="#f10">f10</a>）</td></tr>
+      <tr><td>（0019）中核を壊せば機構が自分を止める（＝ロックアウト対策が要る）</td><td><code>decisions.jsonl</code> には deny が記録されたが、<b>ツールは止まらなかった</b>（<a href="#f11">f11</a>）。復旧手順は使わずに済んだ</td><td>止まらなかったこと自体を ✕問題として記録し、R8 でフィードバック計画へ渡す。運用は「1 つ変えるごとにテスト」を続ける</td></tr>
+      <tr><td>（0019）<code>test_workflow_guard.sh</code> は既定の 120 秒で回る</td><td>149〜207 秒かかり <code>TIMEOUT</code>。9/4 の全通しでも 124 秒で、変更していないテストも同日比 1.6〜1.8 倍に伸びていた（機械の負荷）</td><td>全通しは 9/4 と同じ <code>--timeout 300</code> で行った。S2 の変更による退行ではないと判断（<a href="#f10">f10</a>）</td></tr>
+      <tr><td>（0019）<code>shellcheck</code> を掛けられる</td><td>この環境に入っていない</td><td><code>bash -n</code> だけで確認し、「確かめられなかったこと」に残した</td></tr>
     </tbody>
   </table>
   </div>
@@ -433,6 +591,12 @@ allow:
     <li><b>R2</b> <code>.gitignore</code> を <code>ai-asset-implementation</code> の <code>allow</code> に恒久的に残すかの判断（S1 の目的は 1 度きりの編集で達成済み）→ 切れ目のレビュー / S9（0026）</li>
     <li><b>R3</b> コマンドによる書き込みの許可パターンが <code>wip/tmp/**</code> で、ディレクトリ <code>wip/tmp</code> 自身の作成（<code>mkdir</code>）を通さない → フィードバック計画（0028）</li>
     <li><b>R4</b> このレポートは 0019〜0027 が節を積み上げる器である。各チケットは md 側 <code>e5, e6, …</code> / HTML 側 <code>f5, f6, …</code> と連番を続け、サマリの件数・逸脱・残課題を<b>その都度更新</b>する（累積の数は「サマリ」1 か所にだけ置く）→ 0019〜0027</li>
+    <li><b>R5</b> 呼び手 3 本の「判定できない」分岐に専用の機械テストが無い（<code>SG-T13</code> は S4、<code>WF605</code> は S5 の割り付け）。S2 は既存テストの非退行だけで確かめている → S4（0021）/ S5（0022）</li>
+    <li><b>R6</b> <code>workflow-state-guard</code> の実在検査を畳んだ根から見るように直した（<a href="#f9">f9</a> 後半）が、その振る舞いを固定するテストは <code>SG-T12</code>（S4）である → S4（0021）</li>
+    <li><b>R7</b> <code>__hc_roots_n</code>（正規化済みの根のキャッシュ）は仕様に無い実装判断。<code>HOOK_WORKTREE</code> を <code>__hc_resolve_worktree</code> の外で代入するとキャッシュが古くなる制約が増えた → 切れ目のレビュー / 設計反映</li>
+    <li><b>R8</b> 中核が壊れたとき、fail-closed の deny が <code>decisions.jsonl</code> に残るのに<b>ツールが止まらない</b>（<a href="#f11">f11</a>）。原因未特定 → フィードバック計画（0028）</li>
+    <li><b>R9</b> <code>test_workflow_guard.sh</code> が <code>run-tests.sh</code> の既定 120 秒に収まらない（9/4 時点で 124 秒）。全通しに <code>--timeout 300</code> が要る → S9（0026）/ フィードバック計画（0028）</li>
+    <li><b>R10</b> <code>shellcheck</code> がこの環境に無く、シェルスクリプトの静的検査が <code>bash -n</code> だけになっている → 環境整備 / S9（0026）</li>
   </ul>
 </section>
 

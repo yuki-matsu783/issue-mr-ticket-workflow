@@ -100,7 +100,7 @@ case_hk_t06() {
   assert_contains "HK-T06" 'WF201: 保護範囲への書き込み token=*** ***'
   run_cmd tl_jq -e -r 'keys | join(",")' "$DEC"
   assert_exit "HK-T06" 0
-  assert_eq "HK-T06" "decision,event,hook,id,note,session_id,target,ticket,tool,ts" "$R_OUT"
+  assert_eq "HK-T06" "agent_id,cwd,decision,event,hook,id,note,session_id,target,ticket,tool,ts" "$R_OUT"
   run_cmd tl_jq -r '[.decision, .id, .tool, .target, .event, .session_id, .hook] | join(" ")' "$DEC"
   assert_eq "HK-T06" "deny WF201 Bash .env PreToolUse testsession workflow-guard" "$R_OUT"
   run_cmd cat "$DEC"
@@ -116,6 +116,21 @@ case_hk_t06() {
   run_cmd tl_jq -r '.ticket + " " + .decision' "$DEC"
   assert_contains "HK-T06" "0007-implementation.md notify"
   rm -rf "$TMP_REPO/wip"
+  # §5 のスキーマ: cwd（判定時の作業ツリー）と agent_id（サブエージェント内。メインでは空文字）
+  rm -f "$DEC"
+  run_cmd bash "$TMP_REPO/drv.sh" workflow-guard deny deny WF201 "保護範囲への書き込み" ".env" < <(payload)
+  run_cmd tl_jq -e -r 'keys | join(",")' "$DEC"
+  assert_eq "HK-T06" "agent_id,cwd,decision,event,hook,id,note,session_id,target,ticket,tool,ts" "$R_OUT"
+  run_cmd tl_jq -r '.cwd' "$DEC"
+  assert_eq "HK-T06" "$TMP_REPO" "$R_OUT"
+  run_cmd tl_jq -r '.agent_id' "$DEC"
+  assert_eq "HK-T06" "" "$R_OUT"          # メインエージェントでは空文字（負のコントロール）
+  rm -f "$DEC"
+  run_cmd bash "$TMP_REPO/drv.sh" workflow-guard deny deny WF201 "保護範囲への書き込み" ".env" \
+    < <(payload | tl_jq -c '.agent_id="ag-01" | .agent_type="task-executor"')
+  run_cmd tl_jq -r '.agent_id + " " + .cwd' "$DEC"
+  assert_eq "HK-T06" "ag-01 $TMP_REPO" "$R_OUT"
+  rm -f "$DEC"
 }
 
 # ---- HK-T07: セッション状態が session_id ごとに分離される ----
@@ -499,5 +514,141 @@ case_worktree() {
   HOOK_ROOT="$save_root"
 }
 case_worktree
+
+# ---- HK-T21: 作業ツリーの三分（§2）と logs/ の根（§5）----
+# 本流（root）と、そこから切った worktree（wt）を相互参照付きで用意する。git worktree add は呼ばない
+# （フックの判定は .git ファイルと <root>/.git/worktrees/<名前>/gitdir の相互参照だけを見るため）。
+__t21_fixture() { # $1=本流 $2=worktree $3=登録名
+  mkdir -p "$1/.claude" "$1/.git/worktrees/$3" "$2/.claude"
+  printf 'gitdir: %s/.git/worktrees/%s\n' "$1" "$3" > "$2/.git"
+  printf '%s\n' "$2/.git" > "$1/.git/worktrees/$3/gitdir"
+}
+# cwd を差し替えた入力 JSON を組む。MSYS のパス変換を止めないと `/tmp/...` が Windows パスに化け、
+# 作業ツリーの照合が常に外れる（hook_payload 自身が同じ回避をしている）
+__t21_payload() { # $1=cwd
+  hook_payload PreToolUse Bash command=ls \
+    | MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -c --arg c "$1" '.cwd=$c' | tr -d '\r'
+}
+case_hk_t21() {
+  local root="$TMP_REPO/t21root" wt="$TMP_REPO/t21wt"
+  local save_root="$HOOK_ROOT" save_wt="$HOOK_WORKTREE" save_dir="${LOGGER_DIR:-}" save_file="${LOGGER_FILE:-}"
+  local in_wt in_root
+  __t21_fixture "$root" "$wt" w1
+  in_wt="$(__t21_payload "$wt")"
+  in_root="$(__t21_payload "$root")"
+  HOOK_ROOT="$root"
+  # 共有ルートは環境変数で与えても HOOK_ROOT のまま（上書きの口を作らない）
+  HOOK_SHARED_ROOT="$TMP_REPO/evil-shared"
+  hook_read_input <<<"$in_wt"
+  assert_eq "HK-T21" "$root" "$HOOK_ROOT"
+  assert_eq "HK-T21" "$wt"   "$HOOK_WORKTREE"
+  assert_eq "HK-T21" "$root" "$HOOK_SHARED_ROOT"
+  assert_eq "HK-T21" "ok"    "$HOOK_WORKTREE_STATE"
+  # wip/ は作業ツリー側（本流側の 10_doing は見ない）
+  mkdir -p "$wt/wip/10_tickets/10_doing" "$root/wip/10_tickets/10_doing"
+  printf -- '---\ntype: ticket\n---\n' > "$wt/wip/10_tickets/10_doing/0099-implementation.md"
+  printf -- '---\ntype: ticket\n---\n' > "$root/wip/10_tickets/10_doing/0001-overall-plan.md"
+  hook_doing_ticket
+  assert_eq "HK-T21" "0099-implementation.md" "$REPLY"
+  assert_eq "HK-T21" "1" "$HOOK_DOING_COUNT"
+  # 判定記録（decisions.jsonl）は作業ツリー側
+  hook_record allow WF000 t21 "三分の検査"
+  assert_eq "HK-T21" "yes" "$([[ -f "$wt/logs/hooks/decisions.jsonl" ]] && echo yes || echo no)"
+  assert_eq "HK-T21" "no"  "$([[ -f "$root/logs/hooks/decisions.jsonl" ]] && echo yes || echo no)"
+  # 実行ログ（logs/sh/）も作業ツリー側
+  assert_eq "HK-T21" "yes" "$([[ -d "$wt/logs/sh" ]] && echo yes || echo no)"
+  assert_eq "HK-T21" "$wt/logs/sh" "${LOGGER_DIR:-}"
+  # セッション状態は共有ルート側
+  hook_session_write st.json '{"a":1}'
+  assert_eq "HK-T21" "yes" "$([[ -f "$root/logs/sessions/testsession/st.json" ]] && echo yes || echo no)"
+  assert_eq "HK-T21" "no"  "$([[ -d "$wt/logs/sessions" ]] && echo yes || echo no)"
+  # ロックは共有ルート側
+  hc_lock t21 && pass "HK-T21" || fail "HK-T21" "ロックを取れない"
+  assert_eq "HK-T21" "yes" "$([[ -d "$root/logs/locks/t21.lock" ]] && echo yes || echo no)"
+  assert_eq "HK-T21" "no"  "$([[ -d "$wt/logs/locks" ]] && echo yes || echo no)"
+  hc_unlock t21
+  # 進行状態（review-state / merge-state）は共有ルート側から読む（作業ツリー側の同名は見ない）
+  mkdir -p "$root/logs" "$wt/logs"
+  printf '%s' '{"state":"requested"}' > "$root/logs/review-state.json"
+  printf '%s' '{"state":"worktreeside"}' > "$wt/logs/review-state.json"
+  printf '%s' '{"state":"prepared"}' > "$root/logs/merge-state.json"
+  hook_read_input <<<"$in_wt"
+  hook_read_state review merge
+  assert_eq "HK-T21" "ok" "$HC_REVIEW_STATE"
+  [[ "$HC_REVIEW" == *requested* ]] && pass "HK-T21" || fail "HK-T21" "共有ルートの review-state を読んでいない: [$HC_REVIEW]"
+  [[ "$HC_REVIEW" == *worktreeside* ]] && fail "HK-T21" "作業ツリー側の review-state を読んでいる" || pass "HK-T21"
+  assert_eq "HK-T21" "ok" "$HC_MERGE_STATE"
+  # 負のコントロール: 作業ツリーが 1 つだけなら 3 つとも同じ値
+  hook_read_input <<<"$in_root"
+  assert_eq "HK-T21" "$root" "$HOOK_ROOT"
+  assert_eq "HK-T21" "$root" "$HOOK_WORKTREE"
+  assert_eq "HK-T21" "$root" "$HOOK_SHARED_ROOT"
+  HOOK_ROOT="$save_root"; HOOK_WORKTREE="$save_wt"; HOOK_SHARED_ROOT="$save_root"
+  LOGGER_DIR="$save_dir"; LOGGER_FILE="$save_file"
+}
+
+# ---- HK-T22: 作業ツリーをまたぐパスの畳み込み（§2 hook_rel_path）----
+case_hk_t22() {
+  local root="$TMP_REPO/t22root" wt1="$TMP_REPO/t22wt1" wt2="$TMP_REPO/t22wt2"
+  local save_root="$HOOK_ROOT" save_wt="$HOOK_WORKTREE" save_dir="${LOGGER_DIR:-}" save_file="${LOGGER_FILE:-}"
+  local in_wt1 in_bad
+  __t21_fixture "$root" "$wt1" a1
+  __t21_fixture "$root" "$wt2" a2
+  in_wt1="$(__t21_payload "$wt1")"
+  in_bad="$(__t21_payload ".")"
+  HOOK_ROOT="$root"
+  hook_read_input <<<"$in_wt1"
+  assert_eq "HK-T22" "$wt1" "$HOOK_WORKTREE"
+  t22_rel() { local rc=0; hook_rel_path "$1" >/dev/null || rc=$?; printf '%s|%s|%s\n' "$rc" "$REPLY_KIND" "$REPLY"; }
+  # 1 自ツリー / 2 共有ルート / 3 集合のいずれか
+  assert_eq "HK-T22" "0|worktree|wip/b.md"  "$(t22_rel "$wt1/wip/b.md")"
+  assert_eq "HK-T22" "0|shared|logs/mr.json" "$(t22_rel "$root/logs/mr.json")"
+  assert_eq "HK-T22" "0|other|wip/a.md"      "$(t22_rel "$wt2/wip/a.md")"
+  hook_rel_path "$wt2/wip/a.md" >/dev/null
+  assert_eq "HK-T22" "$wt2" "$REPLY_ROOT"
+  hook_rel_path "$wt1/wip/b.md" >/dev/null
+  assert_eq "HK-T22" "$wt1" "$REPLY_ROOT"
+  # `.` / `..` / `\` 区切り / 大文字小文字を畳んでも同じ結果
+  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "$wt1/./wip/../wip/b.md")"
+  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "${wt1//\//\\}\\wip\\b.md")"
+  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "${wt1^^}/wip/b.md")"
+  assert_eq "HK-T22" "0|other|wip/a.md"    "$(t22_rel "$wt2/./wip/x/../a.md")"
+  # 相対パスは自ツリー基準（従来の呼び手の前提）
+  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "wip/b.md")"
+  assert_eq "HK-T22" "0|worktree|wip/tmp/x.md" "$(t22_rel 'wip\tmp\x.md')"
+  assert_eq "HK-T22" "0|worktree|." "$(t22_rel "$wt1")"
+  # 点だけの相対パスは自ツリーのルート。「判定できない」に倒すと `rm -rf .` が拾えなくなる（SG-T11）
+  assert_eq "HK-T22" "0|worktree|." "$(t22_rel ".")"
+  assert_eq "HK-T22" "0|worktree|." "$(t22_rel "./")"
+  assert_eq "HK-T22" "0|worktree|." "$(t22_rel "./.")"
+  # 4 どの根の配下でもない → 畳めない（負のコントロール。同一リポジトリの外と確定する）
+  assert_eq "HK-T22" "1|outside|/no-such-root-xyz/x.md" "$(t22_rel "/no-such-root-xyz/x.md")"
+  assert_eq "HK-T22" "1|outside|$TMP_REPO/t22other/x.md" "$(t22_rel "$TMP_REPO/t22other/x.md")"
+  # 作業ツリーの集合を読めない → 4 に倒さず「判定できない」
+  mv "$root/.git/worktrees" "$root/.git/worktrees-off"
+  printf 'x\n' > "$root/.git/worktrees"
+  hook_read_input <<<"$in_wt1"
+  assert_eq "HK-T22" "$root" "$HOOK_WORKTREE"     # 相互参照を辿れないので本流に倒れる
+  assert_eq "HK-T22" "2|unknown|" "$(t22_rel "$wt2/wip/a.md")"
+  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "$root/wip/b.md")"   # 1 で畳めるものは集合を読まない
+  # 負のコントロール: 集合が空（.git/worktrees/ が無い）だけなら「判定できない」にはならない
+  rm -f "$root/.git/worktrees"
+  hook_read_input <<<"$in_wt1"
+  assert_eq "HK-T22" "1|outside|$wt2/wip/a.md" "$(t22_rel "$wt2/wip/a.md")"
+  mv "$root/.git/worktrees-off" "$root/.git/worktrees"
+  # 作業ツリーを確定できない（cwd の正規化に失敗）→ 判定できない
+  hook_read_input <<<"$in_bad"
+  assert_eq "HK-T22" "unknown" "$HOOK_WORKTREE_STATE"
+  assert_eq "HK-T22" "2|unknown|" "$(t22_rel "$root/wip/b.md")"
+  # 空のパスは正規化できない → 判定できない
+  hook_read_input <<<"$in_wt1"
+  assert_eq "HK-T22" "2|unknown|" "$(t22_rel "")"
+  HOOK_ROOT="$save_root"; HOOK_WORKTREE="$save_wt"; HOOK_SHARED_ROOT="$save_root"
+  LOGGER_DIR="$save_dir"; LOGGER_FILE="$save_file"
+}
+
+case_hk_t21
+case_hk_t22
+
 
 finish

@@ -924,3 +924,643 @@ deny[] が空でない        → deny
 | 参照系 | Read, Glob, Grep | target_directories.read | read |
 | 編集系 | Write, Edit, MultiEdit | target_directories.write | write |
 | Bash実行対象 | bash x.sh, python x.py 等 | target_directories.exec → 未定義時はreadにフォールバック | exec |
+
+処理手順
+
+```
+1. パス正規化（シンボリックリンク実体解決 → ../ 解決 → 絶対パス）
+   ├ 正規化前後で sandbox の内外が変化 → IMPL_SYMLINK_ESCAPE を追加（非キャッシュ）
+   └ 存在しないパス（新規作成）は親ディレクトリを基準に判定
+2. §11.1 の決定順序で判定
+3. Reason を生成
+```
+
+### 12.3 Bashコマンド解析
+
+① シェル構文のトークン分解と誤検知防止
+
+| 処理 | 内容 | 目的 |
+|---|---|---|
+| トークナイズ | shlex によるコマンド分解 | 文字列マッチではなく構造として解析するため |
+| コメント除外 | `#` 以降を解析対象から切り捨て | `python app.py # cat << EOF` を誤検知しないため |
+| クォート保全 | `"..."` / `'...'` 内部の `>` `<<` 等は文字列データとして扱う | `git commit -m "Fix > bug"` を誤検知しないため |
+| 連鎖コマンドの分割 | `&&`, `\|\|`, `;`, `\|`, `&` で分離し個別に全数走査 | `npm run build && terraform destroy` の後段を検知するため |
+| サブシェル展開 | `$(...)`, `` `...` `` の内部も再帰的に解析 | サブシェル経由の隠蔽を防ぐため |
+| 解析不確定の検出 | 変数展開（`$TARGET`）がパス位置に現れた場合 `IMPL_PARSE_UNCERTAIN` | 対象が確定できない場合に許可へ倒さないため（P1） |
+
+② 不正ファイル書き込みの遮断
+
+クォート外の以下を検知した場合、**DENY_REDIRECT（即時 deny）** とする。
+
+- リダイレクト `>`, `>>`, `&>`, `2>`
+- ヒアドキュメント `<<`, `<<-`
+- `tee` コマンド
+
+一律 deny とする理由：リダイレクトによる書き込みは対象パスの動的生成が容易でパス解析の信頼性が低い。「ファイル生成は Write / Edit ツール経由に統一させる」ことで、すべてのファイル生成を構造化された判定経路に通す。hint で AI に Write ツールの使用を促す。
+
+`sed -i` / `awk -i inplace` は対象パスが構造的に抽出可能であるため対象外とし、③ のパス判定へ回す。
+
+③ コマンド別パス権限検証
+
+| 対象コマンド | 解析ロジック | access |
+|---|---|---|
+| 削除 `rm` / `rmdir` / `git rm` | オプションフラグ（-f, -r, -rf 等）を除外して削除対象パスを抽出 | write |
+| 移動 `mv` / `git mv` | 移動元（削除）と移動先（書き込み）の双方を抽出。片方でも deny/ask ならその判定 | write × 2 |
+| コピー `cp` | コピー先を write、コピー元を read として判定 | 先 write / 元 read |
+| インプレース編集 `sed -i` / `awk -i inplace` | フラグやスクリプト文（`s/.../.../`）を除外して対象パスを抽出 | write |
+| スクリプト実行 `bash` / `sh` / `python` / `node` / `source` / `.` | 実行対象ファイルパスを抽出 | exec |
+| ワイルドカード検出 | 上記で `*`, `?`, `[...]` を含む場合 | `IMPL_GLOB_UNRESOLVED`（暗黙 ask） |
+
+移動元・移動先の双方を判定する理由：保護領域からの持ち出しと保護領域への持ち込みの両方が権限境界の侵害となるため。
+
+④ DB破壊操作の独立多角検知
+
+記述順序（パイプ）や改行（ヒアドキュメント）による回避を防ぐため、2 段階の独立判定を行う。
+
+```
+Step 1: コマンド文字列全体に、単語境界つきで DB クライアントが含まれるか
+          psql / mysql / mongosh / mongo / sqlite3 / redis-cli
+
+Step 2: 含まれる場合、DOTALL + IGNORECASE で破壊的キーワードを全文検索
+          DROP / TRUNCATE / DELETE / ALTER / GRANT / REVOKE / UPDATE
+          FLUSHALL / FLUSHDB / dropDatabase
+
+両者が同時成立 → 出現位置・順序を問わず DENY_DB_DESTRUCTIVE（即時 deny）
+```
+
+2 段階に分離する理由：単一の正規表現でコマンドとキーワードの順序関係を規定すると、順序逆転（`echo "DROP..." | psql`）で回避される。共起のみを条件とすることで、順序と改行の影響を完全に排除できる。同時に、DB クライアントコマンドとの共起を必須とすることで、`grep -rn "DROP TABLE" ./src` や `git commit -m "fix DROP bug"` のような正当な操作を誤検知しない。
+
+ファイル入力経路の補完：`psql -f x.sql` / `mysql < x.sql` / `mongosh x.js` のようにコマンド文字列にキーワードが現れない形式は、Step 2 では検知できない。この場合は §14.6 の内容ハッシュ対象コマンドとして扱い、対象ファイルの中身を読んで Step 2 を再実行する。ファイルが読めない場合は `IMPL_HASH_UNAVAILABLE`（暗黙 ask・非キャッシュ）とする。
+
+⑤ deny_commands パターン照合
+
+全 Layer の正規表現リスト（結合済み）に対し、コマンド全体（改行跨ぎ・DOTALL）でマッチングし、一致すれば `DENY_COMMAND_PATTERN`（即時 deny）。
+
+正規表現は起動時にコンパイル検証し、不正なパターンがあれば起動時エラーとする。実行時に silently 無視すると、防御が抜けたことに気づけないため。
+
+---
+
+## 13. askの二分類
+
+### 13.1 定義
+
+| 区分 | 記号 | 発生条件 | 意味 | 既定でキャッシュ |
+|---|---|---|---|---|
+| 明示的 ask（ask:explicit） | 🟠E | 設定ファイル（Layer 1 / Layer 2）に ask と明示的に記述されている。または sandbox 外 read | 「ここは毎回人間が見るべき」という意図的な確認ポイント | しない<br>（ask_once: true 時のみする） |
+| 暗黙的 ask（ask:implicit） | 🟠I | どのレイヤも言及していない／解析不能／default_tool_ceiling によるフォールバック | 「判断材料が足りないので安全側に倒した」だけ。本質的な危険性の表明ではない | する |
+
+### 13.2 分離する理由
+
+暗黙的 ask は設定の穴に起因するため、その穴が塞がるまで同じ問いが繰り返される。これは情報量ゼロの繰り返しであり、確認疲れの主因となる。
+
+一方、明示的 ask は設定者が意図してそこに置いたチェックポイントであり、繰り返し確認されること自体に価値がある（例：migrations を触るたびに人間が内容を目視する）。
+
+両者を同じ扱いにすると、前者のノイズに後者が埋もれる。したがって UI とキャッシュポリシーの両面で分離する（P6）。
+
+### 13.3 プロンプト表示
+
+暗黙的 ask
+
+```
+🟠 確認が必要です（暗黙的 ask：どの設定にも定義がありません）
+
+  ツール ： Read
+  対象   ： /repo/tmp/build-output/report.json
+  理由   ： IMPL_PATH_UNDEF
+             project 設定・チケットのいずれにも該当ルールなし
+             expected_roots.read の範囲外
+
+  ヒント ： 恒久的に許可する場合は、以下のいずれかを検討してください
+             - チケットの target_directories.read に追加（今回の作業限り）
+             - config.yaml の expected_roots.read に追加（想定範囲の更新）
+             ※ config.yaml の変更には人間の PR が必要です
+
+[1] 今回だけ許可
+[2] このセッション中、このファイルへの read を許可          （exact）
+[3] このセッション中、tmp/build-output 配下の read を許可   （prefix）★既定
+[4] 拒否
+[5] 拒否 + このセッション中、同じ対象は自動拒否
+```
+
+明示的 ask
+
+```
+🟡 確認が必要です（設定で確認が指定されています）
+
+  ツール ： Edit
+  対象   ： /repo/migrations/0042_add_index.sql
+  理由   ： EXPL_PATH_ASK
+             project 設定 target_directories.write の "migrations" が ask
+             （チケットは allow を要求しましたが、明示宣言が優先されます）
+
+[1] 許可
+[2] 拒否
+```
+
+`ask_once: true` または `mode=all` の場合のみ、明示的 ask にも `[3] このセッション中は再確認しない` が追加される。
+
+### 13.4 混在時の扱い
+
+| 状況 | 挙動 | 理由 |
+|---|---|---|
+| 明示的 ask がキャッシュ対象外 | キャッシュ照会をスキップして必ずユーザーに確認 | 意図的な確認ポイントを、暗黙的 ask のキャッシュヒットで飛ばさないため |
+| ユーザー承認後 | 暗黙的 ask の根拠は通常どおりキャッシュに登録 | 次回は明示的 ask のみが残り、確認内容が本質的なものに絞られる |
+
+---
+
+## 14. セッション承認キャッシュ
+
+### 14.1 キー設計方針
+
+キャッシュキーは「なぜ ask になったのか」という判定根拠を構造化した正規形とする。
+
+コマンド文字列そのものをキーにしない理由：
+
+| 問題 | 内容 |
+|---|---|
+| ヒット率が低い | `rm src/a.ts` と `rm src/b.ts` が別扱いになり、AI はほぼ毎回異なる引数を出すため実質ヒットしない |
+| 過剰一致の危険 | `bash /tmp/act.sh` を承認後、中身を書き換えて再実行するとフリーパスとなる |
+
+### 14.2 キー構造
+
+```
+cache_key = SHA-256( reason_code | access | subject | scope | config_hash )
+```
+
+| フィールド | 役割 |
+|---|---|
+| reason_code | ask の発生源（付録 B）。異なる根拠は必ず別キーとなる |
+| access | read / write / exec / tool。read の承認が write に波及しない |
+| subject | 正規化済みの対象（絶対パス / ツール名 / パス＋内容ハッシュ） |
+| scope | exact / prefix |
+| config_hash | 統合後設定のハッシュ。設定変更で全キャッシュが自動失効する |
+
+`session_id` はキーに含めず、キャッシュファイル自体をセッション単位で分離する。
+
+### 14.3 キャッシュ対象の決定
+
+```
+[ 最終判定が ask ]
+        │
+   ┌────┴────┐
+   ▼               ▼
+ask_explicit を含む   ask_implicit のみ
+   │               │
+   ▼               ▼
+┌──────────────┐  ┌──────────────┐
+│ mode = all ?        │  │ mode = off ?        │
+│  YES → キャッシュ可  │  │  YES → 都度 ask     │
+│  NO  → ask_once:true │  │  NO  → キャッシュ可 │
+│        の項目のみ可  │  └──────────────┘
+└──────────────┘
+```
+
+| mode | 暗黙的 ask | 明示的 ask（ask_once: false） | 明示的 ask（ask_once: true） |
+|---|---|---|---|
+| off | ✗ | ✗ | ✗ |
+| implicit（既定） | ✓ | ✗ | ✓ |
+| all | ✓ | ✓ | ✓ |
+
+常にキャッシュ対象外となる根拠
+
+| reason_code | 理由 |
+|---|---|
+| IMPL_SYMLINK_ESCAPE | sandbox 境界を跨ぐアクセスは毎回人間が認識すべきであるため |
+| IMPL_HASH_UNAVAILABLE | 内容ハッシュが取得できない対象は同一性を保証できないため |
+| EXPL_SANDBOX_READ | sandbox 外の読み取りは範囲が予測不能であるため |
+| すべての DENY_* | deny はキャッシュによる緩和対象外であるため（P8） |
+
+### 14.4 subjectの正規化
+
+| 対象種別 | access | 正規化方法 |
+|---|---|---|
+| ファイルパス | read / write | シンボリックリンク実体解決 ＋ `../` 解決 → 絶対パス。scope=prefix なら直上の親ディレクトリへ丸める |
+| ディレクトリパス | read / write | そのディレクトリの絶対パス（親には遡らない） |
+| ツール名 | tool | 大文字小文字を保持したまま完全一致 |
+| 実行対象スクリプト | exec | 絶対パス@sha256:&lt;ファイル内容ハッシュ&gt;（§14.6） |
+| glob パターン | read / write | パターン文字列 ＋ 展開結果の実ファイル集合のソート済みハッシュ |
+
+### 14.5 scopeの決定順序
+
+```
+1. content_hash_commands に該当        ──→ exact（強制）
+2. 親ディレクトリが prefix_denylist に該当 ──→ exact（強制降格）
+3. 親ディレクトリが expected_roots 外    ──→ exact（強制降格）
+4. 対話セッション かつ ユーザーが選択     ──→ ユーザーの選択値
+5. 上記以外                            ──→ effective path_scope
+```
+
+3 の降格を行う理由：`expected_roots` 外はプロジェクトが想定していない領域であり、そこに prefix 承認を発行すると、想定外領域への広域許可がセッション内に残り続けるため。判定自体は allow に倒しても、キャッシュの影響範囲は最小化する。
+
+### 14.6 実行系コマンドの内容ハッシュ
+
+防ぐ手口
+
+```
+1回目: bash /tmp/act.sh   → ユーザーが承認、キャッシュ登録
+2回目: /tmp/act.sh の中身を破壊的コマンドに書き換え
+3回目: bash /tmp/act.sh   → キャッシュヒットでノーチェック実行
+```
+
+対策
+
+| コマンド分類 | subject | scope |
+|---|---|---|
+| 通常のパスアクセス（Read/Write/Edit） | パスのみ | 環境変数に従う |
+| スクリプト実行（bash, sh, python, node, source, .） | パス + sha256(内容) | exact 固定 |
+| ファイル入力実行（psql -f, mysql <, kubectl apply -f） | パス + sha256(内容) | exact 固定 |
+
+内容が 1 バイトでも変われば別キーとなり、再度 ask される。
+
+ファイルが読み取れない場合（権限不足・サイズ超過・不在）は `IMPL_HASH_UNAVAILABLE` を追加し、キャッシュ登録を行わない（毎回 ask）。
+
+ハッシュ計算の対象サイズには上限を設ける（既定 10 MB）。上限超過時も `IMPL_HASH_UNAVAILABLE` として扱う。Hook の実行時間が肥大化すると、ツール呼び出しごとの遅延が体験を損なうため。
+
+### 14.7 承認プロンプトと記録内容
+
+| ユーザーの選択 | 記録 |
+|---|---|
+| 今回だけ許可 | 記録しない |
+| このセッション中、この対象を許可（exact） | decision: allow, scope: exact |
+| このセッション中、配下すべてを許可（prefix） | decision: allow, scope: prefix |
+| 拒否 | 記録しない（次回また聞く） |
+| 拒否 + 同じ対象は自動拒否 | decision: deny, scope: exact（ネガティブキャッシュ） |
+
+拒否を既定で記録しない理由：一度拒否した操作でも、状況が変われば許可したくなる場合があるため。恒久的な自動拒否は明示的な選択肢として分離する。
+
+### 14.8 複数根拠の扱い（AND条件）
+
+1 回の呼び出しで複数の ask 根拠が同時発生する。
+
+```
+Bash: mv /repo/tmp/a.ts /repo/var/b.ts
+  → IMPL_PATH_UNDEF (write, /repo/tmp)
+  → IMPL_PATH_UNDEF (write, /repo/var)
+```
+
+> 転記注記: 上のコード例は原文のスクリーンショットで 2 行目までしか写っておらず、3 行目以降は次の画面に続いている。2 行目の対象パスは移動先 `/repo/var` と読めるが、原本で確認すること。
+
+| 状況 | 挙動 |
+|---|---|
+| 全根拠が allow でヒット | 🟢 allow（全エントリの hit_count を加算） |
+| いずれか 1 つが deny でヒット | 🔴 deny（ネガティブキャッシュが優先） |
+| 一部のみヒット | 🟠 ask。未承認の根拠のみをプロンプトに提示 |
+| 全て未ヒット | 🟠 ask。全根拠を提示 |
+
+承認時は、その呼び出しで発生した全根拠を個別レコードとして登録する。
+
+### 14.9 失効条件
+
+| トリガ | 動作 |
+|---|---|
+| config_hash 変更 | 全件失効（config.yaml 編集・チケット編集・チケット切替・環境変数変更） |
+| チケット未承認検出 | 全件失効（§17.5） |
+| Hook 完全性検証の不一致 | 全件失効 |
+| TTL 超過 | 該当エントリのみ失効（既定 60 分、登録時刻からの経過。last_hit_at では延長しない） |
+| 件数上限超過 | LRU（last_hit_at が古い順）で追い出し |
+| セッション終了 | キャッシュファイル削除 |
+| mode=off 検出 | 起動時にキャッシュファイル削除 |
+| 非対話セッション | force_disable_when_non_interactive: true のとき読み書きとも無効 |
+| PostToolUse による事後無効化 | 保護領域汚染の原因となったエントリを削除（§18.3） |
+
+TTL を登録時刻基準とし、ヒットによる延長を行わない理由：頻繁に使われる承認ほど長く生き続けると、長時間セッションで実質的に無期限の承認となるため。
+
+### 14.10 データ構造
+
+`${XDG_RUNTIME_DIR:-/tmp}/ticket-guard/approvals-<session_id>.json`　ファイル権限: 0600　ディレクトリ権限: 0700
+
+```json
+{
+  "schema_version": 1,
+  "session_id": "sess_01J...",
+  "ticket": "PROJ-1234",
+  "ticket_hash": "sha256:7c1e...",
+  "config_hash": "a1b2c3d4e5f6",
+  "effective_settings": {
+    "mode": "implicit",
+    "path_scope": "prefix",
+    "ttl_minutes": 60,
+    "max_entries": 100,
+    "source": {
+      "mode": "env:TICKET_GUARD_APPROVAL_CACHE",
+      "path_scope": "project:config.yaml"
+    },
+    "clamped": [
+      { "key": "mode", "requested": "all", "applied": "implicit",
+        "by": "project.approval_cache.max_mode" }
+    ]
+  },
+  "created_at": "2026-09-03T10:00:00+09:00",
+  "entries": [
+    {
+      "key": "sha256:9f2a...",
+      "decision": "allow",
+      "ask_kind": "implicit",
+      "reason_code": "IMPL_PATH_UNDEF",
+      "access": "read",
+      "subject": "/repo/tmp/build-output",
+      "scope": "prefix",
+      "approved_at": "2026-09-03T10:03:12+09:00",
+      "expires_at": "2026-09-03T11:03:12+09:00",
+      "hit_count": 4,
+      "last_hit_at": "2026-09-03T10:41:08+09:00",
+      "origin_call": "Read(tmp/build-output/report.json)"
+    },
+    {
+      "key": "sha256:c71b...",
+      "decision": "allow",
+      "ask_kind": "implicit",
+      "reason_code": "IMPL_PATH_UNDEF",
+      "access": "exec",
+      "subject": "/repo/scripts/seed.sh@sha256:44d..."
+    }
+  ]
+}
+```
+
+> 転記注記: 上の JSON は原文のスクリーンショットが 2 件目のエントリの `subject` 行で切れている。2 件目の残りのフィールドと閉じ括弧は取り込めていないため、末尾は形が通るように補った。原本で確認すること。
+
+---
+
+## 15. 判定フロー統合図
+
+```
+[ ツール呼び出し ]
+        │
+        ▼
+┌──────────────────────────┐
+│ Layer 0-A: settings.json permissions │
+│  deny 該当 → Hook 到達せず遮断        │
+└──────────────────────────┘
+        │
+        ▼
+┌──────────────────────────┐
+│ 事前検証                             │
+│  - Hook 完全性 OK？                  │
+│      NG → 人間の確認ゲート（warn）    │
+│           / 全 deny（strict）        │
+│  - チケット承認済み？                 │
+│      NG → 全 allow を ask に降格      │
+└──────────────────────────┘
+        │
+        ▼
+┌──────────────────────────┐
+│ Stage 1: 全チェックを完走             │
+│  ① Layer 0-B 不変 deny               │
+│  ② sandbox 境界                      │
+│  ③ ツール権限                        │
+│  ④ パス権限（read/write/exec）        │
+│  ⑤ シェル構文解析                    │
+│  ⑥ DB 破壊キーワード                 │
+│  ⑦ deny_commands                     │
+└──────────────────────────┘
+        │
+Decision { deny[], ask_explicit[], ask_implicit[] }
+        │
+        ▼
+   ┌──────────┐
+   │ deny[] が空？ │
+   └──────────┘
+    NO │        │ YES
+       ▼        ▼
+🔴 deny 即停止   ┌──────────────┐
+・キャッシュ無視  │ ask_* がすべて空？ │
+・理由+代替案を   └──────────────┘
+  LLM へ返却      YES │        │ NO
+・監査ログ            ▼        ▼
+                  🟢 allow  ┌──────────────┐
+                            │ Stage 2:            │
+                            │ キャッシュ対象判定    │
+                            │ (mode / ask_once)   │
+                            └──────────────┘
+                        対象外 │        │ 対象
+                              ▼        ▼
+                        🟡/🟠 ask   ┌──────────┐
+                          （毎回）   │ キャッシュ照会 │
+                                    └──────────┘
+                     全根拠 allow ヒット │   │ 未/部分ヒット
+                                       ▼   ▼
+                                  🟢 allow   🟠 ask
+                                  hit_count++（未承認根拠のみ提示）
+                     いずれか deny ヒット │   │
+                                       ▼   ▼
+                                    🔴 deny ← [ 対話？ ]
+                                            YES │   │ NO (CI)
+                                                ▼   ▼
+                                    [ユーザー選択] [ASK_FALLBACK]
+                                                     既定 deny
+                                                │
+                                                ▼
+                                        ┌──────────┐
+                                        │ Stage 3:      │
+                                        │ キャッシュ登録 │
+                                        │ scope 決定    │
+                                        └──────────┘
+```
+
+---
+
+## 16. 昇格試行・逸脱の検知と可視化
+
+目的（P7）：未宣言領域をチケットに委譲する設計では、プロジェクト設定の列挙漏れが直接的な穴となる。列挙漏れを運用の中で検知・是正できるよう、逸脱を必ず人間の目に触れさせる。
+
+### 16.1 検知タイミング
+
+| タイミング | 対象 |
+|---|---|
+| セッション開始時 | `.current-ticket.md` の全記述 |
+| チケット切替時 | 同上 |
+| 環境変数解決時 | `TICKET_GUARD_*` の全指定 |
+
+### 16.2 記録される事象
+
+A. 昇格試行（却下されたもの）
+
+| reason | 内容 |
+|---|---|
+| CEILING_TOOL | ticket の tools が Layer1 の明示宣言より緩い |
+| CEILING_PARENT_DENY | ticket が Layer1 の deny サブツリー内に allow/ask を要求 |
+| CEILING_EXPLICIT_ASK | ticket が Layer1 の明示 ask を allow にしようとした |
+| CEILING_SANDBOX | ticket が sandbox 外に write/exec の allow を要求 |
+| CEILING_BUILTIN | ticket が Layer 0-B 不変 deny 領域に allow を要求 |
+| CEILING_CLAMP | approval_cache の値が max_* でクランプされた |
+| IMMUTABLE_IGNORED | immutable 対象キーへの記述が無視された |
+| INVALID_PATH | `..` / 絶対パス / `~` / `$` を含むパス指定 |
+| RULE_LIMIT_EXCEEDED | ルール総数が max_ticket_rules を超過 |
+
+B. 逸脱（許可されたが想定外のもの）
+
+| reason | 内容 |
+|---|---|
+| SCOPE_DEVIATION | ticket が expected_roots 外に allow を宣言し、それが有効になった |
+| SENSITIVE_AREA_GRANT | ticket が `.claude/**`・`.github/**`・`ci/**` 等の高影響領域に write allow を宣言し、有効になった |
+
+B を独立して記録する理由：A は却下されるため実害は生じないが、B は実際に許可されている。したがって B の方が運用上の注意を要する。列挙漏れの是正候補として、A よりも優先的に人間へ提示する。
+
+### 16.3 セッション開始時の表示
+
+```
+⚠  Ticket Guard: 権限に関する注意事項があります
+
+ticket : PROJ-1234      risk : 58 / 100  (HIGH)
+
+● 許可されたが想定範囲外の権限（2 件）★要確認
+
+  1. [HIGH] write "tmp/scratch" → allow で有効
+     SCOPE_DEVIATION
+     expected_roots.write = [src, tests] の範囲外です。
+     意図した作業であれば expected_roots への追加を検討してください
+
+  2. [HIGH] write ".claude/skills" → allow で有効
+     SENSITIVE_AREA_GRANT
+     エージェント定義領域への書き込みが許可されています。
+     スキル編集が作業目的でない場合、チケットを再生成してください
+
+● 上限により却下された要求（3 件）
+
+  3. [MED ] read "secrets/keys": allow → deny
+     CEILING_PARENT_DENY  親 "secrets" が project 設定で deny
+
+  4. [MED ] tools.Bash: allow → ask
+     CEILING_TOOL  project が ask を明示宣言
+
+  5. [LOW ] approval_cache.mode: all → implicit
+     CEILING_CLAMP (max_mode = implicit)
+
+────────────────────────────────
+▸ 想定範囲外の許可が意図したものである場合
+    config.yaml の expected_roots を PR で更新してください。
+▸ 却下された要求が必要な場合
+    config.yaml の target_directories / tools を PR で更新してください。
+▸ いずれも意図していない場合
+    チケットを再生成してください。risk が HIGH のため、
+    生成ロジックまたは入力の点検も推奨します。
+```
+
+### 16.4 LLMへの通知
+
+同内容を `additionalContext` として注入する。AI が利用不能な権限を前提とした試行を繰り返すことを防ぎ、代替手段の検討を促すため（P10）。
+
+```
+[Ticket Guard] 現在の実効権限は以下のとおりです。
+
+■ 利用できない権限（要求は却下されました）
+  - secrets/ 配下の read: プロジェクト設定で deny です。
+    → 認証情報が必要な場合は環境変数経由での参照を検討してください。
+  - Bash ツール: allow ではなく ask で動作します。
+    → コマンド実行のたびに確認が入ります。
+
+■ 無確認で書き込み可能な領域
+  - src/**, tests/**, tmp/scratch/**
+
+■ 上記以外への書き込みは確認が入ります。
+■ ファイル生成はリダイレクト（>）ではなく Write ツールを使用してください。
+```
+
+### 16.5 監査ログ
+
+```json
+{
+  "event": "TICKET_PERMISSION_REPORT",
+  "ticket": "PROJ-1234",
+  "ticket_hash": "sha256:7c1e...",
+  "config_hash": "a1b2c3d4",
+  "timestamp": "2026-09-03T10:00:00+09:00",
+  "risk_score": 58,
+  "risk_level": "HIGH",
+  "deviations": [
+    {
+      "key": "target_directories.write.\"tmp/scratch\"",
+      "applied": "allow",
+      "reason": "SCOPE_DEVIATION",
+      "detail": { "expected_roots_write": ["src", "tests"] },
+      "severity": "high"
+    },
+    {
+      "key": "target_directories.write.\".claude/skills\"",
+      "applied": "allow",
+      "reason": "SENSITIVE_AREA_GRANT",
+      "severity": "high"
+    }
+  ],
+  "rejections": [
+    {
+      "key": "target_directories.read.\"secrets/keys\"",
+      "requested": "allow", "applied": "deny",
+      "reason": "CEILING_PARENT_DENY", "detail": { "parent": "secrets" },
+      "severity": "medium"
+    },
+    {
+      "key": "tools.Bash",
+      "requested": "allow", "applied": "ask",
+      "reason": "CEILING_TOOL",
+      "severity": "medium"
+    },
+    {
+      "key": "approval_cache.mode",
+      "requested": "all", "applied": "implicit",
+      "reason": "CEILING_CLAMP", "detail": { "max": "implicit" },
+      "severity": "low"
+    }
+  ]
+}
+```
+
+運用方針：このログを外部ストレージへ転送し、以下を継続監視する。
+
+| 監視対象 | 示唆 |
+|---|---|
+| deviations が繰り返し同一パスで発生 | expected_roots の列挙漏れ。設定を更新すべき |
+| SENSITIVE_AREA_GRANT の発生 | エージェント定義領域への書き込み。意図の確認が必要 |
+| risk_score >= 40 の頻発 | チケット生成プロンプトの問題、またはプロンプトインジェクションの兆候 |
+
+---
+
+## 17. チケット承認ゲート
+
+### 17.1 設計方針
+
+frontmatter 全文を目視させる設計を採らない。人間には「何が新たに許可されるか」「前回との差分」「リスク」だけを提示し、認知負荷を最小化することで承認の質を維持する。
+
+未宣言領域をチケットに委譲する設計では、この承認画面が実質的な最後の人間判断ポイントとなる。したがって、判断に必要な情報を過不足なく、かつ短く提示することが要件となる。
+
+### 17.2 承認画面
+
+```
+┌ Ticket 承認リクエスト ─────────────────
+│ PROJ-1234: ユーザー設定画面のリファクタリング
+│
+│ ■ 理由（AI 記述）
+│   src/components/Settings 配下のコンポーネント分割。
+│   設定値の読み込みロジック確認のため config/ の read が必要。
+│
+│ ■ 無確認で書き込み可能になる領域
+│   + src/components/Settings/**
+│   + tmp/scratch/**              ⚠ expected_roots 範囲外
+│
+│ ■ 確認付きで書き込み可能になる領域
+│   ~ src/components/**
+│
+│ ■ 無確認で読み取り可能になる領域
+│   + src/**   docs/**
+│
+│ ■ ツール（project 設定からの変更のみ表示）
+│   Bash: allow → ask に縮小（チケットによる自主制限）
+│   WebSearch: allow（project 未指定領域）
+│
+│ ■ 前回チケット（PROJ-1198）からの差分
+│   + src/components/Settings/**   新規
+│   + tmp/scratch/**               新規
+│   - tests/**                     削除
+│
+│ ■ 却下される要求: 0 件
+│ ■ 想定範囲外の許可: 1 件（tmp/scratch）
+│
+│ ■ リスクスコア: 23 / 100  (MEDIUM)
+│
+│ [a] 承認   [e] 編集して承認   [r] 再生成   [d] 全文表示
+│ [q] 中止
+└──────────────────────────────────
+```
+
+「無確認で書き込み可能になる領域」を最上部に置く理由：これが実質的な被害上限を決める情報であり、人間が最初に見るべき項目であるため。

@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: feedback-plan
-predecessors: ["0018", "0019", "0020", "0021", "0022", "0023", "0024", "0025", "0026", "0027"]
+predecessors: ["0018", "0019", "0020", "0021", "0022", "0023", "0024", "0025", "0026", "0027", "0030"]
 executor: main
 human_review: {required: false, reason: "全体計画書の方針（差分 3: 改善候補の対応先の合意は対話で行う）"}
 adversarial_review: {required: false, reason: "work-defaults の基準どおり（feedback-plan は敵対的レビュー不要）"}

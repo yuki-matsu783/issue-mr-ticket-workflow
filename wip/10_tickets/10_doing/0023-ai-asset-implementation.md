@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/skills/**", ".claude/evals/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-06T01:37:07+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "87a2d8b"
 ---
 
 # 0023 S6 提供コマンド a: 20-common-step-worktree スキルと worktree.sh の新設

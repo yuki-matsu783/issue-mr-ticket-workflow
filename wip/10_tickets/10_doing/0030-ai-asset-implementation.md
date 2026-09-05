@@ -40,7 +40,7 @@ base_sha: "df90f04"
 
 ### 現在地
 
-- 未着手
+- 指摘 1・2・3 の実装とテストが完了（`test_hook_common` 252 / `test_workflow_guard` 222 / `test_workflow_state_guard` 116 / `test_scope` 412 すべて FAIL 0）。次は指摘 4（`boundary.sh` の既出判定）→ 6 → 7 → 5（レポート訂正）→ 全件テスト
 
 ### うまくいったこと
 

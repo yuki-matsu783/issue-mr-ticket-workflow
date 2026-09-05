@@ -590,12 +590,17 @@ case_hk_t21() {
 # ---- HK-T22: 作業ツリーをまたぐパスの畳み込み（§2 hook_rel_path）----
 case_hk_t22() {
   local root="$TMP_REPO/t22root" wt1="$TMP_REPO/t22wt1" wt2="$TMP_REPO/t22wt2"
+  local sub="$TMP_REPO/t22root/sub-wt" nested="$TMP_REPO/t22root/.claude/worktrees/nw"
   local save_root="$HOOK_ROOT" save_wt="$HOOK_WORKTREE" save_dir="${LOGGER_DIR:-}" save_file="${LOGGER_FILE:-}"
-  local in_wt1 in_bad
+  local in_wt1 in_bad in_root in_sub
   __t21_fixture "$root" "$wt1" a1
   __t21_fixture "$root" "$wt2" a2
+  __t21_fixture "$root" "$sub" a3       # 根の配下に置かれた作業ツリー（`git worktree add ./sub-wt`。§2 が正当と認める）
+  __t21_fixture "$root" "$nested" a4    # 隔離が作る <root>/.claude/worktrees/<名前>
   in_wt1="$(__t21_payload "$wt1")"
   in_bad="$(__t21_payload ".")"
+  in_root="$(__t21_payload "$root")"
+  in_sub="$(__t21_payload "$sub")"
   HOOK_ROOT="$root"
   hook_read_input <<<"$in_wt1"
   assert_eq "HK-T22" "$wt1" "$HOOK_WORKTREE"
@@ -624,16 +629,41 @@ case_hk_t22() {
   # 4 どの根の配下でもない → 畳めない（負のコントロール。同一リポジトリの外と確定する）
   assert_eq "HK-T22" "1|outside|/no-such-root-xyz/x.md" "$(t22_rel "/no-such-root-xyz/x.md")"
   assert_eq "HK-T22" "1|outside|$TMP_REPO/t22other/x.md" "$(t22_rel "$TMP_REPO/t22other/x.md")"
-  # 作業ツリーの集合を読めない → 4 に倒さず「判定できない」
+  # 根の配下に置かれた作業ツリーは、短いほうの根（本流）ではなく**最長一致**のツリーへ畳む。
+  # 前方一致の順で決めると `.claude/worktrees/x/wip/10_tickets/20_done/a.md` のようなルート相対に化け、
+  # そのツリーの完了チケット・進行状態が workflow-state-guard の保護対象から外れる
+  assert_eq "HK-T22" "0|other|wip/10_tickets/20_done/a.md" "$(t22_rel "$sub/wip/10_tickets/20_done/a.md")"
+  hook_rel_path "$sub/wip/10_tickets/20_done/a.md" >/dev/null
+  assert_eq "HK-T22" "$sub" "$REPLY_ROOT"
+  assert_eq "HK-T22" "0|other|wip/10_tickets/20_done/b.md" "$(t22_rel "$nested/wip/10_tickets/20_done/b.md")"
+  hook_rel_path "$nested/wip/10_tickets/20_done/b.md" >/dev/null
+  assert_eq "HK-T22" "$nested" "$REPLY_ROOT"
+  assert_eq "HK-T22" "0|other|wip/10_tickets/20_done/a.md" "$(t22_rel "$root/./sub-wt/wip/x/../10_tickets/20_done/a.md")"
+  # 負のコントロール: 接頭辞が同じだけの別ディレクトリ・作業ツリーでない配下は共有ルートのまま
+  assert_eq "HK-T22" "0|shared|sub-wt-x/wip/a.md" "$(t22_rel "$root/sub-wt-x/wip/a.md")"
+  assert_eq "HK-T22" "0|shared|wip/b.md" "$(t22_rel "$root/wip/b.md")"
+  # 配下の作業ツリーにいるときは、自ツリーが 1・本流が 2 に分かれる
+  hook_read_input <<<"$in_sub"
+  assert_eq "HK-T22" "$sub" "$HOOK_WORKTREE"
+  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "$sub/wip/b.md")"
+  assert_eq "HK-T22" "0|shared|wip/b.md"   "$(t22_rel "$root/wip/b.md")"
+  assert_eq "HK-T22" "0|other|wip/a.md"    "$(t22_rel "$wt2/wip/a.md")"
+  # 相互参照を確かめられない候補（gitdir: は <root>/.git/worktrees/ を指すのに辿れない）→
+  # 本流に倒さず「判定できない」（本流に倒すと、その作業ツリーの中の操作が本流の 0 枚で素通りする）
   mv "$root/.git/worktrees" "$root/.git/worktrees-off"
   printf 'x\n' > "$root/.git/worktrees"
   hook_read_input <<<"$in_wt1"
-  assert_eq "HK-T22" "$root" "$HOOK_WORKTREE"     # 相互参照を辿れないので本流に倒れる
+  assert_eq "HK-T22" "unknown" "$HOOK_WORKTREE_STATE"
   assert_eq "HK-T22" "2|unknown|" "$(t22_rel "$wt2/wip/a.md")"
-  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "$root/wip/b.md")"   # 1 で畳めるものは集合を読まない
+  assert_eq "HK-T22" "2|unknown|" "$(t22_rel "$root/wip/b.md")"
+  # 作業ツリーの集合を読めない（cwd は本流なので作業ツリーは確定している）→ 4 に倒さず「判定できない」
+  hook_read_input <<<"$in_root"
+  assert_eq "HK-T22" "ok" "$HOOK_WORKTREE_STATE"
+  assert_eq "HK-T22" "2|unknown|" "$(t22_rel "$wt2/wip/a.md")"
+  assert_eq "HK-T22" "0|worktree|wip/b.md" "$(t22_rel "$root/wip/b.md")"   # 自ツリー・共有ルートで畳めるものは畳む
   # 負のコントロール: 集合が空（.git/worktrees/ が無い）だけなら「判定できない」にはならない
   rm -f "$root/.git/worktrees"
-  hook_read_input <<<"$in_wt1"
+  hook_read_input <<<"$in_root"
   assert_eq "HK-T22" "1|outside|$wt2/wip/a.md" "$(t22_rel "$wt2/wip/a.md")"
   mv "$root/.git/worktrees-off" "$root/.git/worktrees"
   # 作業ツリーを確定できない（cwd の正規化に失敗）→ 判定できない

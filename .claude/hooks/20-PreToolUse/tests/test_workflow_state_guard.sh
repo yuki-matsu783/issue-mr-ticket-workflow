@@ -236,6 +236,23 @@ case_cross_worktree() {
   bs="${TMP_REPO//\//\\}"
   assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$bs\\wip\\10_tickets\\20_done\\0001-overall-plan.md" Write)"
   assert_eq "SG-T12" "WF301" "$(tfa "$SG_WT" "$bs\\logs\\review-state.json" Write)"
+  # 根の配下に置かれた作業ツリー（`git worktree add ./sub-wt`・隔離が作る <root>/.claude/worktrees/<名前>）も同じ。
+  # 畳み込みを前方一致の順で決めると短いほうの根（本流）に先に畳まれ、
+  # `sub-wt/wip/10_tickets/20_done/…` というルート相対に化けて保護が外れる
+  sg_wt_fixture "$TMP_REPO/sub-wt" w2
+  sg_wt_fixture "$TMP_REPO/.claude/worktrees/nw" w3
+  printf 'ticket\n' > "$TMP_REPO/sub-wt/wip/10_tickets/20_done/0003-y.md"
+  printf 'ticket\n' > "$TMP_REPO/.claude/worktrees/nw/wip/10_tickets/20_done/0004-z.md"
+  assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$TMP_REPO/sub-wt/wip/10_tickets/20_done/0003-y.md" Write)"
+  assert_eq "SG-T12" "WF302" "$(tfa "$SG_WT" "$TMP_REPO/sub-wt/wip/10_tickets/10_doing/9999-new.md" Write)"
+  assert_eq "SG-T12" "WF301" "$(tca "$SG_WT" "echo x > $TMP_REPO/sub-wt/logs/mr.json")"
+  assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$TMP_REPO/.claude/worktrees/nw/wip/10_tickets/20_done/0004-z.md" Edit)"
+  assert_eq "SG-T12" "WF301" "$(tfa "$SG_WT" "$TMP_REPO/.claude/worktrees/nw/logs/review-state.json" Write)"
+  # 作業ツリーの中でも、既存の作業中チケットの更新は通る（畳んだ根から実在を見る）
+  printf 'ticket\n' > "$TMP_REPO/sub-wt/wip/10_tickets/10_doing/0005-w.md"
+  assert_eq "SG-T12" "allow" "$(tfa "$SG_WT" "$TMP_REPO/sub-wt/wip/10_tickets/10_doing/0005-w.md" Edit)"
+  # 負のコントロール: 接頭辞が同じだけの別ディレクトリは本流のパスのまま（保護対象に当たらない）
+  assert_eq "SG-T12" "allow" "$(tfa "$SG_WT" "$TMP_REPO/sub-wt-x/wip/10_tickets/20_done/0003-y.md" Write)"
   # 負のコントロール: 同一リポジトリの外の同名ファイルは通る
   assert_eq "SG-T12" "allow" "$(tfa "$SG_WT" "$SG_OUT/logs/mr.json" Write)"
   assert_eq "SG-T12" "allow" "$(tca "$SG_WT" "echo x > $SG_OUT/logs/mr.json")"

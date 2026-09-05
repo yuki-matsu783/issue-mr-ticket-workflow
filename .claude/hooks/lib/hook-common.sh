@@ -305,7 +305,10 @@ __hc_winpath() {
   [[ "$p" == */ && ${#p} -gt 1 ]] && p="${p%/}"
   REPLY="$p"
 }
-# $1=候補（正規化済み） $2=HOOK_ROOT（正規化済み） → 候補が $2 の worktree なら 0
+# $1=候補（正規化済み） $2=HOOK_ROOT（正規化済み）
+# 戻り 0 = $2 の worktree / 1 = worktree ではない（自称もしていない）
+#      2 = $2 の worktree だと**自称している**（.git の gitdir: が <root>/.git/worktrees/ を指す）のに
+#          相互参照を確かめられない → 呼び手は本流に倒さず「判定できない」にする
 # 「.git ファイルの gitdir: が worktrees/ を指す」だけでは、そのファイルを 1 本置くだけで偽装できる
 # （置き場は wip/tmp/** で承認なしに書ける）。指す先の実在と、そこからの相互参照まで要求する。
 __hc_is_worktree_of() {
@@ -320,11 +323,17 @@ __hc_is_worktree_of() {
     s="$(<"$g")" || s=""
     s="${s//$'\r'/}"; s="${s//$'\n'/}"; s="${s#gitdir:}"; s="${s# }"
     __hc_winpath "$s"; s="$REPLY"
-    if [[ -n "$s" && "${s,,}" == "${root,,}/.git/worktrees/"* && -d "$s" && -f "$s/gitdir" ]]; then
-      n="$(<"$s/gitdir")" || n=""
-      n="${n//$'\r'/}"; n="${n//$'\n'/}"
-      __hc_winpath "$n"; n="$REPLY"
-      [[ "${n,,}" == "${c,,}/.git" ]] && return 0
+    if [[ -n "$s" && "${s,,}" == "${root,,}/.git/worktrees/"* ]]; then
+      # ここまで来た候補は「この根の作業ツリーである」と自称している。
+      # 相互参照が成立すれば作業ツリー、成立しないなら**本流に倒さず「判定できない」**（戻り 2）。
+      # 本流に倒すと、その作業ツリーの中の全操作が本流の 10_doing/ 0 枚で素通りする（静かな無効化）
+      if [[ -d "$s" && -f "$s/gitdir" ]]; then
+        n="$(<"$s/gitdir")" || n=""
+        n="${n//$'\r'/}"; n="${n//$'\n'/}"
+        __hc_winpath "$n"; n="$REPLY"
+        [[ "${n,,}" == "${c,,}/.git" ]] && return 0
+      fi
+      return 2
     fi
   fi
   # 登録側（`<root>/.git/worktrees/*/gitdir`）だけから探す経路は置かない。
@@ -350,9 +359,13 @@ __hc_resolve_worktree() {
     # cwd が空（そもそも渡されていない）のは確定できないことではなく、HOOK_ROOT に倒れるだけ
     if [[ -z "$d" ]]; then HOOK_WORKTREE_STATE="unknown"; __hc_relog; return 0; fi
     if [[ "${d,,}" != "${root,,}" ]]; then
+      local rc
       while [[ -n "$d" ]]; do
-        if [[ -d "$d/.claude" ]] && __hc_is_worktree_of "$d" "$root"; then
-          HOOK_WORKTREE="$d"; __HC_WT_N="$d"; break
+        if [[ -d "$d/.claude" ]]; then
+          rc=0; __hc_is_worktree_of "$d" "$root" || rc=$?
+          if (( rc == 0 )); then HOOK_WORKTREE="$d"; __HC_WT_N="$d"; break; fi
+          # 作業ツリーだと自称しているのに確かめられない → HOOK_ROOT に倒さず「判定できない」（§2）
+          if (( rc == 2 )); then HOOK_WORKTREE_STATE="unknown"; __hc_relog; return 0; fi
         fi
         case "$d" in */*) d="${d%/*}" ;; *) d="" ;; esac
       done
@@ -863,13 +876,19 @@ __hc_under() {
 #     2 共有ルートの配下      → REPLY_KIND=shared
 #     3 作業ツリーの集合のいずれかの配下 → REPLY_KIND=other（REPLY_ROOT がそのツリー）
 #     4 どれの配下でもない    → REPLY_KIND=outside（同一リポジトリの外と確定）
+#   1〜3 の候補は**最長一致**で選ぶ（同じ長さなら 1 > 2 > 3 の順）。前方一致を順に試すと、
+#   根の配下に置かれた作業ツリー（§2 が正当と認める `git worktree add ./sub-wt`、隔離が作る
+#   `<root>/.claude/worktrees/<名前>`）のパスが短いほうの根に先に畳まれ、
+#   `.claude/worktrees/x/wip/10_tickets/20_done/a.md` のような相対パスに化ける。
+#   そうなると §2 の「1〜3 のどれかに畳めたパスはそのツリーの中のパスとして判定に掛ける」が成り立たず、
+#   入れ子の作業ツリーの完了チケット・進行状態が workflow-state-guard の保護から外れる
 #   正規化そのものに失敗した / 作業ツリーを確定できない / 集合を読めなかったときは 4 に倒さず
 #   「判定できない」（REPLY_KIND=unknown）を返す。呼び手は §2「判定できないときの倒し方」に従う。
 #   戻り 0 = 畳めた / 1 = 畳めない（外と確定）/ 2 = 判定できない
 #   REPLY = ルート相対パス（4 では正規化した絶対パス、判定できないときは空）、REPLY_ROOT = そのツリーのルート。
 #   互換: 従来どおり REPLY を stdout にも出す（既存の呼び手は `>/dev/null` して REPLY を読む）
 hook_rel_path() {
-  local p="${1:-}" np root i
+  local p="${1:-}" np root i best="" bkind="" brel=""
   REPLY=""; REPLY_ROOT=""; REPLY_KIND="unknown"
   # どのツリーの話かが決まっていなければ、相対パスの起点そのものが無い
   if [[ "$HOOK_WORKTREE_STATE" != "ok" ]]; then printf '\n'; return 2; fi
@@ -889,19 +908,25 @@ hook_rel_path() {
        if [[ -z "$np" ]]; then REPLY=""; printf '\n'; return 2; fi ;;
   esac
   root="$__HC_WT_N"
-  if __hc_under "$np" "$root"; then
-    REPLY="$__HC_UNDER"; REPLY_ROOT="$root"; REPLY_KIND="worktree"; printf '%s\n' "$REPLY"; return 0
-  fi
+  if __hc_under "$np" "$root"; then best="$root"; bkind="worktree"; brel="$__HC_UNDER"; fi
   root="$__HC_ROOT_N"                       # 共有ルートは HOOK_ROOT に固定（§2）なので同じ正規化結果
-  if __hc_under "$np" "$root"; then
-    REPLY="$__HC_UNDER"; REPLY_ROOT="$root"; REPLY_KIND="shared"; printf '%s\n' "$REPLY"; return 0
+  if (( ${#root} > ${#best} )) && __hc_under "$np" "$root"; then best="$root"; bkind="shared"; brel="$__HC_UNDER"; fi
+  # 集合は「自ツリー・共有ルートで畳めた」ときも見る（入れ子の作業ツリーはそれらより長い根になる）。
+  # 集合を読めないときは、より長い根の有無を確かめられない。ただし既に畳めているものまで
+  # 「判定できない」に倒すと、`.git/worktrees` が壊れた環境で全パスが deny になり機構ごと止まるので、
+  # 畳めていないときだけ「判定できない」を返す（§2 の「集合を読めなかったときは 4 に倒さない」）
+  if hook_worktrees; then
+    for (( i = 0; i < ${#__HC_WT_SET[@]}; i++ )); do
+      root="${__HC_WT_SET[i]}"
+      if (( ${#root} > ${#best} )) && __hc_under "$np" "$root"; then
+        best="$root"; bkind="other"; brel="$__HC_UNDER"
+      fi
+    done
+  elif [[ -z "$best" ]]; then
+    REPLY=""; REPLY_KIND="unknown"; printf '\n'; return 2
   fi
-  if ! hook_worktrees; then REPLY=""; REPLY_KIND="unknown"; printf '\n'; return 2; fi
-  for (( i = 0; i < ${#__HC_WT_SET[@]}; i++ )); do
-    root="${__HC_WT_SET[i]}"
-    if __hc_under "$np" "$root"; then
-      REPLY="$__HC_UNDER"; REPLY_ROOT="$root"; REPLY_KIND="other"; printf '%s\n' "$REPLY"; return 0
-    fi
-  done
+  if [[ -n "$best" ]]; then
+    REPLY="$brel"; REPLY_ROOT="$best"; REPLY_KIND="$bkind"; printf '%s\n' "$REPLY"; return 0
+  fi
   REPLY="$np"; REPLY_ROOT=""; REPLY_KIND="outside"; printf '%s\n' "$REPLY"; return 1
 }

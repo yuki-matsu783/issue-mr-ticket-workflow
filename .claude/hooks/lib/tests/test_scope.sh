@@ -379,6 +379,11 @@ case_hk_t15_git_subcmd_opts() {
     'git branch -f topic HEAD=unknown' 'git branch --force topic HEAD=unknown' \
     'git branch -u origin/topic=unknown' 'git branch --set-upstream-to origin/topic=unknown' \
     'git branch --unset-upstream=unknown' 'git branch --edit-description=unknown' 'git branch -dr origin/topic=unknown' \
+    'git branch topic=unknown' 'git branch topic HEAD=unknown' 'git branch -t topic origin/x=unknown' \
+    'git branch --track topic origin/x=unknown' 'git branch -a topic=unknown' \
+    'git branch --list topic=read' 'git branch --list=read' 'git branch -a --list=read' \
+    'git branch --merged main=read' 'git branch --no-merged main=read' 'git branch --points-at HEAD=read' \
+    'git branch --no-contains HEAD=read' 'git branch --sort=-committerdate=read' \
     'git symbolic-ref HEAD=read' 'git symbolic-ref -q HEAD=read' 'git symbolic-ref --short HEAD=read' \
     'git symbolic-ref HEAD refs/heads/topic=unknown' 'git symbolic-ref -d HEAD=unknown' 'git symbolic-ref --delete HEAD=unknown' \
     'git reflog=read' 'git reflog show=read' 'git reflog show HEAD=read' 'git reflog exists refs/heads/main=read' \

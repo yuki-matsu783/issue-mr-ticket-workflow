@@ -559,6 +559,21 @@ case_worktree_negative() {
   # 正のコントロール: 同じ入力を cwd=本流 で流すと拒否される（無音は判定の不在であって故障ではない）
   assert_eq "WG-T20" "WF201" "$(run_at "$TMP_REPO" Write file_path "$TMP_REPO/.claude/settings.json")"
   assert_eq "WG-T20" "WF205" "$(run_at "$TMP_REPO" Bash command 'rm .claude/settings.json')"
+  # 作業ツリーだと自称しているのに相互参照を確かめられない cwd からの操作は、
+  # 本流の枚数で判定せず WF209 で止める（本流に倒すと、その中の全操作が本流 0 枚で素通りする）
+  set_ticket                          # 本流 0 枚
+  set_wt_ticket "$WG_WT" 0003-implementation
+  mv "$TMP_REPO/.git/worktrees" "$TMP_REPO/.git/worktrees-off"
+  printf 'x\n' > "$TMP_REPO/.git/worktrees"
+  assert_eq "WG-T20" "0" "$(doing_count "$TMP_REPO")"
+  assert_eq "WG-T20" "WF209" "$(run_at "$WG_WT" Write file_path "$WG_WT/apl/app/src/api/a.ts")"
+  assert_eq "WG-T20" "WF209" "$(run_at "$WG_WT" Bash command 'rm .claude/settings.json')"
+  # 読み取り・起動は止めない（判定材料が無くても害が無い側）
+  assert_eq "WG-T20" "allow" "$(run_at "$WG_WT" Read file_path "$WG_WT/apl/app/src/api/a.ts")"
+  # 対照: 相互参照を戻せば作業ツリー側のチケットで判定される（WF209 が「確かめられない状態」に由来する証拠）
+  rm -f "$TMP_REPO/.git/worktrees"
+  mv "$TMP_REPO/.git/worktrees-off" "$TMP_REPO/.git/worktrees"
+  assert_eq "WG-T20" "allow" "$(run_at "$WG_WT" Write file_path "$WG_WT/apl/app/src/api/a.ts")"
 }
 
 # ---- WG-T21: worktree.sh の置き場を指す引数の例外 ----

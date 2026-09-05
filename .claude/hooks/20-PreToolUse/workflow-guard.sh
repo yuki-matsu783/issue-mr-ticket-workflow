@@ -49,9 +49,20 @@ __WG_NO_BYPASS="拒否されたら迂回せず、宣言の範囲内で進める�
 # ---- 制御方式 1: 作業中チケットが無ければ何もしない（記録もしない）----
 hook_doing_ticket
 __WG_NAME="$REPLY"
-[[ -n "$__WG_NAME" ]] || exit 0
 
 __WG_CLASS="$(tool_class "$HOOK_TOOL" "${HOOK_SKILL:-}")"
+
+# 作業ツリーを確定できないときは、数えた枚数そのものが当てにならない（§2「判定できないときの倒し方」）。
+# ここで通すと、作業ツリーだと自称する cwd から本流の 0 枚を数えて全操作が素通りする（静かな無効化）。
+# 読み取り・起動・宣言は判定材料が無くても害が無いので、下の制御方式 8 に任せて通す
+if [[ "${HOOK_WORKTREE_STATE:-ok}" != "ok" ]]; then
+  case "$__WG_CLASS" in
+    spawn|read|declare) ;;
+    *) hook_deny WF209 "cwd（$HOOK_CWD）がどの作業ツリーかを確定できないので、作業中チケットの宣言範囲を当てられない。作業ツリーだと自称するディレクトリ（.git の gitdir: が <ルート>/.git/worktrees/ を指す）で相互参照が壊れている可能性がある。リポジトリのルートか、正しく登録された作業ツリーで実行し直すこと。直らないなら機構の不調としてユーザーに報告すること。$__WG_NO_BYPASS" "$HOOK_TOOL" ;;
+  esac
+fi
+
+[[ -n "$__WG_NAME" ]] || exit 0
 
 # 起動（Agent / Workflow）は常に許可（制御方式 8）。実行者の不一致は subagent-start-check が伝える。
 # 読み取りは matcher の外だが、届いても判定材料が無いので通す

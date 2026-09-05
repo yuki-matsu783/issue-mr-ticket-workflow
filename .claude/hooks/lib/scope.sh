@@ -38,6 +38,8 @@ _SC_GIT_READ_SUBCMDS=' status log diff show branch rev-parse fetch ls-files ls-r
 # 広げるのではなく穴を閉じるための規則で、対象は 6 件に限る（それ以外のサブコマンドの扱いは変えない。網羅は主張しない）
 _SC_GIT_BRANCH_WRITE_OPTS=' -d -D --delete -m -M --move -c -C --copy -f --force -u --set-upstream-to --unset-upstream --edit-description '
 _SC_GIT_BRANCH_WRITE_CHARS='dDmMcCfu'   # 束ねた短オプション（-dr）でも上と同じ判定にするための 1 文字集合
+# `git branch` で次の語を値として取るオプション（その語はブランチ名ではないので位置引数に数えない）
+_SC_GIT_BRANCH_VALUE_OPTS=' --contains --no-contains --merged --no-merged --points-at --sort --format --color --abbrev '
 _SC_GIT_REFLOG_READ_SUBS=' show exists '
 
 # ---- 上限設定の読み込み（§8）----
@@ -376,6 +378,7 @@ _sc_web_add_out() { # $1=値 $2=本体の出力先なら 1（既定はログ等�
 #   4 reflog は show・exists だけ read / 5 read 形でも --output=<file> は write / 6 -c・--config-env は一律 unknown
 _sc_classify_git() {
   local i="$1" sub="${CP_SUBCMD[$i]:-}" t j n cfg=0 next="" take=0
+  local __sc_np=0 __sc_list=0 __sc_take=0 __sc_dd=0 __sc_skip=""
   local -a ops=() outs=()
   n=${#REPLY_ARGS[@]}
   # 規則 6: グローバル位置（サブコマンドより前）に -c / --config-env があれば設定名を見ずに一律 unknown。
@@ -398,17 +401,32 @@ _sc_classify_git() {
     worktree)      # 規則 1: list だけ read（作成・削除・移動は提供コマンド worktree.sh を通す）
       if [[ "$next" == list ]]; then SC_CLASS="read"; else SC_CLASS="unknown"; fi
       return 0 ;;
-    branch)        # 規則 2: 書き込みオプションがあれば unknown
+    branch)        # 規則 2: 書き込みオプション、または位置引数（ブランチ名）があれば unknown
+      # 位置引数を数えるのは、`git branch <名前>` / `git branch <名前> <始点>` / `git branch -t <名前> origin/x`
+      # がオプション無しでブランチを作るため。オプションだけを見ると、同じ結果を生む
+      # `git checkout -b` / `git switch -c`（どちらも unknown）と扱いが割れる。
+      # 一覧の絞り込み（`--list <pattern>`）だけは read に戻す
       SC_CLASS="read"
+      __sc_np=0; __sc_list=0; __sc_take=0; __sc_dd=0; __sc_skip="$sub"
       for t in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
-        if [[ "$_SC_GIT_BRANCH_WRITE_OPTS" == *" $t "* || "$t" == --set-upstream-to=* ]]; then SC_CLASS="unknown"; break; fi
-        if [[ "$t" =~ ^-[A-Za-z]+$ && "$t" != --* ]]; then
-          for ((j = 1; j < ${#t}; j++)); do
-            [[ "$_SC_GIT_BRANCH_WRITE_CHARS" == *"${t:j:1}"* ]] && { SC_CLASS="unknown"; break; }
-          done
-          [[ "$SC_CLASS" == unknown ]] && break
+        if (( __sc_take )); then __sc_take=0; continue; fi
+        if (( __sc_dd == 0 )); then
+          if [[ "$t" == "--" ]]; then __sc_dd=1; continue; fi
+          if [[ "$_SC_GIT_BRANCH_WRITE_OPTS" == *" $t "* || "$t" == --set-upstream-to=* ]]; then SC_CLASS="unknown"; break; fi
+          if [[ "$t" =~ ^-[A-Za-z]+$ && "$t" != --* ]]; then
+            for ((j = 1; j < ${#t}; j++)); do
+              [[ "$_SC_GIT_BRANCH_WRITE_CHARS" == *"${t:j:1}"* ]] && { SC_CLASS="unknown"; break; }
+            done
+            [[ "$SC_CLASS" == unknown ]] && break
+          fi
+          [[ "$t" == --list || "$t" == -l ]] && __sc_list=1
+          if [[ "$_SC_GIT_BRANCH_VALUE_OPTS" == *" $t "* ]]; then __sc_take=1; continue; fi
+          [[ "$t" == -* ]] && continue
+          if [[ -n "$__sc_skip" && "$t" == "$__sc_skip" ]]; then __sc_skip=""; continue; fi
         fi
-      done ;;
+        __sc_np=$(( __sc_np + 1 ))
+      done
+      if [[ "$SC_CLASS" == read ]] && (( __sc_np > 0 && __sc_list == 0 )); then SC_CLASS="unknown"; fi ;;
     symbolic-ref)  # 規則 3: 削除形か、位置引数 2 つ以上（<name> <ref> の代入形）なら unknown
       SC_CLASS="read"
       (( ${#ops[@]} >= 2 )) && SC_CLASS="unknown"

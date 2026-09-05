@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-06T04:34:23+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "cbd6fb5"
 ---
 
 # 0026 S9 参照更新と全体検査

@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "基準どおり（追記が 1 文�
 allow:
   write: ["wip/**", ".claude/docs/00_requirement/hook機構.md"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T12:10:48+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b6538ac"
 ---
 
 # 0005 hook機構.md の先頭へ §0〜§5.2 を取り込む（前半）

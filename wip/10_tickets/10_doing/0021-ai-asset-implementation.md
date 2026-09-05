@@ -47,7 +47,7 @@ workflow-guard の宣言範囲の強制と workflow-state-guard の保護対象�
 - 変更直後に `commit.sh` を 1 回通した（d00d458）。制御方式 5・6 の経路で自分は止まらなかった
 - 全件テスト（`--timeout 300`、1 本のみ）= `OK: 27 本 / 221 件`。**退行 0 件で 1 回で全通し**
 - レポート `wip/30_reports/0018-ai-asset-implementation.md` に e19〜e22・D13・D14・R15〜R18 を追記し、HTML の対も更新。`check-html.sh` 7 項目通過（id 41 件 / リンク 34 件）
-- 次: DoD の根拠を埋めてコミットし、`ticket.sh complete 0021`
+- DoD 9 件すべてに根拠を記入し、成果物をコミットした（d00d458 / 3dc58da）。S4 の作業はここで完了
 
 ### うまくいったこと
 

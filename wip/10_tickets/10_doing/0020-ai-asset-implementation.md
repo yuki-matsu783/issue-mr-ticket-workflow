@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/hooks/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-05T21:53:41+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "6a12e35"
 ---
 
 # 0020 S3 中核 b: cmdpos.sh の正規化 2 件と scope.sh の分類の穴 6 件

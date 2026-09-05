@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/skills/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-06T02:31:49+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "748a849"
 ---
 
 # 0024 S7 提供コマンド b: ticket.sh の TK009・push.sh の項目 5・boundary.sh の切れ目判定

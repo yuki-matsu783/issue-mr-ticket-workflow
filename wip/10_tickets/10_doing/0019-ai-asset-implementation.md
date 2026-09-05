@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/hooks/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-05T19:40:46+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9059a0f"
 ---
 
 # 0019 S2 中核 a: hook-common.sh の作業ツリーの三分・集合・畳み込み・共有ルート

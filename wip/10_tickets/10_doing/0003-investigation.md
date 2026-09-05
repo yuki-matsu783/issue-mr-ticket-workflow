@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T11:48:52+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a606eab"
 ---
 
 # 0003 hook機構.md の章番号の連続性と前方参照の現状把握

@@ -1,7 +1,7 @@
 ---
 type: plan
 title: 0016 AI アセット実装・テスト計画 — 作業ツリーの三分と分類の穴の閉塞、worktree.sh の新設、並列実施の発効判定
-description: issue #50 の設計（0012〜0017）が確定させた要件・仕様から機械テスト ID 50 件を抜き出し、設定・定義 → 中核（hook-common / cmdpos / scope / 拒否側フック 2 本 / 案内側フック 4 本）→ 中核の機械テスト → 提供コマンド（worktree.sh 新設・ticket.sh / push.sh / boundary.sh 改修）→ スキル・ルール・エージェント → 参照更新 の固定順で 10 ステップに割り付け、許可範囲案・参照更新一覧・依存するテスト・ロックアウト対策を定める。並列実施の発効は DDR i0050-08 の解禁の条件を実測で判定する専用ステップに置く
+description: issue #50 の設計（0012〜0017）が確定させた要件・仕様から機械テスト ID 50 件を抜き出し、設定・定義 → 中核（hook-common / cmdpos / scope / 拒否側フック 2 本 / 案内側フック 4 本）→ 中核の機械テスト → 提供コマンド（worktree.sh 新設・ticket.sh / push.sh / boundary.sh 改修）→ スキル・ルール・エージェント → 参照更新 の固定順で 10 ステップに割り付け、許可範囲案・参照更新一覧・依存するテスト・ロックアウト対策を定める。並列実施の発効は DDR i0050-08 の解禁の条件を実測して判定を提案する専用ステップに置く（発効そのものはこのフェーズで行わず、設計反映へ渡す）
 tags: [plan, ai-asset-implementation-plan, issue-50]
 keywords: [作業ツリーの三分, HOOK_SHARED_ROOT, hook_rel_path, 分類の穴, worktree.sh, 負のコントロール, ロックアウト対策, 発効の判定, 参照更新, テスト ID の割付]
 ---
@@ -21,7 +21,7 @@ keywords: [作業ツリーの三分, HOOK_SHARED_ROOT, hook_rel_path, 分類の�
 設計は「並列実施は採用するが、**発効は委ねた先を作業ツリーで動かす手段が確かめられるまで保留**する」（DDR `i0050-08`）で終わっている。そこでこの計画は 2 つに分ける。
 
 1. **発効に依存しない部分を確実に作る**（S1〜S9）: 作業ツリーの三分・進行状態の共有ルート一本化・保護漏れの閉塞・分類の穴・`worktree.sh` 本体・採番と push の本流限定。これらは作業ツリーを **1 つだけ**使う運用（セッション自身が `EnterWorktree` で移る）でそのまま効き、並列実施の可否と独立に価値がある
-2. **発効の可否を判定する実効性の確認を専用ステップに置く**（S10）: `i0050-08` の解禁の条件 1（委ねた先を作業ツリーで動かす手段）と条件 2（その経路の書き込みに `workflow-guard` の判定が効くことを機械テストで固定）を突き合わせ、満たされたときだけ発効へ進む。満たされなければ保留を据え置き、`.claude/settings.json` に `worktree.baseRef` を置かない
+2. **発効の可否を判定する実効性の確認を専用ステップに置く**（S10）: `i0050-08` の解禁の条件 1（委ねた先を作業ツリーで動かす手段）と条件 2（その経路の書き込みに `workflow-guard` の判定が効くことを機械テストで固定）を突き合わせ、**実測の結果と判定の提案を記録する**。**このフェーズでは発効しない**（`.claude/settings.json` の `worktree.baseRef` は実測のために一時的に置き、判定が肯定でも否定でも取り除く）。理由: 条件 1 の第 2 択は「手段 2 の 3 点がすべて確かめられ、**かつ `worktree.sh` の管理対象の定義と `merge` の前提検査 6 をそれに合わせて改めた**」（`10_spec/skills/00-workflow-issue-mr-driven.md`「解禁の条件」1）であり、後半は `worktree.sh`（S6 の成果）と `20-common-step-worktree` 仕様（`.claude/docs/**` = 実装フェーズの `deny`）の変更を要する。肯定側で発効まで進むと実装フェーズの範囲を越えるので、**発効に要る改訂はフィードバック計画（0028）→ 設計反映フェーズへ渡す**
 
 **A1-6 を閉じる機械テストが最重要**である。調査（0004）の実測が空振りした原因は「どの作業ツリーにも作業中チケットが 0 枚で、`workflow-guard` と `workflow-diff-check` が入口で `exit 0` した」ことだった。設計はこれを踏まえて `WG-T19` / `WG-T20` / `DC-T08` / `DC-T09` / `SA-T10` / `SP-T09` を **負のコントロールをテスト自身が作る形**（作業中チケットの枚数を assert してから判定を呼ぶ）で置いている。この形を崩さずに実装する。
 
@@ -44,13 +44,13 @@ keywords: [作業ツリーの三分, HOOK_SHARED_ROOT, hook_rel_path, 分類の�
 | S3 | 中核 b: `cmdpos.sh` の正規化 2 件と `scope.sh` の分類の穴 6 件 | 0020 | 0019 |
 | S4 | 中核 c: 拒否側フック 2 本（`workflow-guard` / `workflow-state-guard`）と **A1-6 の機械テスト** | 0021 | 0019, 0020 |
 | S5 | 中核 d: 案内側フック 4 本と `post-push-*` の共有ルート参照、**A5 の機械テスト** | 0022 | 0019, 0020 |
-| S6 | 提供コマンド a: `20-common-step-worktree` と `worktree.sh` の新設 | 0023 | 0020 |
+| S6 | 提供コマンド a: `20-common-step-worktree` と `worktree.sh` の新設 | 0023 | 0020, 0021 |
 | S7 | 提供コマンド b: `ticket.sh` / `push.sh` / `boundary.sh` の改修 | 0024 | 0023 |
 | S8 | スキル・ルール・エージェントと eval 定義 | 0025 | 0023, 0024 |
 | S9 | 参照更新と全体検査 | 0026 | 0018〜0025 |
-| S10 | 並列実施の発効の可否の判定（実効性の確認） | 0027 | 0026 |
+| S10 | 並列実施の発効の可否の判定（実効性の確認と提案。**発効はしない**） | 0027 | 0026 |
 
-理由: (1) `hook-common.sh` の `hook_rel_path` は**書く側と読む側が往復する**値（畳み込み結果と「判定できない」の戻り値）なので、呼び手 3 本の分岐を同じチケット（S2）に含める。(2) `scope.sh` / `cmdpos.sh`（S3）は全フックが読むので、フック本体（S4・S5）より先に固める。(3) `worktree.sh`（S6）は `ticket.sh` / `push.sh` / `boundary.sh` が参照する「本流かどうかの判定」と `list` を持つので S7 より前。(4) 発効の判定（S10）は全テストが通った後でしか意味を持たない。
+理由: (1) `hook-common.sh` の `hook_rel_path` は**書く側と読む側が往復する**値（畳み込み結果と「判定できない」の戻り値）なので、呼び手 3 本の分岐を同じチケット（S2）に含める。(2) `scope.sh` / `cmdpos.sh`（S3）は全フックが読むので、フック本体（S4・S5）より先に固める。(3) `worktree.sh`（S6）は `ticket.sh` / `push.sh` / `boundary.sh` が参照する「本流かどうかの判定」と `list` を持つので S7 より前。S6 の DoD は `WG-T21`（`worktree.sh` の置き場引数の例外）の再確認を含むが、そのテストを新設するのは S4 なので **S6 の先行に S4（0021）も入れる**。(4) 発効の判定（S10）は全テストが通った後でしか意味を持たない。
 
 ## 検証
 
@@ -75,11 +75,11 @@ keywords: [作業ツリーの三分, HOOK_SHARED_ROOT, hook_rel_path, 分類の�
 | 0020 | ai-asset-implementation | S3 中核 b: `cmdpos.sh` の正規化と `scope.sh` の分類の穴 | 0019 | opus | 不要 | 要 |
 | 0021 | ai-asset-implementation | S4 中核 c: 拒否側フック 2 本と A1-6 の機械テスト | 0019, 0020 | opus | 不要 | 要 |
 | 0022 | ai-asset-implementation | S5 中核 d: 案内側フック 4 本・`post-push-*` と A5 の機械テスト | 0019, 0020 | opus | 不要 | 要 |
-| 0023 | ai-asset-implementation | S6 `20-common-step-worktree` と `worktree.sh` の新設 | 0020 | opus | 不要 | 要 |
+| 0023 | ai-asset-implementation | S6 `20-common-step-worktree` と `worktree.sh` の新設 | 0020, 0021 | opus | 不要 | 要 |
 | 0024 | ai-asset-implementation | S7 `ticket.sh` / `push.sh` / `boundary.sh` の改修 | 0023 | opus | 不要 | 要 |
 | 0025 | ai-asset-implementation | S8 スキル・ルール・エージェントと eval 定義 | 0023, 0024 | opus | 不要 | 要 |
 | 0026 | ai-asset-implementation | S9 参照更新と全体検査 | 0018〜0025 | opus | 不要 | 要 |
-| 0027 | ai-asset-implementation | S10 並列実施の発効の可否の判定（実効性の確認） | 0026 | **メインエージェント** | 不要 | 要 |
+| 0027 | ai-asset-implementation | S10 並列実施の発効の可否の判定（実効性の確認と提案。**発効はしない**） | 0026 | **メインエージェント** | 不要 | 要 |
 | 0028 | feedback-plan | 次の計画チケット（フィードバック計画） | 0018〜0027 | メインエージェント | 不要 | 不要 |
 
 実行者・レビュー要否は全体計画書「方針」の差分 3 に従う（人間レビューは行わず、フェーズごとに `claude-fable-5-1` の敵対的レビューを 1 回。上限に達した後の指摘は追加チケットにせず切れ目のコメントに転記する）。
@@ -124,9 +124,9 @@ keywords: [作業ツリーの三分, HOOK_SHARED_ROOT, hook_rel_path, 分類の�
 | 21 | `.claude/skills/10-task-investigation-exec/SKILL.md` | 更新 | `10-task-investigation-exec` 仕様（並列区間のレポート追記規約・訂正の節・作業ディレクトリの決まり） | S8 |
 | 22 | `.claude/agents/task-executor.md` | 更新 | `task-executor` 仕様（並列時の前提・`isolation` の条件・作業している場所が違うときは始めない） | S8 |
 | 23 | `.claude/rules/work-defaults.md` | 更新 | `00_requirement/rules/work-defaults.md` メインフロー（**並列してよいか**の列・計画タスクは直列・既定は並列にしない） | S8 |
-| 24 | `.claude/evals/20-common-step-worktree.md` | **新規** | `WT-E01`〜`WT-E03` | S8 |
+| 24 | `.claude/evals/20-common-step-worktree.md` | **新規** | `WT-E01`〜`WT-E03` | S6 |
 | 25 | `.claude/evals/00-workflow-issue-mr-driven.md` / `task-executor.md` / `10-task-investigation-exec.md` | 更新 | `WFD-E07`〜`E10`／`TXE-E02`・`E07`〜`E09`／`IVE-E05`・`E06` | S8 |
-| 26 | `.claude/settings.json` | 更新（**条件付き**） | `フック共通仕様` §1「`settings.json` のフック以外のキー」（`worktree.baseRef: "head"`。**置く条件 = 隔離を成果を残す作業に使うと決めたとき**。S10 の判定が肯定でなければ置かない） | S10 |
+| 26 | `.claude/settings.json` | 更新（**一時的・最終差分は 0**） | `フック共通仕様` §1「`settings.json` のフック以外のキー」（`worktree.baseRef: "head"` を **S10 の実測のあいだだけ**置き、判定が肯定でも否定でも取り除く。発効はこのフェーズで行わない） | S10 |
 
 削除するアセットは無い。
 
@@ -150,7 +150,8 @@ keywords: [作業ツリーの三分, HOOK_SHARED_ROOT, hook_rel_path, 分類の�
 - **`ops` は `build-test` と `hook-test` を両方宣言する**。`.claude/hooks/**/tests/*.sh` と `.claude/skills/*/scripts/tests/*.sh` は `hook-test`、`commands.build-test` の列挙とリポジトリ直下の `tests/*.sh` は `build-test` に分類されるので、片方だけだと `run-tests.sh` が `TR006` か `WF204` で止まる
 - 型（`ai-asset-implementation`）の上限は `allow: [".claude/skills/**", ".claude/hooks/**", ".claude/rules/**", ".claude/agents/**", ".claude/settings.json", ".claude/evals/**", "CLAUDE.md", ".gitattributes"]` / `deny: [".claude/docs/**", "apl/**"]`。**`.gitignore` は現状この `allow` に無い**ので、S1 が `scope-limits.json` を先に直さないと `.gitignore` に書けない（S1 の中の順序: `scope-limits.json` → `.gitignore`）
 - S9 だけ `.claude/**` を丸ごと宣言する。参照更新は変更したすべてのアセットの本文に及ぶため、対象を先に列挙できない
-- S1 が `.gitignore` を宣言に含めるのは、**削除・追記も書き込みとして判定される**ため（宣言に無いと WF205 で止まる）
+- S1 が `.gitignore` を宣言に含めるのは、**削除・追記も書き込みとして判定される**ため（宣言に無いと WF201 で止まる）
+- **起票済みチケット 0018〜0027 の `allow` はこの表と一致している**（0029 で突き合わせて訂正した。訂正前は 10 枚とも `ops` が `["hook-test"]` だけで `run-tests.sh` が `TR006` で止まる状態、0018・0023・0025 は `write` が作業対象を覆えていない状態だった）。表を直したら**同じ場で未着手チケットの frontmatter も直す**
 
 ## テスト方針
 
@@ -240,8 +241,8 @@ comm -12 wip/tmp/ids-old.txt wip/tmp/ids-touched.txt | wc -l                    
 | S6 | **提供コマンド a（新設）**。`20-common-step-worktree/SKILL.md` と `scripts/worktree.sh`（本流かどうかの判定・共通の入口・`add` / `list` / `merge` / `remove`・合流の記録 `logs/worktree-merges.jsonl`・`WT001`〜`WT008`）と `scripts/tests/test_worktree.sh`（`WT-T01`〜`WT-T12`）、eval 定義 `WT-E01`〜`WT-E03`。**「本流かどうかの判定」はこのスキルの仕様が正で、S7 の 3 コマンドはこれを作り直さず共有する** | 0023 | 0020 | — |
 | S7 | **提供コマンド b（改修）**。①`ticket.sh create` に `TK009`（作業ツリーでは採番しない）②`push.sh` の push 前チェックに項目 5（本流限定・スキップ不可）③`boundary.sh` の `last_task` を既出の切れ目の補集合で決める・`at_boundary` を全作業ツリーで見る（管理対象が 0 なら `worktree.sh` を呼ばない）。**変更後の自分のコマンドで自分をコミット・完了させる**（下のロックアウト対策） | 0024 | 0023 | **要** |
 | S8 | **スキル・ルール・エージェント**。`00-workflow-issue-mr-driven`（手順 2b の**発効の保留**・2c の合流・3-0・参照ナレッジ）／`20-common-step-ticket`／`20-common-step-commit-push`／`10-task-investigation-exec`（並列区間の追記規約・訂正の節）／`agents/task-executor.md`／`.claude/rules/work-defaults.md`（**並列してよいか**の列・計画タスクは直列・既定は並列にしない）／eval 定義 4 ファイル | 0025 | 0023, 0024 | — |
-| S9 | **参照更新と全体検査**。下の「参照更新一覧」の 7 行を検索して消し込む／プレースホルダ（`{{ }}`・`TODO`・`TBD`）0 件／frontmatter の必須項目／`run-tests.sh --ids` の全件実行で `FAIL` 0 件と ID の重複なし／実装結果レポートの逸脱一覧を締める | 0026 | 0018〜0025 | — |
-| S10 | **並列実施の発効の可否の判定**。①解禁の条件 2 が `WG-T19`/`WG-T20`/`DC-T08`/`DC-T09`/`SA-T10`/`SP-T09` の PASS で満たされていることを確認する ②解禁の条件 1 を実測する（`.claude/settings.json` に `worktree.baseRef: "head"` を**一時的に**置き、`isolation: "worktree"` でサブエージェントを 1 本起動して 3 点 — 分岐元が呼び出し元の `HEAD` か／ブランチ名の規約／**成果を載せたまま作業ツリーが消えないか** — を観測する）③判定が肯定なら `worktree.baseRef` を残し、否定なら**キーを取り除いて**保留を据え置く ④どちらでも結果を実装結果レポートに書き、`.claude/docs/` は触らない（DDR `i0050-08` の書き換えは設計反映フェーズ） | 0027 | 0026 | **要**（`settings.json`） |
+| S9 | **参照更新と全体検査**。下の「参照更新一覧」の 7 行を検索して消し込む／プレースホルダ（`{{ }}`・`TODO`・`TBD`）0 件／frontmatter の必須項目／`run-tests.sh --ids` の全件実行で `FAIL` 0 件と ID の重複なし／本 issue の残りが回せることの確認（`commit.sh` / `boundary.sh status` / `ticket.sh next` / `run-tests.sh` の **4 経路**。`push.sh` は項目 2 と `ops` の両方で通らないので実行せず `CP-T12` で代える）／実装結果レポートの逸脱一覧を締める | 0026 | 0018〜0025 | — |
+| S10 | **並列実施の発効の可否の判定**。①解禁の条件 2 が `WG-T19`/`WG-T20`/`DC-T08`/`DC-T09`/`SA-T10`/`SP-T09` の PASS で満たされていることを確認する ②解禁の条件 1 を実測する（`.claude/settings.json` に `worktree.baseRef: "head"` を**一時的に**置き、`isolation: "worktree"` でサブエージェントを 1 本起動して 3 点 — 分岐元が呼び出し元の `HEAD` か／ブランチ名の規約／**成果を載せたまま作業ツリーが消えないか** — を観測する）③**判定が肯定でも否定でも `worktree.baseRef` は取り除く**（このステップの成果は実測の記録と判定の**提案**であって、発効ではない） ④結果と提案を実装結果レポートに書き、**発効に要る改訂**（解禁の条件 1 の第 2 択の後半 = `worktree.sh` の管理対象の定義と `merge` の前提検査 6／`10_spec/skills/00-workflow-issue-mr-driven.md`「解禁の条件」と `20-common-step-worktree` 仕様）を**フィードバック計画（0028）→ 設計反映フェーズへ渡す**。`.claude/docs/` は触らない（実装フェーズは `deny`） | 0027 | 0026 | **要**（`settings.json`） |
 
 ## 参照更新一覧
 
@@ -253,7 +254,7 @@ comm -12 wip/tmp/ids-old.txt wip/tmp/ids-touched.txt | wc -l                    
 | 2 | （新規）作業ツリーの共通ステップ | `20-common-step-worktree` | `grep -rn '20-common-step-worktree' --include="*.md" --include="*.sh" .claude/skills/ .claude/agents/ .claude/rules/ .claude/evals/` | アセット側 **0 件**（docs 側は 25 ファイル） | `.claude/docs/**`（設計の正史。実装は触らない） | **アセット側で 5 ファイル以上**: `20-common-step-worktree/SKILL.md`（自身）・`00-workflow-issue-mr-driven/SKILL.md`・`10-task-investigation-exec/SKILL.md`・`20-common-step-ticket/SKILL.md`・`20-common-step-commit-push/SKILL.md`・`agents/task-executor.md`・`evals/20-common-step-worktree.md` |
 | 3 | （新規）提供コマンド | `worktree.sh` | `grep -rn 'worktree\.sh' --include="*.md" --include="*.sh" .claude/` | アセット側 **0 件**（docs 側は 13 ファイル） | `.claude/docs/**` | **アセット側で 6 ファイル以上**: 実体・テスト・SKILL.md・`boundary.sh`（`at_boundary` の `list` 呼び出し）・`00-workflow-issue-mr-driven/SKILL.md`・eval 定義 |
 | 4 | （新規）共有ルート | `HOOK_SHARED_ROOT` | `grep -rn 'HOOK_SHARED_ROOT' --include="*.sh" .claude/` | アセット側 **0 件**（docs 側は 4 ファイル） | `.claude/docs/**` | **`hook-common.sh` の定義 1 か所 + 参照 22 行以上**（#1 の移し先）。`test_hook_common.sh` にも現れる |
-| 5 | `WF207` の意味（作業中 2 枚） | `WF207`（**1 作業ツリーあたり** 2 枚） | `grep -rn 'WF207' --include="*.sh" .claude/` | **5 行 / 2 ファイル**（`workflow-guard.sh` 2 行・`test_workflow_guard.sh` 3 行） | なし（番号は変わらない。変わるのは**メッセージの文言**） | **同じ 5 行が残り、`workflow-guard.sh` の `hook_deny WF207 ...` の文言に「この作業ツリーで」が入る**。番号の削除・追加は起きない |
+| 5 | `WF207` の意味（作業中 2 枚） | `WF207`（**1 作業ツリーあたり** 2 枚） | `grep -rn 'WF207' --include="*.sh" .claude/` | **6 行 / 2 ファイル**（`workflow-guard.sh` 2 行 = 113・138 / `test_workflow_guard.sh` 4 行 = 83・239・240・241。2026-09-05 に実測） | なし（番号は変わらない。変わるのは**メッセージの文言**） | **同じ 6 行が残り、`workflow-guard.sh` の `hook_deny WF207 ...` の文言に「この作業ツリーで」が入る**。番号の削除・追加は起きない |
 | 6 | `TK001–008` | `TK001–009` | `grep -rn 'TK00[0-9]' --include="*.sh" --include="*.md" .claude/ \| grep -v '^\.claude/docs'` | アセット側 **53 行** | `.claude/docs/**`（台帳の正） | **54 行以上**（`ticket.sh` の `TK009` と `test_ticket.sh` の `TICKET-T13` 分が増える）。既存 53 行は減らない |
 | 7 | （新規）合流の記録 | `logs/worktree-merges.jsonl` | `grep -rn 'worktree-merges' --include="*.sh" --include="*.md" .claude/` | アセット側 **0 件**（docs 側は 4 ファイル） | `.claude/docs/**` | **アセット側で 3 か所以上**: `worktree.sh`（書く）・`test_worktree.sh`（`WT-T04`/`WT-T06` で読む）・`20-common-step-worktree/SKILL.md` |
 
@@ -286,22 +287,30 @@ comm -12 wip/tmp/ids-old.txt wip/tmp/ids-touched.txt | wc -l                    
 
 中核（入口ガード・フック・共通ライブラリ・`settings.json`・`scope-limits.json`）は、壊すと以後どの操作もできなくなる。**1 つ変えるごとに、そのステップが変えた判定を実際に踏む操作を 1 回実行する**。対策ごとに「どのテスト ID が、変更したどの判定を通るか」を書く。テスト ID と判定の対応が付かないものは対策として数えない。
 
+**復旧の共通手順（`git checkout` は使えない）**: `checkout` は `scope.sh` の `_SC_READ_ONLY_CMDS` にも `_SC_GIT_READ_SUBCMDS` にも無く、分類が `unknown` のまま `WF204` で拒否される（`.claude/hooks/lib/scope.sh` の `_SC_GIT_READ_SUBCMDS` に `checkout` が無いことを 2026-09-05 に実測）。`scope-limits.json` が壊れた `WF210` の状態でも提供コマンド以外の実行は拒否されるので、**中核を壊した後に `git checkout` で戻すことはできない**。復旧は次の 2 手で行う。
+
+1. `git show <base_sha>:<ルート相対パス>` で基準点の内容を取り出す（`show` は `_SC_GIT_READ_SUBCMDS` にあるので `read` として通る。リダイレクトは書き込み扱い = `WF205` になるので**付けない**。出力をそのまま読む）
+2. **Write ツール**でそのパスへ書き戻す（Bash を介さないので `cmdpos.sh` / `scope.sh` が壊れていても通る。書き込み判定は `workflow-state-guard` と `workflow-guard` だけ）
+
+書き戻し先が**そのチケットの `allow.write` に入っていること**が前提である。各ステップの書き戻し先と宣言の対応は下の表の「復旧手順」列に書いた。`.claude/hooks/config/**` と `.claude/settings.json` だけは `common.confirm` なので、書き戻しにも判定順 (4) の `WF203`（ask）が入る（ヘッドレスでは deny になり得る。下の「保留した点」P5）。
+
 | ステップ | 確かめる操作（変更箇所を実際に踏むもの） | 復旧手順 |
 |---|---|---|
-| S1 | ①`HK-T02`（`run-tests.sh --filter '*config_integrity*'`）が `scope-limits.json` を**実際に読んで** `scope_classify` を走らせる ②`.gitignore` 変更後に `wip/` の一時ファイルへの `Write` を 1 回行い、WF205 にならないこと（`scope.sh` の判定順 (2) を踏む） | `git checkout <base_sha> -- .claude/hooks/config/scope-limits.json .gitignore`。`scope-limits.json` が壊れると `WF210`（形式不正）で**全書き込みが止まる**ので、編集は 1 回にまとめ、直後に `jq -e . .claude/hooks/config/scope-limits.json` で構文を確かめる |
-| S2 | ①`HK-T21`・`HK-T22`（`hook_rel_path` の 4 段と `HOOK_SHARED_ROOT` を直接踏む）②変更直後に `wip/tmp/` へ `Write` を 1 回（`workflow-guard` の書き込み判定 = 畳み込みの呼び手を踏む）③`Read` を 1 回（`hook_read_input` を踏む）。**`hook-common.sh` は全フックが `source` するので、構文エラー 1 つで機構全体が fail-open か fail-closed に倒れる** | `git checkout <base_sha> -- .claude/hooks/lib/hook-common.sh`。読み込めない状態になると登録ラッパーが `WFx09` を出す（`HK-T09`）。それも出ないときは `WORKFLOW_ENFORCE=0` ではなく**基準点への戻し**で復旧する |
-| S3 | ①`HK-T15`（限定適用 6 件を閉じる側と通す側の対で踏む）②`HK-T05`（`cmdpos.sh` の正規化 2 件を負のコントロール付きで踏む）③変更直後に `git worktree list` と `git branch -a` を 1 回ずつ実行し、**`read` として通る**こと（通す向きの回帰）④`git status --porcelain` を 1 回（既存の `read` 分類が落ちていないこと） | `git checkout <base_sha> -- .claude/hooks/lib/scope.sh .claude/hooks/lib/cmdpos.sh`。**`cmdpos.sh` が壊れると `bash` で始まるすべてのコマンドの判定が崩れ、復旧のための `git checkout` 自体が拒否され得る**。`cmdpos.sh` の編集は Edit ツールで行い（Bash を介さない）、編集直後に `bash -n .claude/hooks/lib/cmdpos.sh` を回す |
-| S4 | ①`WG-T19`・`WG-T20`（作業ツリーごとの宣言範囲の強制。負のコントロール込み）②`WG-T21`・`WG-T14`（提供コマンドの引数パスの例外と通常判定）③`SG-T12`・`SG-T13`（保護対象の畳み込みと `WF309`）④変更直後に **`bash .claude/skills/20-common-step-commit-push/scripts/commit.sh` を 1 回**（提供コマンドの経路 = 制御方式 5・6 を踏む） | `git checkout <base_sha> -- .claude/hooks/20-PreToolUse/`。`workflow-guard` が誤って全 deny になると commit も止まるので、**`commit.sh` を通す確認をテストの直後に必ず入れる**。止まったら Edit ツールでフックを基準点の内容に戻す（Bash を介さない経路が残る） |
-| S5 | ①`DC-T08`・`DC-T09`（差分の基準点）②`SA-T10`・`SA-T11`（対象チケットの作業ツリー）③`SP-T09`（実行者照合）④`SE-T11`（現在地）⑤変更直後に `Write` を 1 回して `workflow-diff-check` の PostToolUse が回ること（案内側は deny を出せないので**止まらない**が、`WF605` が誤爆していないかを `logs/hooks/decisions.jsonl` で見る） | `git checkout <base_sha> -- .claude/hooks/22-PostToolUse/ .claude/hooks/12-SubagentStart/ .claude/hooks/13-SubagentStop/ .claude/hooks/00-SessionStart/`。案内側は拒否しないのでロックアウトは起きにくいが、`session-start` が壊れるとセッション開始のたびに誤った現在地が入る |
-| S6 | ①`WT-T01`〜`WT-T12`（`worktree.sh` を実際に走らせる）②`WG-T21`（`worktree.sh` の置き場引数が `workflow-guard` を通ること。S4 で入れた例外を S6 の実体で踏み直す） | `git checkout <base_sha> -- .claude/skills/20-common-step-worktree/`。新設なので既存経路を壊さないが、`worktree.sh` が誤って本流を消す事故だけは避ける（`remove` は `--force` でも未コミットを消さない仕様を先にテストで固定する） |
-| S7 | ①**変更した `ticket.sh` で自分のチケットを `complete` する**（`TK009` を足した `create` の分岐が `start` / `complete` を壊していないこと）②**変更した `commit.sh`／`push.sh` の経路で自分の成果をコミットする**（`push.sh` は項目 5 を足したので、本流での push が落ちないこと）③`BD-T20`・`BD-T21`（`boundary.sh` の切れ目判定）。**並びは「変更 → `commit.sh` で自分をコミット（この 1 回目が検証を兼ねる）→ `ticket.sh complete`」** | `git checkout <base_sha> -- .claude/skills/20-common-step-ticket/ .claude/skills/20-common-step-commit-push/ .claude/skills/00-workflow-issue-mr-driven/scripts/`。`ticket.sh` が壊れるとチケットを完了させる手段が無くなるので、**`create` の分岐は既存 3 サブコマンドの前に置かない**（`start` / `complete` の経路に条件を足さない） |
-| S8 | ①`HK-T02`（`work-defaults.md` の行の照合。列を足した直後に回す）②スキル本文は機械テストを持たないので、**変更したスキルを実際に Skill ツールで読み込めること**を 1 回確かめる（frontmatter が壊れると読み込めない） | `git checkout <base_sha> -- .claude/skills/ .claude/agents/ .claude/rules/ .claude/evals/`。`entry-skills.txt` に載る振り分けスキル（`00-workflow-issue-mr-driven`）の frontmatter を壊すと `workflow-entry` が宣言を受け付けなくなるので、編集後に**新しいプロンプトを 1 回通す**まで次へ進まない |
+| S1 | ①`HK-T02`（`run-tests.sh --filter '*config_integrity*'`）が `scope-limits.json` を**実際に読んで** `scope_classify` を走らせる ②`scope-limits.json` を直した後の **`.gitignore` への `Edit`** が `WF201` にならず allow（判定 stage 5）で `logs/hooks/decisions.jsonl` に記録されること（変えた判定＝`.gitignore` が `common.protected` に居ながら `types["ai-asset-implementation"].allow` で判定順 (2) を抜ける経路を実際に踏む。`wip/tmp/` への `Write` は `common.allow` で stage 5 に落ちるうえ、`Write` ツールの拒否は `WF201`/`WF202` で `WF205` は出ないので、確認にならない） | 共通手順で `.claude/hooks/config/scope-limits.json` と `.gitignore` を書き戻す（`git show <base_sha>:<パス>` → Write）。両方とも 0018 の `allow.write` に入っている。`scope-limits.json` が壊れると `WF210`（形式不正）で**全書き込みが止まる**ので、編集は 1 回にまとめ、直後に `jq -e . .claude/hooks/config/scope-limits.json` で構文を確かめる。`WF210` の状態では提供コマンド以外の Bash が通らないため、**書き戻しは必ず Write ツールで行う** |
+| S2 | ①`HK-T21`・`HK-T22`（`hook_rel_path` の 4 段と `HOOK_SHARED_ROOT` を直接踏む）②変更直後に `wip/tmp/` へ `Write` を 1 回（`workflow-guard` の書き込み判定 = 畳み込みの呼び手を踏む）③`Read` を 1 回（`hook_read_input` を踏む）。**`hook-common.sh` は全フックが `source` するので、構文エラー 1 つで機構全体が fail-open か fail-closed に倒れる** | 共通手順で `.claude/hooks/lib/hook-common.sh` を書き戻す（`git show <base_sha>:.claude/hooks/lib/hook-common.sh` → Write）。0019 の `allow.write`（`.claude/hooks/**`）に入っている。読み込めない状態になると登録ラッパーが `WFx09` を出す（`HK-T09`）。それも出ないときは `WORKFLOW_ENFORCE=0` ではなく**基準点への戻し**で復旧する（`git checkout` は `WF204` で通らない） |
+| S3 | ①`HK-T15`（限定適用 6 件を閉じる側と通す側の対で踏む）②`HK-T05`（`cmdpos.sh` の正規化 2 件を負のコントロール付きで踏む）③変更直後に `git worktree list` と `git branch -a` を 1 回ずつ実行し、**`read` として通る**こと（通す向きの回帰）④`git status --porcelain` を 1 回（既存の `read` 分類が落ちていないこと） | 共通手順で `.claude/hooks/lib/scope.sh` と `.claude/hooks/lib/cmdpos.sh` を書き戻す（`git show <base_sha>:<パス>` → Write）。0020 の `allow.write`（`.claude/hooks/**`）に入っている。**`cmdpos.sh` が壊れると `bash` で始まるすべてのコマンドの判定が崩れ、`git show` すら通らなくなり得る**ので、編集は最初から Edit ツールで行い（Bash を介さない）、**編集の前に基準点の内容を `git show` で取り出して手元に残してから**変更する。編集直後に `bash -n .claude/hooks/lib/cmdpos.sh` を回す |
+| S4 | ①`WG-T19`・`WG-T20`（作業ツリーごとの宣言範囲の強制。負のコントロール込み）②`WG-T21`・`WG-T14`（提供コマンドの引数パスの例外と通常判定）③`SG-T12`・`SG-T13`（保護対象の畳み込みと `WF309`）④変更直後に **`bash .claude/skills/20-common-step-commit-push/scripts/commit.sh` を 1 回**（提供コマンドの経路 = 制御方式 5・6 を踏む） | 共通手順で `.claude/hooks/20-PreToolUse/workflow-guard.sh` と `workflow-state-guard.sh` を書き戻す（`git show <base_sha>:<パス>` → Write）。0021 の `allow.write`（`.claude/hooks/**`）に入っている。`workflow-guard` が誤って全 deny になると commit も止まるので、**`commit.sh` を通す確認をテストの直後に必ず入れる**。全 deny の状態でも Write ツールの経路（`workflow-state-guard` → `workflow-guard` の書き込み判定）は宣言範囲内なら残るので、そこから戻す |
+| S5 | ①`DC-T08`・`DC-T09`（差分の基準点）②`SA-T10`・`SA-T11`（対象チケットの作業ツリー）③`SP-T09`（実行者照合）④`SE-T11`（現在地）⑤変更直後に `Write` を 1 回して `workflow-diff-check` の PostToolUse が回ること（案内側は deny を出せないので**止まらない**が、`WF605` が誤爆していないかを `logs/hooks/decisions.jsonl` で見る） | 共通手順で `.claude/hooks/22-PostToolUse/` `12-SubagentStart/` `13-SubagentStop/` `00-SessionStart/` の変更した各ファイルを書き戻す（`git show <base_sha>:<パス>` → Write。ディレクトリ単位では取れないので**ファイルごとに 1 回ずつ**）。0022 の `allow.write`（`.claude/hooks/**`）に入っている。案内側は拒否しないのでロックアウトは起きにくいが、`session-start` が壊れるとセッション開始のたびに誤った現在地が入る |
+| S6 | ①`WT-T01`〜`WT-T12`（`worktree.sh` を実際に走らせる）②`WG-T21`（`worktree.sh` の置き場引数が `workflow-guard` を通ること。S4 で入れた例外を S6 の実体で踏み直す） | 新設なので基準点に内容が無い。壊れたときは**ファイルを空にせず作り直す**（`git show` の対象が無いので書き戻しではなく再作成）。書き先（`.claude/skills/**`・`.claude/evals/**`）は 0023 の `allow.write` に入っている。既存経路を壊さないが、`worktree.sh` が誤って本流を消す事故だけは避ける（`remove` は `--force` でも未コミットを消さない仕様を先にテストで固定する） |
+| S7 | ①**変更した `ticket.sh` で自分のチケットを `complete` する**（`TK009` を足した `create` の分岐が `start` / `complete` を壊していないこと）②**変更した `commit.sh`／`push.sh` の経路で自分の成果をコミットする**（`push.sh` は項目 5 を足したので、本流での push が落ちないこと）③`BD-T20`・`BD-T21`（`boundary.sh` の切れ目判定）。**並びは「変更 → `commit.sh` で自分をコミット（この 1 回目が検証を兼ねる）→ `ticket.sh complete`」** | 共通手順で `.claude/skills/20-common-step-ticket/scripts/ticket.sh`・`20-common-step-commit-push/scripts/push.sh`・`00-workflow-issue-mr-driven/scripts/boundary.sh` を書き戻す（`git show <base_sha>:<パス>` → Write。ファイルごとに 1 回ずつ）。0024 の `allow.write`（`.claude/skills/**`）に入っている。`ticket.sh` が壊れるとチケットを完了させる手段が無くなるので、**`create` の分岐は既存 3 サブコマンドの前に置かない**（`start` / `complete` の経路に条件を足さない） |
+| S8 | ①`HK-T02`（`work-defaults.md` の行の照合。列を足した直後に回す）②スキル本文は機械テストを持たないので、**変更したスキルを実際に Skill ツールで読み込めること**を 1 回確かめる（frontmatter が壊れると読み込めない） | 共通手順で変更した各ファイル（`.claude/skills/*/SKILL.md`・`.claude/agents/task-executor.md`・`.claude/rules/work-defaults.md`・`.claude/evals/*.md`）を書き戻す（`git show <base_sha>:<パス>` → Write。ファイルごとに 1 回ずつ）。すべて 0025 の `allow.write` に入っている。`entry-skills.txt` に載る振り分けスキル（`00-workflow-issue-mr-driven`）の frontmatter を壊すと `workflow-entry` が宣言を受け付けなくなるので、編集後に**新しいプロンプトを 1 回通す**まで次へ進まない |
 | S9 | 全件 `run-tests.sh --ids`（`FAIL` 0・ID 重複 0）。これは S1〜S8 で変えたすべての判定を通る | 落ちたステップの復旧手順に戻る |
-| S10 | ①`HK-T01`（`settings.json` の `hooks` 登録が変わっていないこと）②`worktree.baseRef` を置いた直後に**通常のツール呼び出しを 1 回**（`hooks` 以外のキーの追加が本体の設定読み込みを壊していないこと） | `git checkout <base_sha> -- .claude/settings.json`。`settings.json` が壊れるとフックが 1 本も起動しなくなり（＝機構が丸ごと無音）、拒否も出ないまま作業が進む。**判定が否定なら必ずキーを取り除く**（置きっぱなしにしない） |
+| S10 | ①`HK-T01`（`settings.json` の `hooks` 登録が変わっていないこと）②`worktree.baseRef` を置いた直後に**通常のツール呼び出しを 1 回**（`hooks` 以外のキーの追加が本体の設定読み込みを壊していないこと） | 共通手順で `.claude/settings.json` を書き戻す（`git show <base_sha>:.claude/settings.json` → Write）。0027 の `allow.write` に入っている（ただし `common.confirm` なので書き戻しにも `WF203` の ask が入る。保留 P5）。`settings.json` が壊れるとフックが 1 本も起動しなくなり（＝機構が丸ごと無音）、拒否も出ないまま作業が進む。**判定が肯定でも否定でも必ずキーを取り除く**（このフェーズでは発効しない） |
 
 - **強制無効化 `WORKFLOW_ENTRY_ENFORCE=0` / `WORKFLOW_ENFORCE=0` は既定の手段にしない**。ユーザーの明示の指示があるときだけ使う
 - 各チケットの `base_sha` は `ticket.sh start` が機械的に記録する。復旧手順の `<base_sha>` はその値を使う
 - **Bash を介さない復旧経路（Edit / Write ツール）を常に 1 本残す**。`cmdpos.sh` / `scope.sh` / `workflow-guard` が壊れると Bash の判定が崩れるが、`Edit` / `Write` は `workflow-state-guard` と `workflow-guard` の書き込み判定だけを通るので、`.claude/hooks/**` が宣言に入っていれば書き戻せる
+- **`git checkout` / `git restore` / `git switch` を復旧手順に書かない**。いずれも `scope.sh` の読み取り一覧に無く `unknown` → `WF204` で拒否される。基準点の内容を取り出すのは `git show <base_sha>:<パス>`（`read`）だけである
 
 ## リスク
 
@@ -313,7 +322,7 @@ comm -12 wip/tmp/ids-old.txt wip/tmp/ids-touched.txt | wc -l                    
 | 4 | `worktree.sh merge` が本流を壊す（`--abort` が効かず中途半端な状態で終わる） | 本流の作業ツリー | `WT-T06` が「`--abort` 済みで本流が合流前と同一（`git status --porcelain` が空・`HEAD` が変わらない）」を固定する。実運用で壊れたら `git merge --abort` → `git reset --hard <合流前 HEAD>`（人が実行する） |
 | 5 | `ticket.sh` / `push.sh` / `boundary.sh` を変えた直後の 1 回目が壊れていて、そのチケットを完了させる手段が無くなる | S7 | S7 のロックアウト対策の並び（変更 → `commit.sh` → `ticket.sh complete`）を守る。壊れたら Edit ツールで基準点の内容に戻す |
 | 6 | S10 の実測で `isolation: worktree` の作業ツリーが**成果を載せたまま消える** | 実測に使った 1 本のサブエージェントの成果 | 実測は**捨ててよい成果**（`wip/tmp/` への 1 ファイル）で行う。本 issue の実チケットを実測に使わない |
-| 7 | 本 issue の作業自身が、直したい穴を踏み続ける（`cd` と `bash <絶対パス>` が `WF204`、`sed -i` とリダイレクトが `WF205`）。`worktree.sh` の追加で提供コマンドの経路が 1 つ増える | 実装フェーズ全体の作業効率 | 設計（`i0050-04`）はこれらを「開かない」と決めたので**開けない**。S9 の後に、本 issue の残り（実装・フィードバック・全体まとめ）が回せることを 1 回確認する（`commit.sh` / `push.sh` / `boundary.sh` / `ticket.sh` / `run-tests.sh` の 5 経路を通す） |
+| 7 | 本 issue の作業自身が、直したい穴を踏み続ける（`cd` と `bash <絶対パス>` が `WF204`、`sed -i` とリダイレクトが `WF205`）。`worktree.sh` の追加で提供コマンドの経路が 1 つ増える | 実装フェーズ全体の作業効率 | 設計（`i0050-04`）はこれらを「開かない」と決めたので**開けない**。S9 の後に、本 issue の残り（実装・フィードバック・全体まとめ）が回せることを 1 回確認する（`commit.sh` / `boundary.sh status` / `ticket.sh next` / `run-tests.sh` の **4 経路**を通す）。**`push.sh` は S9 で実行しない**: 実行者は作業中チケットを持つので push 前チェック 項目 2 で必ず `CP005` になり、`remote-write:push` は `ai-asset-implementation` の `types ops` にも無い。push の経路は `CP-T12` の PASS と項目 5 の実装で代え、実際の push は切れ目で呼び出し元が行う |
 
 ## 設計差し戻し
 
@@ -328,9 +337,11 @@ comm -12 wip/tmp/ids-old.txt wip/tmp/ids-touched.txt | wc -l                    
 
 | # | 保留した点 | 現行の文書の記述 | 決める時期・場所 |
 |---|---|---|---|
-| P1 | **解禁の条件 1（委ねた先を作業ツリーで動かす手段）を、この実装フェーズで確かめきれるか** | DDR `i0050-08`「決定」= 「確認は AI アセット実装フェーズで行う」。同「(c) 呼び出し元が用意した既存の作業ツリーをサブエージェントに割り当てる指定は無い」 | S10（0027）。**サブエージェントの起動が要るのでメインエージェントが実施する**。確かめられなくても設計は成立し、並列実施が保留のまま残るだけである（`i0050-08` の「影響」） |
+| P1 | **解禁の条件 1（委ねた先を作業ツリーで動かす手段）を、この実装フェーズで確かめきれるか**、および**確かめられた場合に発効へ進めるか** | DDR `i0050-08`「決定」= 「確認は AI アセット実装フェーズで行う」。同「(c) 呼び出し元が用意した既存の作業ツリーをサブエージェントに割り当てる指定は無い」。`10_spec/skills/00-workflow-issue-mr-driven.md`「解禁の条件」1 の第 2 択 = 「手段 2 の 3 点がすべて確かめられ、**かつ `worktree.sh` の管理対象の定義と `merge` の前提検査 6（同じ issue に属するブランチである）をそれに合わせて改めた**」 | 実測は S10（0027）。**サブエージェントの起動が要るのでメインエージェントが実施する**。**発効はこのフェーズでは決めない**: 条件 1 の後半は `worktree.sh`（`.claude/skills/**`）と `20-common-step-worktree` 仕様・上記スキル仕様（`.claude/docs/**` = 実装フェーズの `deny`）の改訂を要するため、フィードバック計画（0028）→ 設計反映フェーズが引き取る。確かめられなくても設計は成立し、並列実施が保留のまま残るだけである（`i0050-08` の「影響」） |
 | P2 | **`completed_at` を持たないチケットの `last_task` の扱い**（R59） | `00-workflow-issue-mr-driven` 仕様 `BD-T20`「完了群が … の順（`completed_at` はこの順）」。欠落時の記述は無い。本リポジトリの既存チケットはすべて `completed_at` を持つ（`ticket.sh complete` が機械的に書く）ので現時点では踏まない | 実装では決めず、S7（0024）で逸脱として記録 → フィードバック計画（0028）→ 設計反映フェーズ |
 | P3 | **`git merge --no-ff` のマージコミットが `commit.sh` を通らないこと**の是非 | `20-common-step-worktree` 仕様 `merge` 4「メッセージ規約の検査は `commit.sh` が持つが、マージコミットは `commit.sh` を通らないので、この既定がそのまま規約に合う形である」 | 保留しない（現行文書に決着がある）。**S6 は既定の件名 `chore: 作業ツリー <名前> の成果を合流する` をそのまま実装する** |
 | P4 | **`.gitignore` に `.claude/worktrees/` を足す必要が実際にあるか** | 設計計画書 結論方針 P10「`worktree.sh` の既定はリポジトリの外。`.claude/worktrees/` は Claude Code のサブエージェント隔離が使う場合にだけ現れる」／DDR `i0050-08`「`isolation: worktree` は成果を残す作業に使わない」 | S1（0018）で足す。隔離を使わない決定になっても、`--worktree` 起動など外部の仕組みが作る経路が残るので、足しておく側に倒す（足しても失うものが無い） |
+
+| P5 | **`common.confirm` の 2 か所（`.claude/hooks/config/**`・`.claude/settings.json`）を、サブエージェント実行者が書き換えられるか** | `scope-limits.json` の `common.confirm` = `[".claude/hooks/config/**", ".claude/settings.json"]`。`scope.sh` の判定順 (4) は「毎回確認（`common.confirm` はどの allow より優先）」で `WF203`（ask）を返し、宣言の有無に関わらず (5) に落ちない。サブエージェントは確認に答えられないので deny になり得る。全体計画書の方針（差分 3）で人間レビューは行わないが、**確認（ask）はレビューとは別の機構**である | S1（0018）と S10（0027）の着手時。実行者（サブエージェント）が `WF203` で止まったら迂回せず結果報告に上げ、**呼び出し元のメインエージェントがその 1 ファイルの編集だけを代行する**。この運用でよいかは切れ目のレビューで人間に確認する（`executor` の変更は本チケットの範囲外なので行っていない） |
 
 対象なしの節は該当しない（変更対象は 26 件ある）。

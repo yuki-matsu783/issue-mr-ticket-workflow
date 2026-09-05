@@ -1,13 +1,13 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation
-predecessors: ["0020"]
+predecessors: ["0020", "0021"]
 executor: opus
 human_review: {required: false, reason: "全体計画書の方針（差分 3）"}
 adversarial_review: {required: true, reason: "全体計画書の方針（差分 3: フェーズごとに 1 回）"}
 allow:
-  write: [".claude/evals/**"]
-  ops: ["hook-test"]
+  write: ["wip/**", ".claude/skills/**", ".claude/evals/**"]
+  ops: ["read", "remote-read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""
@@ -35,6 +35,8 @@ base_sha: ""
 
 - remove は --force でも未コミットの差分を消さない仕様を先にテストで固定してから実体を書く（事故の防止）
 - 計画書 wip/20_plans/0016-ai-asset-implementation-plan.md の S6 と「ロックアウト対策」の S6 行に従う
+- WG-T21 の再確認は 0021（S4）が新設するテストに依存するので、predecessors に 0021 を入れてある
+- 復旧は git checkout を使わない（checkout は _SC_GIT_READ_SUBCMDS に無く unknown → WF204）。git show <base_sha>:<パス> で内容を取り、Write ツールで書き戻す。書き戻し先（.claude/skills/** と .claude/evals/**）は本チケットの allow.write に入っている
 
 ## 作業ログ
 

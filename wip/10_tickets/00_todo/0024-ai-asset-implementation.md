@@ -6,8 +6,8 @@ executor: opus
 human_review: {required: false, reason: "全体計画書の方針（差分 3）"}
 adversarial_review: {required: true, reason: "全体計画書の方針（差分 3: フェーズごとに 1 回）"}
 allow:
-  write: [".claude/skills/**"]
-  ops: ["hook-test"]
+  write: ["wip/**", ".claude/skills/**"]
+  ops: ["read", "remote-read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""
@@ -34,7 +34,7 @@ base_sha: ""
 ## 作業内容
 
 - 計画書 wip/20_plans/0016-ai-asset-implementation-plan.md の S7 と「ロックアウト対策」の S7 行に従う
-- ticket.sh が壊れるとチケットを完了させる手段が無くなる。壊れたら Edit ツールで基準点（base_sha）の内容に戻す
+- ticket.sh が壊れるとチケットを完了させる手段が無くなる。壊れたら git show <base_sha>:<パス> で内容を取り、Write / Edit ツールで書き戻す（git checkout は分類が unknown で WF204 になる）。書き戻し先（.claude/skills/**）は本チケットの allow.write に入っている
 
 ## 作業ログ
 

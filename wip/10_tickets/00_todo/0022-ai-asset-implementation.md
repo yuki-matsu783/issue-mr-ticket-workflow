@@ -6,8 +6,8 @@ executor: opus
 human_review: {required: false, reason: "全体計画書の方針（差分 3）"}
 adversarial_review: {required: true, reason: "全体計画書の方針（差分 3: フェーズごとに 1 回）"}
 allow:
-  write: [".claude/hooks/**"]
-  ops: ["hook-test"]
+  write: ["wip/**", ".claude/hooks/**"]
+  ops: ["read", "remote-read", "build-test", "hook-test"]
 started_at: ""
 completed_at: ""
 base_sha: ""
@@ -37,6 +37,7 @@ base_sha: ""
 ## 作業内容
 
 - 計画書 wip/20_plans/0016-ai-asset-implementation-plan.md の S5 と「ロックアウト対策」の S5 行に従う
+- 復旧は git checkout を使わない（checkout は _SC_GIT_READ_SUBCMDS に無く unknown → WF204）。git show <base_sha>:<パス> で内容を取り、Write ツールで書き戻す。書き戻し先（.claude/hooks/**）は本チケットの allow.write に入っている
 
 ## 作業ログ
 

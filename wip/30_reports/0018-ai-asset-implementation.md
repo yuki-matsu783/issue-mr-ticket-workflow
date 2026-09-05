@@ -1,18 +1,18 @@
 ---
 type: report
-title: 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設（S1〜S6 分）
-description: issue #50 の AI アセット実装フェーズ（S1〜S10 / チケット 0018〜0027）が積み上げる実装結果レポート。S1 では scope-limits.json の allow に .gitignore を足し .claude/worktrees/ を無視した。S2 では hook-common.sh に作業ツリーの三分・作業ツリーの集合・パスの 4 段の畳み込み・共有ルートを入れ、decisions.jsonl に cwd と agent_id を足し、呼び手 3 本を WF209 / WF309 / WF605 に分岐させた。S3 では cmdpos.sh の正規化 2 件（算術展開は段を割らない / 置換の閉じ括弧の後ろの語を実行体にしない）と scope.sh の git の限定適用 6 件を入れ、cd は分類に足さないことを負のコントロールで固定した。S4 では workflow-guard の WF207 に「どの作業ツリーで数えたか」を足し、worktree.sh の置き場を指す引数だけを判定の例外にし、受け入れ条件 A1-6 を閉じる WG-T19 / WG-T20（枚数をテスト自身が assert する負のコントロール付き）と WG-T21 / SG-T12 / SG-T13 を新設した。workflow-state-guard は S2 の畳み込みで既に仕様どおりで無改修。S5 では案内側フック 4 本を作業ツリーごとに一意な判定へ揃え、受け入れ条件 A5 を DC-T08 / DC-T09・SA-T10 / SA-T11・SP-T09 で閉じ、session-start に WF705（mr.json が読めないとき現在地を断定しない）を入れ、post-push-* の push-state.json / usage/ を共有ルートへ移した。S6 では 20-common-step-worktree スキル本体と提供コマンド worktree.sh（add / list / merge / remove）を新設し、本流かどうかの判定・合流の前提検査 6 項目・衝突時の中断・共有ルートの worktree-merges.jsonl を WT-T01〜WT-T12 で固定し、eval WT-E01〜WT-E03 を定義（未実行）した
+title: 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化（S1〜S7 分）
+description: issue #50 の AI アセット実装フェーズ（S1〜S10 / チケット 0018〜0027）が積み上げる実装結果レポート。S1 では scope-limits.json の allow に .gitignore を足し .claude/worktrees/ を無視した。S2 では hook-common.sh に作業ツリーの三分・作業ツリーの集合・パスの 4 段の畳み込み・共有ルートを入れ、decisions.jsonl に cwd と agent_id を足し、呼び手 3 本を WF209 / WF309 / WF605 に分岐させた。S3 では cmdpos.sh の正規化 2 件（算術展開は段を割らない / 置換の閉じ括弧の後ろの語を実行体にしない）と scope.sh の git の限定適用 6 件を入れ、cd は分類に足さないことを負のコントロールで固定した。S4 では workflow-guard の WF207 に「どの作業ツリーで数えたか」を足し、worktree.sh の置き場を指す引数だけを判定の例外にし、受け入れ条件 A1-6 を閉じる WG-T19 / WG-T20（枚数をテスト自身が assert する負のコントロール付き）と WG-T21 / SG-T12 / SG-T13 を新設した。workflow-state-guard は S2 の畳み込みで既に仕様どおりで無改修。S5 では案内側フック 4 本を作業ツリーごとに一意な判定へ揃え、受け入れ条件 A5 を DC-T08 / DC-T09・SA-T10 / SA-T11・SP-T09 で閉じ、session-start に WF705（mr.json が読めないとき現在地を断定しない）を入れ、post-push-* の push-state.json / usage/ を共有ルートへ移した。S6 では 20-common-step-worktree スキル本体と提供コマンド worktree.sh（add / list / merge / remove）を新設し、本流かどうかの判定・合流の前提検査 6 項目・衝突時の中断・共有ルートの worktree-merges.jsonl を WT-T01〜WT-T12 で固定し、eval WT-E01〜WT-E03 を定義（未実行）した。S7 では提供コマンド 3 本を改修し、ticket.sh の create に TK009（作業ツリーでは採番しない）、push.sh の push 前チェックに項目 5（本流でのみ push する。スキップ不可）、boundary.sh の last_task を既出の切れ目の補集合で決める形と at_boundary の全作業ツリー参照（管理対象 0 なら worktree.sh を呼ばない）を入れ、本流かどうかの判定は worktree.sh の 4 行をバイト一致でコピーして TICKET-T13 で固定した
 tags: [report, ai-asset-implementation, issue-50]
-keywords: [scope-limits.json, .gitignore, .claude/worktrees/, common.confirm, WF203, WF601, ロックアウト対策, HK-T01, HK-T02, 判定順, hook-common.sh, HOOK_SHARED_ROOT, hook_worktrees, hook_rel_path, 作業ツリーの三分, 畳み込み, WF209, WF309, WF605, HK-T06, HK-T21, HK-T22, SG-T11, fail-closed, cmdpos.sh, scope.sh, 算術展開, コマンド置換, プロセス置換, git worktree list, 限定適用, 負のコントロール, HK-T05, HK-T12, HK-T15, workflow-guard, workflow-state-guard, WF207, WF201, WF202, WF205, WF301, WF302, WF303, A1-6, WG-T19, WG-T20, WG-T21, WG-T14, SG-T12, SG-T13, worktree.sh, 置き場を指す引数, 枚数の assert, A5, workflow-diff-check, subagent-start-check, subagent-stop-check, session-start, post-push-compact-prompt, post-push-usage-report, WF804, WF815, WF705, WF702, WF703, DC-T08, DC-T09, SA-T10, SA-T11, SP-T05, SP-T09, SE-T11, 反転検査, git worktree add, 共有ルート, push-state.json, usage, 20-common-step-worktree, worktree.sh, add, list, merge, remove, 本流かどうかの判定, サブブランチ, 前提検査 6 項目, WT001, WT002, WT003, WT004, WT005, WT006, WT007, WT008, WT-T01, WT-T12, WT-E01, WT-E03, worktree-merges.jsonl, 綴りの二重性, is_under_repo]
+keywords: [scope-limits.json, .gitignore, .claude/worktrees/, common.confirm, WF203, WF601, ロックアウト対策, HK-T01, HK-T02, 判定順, hook-common.sh, HOOK_SHARED_ROOT, hook_worktrees, hook_rel_path, 作業ツリーの三分, 畳み込み, WF209, WF309, WF605, HK-T06, HK-T21, HK-T22, SG-T11, fail-closed, cmdpos.sh, scope.sh, 算術展開, コマンド置換, プロセス置換, git worktree list, 限定適用, 負のコントロール, HK-T05, HK-T12, HK-T15, workflow-guard, workflow-state-guard, WF207, WF201, WF202, WF205, WF301, WF302, WF303, A1-6, WG-T19, WG-T20, WG-T21, WG-T14, SG-T12, SG-T13, worktree.sh, 置き場を指す引数, 枚数の assert, A5, workflow-diff-check, subagent-start-check, subagent-stop-check, session-start, post-push-compact-prompt, post-push-usage-report, WF804, WF815, WF705, WF702, WF703, DC-T08, DC-T09, SA-T10, SA-T11, SP-T05, SP-T09, SE-T11, 反転検査, git worktree add, 共有ルート, push-state.json, usage, 20-common-step-worktree, worktree.sh, add, list, merge, remove, 本流かどうかの判定, サブブランチ, 前提検査 6 項目, WT001, WT002, WT003, WT004, WT005, WT006, WT007, WT008, WT-T01, WT-T12, WT-E01, WT-E03, worktree-merges.jsonl, 綴りの二重性, is_under_repo, ticket.sh, TK009, 採番, push.sh, 押し前チェック 項目 5, CP005, boundary.sh, last_task, 既出集合, covered, 補集合, 持ち越し, at_boundary, 切れ目の候補, TICKET-T13, CP-T12, BD-T20, BD-T21, wt_is_main_root, バイト一致, make_counting_path]
 ---
 
-# 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設（S1〜S6 分）
+# 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5・提供コマンド worktree.sh の新設・採番と push の本流限定と切れ目の全作業ツリー化（S1〜S7 分）
 
 - 対象 issue: [#50](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50)
 - MR: [#51](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51)（draft）
 - ブランチ: `feature-50-worktree-parallel-tickets`
-- チケット: 0018〜0027（実装計画書 `wip/20_plans/0016-ai-asset-implementation-plan.md` の S1〜S10。**このレポートは各チケットが節を積み上げる器**で、現時点の内容は 0018（S1）・0019（S2）・0020（S3）・0021（S4）・0022（S5）・0023（S6）分）
-- 作成日: 2026-09-05（0018）／更新: 2026-09-05（0019・0020・0021）・2026-09-06（0022・0023）
+- チケット: 0018〜0027（実装計画書 `wip/20_plans/0016-ai-asset-implementation-plan.md` の S1〜S10。**このレポートは各チケットが節を積み上げる器**で、現時点の内容は 0018（S1）・0019（S2）・0020（S3）・0021（S4）・0022（S5）・0023（S6）・0024（S7）分）
+- 作成日: 2026-09-05（0018）／更新: 2026-09-05（0019・0020・0021）・2026-09-06（0022・0023・0024）
 
 ## サマリ
 
@@ -36,10 +36,14 @@ S5 で新設したテストは `DC-T08` / `DC-T09`（差分の基準点）・`SA
 
 S5 の学びは 3 つ。①**`workflow-diff-check` の `DC-T08` だけは疑似の作業ツリーでは足りない**（このフックは `git status` / `git diff` を実際に走らせるので、`.git` ファイルを手で置いただけでは制御方式 7 で黙って抜ける）。テストの中で `git worktree add` を呼んで実物を作り、パスは OS ネイティブ表記（MSYS では `C:/…`）に揃えた —— `/tmp/…` のままだと `git` が相互参照のファイルに書く絶対パスと照合できず、worktree に居ても本流に倒れる（実測）。②**「作業ツリーの集合を読めない」は `HOOK_WORKTREE_STATE` に現れない**。集合が読めないとき `HOOK_WORKTREE` は本流に倒れる（`HK-T22` が固定している振る舞い）ので、そのまま進むと本流のチケットで代用したことになる。WF804 / WF815 の判定はフック側で `hook_worktrees` を呼んで検出する形にした。③**WF815 の文面が `WF801` / `WF811〜813` に言及する**ので、「WF801 が出ていないこと」を識別子では assert できない（`SP-T07` の `WF814` と同じ）。判定の文面（「実行者が違う」「作業中のまま残っている」）で見る。
 
-- ◎良 21 件 / △注意 6 件（e4・e10・e18・e21・e23・e27）/ ✕問題 1 件（e11）（節は e1〜e28 の 28 件。HTML ビューの章 ID は `f1`〜`f28` で 1 対 1）
-- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**。S3 は `HK-T05` / `HK-T12` / `HK-T15` / `HK-T02` PASS（テスト先行で 59 件の FAIL を確認してから実装）に加え、**リポジトリの全テスト 27 本 216 ID が PASS / FAIL 0 / 重複 ID なし**。S4 は `WG-T19` / `WG-T20` / `WG-T21` / `WG-T14` / `SG-T12` / `SG-T13` PASS に加え、**リポジトリの全テスト 27 本 221 ID が 1 回で PASS / FAIL 0**（新設 5 ID の分だけ増えた）。S5 は `DC-T08` / `DC-T09` / `SA-T10` / `SA-T11` / `SP-T05` / `SP-T08` / `SP-T09` / `SE-T11` と `post-push-*` の既存テストが PASS に加え、**リポジトリの全テスト 27 本 227 ID が 1 回で PASS / FAIL 0 / 重複 ID なし**（新設 6 ID の分だけ増えた）
-- eval: **S1〜S5 とも対象は 0 件**（設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセットを作っていない）。このフェーズでは eval を**実行しない**
-- 仕様からの逸脱: 18 件（D1〜D18。D6・D7 が S2 分、D8〜D12 が S3 分、D13・D14 が S4 分、D15〜D18 が S5 分）
+S7（0024）は**提供コマンド 3 本の改修**で、採番と push を本流に一本化し、切れ目の判定を全作業ツリーに広げた。①`ticket.sh` の `create` に **TK009**（作業ツリーでは採番せず終了 1、チケットを 1 枚も作らない）②`push.sh` の push 前チェックに**項目 5**（本流で実行している。`wip/push-check-skip.md` に書いても飛ばせない）③`boundary.sh` の `last_task` を**既出の切れ目（`covered`）の補集合**で決める形（DDR `i0050-10`）と、`at_boundary` の**全作業ツリー参照**（管理対象が 0 なら `worktree.sh` を呼ばない）。**「本流かどうかの判定」は `worktree.sh` の 4 行をそのままコピーし、3 本のバイト一致を機械テストで固定した**（共有ライブラリ化は `20-common-step-shell-script` 仕様の変更が要り許可範囲の外。DDR `i0009-36` の `__ss_load` と同じやり方）。`TICKET-T13` / `CP-T12` / `BD-T20` / `BD-T21` はすべて**テスト先行**（実装前の FAIL を確認）で新設し、担当 3 本（`test_ticket.sh` 139 件・`test_push.sh` 62 件・`test_boundary.sh` 142 件）と**全件テスト 28 本 243 ID が 1 回で全通し**（他の提供コマンド・フックの退行 0 件）。**変更後の `commit.sh` → `ticket.sh complete` の並びで自分を閉じた**（ロックアウト対策）。
+
+S7 の学びは 2 つ。①**`covered` を仕様どおり「`review-history.jsonl` の全行」で作ると、別 issue の切れ目が混ざる**。`logs/` は clone に溜まり続ける一方、チケット番号は片付け（draft 解除）のたびに 0001 から振り直されるので、実リポジトリでは `mr: null` の古い行に載った `0024,0025,0026` が本チケット自身を既出にしていた。現在の MR の記録だけを数える形にし、負のコントロール込みで `BD-T20` に固定した（D23）。②**`covered` の補集合で切ると、これまでレビューを一度も受けずに通過したチケットが表に出る**。本リポジトリでは `0010`（ai-asset-design-plan）と `0016`（ai-asset-implementation-plan）の切れ目の記録が無く、次の切れ目の `last_task` は `{0010}`・`0016` と `0018`〜`0024` は持ち越しになる。DDR `i0050-10` が狙ったとおりの振る舞いだが、切れ目が数回続くので運用に影響する（R32）。
+
+- ◎良 30 件 / △注意 7 件（e4・e10・e18・e21・e23・e27・e37）/ ✕問題 2 件（e11・e30）（節は e1〜e39 の 39 件。HTML ビューの章 ID は `f1`〜`f39` で 1 対 1。0023 分 e29〜e34 の件数は 0024 でまとめて反映した）
+- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**。S3 は `HK-T05` / `HK-T12` / `HK-T15` / `HK-T02` PASS（テスト先行で 59 件の FAIL を確認してから実装）に加え、**リポジトリの全テスト 27 本 216 ID が PASS / FAIL 0 / 重複 ID なし**。S4 は `WG-T19` / `WG-T20` / `WG-T21` / `WG-T14` / `SG-T12` / `SG-T13` PASS に加え、**リポジトリの全テスト 27 本 221 ID が 1 回で PASS / FAIL 0**（新設 5 ID の分だけ増えた）。S5 は `DC-T08` / `DC-T09` / `SA-T10` / `SA-T11` / `SP-T05` / `SP-T08` / `SP-T09` / `SE-T11` と `post-push-*` の既存テストが PASS に加え、**リポジトリの全テスト 27 本 227 ID が 1 回で PASS / FAIL 0 / 重複 ID なし**（新設 6 ID の分だけ増えた）。S6 は `WT-T01`〜`WT-T12` と `WG-T21` PASS に加え、**全テスト 28 本 239 ID が PASS**。S7 は `TICKET-T13` / `CP-T12` / `BD-T20` / `BD-T21` PASS（4 ID とも実装前の FAIL を確認したテスト先行）に加え、担当 3 本（`test_ticket.sh` `passed=139` / `test_push.sh` `passed=62` / `test_boundary.sh` `passed=142`）と**リポジトリの全テスト 28 本 243 ID が 1 回で PASS / FAIL 0**（新設 4 ID の分だけ増えた）
+- eval: **S1〜S5・S7 とも対象は 0 件**（設定ファイル・シェルスクリプト・提供コマンドのみで、機械検証できない指示文のアセットを作っていない）。S6 は `WT-E01`〜`WT-E03` を**定義のみ**。このフェーズでは eval を**実行しない**
+- 仕様からの逸脱: 23 件（D1〜D23。D6・D7 が S2 分、D8〜D12 が S3 分、D13・D14 が S4 分、D15〜D18 が S5 分、D19〜D22 が S6 分、D23 が S7 分）
 
 ### ◆特に見てほしい（0018 分）
 
@@ -104,6 +108,16 @@ S5 の学びは 3 つ。①**`workflow-diff-check` の `DC-T08` だけは疑似�
 
 - **`merge` の「本流にタスクの切れ目が来ている」を `10_doing/*.md` の枚数で数えていること**（D22）。仕様は「`wip/10_tickets/10_doing/` が空」と書くが、このリポジトリの `10_doing/` は `.gitkeep` を持ち得るので、文字どおり「ディレクトリが空」だと恒久的に合流できない。`ticket.sh` の `doing_files`（`*.md` の glob）に合わせた。この読み替えでよいか
 - **`remove` の `--force` が「未合流のコミットを捨てる」ことを標準出力の 1 行だけで知らせること**（e33）。仕様「`remove` 3」は「飛ばすときは失われるコミット数を出力してから進む」と書くだけで、確認を求めるとは書いていない。ヘッドレスで止まらない形（代替 A6）に倒したが、破壊的な操作なので `--force` にもう 1 段（`--yes` など）を要るようにするかを判断してほしい
+
+### ◆特に見てほしい（0024 分）
+
+- **`covered` を現在の MR の切れ目に限ったこと**（e37・D23）。仕様「切れ目の判定（正）」は `review-history.jsonl` の**全行**と書いており、絞り込みの条件を持たない。しかし `logs/` は clone に溜まり続ける一方、チケット番号は片付け（draft 解除）のたびに 0001 から振り直されるので、別 issue の切れ目に載った同じ番号でいまの issue のチケットが既出扱いになる。**実リポジトリでもそうなっていた**（`mr: null` の行に `0024,0025,0026`）。仕様に無い絞り込みを足したので、この判断でよいかを見てほしい。MR が分からないときは全件を数える（拒否側）
+- **次の切れ目の `last_task` が `{0010}`（ai-asset-design-plan）になること**（R32）。`covered` の補集合で切ると、`logs/review-history.jsonl` に切れ目の記録が残っていない `0010` と `0016`（ai-asset-implementation-plan）が「まだどの切れ目にも入っていない完了チケット」として出てくる。DDR `i0050-10` が狙ったとおりの振る舞い（レビューを一度も受けずに通過したチケットを拾う）だが、S7 の完了直後の切れ目から**数回続けて小さい切れ目が発生する**。運用としてこのまま受け入れるか、`skip` でまとめて閉じるかを決めてほしい
+
+### ◇判断が欲しい（0024 分）
+
+- **`completed_at` を持たないチケットを「最も早い」側に倒したこと**（R31 = 設計結果の R59）。仕様は完了群の並べ替えに `completed_at` を使うとしか書いておらず、欠落時の扱いが無い。空文字は文字列比較で最小になるので、そのまま「最も早い」として `last_task` の種類を決める側に入れた（同着は連番の昇順）。逆に「最も遅い」に倒すと、その 1 枚が持ち越され続けてどの切れ目にも入らない事態が起き得るため。本リポジトリの実チケットは `ticket.sh complete` が必ず `completed_at` を書くので現時点では踏まない
+- **`worktree.sh` を呼ぶかどうかの前置き検査を `git worktree list --porcelain` の行数にしたこと**（e38）。仕様は「本流以外に**管理対象**の作業ツリーがある場合」と書くが、管理対象かどうかは `worktree.sh list` を呼ばないと分からない。行数が 1（本流だけ）なら確実に管理対象は 0 なので、そこで打ち切る形にした。管理対象外の作業ツリーが 1 つでもあると `worktree.sh` を 1 回呼ぶ（結果は使わない）
 
 ### ・細かいレビューは不要（ほぼ確実）
 
@@ -552,6 +566,90 @@ S2 で観測した e11（fail-closed の deny が記録されるのにツール�
 
 新設なので基準点に内容が無く、復旧は「書き戻し」ではなく「作り直し」になる（計画書のロックアウト対策どおり）。今回は壊れなかったので作り直しは発生していない。
 
+### e35. `ticket.sh` の `create` に `TK009` を入れ、本流かどうかの判定を 3 本でバイト一致させた（0024 / S7 ①）◎良
+
+仕様 `20-common-step-ticket` の `create` 手順 0 をそのまま実装した。判定は `create` の**入口 1 か所だけ**に置き、`start` / `complete` / `cancel` / `next` の経路には条件を足していない（チケットの DoD が明示している。壊すとチケットを閉じる手段が無くなる）。
+
+```
+cmd_create() {
+  # 0. 本流での実行を検査する（TK009）。採番を 1 か所に限って番号の二重取りを構造的に防ぐ（DDR i0050-05）。
+  #    この分岐は create の中だけに置く（start / complete / cancel / next は作業ツリーでも通る）
+  local repo_top
+  repo_top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$repo_top" ] || result_ng 008 "…（環境の誤り）" 2
+  if ! wt_is_main_root "$repo_top"; then
+    result_ng 009 "作業ツリーではチケットを作成できない（現在: $repo_top / 本流: $(main_root_hint)）。…" 1
+  fi
+```
+
+「本流かどうかの判定」は `worktree.sh` の 4 行（コメント 1 行 + 関数 3 行）を**そのままコピー**した。呼び出し元の指示どおり①（同じ行を各所に書き、バイト一致をテストで固定）を採り、②の共有ライブラリ化は採らなかった —— `20-common-step-shell-script` 仕様（`.claude/docs/**`）の変更が要り、実装チケットの許可範囲の外だからである。バイト一致は `TICKET-T13` が固定する（`worktree.sh` を基準に `ticket.sh` / `push.sh` を突き合わせる。DDR `i0009-36` の `__ss_load` と同じやり方）。
+
+```
+extract_ismain() { awk '/^# 本流かどうかの判定/ {f=1} f {print} f && /^}$/ {exit}' "$1"; }
+ISMAIN_REF="$(extract_ismain "$REAL/skills/20-common-step-worktree/scripts/worktree.sh")"
+assert_eq "TICKET-T13" "$ISMAIN_REF" "$(extract_ismain "$REAL/skills/20-common-step-ticket/scripts/ticket.sh")"
+assert_eq "TICKET-T13" "$ISMAIN_REF" "$(extract_ismain "$REAL/skills/20-common-step-commit-push/scripts/push.sh")"
+```
+
+**R25（パスを文字列で比べると Windows で壊れる）は踏んでいない**。判定は `[ -d "$1/.git" ]` の存在検査だけで、パスの前方一致も文字列比較も使わない。案内に出す本流の置き場（`main_root_hint`）は `git rev-parse --git-common-dir` から導くが、**表示専用**で判定には使わない。
+
+### e36. `push.sh` の push 前チェックに項目 5 を入れた（スキップ不可。0024 / S7 ②）◎良
+
+`ITEM_NAMES` に 5 番目（`本流で実行している`）を足し、項目 4 の直後に検査を置いた。スキップ記録の読み取りは正規表現を `[1-4]` → `[1-5]` に広げたうえで、**4 と 5 は `SKIP` 連想配列に入れず `FIXED_REQUESTED` に集めて無視する**（従来は項目 4 専用の `SKIP4_REQUESTED` フラグだったのを配列に一般化した）。飛ばせない項目を記録に書いたときは「注意: … の項目 N の指定は無効（安全性・原則の項目のためスキップできない）」を出す。
+
+`CP-T12` は作業ツリーを実際に作って 4 点を固定した。①作業ツリーからの `push.sh` が `CP005`・`未充足 1 件`（項目 5 だけ）②リモートに**サブブランチが 1 つも増えていない**（`git -C <remote> rev-parse --verify wtcp12` が失敗する。テスト先行の 1 回目はここで `wtcp12` が push されていた）③作業ツリー側で `wip/push-check-skip.md` に `- 項目 5: 飛ばしたい` を書いて **`commit.sh` でコミットしても**飛ばせない（`skip 項目 5` は出ず `項目 5 の指定は無効` が出る）④負のコントロール: 同じリポジトリの本流では `✓ 項目 5: 本流で実行している` が出て push が通る。③は「`commit.sh` は作業ツリーでも成功し、その作業ツリーの差分をコミットする」ことの確認も兼ねる（`git -C <worktree> rev-parse HEAD` が進み、本流の `HEAD` は動かない）。
+
+### e37. `boundary.sh` の `last_task` を既出の切れ目の補集合にした — 記録が issue をまたぐので現在の MR に絞った（0024 / S7 ③）△注意
+
+従来の `scan_tickets` は「完了群を番号の降順に読み、同じ `ticket_type` が続く範囲」を `last_task` にしていた。これを仕様「切れ目の判定（正）」の 4 段（既出集合 → 補集合 → 1 種類ならそれ → 2 種類以上なら最も早く完了した種類のまとまり）に置き換えた。`completed_at` を使うのは**並べ替えだけ**で、絞り込みの下限には使わない。
+
+補集合が**空**になるとき（`request` / `skip` の直後や `complete` 済みの切れ目）は、`review-state.json` の `boundary` をそのまま `last_task` として返す。「1 つの切れ目 = `review-history.jsonl` の 1 行、進行中の切れ目だけが `review-state.json` 側」という仕様の記録の規則から導いた（そうしないと `request` の直後に `last_task` が空になり、`review_valid` が壊れて `position` が `requested` に入らない）。
+
+**想定外だったのは既出集合の作り方である。** 仕様は `covered` を「`review-history.jsonl` の各行の `boundary.tickets` ∪ 現在の `review-state.json` の `boundary.tickets`」としか書かない。ところが `logs/` は clone に溜まり続ける（`.gitignore` の対象）一方で、チケット番号は片付け（draft 解除）のたびに 0001 から振り直される。実リポジトリの記録を数えるとこうなっていた。
+
+```
+$ jq -Rr 'fromjson? | select((.boundary.tickets//[])|length>0) | [(.mr//"null"), .boundary.task_type, (.boundary.tickets|join(","))] | @tsv' logs/review-history.jsonl
+null    ai-asset-implementation 0026,0025,0024      ← 別 issue（MR 不明）の切れ目
+35      ai-asset-design         0048,0046,0045,0044,0043
+35      ai-asset-implementation 0056,0054,0053,0052,0051,0050
+51      investigation           0011,0009,0008,0007,0006,0005,0004
+…
+```
+
+1 行目のせいで**本チケット（0024）自身が既出扱いになり、完了しても `last_task` に入らない**。`logs/mr.json` の `mr` と一致する記録だけを数える形にし（MR が分からないときは全件を数える = 拒否側）、`BD-T20` に負のコントロール込みで固定した（D23）。
+
+`BD-T20` の本体は仕様のテスト観点そのままで、完了群 `0011`-investigation / `0012`-design / `0013`-investigation（`completed_at` はこの順）に対し、1 回目の切れ目が `{0011, 0013}`・`last_done` = `0013`、`skip` で閉じた後の 2 回目が `{0012}`・`last_done` = `0012`・`review.state` = `none` になることを見る。負のコントロールとして**どのチケットもどこかの `last_task` にちょうど 1 回だけ入る**（記録から集めた既出集合が `0011 0012 0013` の 3 件で重複なし）ことと、`review-history.jsonl` が 1 切れ目 1 行であることを assert した。
+
+### e38. `at_boundary` を全作業ツリーで見るようにし、管理対象 0 なら `worktree.sh` を呼ばないことを固定した（0024 / S7 ③）◎良
+
+`10_doing/` が空でも、管理対象の作業ツリーに作業中チケットが残っていれば切れ目ではない（要件 **[A11]**）。判定は 2 段にした。
+
+```
+has_other_worktrees() {   # git worktree list は本流を含めて 1 件以上返すので、2 件目があるかだけを見る
+  n="$(git worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)"; [ "$n" -gt 1 ]
+}
+worktrees_have_doing() {
+  [ -f "$WORKTREE_SH" ] || return 1
+  has_other_worktrees || return 1                      # ← ここで打ち切ると worktree.sh を起動しない
+  out="$(bash "$WORKTREE_SH" list 2>/dev/null || true)"
+  printf '%s' "$out" | jq -e 'map(select((.managed == true) and ((.doing|length) > 0))) | length > 0' >/dev/null 2>&1
+}
+```
+
+`BD-T21` は**専用の一時リポジトリ**（`wip/` を追跡する。既存の足場は `wip/` を `.gitignore` に入れているので、合流でチケットの移動を本流へ運べない）を作り、4 段で見る。①作業ツリーが 1 つも無い状態で `status` → `at_boundary` = true・`worktree.sh` の呼び出し **0 回** ②`worktree.sh add t0031` した作業ツリー側だけ作業中 1 枚 → `at_boundary` = false・呼び出し 1 回 ③作業ツリー側も 0 枚 → true（**切れ目の候補**）。ただし合流前の本流では `next` が `0031` を返し続け、`last_task` は空 ④`worktree.sh merge --all` の後の `status` で初めて `next` が null になり `last_task` が `{0031}` になる（**確定は合流の後**。DDR `i0050-09`）。
+
+呼び出し回数は `make_counting_path` の記録先（`COUNTING_LOG`）と `counted_calls` で数えた。`worktree.sh` は PATH ではなく**パス指定**で呼ばれるので、`make_counting_path` が生成するのと同じ体裁のラッパーを置き場に被せて同じログに書かせている。
+
+### e39. 変更後の自分のコマンドで自分をコミット・完了した（0024 / ロックアウト対策）◎良
+
+計画書 S7 のロックアウト対策の並び（変更 → `commit.sh` で自分をコミット → `ticket.sh complete`）をそのまま踏んだ。中核（フック・`settings.json`）は 1 行も触っていないので、危険なのは提供コマンド自身が壊れることだけである。1 つ変えるごとに担当テストを回し、3 本すべてが通ってから 1 回目のコミットを行った。
+
+- `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "ai-asset: 採番と push を本流に限り切れ目を全作業ツリーで見る" <7 ファイル>` → `OK: 7 ファイルをコミットした（6888a87）。除外: なし`（**変更後の `push.sh` を含むスキルの中で `commit.sh` が動くこと**の確認）
+- `bash .claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh status --offline` → 終了 0 で JSON を返した（`at_boundary: false` / `position: in_task` / `current: 0024`）。実リポジトリで新しい `last_task` の導出が走ることの確認
+- `bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0024` → 成功（`create` に足した分岐が `complete` の経路を壊していないことの確認）
+
+`git show <base_sha>:<パス>` からの書き戻しは**発生していない**（壊れなかった）。
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -657,6 +755,14 @@ S2 で観測した e11（fail-closed の deny が記録されるのにツール�
 | 中核変更後に自分が動くか | `Write` / `Edit` / `Read` / `grep` / `commit.sh` / `run-tests.sh`（`build-test` と `hook-test`）/ 実機の `worktree.sh` がいずれも通った。復旧（新設なので「作り直し」）は発生していない |
 | 変更が S6 の許可範囲に収まっているか | `git diff 87a2d8b --stat` = `.claude/skills/20-common-step-worktree/**` 3 ファイル / `.claude/evals/20-common-step-worktree.md` 1 ファイル / `wip/10_tickets/**` 1 枚 / `wip/30_reports/**` 2 ファイル。いずれも `allow.write`（`wip/**`, `.claude/skills/**`, `.claude/evals/**`）の内側。範囲外の差分なし |
 | S6 が担当する参照更新 | 実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。**S6 の担当は 0 行**。ただし `worktree.sh` の**置き場そのもの**は既存の参照 2 か所（`workflow-guard.sh:45` の `__WG_WORKTREE_CMD` と `test_workflow_guard.sh:566` の `wtc`）と一致していることを `grep` で確認した（`grep -rn '20-common-step-worktree/scripts/worktree.sh' .claude/` = 6 行、うち docs 以外 6 行がすべて同じパス） |
+| `bash -n`（0024） | 変更した 3 本（`ticket.sh` / `push.sh` / `boundary.sh`）と `worktree.sh` の 4 / 4 が OK。`shellcheck` は環境に無く未実施 |
+| 「本流かどうかの判定」の 3 本のバイト一致（0024） | `TICKET-T13` の 2 assert が PASS（`worktree.sh` の 4 行を基準に `ticket.sh` / `push.sh` を突き合わせ）。基準側が空でないことも 1 assert で確かめる |
+| 担当 3 本の機械テスト（0024） | `test_ticket.sh` `passed=139 failures=0` / `test_push.sh` `passed=62 failures=0` / `test_boundary.sh` `passed=142 failures=0`。既存の `TICKET-T01`〜`T12`・`CP-T01`〜`T11`・`BD-T01`〜`T19` は全通過（回帰なし） |
+| 全件テスト（`run-tests.sh --timeout 300`。0024） | **`OK: 28 本 / 243 件`**（全 PASS / FAIL 0）。239 → 243 は S7 の新設 4 ID（`TICKET-T13` / `CP-T12` / `BD-T20` / `BD-T21`）の分。**他の提供コマンド・フックの退行は 0 件** |
+| 実リポジトリで新しい `last_task` が導出できるか（0024） | `boundary.sh status --offline` が終了 0 で JSON を返した（`at_boundary:false` / `position:in_task` / `current:0024` / `last_task.task_type:ai-asset-design-plan`）。次の切れ目で `{0010}` になることをここで確認した（R32） |
+| 中核変更後に自分が動くか（0024） | `commit.sh`（`6888a87`）→ `boundary.sh status` → `ticket.sh complete 0024` の並びが通った。書き戻し（`git show <base_sha>:<パス>`）は発生していない |
+| 変更が S7 の許可範囲に収まっているか（0024） | `git diff 748a849 --stat` = `.claude/skills/**` 7 ファイル（`ticket.sh` / `push.sh` / `boundary.sh` / `worktree.sh` とテスト 3 本）/ `wip/10_tickets/**` 1 枚 / `wip/30_reports/**` 2 ファイル。いずれも `allow.write`（`wip/**`, `.claude/skills/**`）の内側。範囲外の差分なし |
+| S7 が担当する参照更新（0024） | 実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。**S7 の担当は 0 行**。`push.sh` の項目数（「4 項目」→「5 項目」）はスクリプト内の `usage` とヘッダのみで、スキル側の文言は S8（0025）の担当 |
 
 ## 作成・更新したアセットの一覧（仕様書の節との対応）
 
@@ -691,6 +797,13 @@ S2 で観測した e11（fail-closed の deny が記録されるのにツール�
 | 25 | `.claude/skills/20-common-step-worktree/scripts/worktree.sh` | 提供コマンド | **新規**（544 行） | 同「Script 処理」（本流かどうかの判定 → `wt_is_main_root` / 共通の入口 1〜3 → `require_env`・`resolve_roots`・`require_main`・`is_managed_branch` / `add` 1〜7 → `cmd_add` / `list` 1〜3 → `cmd_list` / `merge` 1〜6 → `cmd_merge` / `remove` 1〜7 → `cmd_remove` / 合流の記録 → `record_merge`・`build_merge_line` / `WT001`〜`WT008` → `result_ng` の各呼び出し） | 0023 |
 | 26 | `.claude/skills/20-common-step-worktree/scripts/tests/test_worktree.sh` | 提供コマンドのテスト | **新規**（481 行・160 assert） | 同「テスト観点」（`WT-T01`〜`WT-T12`） | 0023 |
 | 27 | `.claude/evals/20-common-step-worktree.md` | eval 定義 | **新規** | 同「テスト観点（eval）」（`WT-E01`〜`WT-E03`。**定義のみ・未実行**） | 0023 |
+| 28 | `.claude/skills/20-common-step-ticket/scripts/ticket.sh` | 提供コマンド | 更新（`wt_is_main_root` / `main_root_hint` の追加・`cmd_create` の手順 0・`usage` の 1 行） | `10_spec/skills/20-common-step-ticket.md`「Script 処理」`create` 手順 0・`TK009`・前提の 1 行 | 0024 |
+| 29 | `.claude/skills/20-common-step-ticket/scripts/tests/test_ticket.sh` | 提供コマンドのテスト | 更新（`TICKET-T13` を新設。作業ツリーの足場・`count_tickets`・`extract_ismain` を追加。足場に `.gitkeep` 4 枚の追跡を追加） | 同「テスト観点」（`TICKET-T13`） | 0024 |
+| 30 | `.claude/skills/20-common-step-commit-push/scripts/push.sh` | 提供コマンド | 更新（`ITEM_NAMES` に 5 番目・`wt_is_main_root` / `main_root_hint` の追加・項目 5 の検査・`SKIP4_REQUESTED` → `FIXED_REQUESTED` の一般化・`usage` とヘッダ） | `10_spec/skills/20-common-step-commit-push.md`「push.sh」1 の項目表 項目 5・2（スキップ不可） | 0024 |
+| 31 | `.claude/skills/20-common-step-commit-push/scripts/tests/test_push.sh` | 提供コマンドのテスト | 更新（`CP-T12` を新設。作業ツリーの足場・`remote_count`・サブブランチがリモートに増えないことの assert） | 同「テスト観点」（`CP-T12`） | 0024 |
+| 32 | `.claude/skills/00-workflow-issue-mr-driven/scripts/boundary.sh` | 提供コマンド | 更新（`WORKTREE_SH` 定数・`load_covered` / `has_other_worktrees` / `worktrees_have_doing` の新設・`scan_tickets` の `last_task` の作り替え・`at_boundary` の作業ツリー横断） | `10_spec/skills/00-workflow-issue-mr-driven.md`「切れ目の判定（正）」（`at_boundary` の作業ツリー横断・`last_task` の 4 段・記録の規則） | 0024 |
+| 33 | `.claude/skills/00-workflow-issue-mr-driven/scripts/tests/test_boundary.sh` | 提供コマンドのテスト | 更新（`BD-T20` / `BD-T21` を新設。`set_completed` を追加。`BD-T21` は `wip/` を追跡する専用の一時リポジトリと実物の `worktree.sh add` / `merge --all`、呼び出し回数の計測を持つ） | 同「テスト観点」（`BD-T20` / `BD-T21`） | 0024 |
+| 34 | `.claude/skills/20-common-step-worktree/scripts/worktree.sh` | 提供コマンド | 更新（`wt_is_main_root` のコメント 2 行を 1 行にまとめ、3 本でバイト一致する形にした。**振る舞いの変更なし**） | `10_spec/skills/20-common-step-worktree.md`「本流かどうかの判定（提供コマンド共通）」 | 0024 |
 
 S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S5 は 0 件）。S6 は `.claude/hooks/**` / `.claude/rules/**` / `.claude/agents/**` / `.claude/settings.json` / `.claude/hooks/config/**` を**1 件も触っていない**（中核の変更なし）。
 
@@ -801,6 +914,21 @@ S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S
 - **テスト先行**: `WT-T01`〜`WT-T12` は `worktree.sh` が存在しない状態で全 12 ID を書き、`FAIL / exit 2`（9 ID が FAIL、残りは打ち切り）を確認してから実装した。反転検査は使っていない（新設なので「書いた時点で通る」ケースが 0 件）
 - **1 本の実行時間**: 既定の 120 秒に収まる（`run-tests.sh` の TIMEOUT なし）。git のコミットは足場 1 回 + ケース内 10 回に抑え、`jq` は `list` の検証で 1 ケース 1 回にまとめた
 
+0024（S7）分:
+
+| テスト ID | 対象 | 実行コマンド | 結果 |
+|---|---|---|---|
+| TICKET-T13 | 作業ツリーでの `create` が `TK009`・終了 1 で**チケットを 1 枚も作らない**（作業ツリー側・本流側の両方の枚数を before/after で比較）。**負のコントロール**: 同じ引数を本流で実行すれば作られる。作業ツリーで `next` / `start` / `complete` / `cancel` が通り、対象がその作業ツリーの `wip/10_tickets/` になる（本流の `current` = `0012` と作業ツリーの `current` = null の対比）。**「本流かどうかの判定」が `worktree.sh` / `ticket.sh` / `push.sh` の 3 本でバイト一致する** | `bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*test_ticket*' --timeout 300` | **PASS**（新設。`passed=139 failures=0`） |
+| CP-T12 | 作業ツリーからの `push.sh` が**項目 5 の未充足**で `CP005`・`未充足 1 件`。リモートにサブブランチが増えていない（`rev-parse --verify wtcp12` が失敗）。`wip/push-check-skip.md` に `- 項目 5:` を書いて**コミットしても飛ばせない**（`項目 5 の指定は無効` / `skip 項目 5` は出ない）。**負のコントロール**: 本流では `✓ 項目 5` で push が通る。`commit.sh` は作業ツリーでも成功し、その作業ツリーの `HEAD` だけを進める | `run-tests.sh --filter '*test_push*' --timeout 300` | **PASS**（新設。`passed=62 failures=0`） |
+| BD-T20 | `last_task` が `ticket_type` のまとまりで切られ、**持ち越しが失われない**。`0011`-inv / `0012`-design / `0013`-inv（`completed_at` はこの順）で 1 回目 `{0011, 0013}`・`last_done` = `0013`、`skip` の後の 2 回目 `{0012}`・`last_done` = `0012`・`review.state` = `none`、`review-history.jsonl` が 1 切れ目 1 行。**負のコントロール**: どのチケットもどこかの `last_task` にちょうど 1 回だけ入る（既出集合が 3 件・重複なし）／別 MR の記録は既出に数えない（同じ MR なら数える対比つき） | `run-tests.sh --filter '*test_boundary*' --timeout 300` | **PASS**（新設。`passed=142 failures=0`） |
+| BD-T21 | `at_boundary` が**すべての作業ツリー**を見る。管理対象が 0 なら `worktree.sh` の呼び出し **0 回**（`make_counting_path` の記録先と `counted_calls`）、作業ツリーに作業中 1 枚で false・呼び出し 1 回、0 枚で true（切れ目の候補）。**合流の前後で `next` と `last_task` が変わる**（合流前は `next` = `0031` で `last_task` 空、`merge --all` の後に `next` = null・`last_task` = `{0031}`） | 同上 | **PASS**（新設） |
+| TICKET-T01〜T12 / CP-T01〜T11 / BD-T01〜T19 | 回帰 | 同上 3 本 | **全 PASS**（1 件も落ちていない） |
+| 全件 28 本 / 243 ID | リポジトリの全テスト（フック 17 本 + 提供コマンド 11 本） | `run-tests.sh --timeout 300` | **全 PASS**（`OK: 28 本 / 243 件` / FAIL 0 / 0024） |
+
+- 集計: 3 本 / `passed=139` + `passed=62` + `passed=142`、`FAIL` 0 件、重複 ID なし
+- **テスト先行**: 4 ID とも実装前に書いて FAIL を確認した。`TICKET-T13` = 作業ツリーでの `create` が `OK`（exit 0）でチケットを作った / `CP-T12` = 作業ツリーからサブブランチ `wtcp12` を**実際に push した**（`OK: push した（wtcp12、8 コミット）`）/ `BD-T20` = `last_task` が `{0013}` のまま持ち越し `0012` が落ちた（7 assert が FAIL）/ `BD-T21` = 作業ツリーに作業中 1 枚があるのに `at_boundary` が true（2 assert が FAIL）。反転検査は使っていない（4 ID とも書いた時点で落ちた）
+- **足場の修正 1 件**: `test_ticket.sh` の一時リポジトリは `wip/10_tickets/*/.gitkeep` を追跡していなかったので、作業ツリーへチェックアウトすると `10_doing/` が存在せず、作業ツリー側の `start` が置き場の不在で落ちた。本番のリポジトリは `.gitkeep` 4 枚を追跡しているので、**足場を本番に合わせた**（`ticket.sh` 側は変えていない）
+
 ### eval
 
 | eval ID | 状態 |
@@ -811,6 +939,7 @@ S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S
 | WT-E01（0023） | **定義済み・未実行**。`.claude/evals/20-common-step-worktree.md`。並行の指示 → `worktree.sh add` を使い `git worktree` / `cd` を直接実行しない。判定は実行ログのコマンド列（`worktree.sh add` 1 回以上 / `git worktree` 0 件 / `cd` 0 件）と切る根拠の記載 |
 | WT-E02（0023） | **定義済み・未実行**。`WT004` を自分で解消せず衝突ファイル一覧を添えて返す。判定は**拒否の記録ではなく実行ログ**（`git merge` / `git checkout` / `git restore` の直接実行 0 件、衝突ファイルへの `Edit` / `Write` 0 件）。切れ目では機構が止めないので「拒否されなかったこと」は合格の材料にしない旨を定義に明記した |
 | WT-E03（0023） | **定義済み・未実行**。作業ツリーで `ticket.sh create` / `push.sh` を呼ばず、本流で行う要求として呼び出し元へ返す |
+| （該当なし・0024） | S7 が触ったのは提供コマンド 3 本 + `worktree.sh` のコメント 1 行とテスト 3 本（いずれも機械実行できる）。指示文のアセット（スキル・ルール・エージェント）は 1 件も作成・変更していないので、定義すべき eval は 0 件。なお `WT-E03`（作業ツリーで `ticket.sh create` / `push.sh` を呼ばない）は S7 の `TK009` と項目 5 で**機構側の裏付けができた**が、eval 自体は引き続き未実行 |
 
 **このフェーズで eval は実行しない**（`10-task-ai-asset-implementation-exec` の禁止事項。実行は人間の判断）。S5 以降で作るスキル・ルール・エージェントの eval も、定義まで作って実行しない。
 
@@ -846,6 +975,12 @@ S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S
 | 参照更新一覧の消し込み（0023） | 実装計画書の 7 行 | S6 の担当 0 行。ただし `worktree.sh` の置き場を指す既存参照 2 件（`workflow-guard.sh` の `__WG_WORKTREE_CMD` / `test_workflow_guard.sh` の `wtc`）が新設したパスと一致することを確認（`grep -rn '20-common-step-worktree/scripts/worktree.sh' .claude/` の非 docs 6 行がすべて同じパス） | OK |
 | 静的検査（0023） | 新設 2 本（`worktree.sh` / `test_worktree.sh`） | `bash -n` 2 / 2 OK、`shellcheck` は環境に無く未実施 | 一部未実施（「確かめられなかったこと」に記載） |
 | `--force` が git に渡っていないこと（0023） | `worktree.sh` 全体 | `git worktree add --force` / `git worktree remove --force` / `--ignore-other-worktrees` は 0 件（`--force` は `git branch -D` の分岐にだけ現れる） | OK |
+| プレースホルダ（0024） | 変更した 7 本（提供コマンド 4 本・テスト 3 本）とこのレポート md / HTML | **テンプレート由来の残存 0 件**。`grep -c "{{\|TODO\|TBD"` は `ticket.sh` 20 件・`boundary.sh` 2 件・`test_ticket.sh` 1 件を返すが、内訳はすべて**既存のコード上の識別子**（置き場の定数 `TODO="$TICKETS/00_todo"` と、`ticket.sh` が**テンプレートを埋めるために持っている置換キー**（二重波かっこで囲んだ `TICKET_TYPE` 等）、`test_ticket.sh` の「二重波かっこが残っていないこと」の検査）で、S7 が足した 7 本の差分に新しい `{{` / `TODO` / `TBD` は 0 件 | OK |
+| frontmatter（0024） | S7 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 7 本）。チケット 0024 の frontmatter は `ticket.sh` が書いた項目以外を変更していない（`executor` / `human_review` / `adversarial_review` は変えていない） | 対象 0 件 | OK |
+| 参照更新一覧の消し込み（0024） | 実装計画書の 7 行 | S7 の担当 0 行 | 対象なし（全 7 行が S9 / 0026 担当） |
+| 静的検査（0024） | 変更した 4 本（提供コマンド）＋テスト 3 本 | `bash -n` 7 / 7 OK、`shellcheck` は環境に無く未実施 | 一部未実施（「確かめられなかったこと」に記載） |
+| 「本流かどうかの判定」を作り直していないこと（0024） | `ticket.sh` / `push.sh` / `worktree.sh` | `wt_is_main_root` の 4 行が 3 本でバイト一致（`TICKET-T13` の 2 assert）。`.git` の存在を独自に見る別の実装は 0 件 | OK |
+| `create` の分岐が `start` / `complete` に漏れていないこと（0024） | `ticket.sh` | `wt_is_main_root` の呼び出しは `cmd_create` の 1 か所のみ（`cmd_start` / `cmd_complete` / `cmd_cancel` / `cmd_next` / `main` に無い） | OK |
 
 ## 仕様からの逸脱
 
@@ -878,6 +1013,8 @@ S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S
 | D21 | `list` の出力が `OK:` で終わらない（0023） | 同「Script 処理」前文: 「出力の最終行は AI が読む結果（`OK:` または `WTxxx:`）」 | `list` は成功時に JSON 配列 1 行だけを出す（失敗時は `WTxxx:`）。同仕様の IN / OUT 表と IN / OUT サンプルが `list` の OUT を JSON 配列と定めており、そちらに従った。`ticket.sh` は同じ事情をヘッダに「（`next` は JSON）」と書いている | 仕様は直さず記録。前文に「（`list` は JSON）」を足す案を設計反映へ |
 | D22 | 「タスクの切れ目が来ている」を `10_doing/` の**`*.md` の枚数**で数えた（0023） | 同 `merge` 3 の表 項目 3・5: 「`wip/10_tickets/10_doing/` が**空**」 | このリポジトリの `10_doing/` は `.gitkeep` を持ち得る（空ディレクトリを git が追跡しないため）ので、文字どおり「ディレクトリが空」だと恒久的に合流できない。`ticket.sh` の `doing_files`（`*.md` の glob）と同じ数え方にした | 仕様は直さず記録。「`*.md` が 0 枚」に言い換える案を設計反映へ |
 
+| D23 | **既出集合（`covered`）を現在の MR の切れ目に限った**（0024） | `00-workflow-issue-mr-driven` 仕様「切れ目の判定（正）」`last_task` 1: 「`covered` を作る = `logs/review-history.jsonl` の**各行**の `boundary.tickets` ∪ 現在の `logs/review-state.json` の `boundary.tickets`」（絞り込みの条件が無い） | `logs/mr.json` の `mr` と一致する記録だけを数える（MR が分からないときは全件を数える = 拒否側）。`logs/` は clone に溜まり続ける一方、チケット番号は片付けのたびに 0001 から振り直されるので、絞らないと別 issue の同じ番号でいまのチケットが既出扱いになる（実リポジトリの `mr: null` の行に `0026,0025,0024` があり、本チケット自身が落ちた） | 仕様は直さず記録。`last_task` 1 に「現在の MR の記録に限る」を足す案を設計反映へ。`BD-T20` に負のコントロール込みで固定済み |
+
 ## 設計への反映
 
 | # | 反映すること | 引き取り先 |
@@ -905,6 +1042,10 @@ S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S
 | 21 | 同仕様 `merge` 3 の項目 3・5 の「`10_doing/` が空」を「`10_doing/` の `*.md` が 0 枚」に言い換える（D22） | 設計反映フェーズ |
 | 22 | `remove --force` が未合流のコミットを捨てるときに、出力 1 行だけでよいか（もう 1 段の指定を要るようにするか）を決める（e33・◇判断が欲しい） | フィードバック計画（0028）→ 設計反映 |
 | 23 | `20-common-step-ticket` / `20-common-step-commit-push` 仕様に、本流かどうかの判定を `20-common-step-worktree` 仕様から**どう共有するか**（同じ 1 行を書く / `source` 専用ライブラリに切り出す）を書く。S7（0024）が①で進めるなら、`20-common-step-shell-script` 仕様の変更は不要（e29） | S7（0024）/ 設計反映フェーズ |
+| 24 | **上の #23 は S7（0024）で①（同じ 4 行をコピーし、3 本のバイト一致を機械テストで固定する）を採って解決した**（e35）。仕様側には「`worktree.sh` / `ticket.sh` / `push.sh` の 3 本でバイト一致させる」と、その根拠（DDR `i0009-36` と同じやり方）を書き足す | 設計反映フェーズ |
+| 25 | `00-workflow-issue-mr-driven` 仕様「切れ目の判定（正）」`last_task` 1 に「**現在の MR の記録に限る**」を足す（D23）。`logs/` が clone に溜まる一方でチケット番号が issue ごとに振り直される以上、絞り込みが無いと別 issue の切れ目でチケットが落ちる | 設計反映フェーズ |
+| 26 | 同「切れ目の判定（正）」`last_task` に、**`completed_at` を持たないチケットの並べ替え**（設計結果の R59）を書き足す。S7 は「空文字＝最も早い、同着は連番の昇順」で実装した（R31） | 設計反映フェーズ |
+| 27 | 同「切れ目の判定（正）」`at_boundary` に、**補集合が空のときの `last_task`**（= `review-state.json` の切れ目をそのまま返す）を書き足す。仕様の 4 段だけだと `request` の直後に `last_task` が空になり `position` が `requested` に入らない（e37） | 設計反映フェーズ |
 
 ## 想定と異なった点
 
@@ -945,6 +1086,13 @@ S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S
 | （0023）新設なので中核（フック・`settings.json`）を触らず、ロックアウトの危険は無い | そのとおりだった。`.claude/hooks/**` は 1 行も触っていない。ただし**実機のフックの判定は変わっている**（S4 で入れた `worktree.sh` の例外が、S6 の実体を得て初めて意味を持つ） | 機械テスト（`WG-T21`）に加えて、実機で `worktree.sh list` と `worktree.sh add <名前> <../ の置き場>` の 2 回を踏み、allow を確かめた（e34） |
 | （0023）`add` は既定でリポジトリの外に作るので、テストの後始末は `TMP_REPO` の削除で足りる | 足りない。既定の置き場は `<TMP_REPO>-wt/` で **`TMP_REPO` の兄弟**なので、test-lib の trap の対象外 | `_TL_TMPS+=("${TMP_REPO}-wt")` で明示的に登録した。`git` のラッパー用の一時ディレクトリも同じように登録している |
 
+| （0024）`covered` は仕様どおり `review-history.jsonl` の全行から作れば足りる | 足りない。`logs/` は clone に溜まり続ける一方、チケット番号は片付け（draft 解除）のたびに 0001 から振り直されるので、**別 issue の切れ目に載った同じ番号**でいまのチケットが既出扱いになる。実リポジトリの `mr: null` の行に `0026,0025,0024` があり、実装のまま進めると**本チケット自身が `last_task` から落ちた** | `logs/mr.json` の `mr` と一致する記録だけを数える形にし（MR 不明なら全件 = 拒否側）、`BD-T20` に負のコントロール込みで固定した（D23・e37） |
+| （0024）補集合で切る実装に替えても、実リポジトリの `last_task` は従来と同じ「末尾の同種のまとまり」になる | ならない。`0010`（ai-asset-design-plan）と `0016`（ai-asset-implementation-plan）は**切れ目の記録が 1 行も無い**ので補集合に残り、次の切れ目の `last_task` は `{0010}` になる。`0016` と `0018`〜`0024` は持ち越し | DDR `i0050-10` が狙ったとおりの振る舞い（レビュー未通過のチケットを拾う）なので実装は変えず、運用への影響を R32 と「◆特に見てほしい（0024 分）」に出した |
+| （0024）`worktree.sh` の呼び出し回数は `make_counting_path` でそのまま数えられる | 数えられない。`make_counting_path` は **PATH 上のコマンド名**をラップする仕組みで、`worktree.sh` は `bash <パス>` で呼ばれる | `make_counting_path` を引数なしで呼んで記録先（`COUNTING_LOG`）だけを用意し、同じ体裁のラッパーを `worktree.sh` の置き場に被せて `counted_calls worktree.sh` で読む形にした（e38） |
+| （0024）`BD-T21` は既存の一時リポジトリ（`test_boundary.sh` の足場）で書ける | 書けない。足場は `wip/` を `.gitignore` に入れている（ケースごとのコミットを省くため）ので、**合流で作業ツリー側のチケットの移動が本流へ運ばれない** | `BD-T21` 専用に `wip/` を追跡する一時リポジトリをもう 1 つ作り、`worktree.sh` と `boundary.sh` を置いた（e38） |
+| （0024）作業ツリーへチェックアウトすれば `wip/10_tickets/` の 4 つの置き場は揃う | 揃わない。git は空ディレクトリを追跡しないので、`.gitkeep` を持たない足場では `10_doing/` が作られず、作業ツリー側の `ticket.sh start` が `mv` で落ちた | 本番のリポジトリは `.gitkeep` 4 枚を追跡しているので、**テストの足場を本番に合わせた**（`ticket.sh` に `mkdir -p` を足す変更はしていない） |
+| （0024）中核（フック）を触らないのでロックアウトの危険は無い | そのとおりだったが、**危険の質が違う**。S7 が壊し得るのは「チケットを閉じる手段」そのもの（`ticket.sh`）で、フックと違って `WORKFLOW_ENTRY_ENFORCE=0` のような逃げ道が無い | `create` の分岐を `cmd_create` の中だけに置き（`start` / `complete` の経路に条件を足さない）、1 つ変えるごとに担当テストを回してから `commit.sh` → `ticket.sh complete` の順に進めた（e39） |
+
 ## 残課題
 
 | # | 残課題 | 引き取り先 |
@@ -978,3 +1126,9 @@ S6 で `.claude/skills/**` と `.claude/evals/**` に初めて触った（S1〜S
 | R27 | `worktree.sh` の `merge` / `remove` を**実機（作業リポジトリ）で 1 度も踏んでいない**。踏むと本流のブランチにマージコミットが入るため、テスト（一時リポジトリ）でのみ確認した。実機で踏むのは S10（0027）の実測か、実際に並行実施を始めるとき | S10（0027）の実測 / 切れ目のレビュー |
 | R28 | 合流の記録の**4 KB 切り詰め**（`conflicts` を減らして末尾に `…`）は実装したが、**機械テストで踏んでいない**。4 KB を超える衝突（数十〜数百ファイル）を一時リポジトリで作るのが重いため。ロジックは `while [ "${#line}" -ge 4096 ]` の 1 か所 | S9（0026）の全体検査 / フィードバック計画（0028） |
 | R29 | `merge --all` で**管理対象が 0 件**のとき `OK: 合流の対象が無い` を返す振る舞いは仕様に無い（実装判断）。エラーにするか成功にするかを決めていない | 設計反映フェーズ |
+| R30 | **0024 で閉じた残課題**: R25（作業ツリーまわりでパスを文字列として比べると Windows で壊れる）は S7 では踏んでいない —— 本流かどうかの判定を `[ -d "$1/.git" ]` の存在検査だけにし、パスの前方一致も文字列比較も使っていないため（案内に出す本流の置き場は `git rev-parse --git-common-dir` から導く**表示専用**の値）。R25 自体は今後の作業ツリー関連の実装に対する注意として残す | 部分的に閉じた（記録として残す） |
+| R31 | **`completed_at` を持たないチケットの `last_task` の扱い**（設計結果の **R59**。仕様「切れ目の判定（正）」に記述が無い）。S7 は「空文字＝最も早い、同着は連番の昇順」で実装した。逆に「最も遅い」に倒すと、そのチケットが持ち越され続けてどの切れ目にも入らない事態が起き得るため。本リポジトリの実チケットは `ticket.sh complete` が必ず `completed_at` を書くので現時点では踏まない。**仕様からの逸脱ではなく、仕様が決めていない点の実装判断**として記録する | フィードバック計画（0028）→ 設計反映フェーズ |
+| R32 | 補集合で切る形にした結果、**次の切れ目の `last_task` が `{0010}`（ai-asset-design-plan）になる**。`logs/review-history.jsonl` に `0010` と `0016`（ai-asset-implementation-plan）の切れ目の記録が無いため。DDR `i0050-10` が狙ったとおり（レビューを一度も受けずに通過したチケットを拾う）だが、S7 の完了直後から**小さい切れ目が数回続く**。そのまま処理するか `skip` でまとめて閉じるかを決める必要がある | 切れ目のレビュー / 呼び出し元（`00-workflow-issue-mr-driven`） |
+| R33 | `BD-T21` の「合流の前後で `next` と `last_task` が変わる」は**一時リポジトリでしか踏んでいない**。実機で踏むと本流のブランチにマージコミットが入るため。R27（`worktree.sh` の `merge` / `remove` を実機で踏んでいない）と同じ扱い | S10（0027）の実測 / 実際に並行実施を始めるとき |
+| R34 | `push.sh` の**項目数の記述**（「4 項目」→「5 項目」）を直したのはスクリプトの `usage` とヘッダだけで、`20-common-step-commit-push/SKILL.md` の文言は S8（0025）の担当。S8 が触るまでスキル側は「4 項目」のままである | S8（0025） |
+| R35 | `TK009` と項目 5 は**機械テストでしか踏んでいない**（実機で踏むには作業ツリーを作って作業ディレクトリをそこへ移す必要がある。`EnterWorktree` は使っていない）。`worktree.sh` の実機確認（R27）と合わせて S10 で踏む | S10（0027）の実測 |

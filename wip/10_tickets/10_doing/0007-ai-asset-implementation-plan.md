@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T20:52:17+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "2174923"
 ---
 
 # 0007 取り込み後の AI アセット実装・テストの対象有無を確定する

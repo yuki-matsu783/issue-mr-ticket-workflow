@@ -41,6 +41,8 @@ __WG_LIMITS_PATH=".claude/hooks/config/scope-limits.json"
 __WG_CMD_WRITE_OK=('wip/tmp/**' 'logs/**')
 # 提供コマンドの引数のうち、値がパスではないもの（メッセージ・宣言・理由）。次の語を読み飛ばす
 __WG_VALUE_OPTS=' -m --message --reason --dod --title --body --note --label --type --allow-write --allow-ops --issue --pr '
+# 作業ツリーの提供コマンド。置き場を指す引数だけは書き込みの判定を当てない（仕様 制御方式 6 の例外）
+__WG_WORKTREE_CMD='.claude/skills/20-common-step-worktree/scripts/worktree.sh'
 
 __WG_NO_BYPASS="拒否されたら迂回せず、宣言の範囲内で進めること。範囲を広げる必要があるなら作業を止めてユーザーに提案する（未着手チケットの見直しか計画の追加チケット）。"
 
@@ -143,7 +145,9 @@ if (( HOOK_DOING_COUNT > 1 )); then
     printf '%s' "$out"
   }
   if ! __wg_all_provided; then
-    hook_deny WF207 "作業中チケットが $HOOK_DOING_COUNT 枚ある（$(__wg_list)）。1 枚だけの状態でしか判定できないので、bash .claude/skills/20-common-step-ticket/scripts/ticket.sh で 1 枚を残して他を未着手に戻すこと。$__WG_NO_BYPASS" "$HOOK_TOOL"
+    # 枚数は「1 作業ツリーあたり」の話（仕様 概要）。どの作業ツリーで数えたかを必ず出す —
+    # 他の作業ツリーにも作業中チケットがあり得るので、書かないと「どこを 1 枚に戻すのか」が決まらない
+    hook_deny WF207 "作業ツリー $HOOK_WORKTREE の作業中チケットが $HOOK_DOING_COUNT 枚ある（$(__wg_list)）。枚数は 1 作業ツリーあたりで数えるので、他の作業ツリーの作業中チケットは含まない。1 枚だけの状態でしか判定できないので、この作業ツリーで bash .claude/skills/20-common-step-ticket/scripts/ticket.sh を使い 1 枚を残して他を未着手に戻すこと。$__WG_NO_BYPASS" "$HOOK_TOOL"
   fi
   hook_record allow "" "$HOOK_TOOL" "作業中 $HOOK_DOING_COUNT 枚だが提供コマンドなので通す"
   exit 0
@@ -372,15 +376,28 @@ __wg_check_delete_targets() { # $1=セグメント番号
   return 0
 }
 
-# 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）
+# 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）。
+# 例外は worktree.sh の**作業ツリーの置き場を指す引数**だけ（`add <名前> [<置き場>]` の置き場、
+# `remove <名前|置き場>` の位置引数）。置き場の既定はリポジトリの外（20-common-step-worktree 仕様）なので
+# 判定を当てると必ず WF209 になり、提供コマンドを設けた意味が無くなる。置き場が妥当か
+# （既存の作業ツリーと重ならない・同一リポジトリの作業ツリーである）は worktree.sh 自身が検査する（WT002）
 __wg_check_provided_args() { # $1=セグメント番号
-  local i="$1" a skip=0 first=1 p
+  local i="$1" a skip=0 first=1 p pos=0 wt=0 sub=""
+  [[ "${CP_PROVIDED[$i]:-}" == "$__WG_WORKTREE_CMD" ]] && wt=1
   cmdpos_args "$i"
   for a in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
     if (( first )); then first=0; continue; fi          # 第 1 引数は提供コマンド自身
     if (( skip )); then skip=0; continue; fi
     if [[ "$__WG_VALUE_OPTS" == *" $a "* ]]; then skip=1; continue; fi
     [[ "$a" == -* ]] && continue
+    pos=$(( pos + 1 ))                                  # 1 始まりの位置引数（1 = サブコマンド）
+    if (( wt )); then
+      (( pos == 1 )) && sub="$a"
+      # 例外は引数の位置で決まる（名前の位置に外のパスを書けば従来どおり判定に掛かる）
+      if { [[ "$sub" == add ]] && (( pos == 3 )); } || { [[ "$sub" == remove ]] && (( pos == 2 )); }; then
+        continue
+      fi
+    fi
     # パスらしい語だけを見る（メッセージ・番号・部分文字列を対象にしない）
     [[ "$a" == *[[:space:]]* ]] && continue
     if [[ "$a" == */* ]] || [[ "$a" =~ ^[A-Za-z0-9_.@-]+\.[A-Za-z0-9]+$ ]]; then

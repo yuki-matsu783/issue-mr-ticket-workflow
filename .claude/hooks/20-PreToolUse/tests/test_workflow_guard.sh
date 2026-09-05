@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_workflow_guard.sh — workflow-guard.sh のテスト（仕様のテスト ID: WG-T01〜WG-T18）
+# test_workflow_guard.sh — workflow-guard.sh のテスト（仕様のテスト ID: WG-T01〜WG-T21）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*workflow_guard*'
 # テストは set -e を使わない（終了コードは judge が取る）
 set -uo pipefail
@@ -103,6 +103,46 @@ tfc() { run Write file_path "$TMP_REPO/$1" content "$2"; }                  # �
 te() { run Edit file_path "$TMP_REPO/$1" old_string "$2" new_string "$3"; } # 編集
 tc() { run "${2:-Bash}" command "$1"; }                                     # 実行
 tp() { run EnterPlanMode; }
+
+# ---- 作業ツリーをまたぐ判定の足場（WG-T19 / WG-T20 / WG-T21）----
+# cwd を差し替えた入力を組む。MSYS のパス変換を止めないと /tmp/... が Windows パスに化け、
+# 作業ツリーの照合が常に外れる（payload と同じ回避）
+payload_at() { # $1=cwd $2=tool_name、以降は tool_input の <キー> <値> の並び
+  local cwd="$1" tool="$2"; shift 2
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -nc --arg t "$tool" --arg cwd "$cwd" '
+    {hook_event_name: "PreToolUse", tool_name: $t, session_id: "s1", cwd: $cwd, tool_input: {}}
+    | reduce range(0; ($ARGS.positional | length); 2) as $i
+        (.; .tool_input[$ARGS.positional[$i]] = $ARGS.positional[$i + 1])' --args "$@" | tr -d '\r'
+}
+run_at() { lab "$(payload_at "$@" | bash "$TMP_HOOK" 2>/dev/null)"; }
+raw_at() { payload_at "$@" | bash "$TMP_HOOK" 2>/dev/null; }
+
+# 本流（TMP_REPO）とそこから切った作業ツリーを相互参照付きで用意する。git worktree add は呼ばない
+# （フックは <作業ツリー>/.git と <本流>/.git/worktrees/<名前>/gitdir の相互参照だけを見る）
+wt_fixture() { # $1=作業ツリーの置き場 $2=登録名
+  mkdir -p "$1/.claude" "$1/wip/10_tickets/00_todo" "$1/wip/10_tickets/10_doing" \
+           "$1/wip/10_tickets/20_done" "$1/wip/tmp" "$1/logs" "$1/apl/app/src/api" "$1/tools" \
+           "$TMP_REPO/.git/worktrees/$2"
+  printf 'gitdir: %s/.git/worktrees/%s\n' "$TMP_REPO" "$2" > "$1/.git"
+  printf '%s\n' "$1/.git" > "$TMP_REPO/.git/worktrees/$2/gitdir"
+  return 0
+}
+# 作業中チケットの枚数を数える（負のコントロールの前提をテスト自身が確かめるため。0004 の e48）
+doing_count() { # $1=作業ツリーのルート
+  local f n=0 ng=0
+  shopt -q nullglob && ng=1
+  shopt -s nullglob
+  for f in "$1"/wip/10_tickets/10_doing/*.md; do n=$(( n + 1 )); done
+  (( ng )) || shopt -u nullglob
+  printf '%s' "$n"
+}
+set_wt_ticket() { # $1=作業ツリー、以降 fixtures の名前（0 個なら作業中なし）
+  local wt="$1" n
+  shift
+  rm -f "$wt"/wip/10_tickets/10_doing/*.md
+  for n in "$@"; do cp "$TMP_REPO/fixtures/$n.md" "$wt/wip/10_tickets/10_doing/$n.md"; done
+  return 0
+}
 
 # ---- WG-T01: 作業中 0 枚 ----
 case_no_ticket() {
@@ -244,6 +284,10 @@ case_two_doing() {
   # 番号の一覧が出る
   case "$(raw Bash command 'ls -la')" in
     *0003*0004*) pass "WG-T08" ;; *) fail "WG-T08" "チケット番号の一覧が出ない" ;;
+  esac
+  # どの作業ツリーで数えたかが出る（枚数は 1 作業ツリーあたりの話なので、書かないと戻す先が決まらない）
+  case "$(raw Bash command 'ls -la')" in
+    *"$TMP_REPO"*) pass "WG-T08" ;; *) fail "WG-T08" "どの作業ツリーで数えたかが出ない" ;;
   esac
 }
 
@@ -470,6 +514,79 @@ case_delete() {
   assert_eq "WG-T18" "allow" "$(tc 'rm .claude/hooks/20-PreToolUse/x.sh')"
 }
 
+# ---- WG-T19: 宣言範囲の強制が worktree 側のチケットで判定される（A1-6 / A5）----
+WG_WT=""
+case_worktree_scope() {
+  make_tmp_dir
+  WG_WT="$TMP_DIR/wt"
+  wt_fixture "$WG_WT" w1
+  set_ticket                                    # 本流 0 枚
+  set_wt_ticket "$WG_WT" 0003-implementation    # worktree 1 枚
+  set_approvals
+  # 前提を assert してから判定を呼ぶ（既存のリポジトリの状態に依存させない）
+  assert_eq "WG-T19" "0" "$(doing_count "$TMP_REPO")"
+  assert_eq "WG-T19" "1" "$(doing_count "$WG_WT")"
+  # worktree 側チケット（0003-implementation: allow.write は apl/app/src/api/** と apl/app/docs/**）で判定される
+  assert_eq "WG-T19" "allow" "$(run_at "$WG_WT" Write file_path "$WG_WT/apl/app/src/api/a.ts")"
+  assert_eq "WG-T19" "WF201" "$(run_at "$WG_WT" Write file_path "$WG_WT/.claude/settings.json")"
+  assert_eq "WG-T19" "WF202" "$(run_at "$WG_WT" Write file_path "$WG_WT/tools/gen.py")"
+  # WF207 は出ない（本流にも 1 枚あって合計 2 枚でも、数えるのは作業ツリーの中だけ）
+  set_ticket 0005-overall-plan
+  assert_eq "WG-T19" "1" "$(doing_count "$TMP_REPO")"
+  assert_eq "WG-T19" "1" "$(doing_count "$WG_WT")"
+  assert_eq "WG-T19" "allow" "$(run_at "$WG_WT" Write file_path "$WG_WT/apl/app/src/api/a.ts")"
+  assert_eq "WG-T19" "WF201" "$(run_at "$WG_WT" Write file_path "$WG_WT/.claude/settings.json")"
+  # 本流側のチケット（overall-plan: 宣言は空）は worktree 側の判定に使われない。
+  # 同じパスが cwd=本流 では WF202（未記載）、cwd=worktree では allow になる（材料が別のチケットである証拠）
+  assert_eq "WG-T19" "WF202" "$(run_at "$TMP_REPO" Write file_path "$TMP_REPO/apl/app/src/api/a.ts")"
+}
+
+# ---- WG-T20: WG-T19 の負のコントロール（本流 1 枚・worktree 0 枚）----
+case_worktree_negative() {
+  local out rc
+  set_ticket 0003-implementation      # 本流 1 枚
+  set_wt_ticket "$WG_WT"              # worktree 0 枚
+  assert_eq "WG-T20" "1" "$(doing_count "$TMP_REPO")"
+  assert_eq "WG-T20" "0" "$(doing_count "$WG_WT")"
+  # cwd=worktree では判定に入らない（無出力・終了 0）。本流のチケットの宣言は一切使われない
+  out="$(raw_at "$WG_WT" Write file_path "$TMP_REPO/.claude/settings.json")"; rc=$?
+  assert_eq "WG-T20" "" "$out"
+  assert_eq "WG-T20" "0" "$rc"
+  out="$(raw_at "$WG_WT" Write file_path "$WG_WT/.claude/settings.json")"; rc=$?
+  assert_eq "WG-T20" "" "$out"
+  assert_eq "WG-T20" "0" "$rc"
+  assert_eq "WG-T20" "allow" "$(run_at "$WG_WT" Bash command 'rm .claude/settings.json')"
+  # 正のコントロール: 同じ入力を cwd=本流 で流すと拒否される（無音は判定の不在であって故障ではない）
+  assert_eq "WG-T20" "WF201" "$(run_at "$TMP_REPO" Write file_path "$TMP_REPO/.claude/settings.json")"
+  assert_eq "WG-T20" "WF205" "$(run_at "$TMP_REPO" Bash command 'rm .claude/settings.json')"
+}
+
+# ---- WG-T21: worktree.sh の置き場を指す引数の例外 ----
+case_worktree_args() {
+  local wtc=".claude/skills/20-common-step-worktree/scripts/worktree.sh"
+  local cp=".claude/skills/20-common-step-commit-push/scripts/commit.sh"
+  set_ticket 0003-implementation
+  set_approvals
+  # 置き場はリポジトリの外が既定。判定を当てると必ず WF209 になるので当てない（妥当性は worktree.sh が検査する）
+  assert_eq "WG-T21" "allow" "$(tc "bash $wtc add w1 ../repo-wt/w1")"
+  assert_eq "WG-T21" "allow" "$(tc "bash $wtc add w1")"
+  assert_eq "WG-T21" "allow" "$(tc "bash $wtc remove ../repo-wt/w1")"
+  assert_eq "WG-T21" "allow" "$(tc "bash $wtc remove w1")"
+  assert_eq "WG-T21" "allow" "$(tc "bash $wtc list")"
+  assert_eq "WG-T21" "allow" "$(tc "bash $wtc merge --all")"
+  # 例外は引数の位置で決まる。名前の位置に外のパスを書けば従来どおり WF209（負のコントロール）
+  assert_eq "WG-T21" "WF209" "$(tc "bash $wtc add ../repo-wt/w1")"
+  # 同じ行の他のパス引数・他の提供コマンドの引数は従来どおり判定する（WG-T14 の正のコントロール）
+  assert_eq "WG-T21" "WF201" "$(tc "bash $wtc add w1 ../repo-wt/w1 && bash $cp -m 'chore: x' .claude/settings.json")"
+  assert_eq "WG-T21" "WF201" "$(tc "bash $cp -m 'chore: x' .claude/settings.json")"
+  assert_eq "WG-T21" "WF209" "$(tc "bash $cp -m 'chore: x' ../repo-wt/w1/a.md")"
+  # 提供コマンドでない git の作業ツリー操作は分類外、一覧は読み取り、cd は分類外
+  assert_eq "WG-T21" "WF204" "$(tc 'git worktree add ../repo-wt/w1')"
+  assert_eq "WG-T21" "WF204" "$(tc 'git worktree remove ../repo-wt/w1')"
+  assert_eq "WG-T21" "allow" "$(tc 'git worktree list')"
+  assert_eq "WG-T21" "WF204" "$(tc 'cd ../repo-wt/w1')"
+}
+
 printf 'ticket_type: implementation\n' > "$TMP_REPO/wip/10_tickets/00_todo/0011-x.md"
 
 case_no_ticket
@@ -490,5 +607,9 @@ case_web
 case_web_upload
 case_delete
 case_broken
+# 作業ツリーの fixture は本流に .git/worktrees/<名前> を足すので、他のケースの後に置く
+case_worktree_scope
+case_worktree_negative
+case_worktree_args
 
 finish

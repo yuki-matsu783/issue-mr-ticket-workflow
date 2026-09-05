@@ -41,7 +41,8 @@ workflow-guard の宣言範囲の強制と workflow-state-guard の保護対象�
 
 ### 現在地
 
-- 未着手
+- 着手（基準点 e348c12）。仕様（workflow-guard / workflow-state-guard）・計画書 S4・既存の 2 本のフックとテストを読み終えた
+- 次: テスト先行で WG-T19 / WG-T20 / WG-T21 と SG-T12 / SG-T13 を書き、失敗を確認してから実装する
 
 ### うまくいったこと
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_workflow_state_guard.sh — workflow-state-guard.sh のテスト（仕様のテスト ID: SG-T01〜SG-T11）
+# test_workflow_state_guard.sh — workflow-state-guard.sh のテスト（仕様のテスト ID: SG-T01〜SG-T13）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*workflow_state_guard*'
 # テストは set -e を使わない（終了コードは judge が取る）
 set -uo pipefail
@@ -50,6 +50,18 @@ payload() { # $1=キー種別（command|file_path|mcp） $2=値 $3=ツール名 
 tc() { lab "$(payload command "$1" "${2:-Bash}" | bash "$TMP_HOOK" 2>/dev/null)"; }
 tf() { lab "$(payload file_path "$TMP_REPO/$1" "${2:-Write}" | bash "$TMP_HOOK" 2>/dev/null)"; }
 tm() { lab "$(payload mcp "" "$1" "${2:-}" | bash "$TMP_HOOK" 2>/dev/null)"; }
+
+# cwd を差し替えた入力（SG-T12 / SG-T13）。MSYS のパス変換を止めないと /tmp/... が Windows パスに化ける
+payload_at() { # $1=cwd $2=キー種別（command|file_path） $3=値 $4=ツール名
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -nc \
+    --arg k "$2" --arg v "$3" --arg t "$4" --arg cwd "$1" '
+    {hook_event_name: "PreToolUse", tool_name: $t, session_id: "testsession", cwd: $cwd, tool_input: {}}
+    | (if $k == "command" then .tool_input.command = $v
+       elif $k == "file_path" then .tool_input.file_path = $v
+       else . end)' | tr -d '\r'
+}
+tfa() { lab "$(payload_at "$1" file_path "$2" "${3:-Write}" | bash "$TMP_HOOK" 2>/dev/null)"; }
+tca() { lab "$(payload_at "$1" command "$2" "${3:-Bash}" | bash "$TMP_HOOK" 2>/dev/null)"; }
 
 # ---- SG-T01: 進行状態ファイル ----
 case_state_files() {
@@ -192,6 +204,63 @@ case_wipe() {
   assert_eq "SG-T11" "allow" "$(tc 'rm -rf node_modules')"
 }
 
+# ---- SG-T12: 他の作業ツリーの保護対象を絶対パスで書く ----
+# 本流（TMP_REPO）とそこから切った作業ツリーを相互参照付きで用意する（git worktree add は呼ばない）
+SG_WT=""; SG_OUT=""
+sg_wt_fixture() { # $1=作業ツリーの置き場 $2=登録名
+  mkdir -p "$1/.claude" "$1/wip/10_tickets/00_todo" "$1/wip/10_tickets/10_doing" \
+           "$1/wip/10_tickets/20_done" "$1/wip/tmp" "$1/logs" "$TMP_REPO/.git/worktrees/$2"
+  printf 'gitdir: %s/.git/worktrees/%s\n' "$TMP_REPO" "$2" > "$1/.git"
+  printf '%s\n' "$1/.git" > "$TMP_REPO/.git/worktrees/$2/gitdir"
+  return 0
+}
+case_cross_worktree() {
+  local bs
+  make_tmp_dir
+  SG_WT="$TMP_DIR/wt"; SG_OUT="$TMP_DIR/outside"
+  sg_wt_fixture "$SG_WT" w1
+  mkdir -p "$SG_OUT/logs" "$SG_OUT/wip/10_tickets/20_done"
+  printf 'ticket\n' > "$SG_WT/wip/10_tickets/20_done/0002-x.md"
+  # cwd=worktree から本流の保護対象を絶対パスで指しても、同じ理由・同じ識別子で拒否される
+  assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$TMP_REPO/wip/10_tickets/20_done/0001-overall-plan.md" Write)"
+  assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$TMP_REPO/wip/10_tickets/20_done/0001-overall-plan.md" Edit)"
+  assert_eq "SG-T12" "WF302" "$(tfa "$SG_WT" "$TMP_REPO/wip/10_tickets/10_doing/9999-new.md" Write)"
+  assert_eq "SG-T12" "WF301" "$(tca "$SG_WT" "echo x > $TMP_REPO/logs/mr.json")"
+  assert_eq "SG-T12" "WF301" "$(tfa "$SG_WT" "$TMP_REPO/logs/review-state.json" Write)"
+  # 自分の作業ツリーの側の保護対象も同じ（保護は作業ツリーの数に依らない）
+  assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$SG_WT/wip/10_tickets/20_done/0002-x.md" Edit)"
+  # `.` / `..` を挟んだ形
+  assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$TMP_REPO/wip/../wip/10_tickets/20_done/0001-overall-plan.md" Write)"
+  assert_eq "SG-T12" "WF301" "$(tca "$SG_WT" "echo x > $TMP_REPO/logs/./mr.json")"
+  # `\` 区切りの形
+  bs="${TMP_REPO//\//\\}"
+  assert_eq "SG-T12" "WF303" "$(tfa "$SG_WT" "$bs\\wip\\10_tickets\\20_done\\0001-overall-plan.md" Write)"
+  assert_eq "SG-T12" "WF301" "$(tfa "$SG_WT" "$bs\\logs\\review-state.json" Write)"
+  # 負のコントロール: 同一リポジトリの外の同名ファイルは通る
+  assert_eq "SG-T12" "allow" "$(tfa "$SG_WT" "$SG_OUT/logs/mr.json" Write)"
+  assert_eq "SG-T12" "allow" "$(tca "$SG_WT" "echo x > $SG_OUT/logs/mr.json")"
+  assert_eq "SG-T12" "allow" "$(tfa "$SG_WT" "$SG_OUT/wip/10_tickets/20_done/0001-x.md" Write)"
+}
+
+# ---- SG-T13: 作業ツリーの集合を読めないときは許可に倒さない ----
+case_worktrees_unreadable() {
+  # `.git/worktrees` が在るのに列挙できない状態（ディレクトリでない）にする
+  rm -rf "$TMP_REPO/.git/worktrees"
+  printf 'not a directory\n' > "$TMP_REPO/.git/worktrees"
+  assert_eq "SG-T13" "WF309" "$(tfa "$TMP_REPO" "$SG_OUT/logs/mr.json" Write)"
+  assert_eq "SG-T13" "WF309" "$(tca "$TMP_REPO" "echo x > $SG_OUT/logs/mr.json")"
+  assert_eq "SG-T13" "WF309" "$(tfa "$TMP_REPO" "$SG_OUT/wip/10_tickets/20_done/0001-x.md" Write)"
+  # 全面拒否にはならない（リポジトリ内と確定できるパスは従来どおり判定できる）
+  assert_eq "SG-T13" "WF301" "$(tf 'logs/review-state.json')"
+  assert_eq "SG-T13" "allow" "$(tf 'README.md')"
+  # 負のコントロール: worktree が 1 つも無い（.git/worktrees が存在しない）だけなら WF309 にならない
+  rm -f "$TMP_REPO/.git/worktrees"
+  assert_eq "SG-T13" "allow" "$(tfa "$TMP_REPO" "$SG_OUT/logs/mr.json" Write)"
+  assert_eq "SG-T13" "allow" "$(tfa "$TMP_REPO" "$SG_OUT/wip/10_tickets/20_done/0001-x.md" Write)"
+  assert_eq "SG-T13" "WF301" "$(tf 'logs/review-state.json')"
+  assert_eq "SG-T13" "allow" "$(tf 'README.md')"
+}
+
 # ---- 停止中・入力不正・外部プロセス ----
 case_misc() {
   local out rc
@@ -227,5 +296,8 @@ case_text
 case_mcp
 case_broken_config
 case_wipe
+# 作業ツリーの fixture は本流に .git/worktrees/<名前> を足し、SG-T13 はそれを壊すので他のケースの後に置く
+case_cross_worktree
+case_worktrees_unreadable
 case_misc
 finish

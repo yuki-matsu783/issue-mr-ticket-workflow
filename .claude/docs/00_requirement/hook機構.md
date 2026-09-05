@@ -1595,15 +1595,262 @@ frontmatter 全文を目視させる設計を採らない。人間には「何�
 
 リスクスコアが `high_risk_threshold`（既定 40）を超える場合、`[a] 承認` のワンキーを無効化し、チケット ID の手入力を要求する。反射的な承認操作を物理的に阻止するため。
 
-> 転記注記: **ここから §20.2 までは提供されたスクリーンショットに写っていない。** 欠落しているのは §17.4 の承認画面例（チケット ID 手入力を求める表示）、§17.5 承認台帳とチケット完全性検証、§17.6 この対策の限界、§18 PostToolUse：事後変更監視（18.1〜18.6）、§19 非対話セッション（CI/CD）制御（19.1〜19.3）、§20.1 前提設定、§20.2 パスアクセスの判定例（#1〜#14）である。
->
-> 他節からの参照によって、これらの節が扱う内容の一部は分かっている。§9.4 の検証項目 7 と §14.9 が「チケット未承認検出 → §17.5 の降格処理」を参照し、§3.3 の T-4 が「§17.5 承認台帳」を挙げる。§2.4 と §14.9 が「PostToolUse による事後検証（§18）」「PostToolUse による事後無効化（§18.3）」を参照し、§16.5 の運用方針と §21 の #22 が PostToolUse の事後検知と復元指示に触れる。§10.1 の `TICKET_GUARD_ASK_FALLBACK` と §15 の判定フロー末尾（`[ 対話？ ] NO (CI) → [ASK_FALLBACK] 既定 deny`）、および §14.9 の `force_disable_when_non_interactive` が §19 の非対話セッションの扱いに対応する。ただしこれらは参照であって本文ではないので、節そのものは補わずに空けてある。原本から取り込むこと。
+```
+⚠ リスクスコア 58 (HIGH)。以下の高リスク項目が含まれます：
+
+  ▸ .claude/skills への write allow（許可されます）
+      エージェント定義の書き換えが可能になります
+  ▸ tmp/scratch への write allow（許可されます）
+      expected_roots の範囲外です
+
+  これらは「却下される要求」ではなく「実際に許可される権限」です。
+  作業内容に照らして必要か確認してください。
+
+  承認する場合、チケット ID を入力してください: █
+```
+
+### 17.5 承認台帳とチケット完全性検証
+
+承認台帳
+
+```
+.claude/approved-tickets.jsonl      ← Layer 0-B 不変 deny (write)
+{"ticket":"PROJ-1234","frontmatter_hash":"sha256:7c1e...","config_hash":"a1b2c3d4","approved_
+```
+
+> 転記注記: 台帳の JSONL の 1 行は原文でも横スクロールの途中で切れており、`"approved_` の後が読み取れない。
+
+承認時、frontmatter を正規化（キーソート・空白正規化・コメント除去）して SHA-256 を算出し、台帳へ追記する。config_hash も記録する理由：同じチケットでも、その後 config.yaml が変更されていれば実効権限が変わるため、両者の組み合わせで承認の同一性を判定する。
+
+実行時検証（毎回の PreToolUse）
+
+```
+現在の frontmatter_hash + config_hash を算出
+├─ 台帳に一致するエントリあり ──→ 通常判定
+└─ 一致なし ──────────────→ 【未承認チケット】
+     ・全承認キャッシュを即時破棄
+     ・すべての allow を ask に降格
+     ・sandbox 外は従来どおり deny
+     ・人間へ再承認を要求
+     ・監査ログに TICKET_UNAPPROVED を記録
+```
+
+### 17.6 この対策の限界
+
+承認台帳は Hook と同じユーザー権限で書かれるため、任意のシェル実行が可能な主体（脅威モデル D）に対しては防壁にならない。
+
+| 防げる | 防げない |
+|---|---|
+| AI が Write / Edit ツールでチケットを書き換える | 未知の手段で deny をすり抜けたシェル書き込み |
+| AI が sed -i / リダイレクトで書き換える | 外部プロセスによる直接改竄 |
+| 承認前のチケットで作業が始まる事故 | — |
+| チケット切替の見落とし | — |
+
+本質的な保護には §23.3 の OS/FS 権限分離を併用する。
+
+---
+
+## 18. PostToolUse：事後変更監視
+
+### 18.1 目的
+
+PreToolUse の静的解析には原理的な限界がある。
+
+| 検知できない経路 | 例 |
+|---|---|
+| ビルドツールの副作用 | npm run build が .env.production を生成する |
+| 間接実行 | 許可されたスクリプトが内部で保護領域を書き換える |
+| 解析漏れ | 想定していないコマンド形式・シェル構文 |
+
+これらは実行前には判定不能であるため、実行後にファイルシステムの実態を検証する（P9）。
+
+### 18.2 処理フロー
+
+1. `git status --porcelain` を実行 → 未コミットの変更・新規追加・削除ファイル一覧を取得
+2. 各変更ファイルについて権限を再判定 → Layer 0-B 不変 deny / Layer 1 の write:deny に該当するものを抽出 ※ ここでは Layer 1 までで判定する。チケットや承認キャッシュの影響を排除し、「プロジェクトが守ると宣言した領域」だけを見るため
+3. 該当ありの場合: a. 応答 JSON の additionalContext に警告と復元指示を注入 b. 原因となった承認キャッシュエントリを無効化（§18.3） c. 監査ログに POST_VIOLATION を記録 d. 設定に応じて自動復元を実行（§18.4）
+4. 該当なしの場合: → 何もせず終了
+
+Git 管理外のファイル変更（.gitignore 対象、リポジトリ外）は本方式では検知できない。この限界は §23 に明記する。
+
+### 18.3 承認キャッシュの事後無効化
+
+保護領域の汚染が検知された場合、その実行を許可したキャッシュエントリを特定して削除する。
+
+直前の PreToolUse でヒットしたキャッシュエントリを記録しておき、POST_VIOLATION 発生時に該当エントリを削除する。加えて、同一 subject の prefix エントリも削除する。
+
+理由：一度でも保護領域の汚染を引き起こした承認は、以降も同じ結果を招く可能性が高い。キャッシュに残したまま繰り返し許可すると、被害が累積する。
+
+### 18.4 自動復元
+
+```yaml
+post_tool_use:
+  auto_restore: warn        # off / warn / auto
+  restore_targets:
+    - "Layer0B"             # 常に対象
+    - "project_write_deny"
+```
+
+| モード | 挙動 |
+|---|---|
+| off | 検知と通知のみ |
+| warn（既定） | 通知 ＋ LLM への復元指示。実際の復元は AI に行わせる |
+| auto | `git checkout -- <path>` / 新規ファイルは削除を Hook が直接実行 |
+
+既定を warn とする理由：自動復元は、正当な変更まで巻き戻すリスクがある。まず人間と AI に状況を伝え、判断の機会を与える。
+
+### 18.5 LLM への通知
+
+```
+[Ticket Guard / PostToolUse] 保護領域が変更されました。
+
+変更されたファイル:
+  M  .env.production          (project 設定で write: deny)
+  A  infra/terraform.tfstate  (project 設定で write: deny)
+
+直前の実行: Bash(npm run build)
+
+これらの変更は許可されていません。以下を実行してください:
+  1. git checkout -- .env.production
+  2. rm infra/terraform.tfstate
+  3. ビルド設定を見直し、保護領域に出力しないよう修正する
+
+この操作に対する承認キャッシュは無効化されました。
+```
+
+### 18.6 監査ログ
+
+```json
+{
+  "event": "POST_VIOLATION",
+  "ticket": "PROJ-1234",
+  "config_hash": "a1b2c3d4",
+  "timestamp": "2026-09-03T10:31:44+09:00",
+  "triggering_call": "Bash(npm run build)",
+  "violations": [
+    { "path": ".env.production", "git_status": "M",
+      "rule": "project.target_directories.write.\".env.*\"", "decision": "deny" },
+    { "path": "infra/terraform.tfstate", "git_status": "A",
+      "rule": "project.target_directories.write.\"infra\"", "decision": "deny" }
+  ],
+  "invalidated_cache_keys": ["sha256:c71b..."],
+  "auto_restore": "warn"
+}
+```
+
+---
+
+## 19. 非対話セッション（CI/CD）制御
+
+### 19.1 検出と挙動
+
+対話的な確認ができない環境では、ask を人間に問えない。この場合の既定挙動を明確に定める。
+
+非対話の判定条件（いずれか成立で非対話）
+
+- 標準入力が TTY でない
+- CI 環境変数が設定されている（CI / GITHUB_ACTIONS / GITLAB_CI 等）
+- TICKET_GUARD_NON_INTERACTIVE=1 が明示指定されている
+
+非対話時の挙動
+
+| 項目 | 挙動 | 理由 |
+|---|---|---|
+| ask の解決 | TICKET_GUARD_ASK_FALLBACK（既定 deny） | 確認できない操作を許可に倒すと、CI が事実上の無制限実行環境になるため |
+| 承認キャッシュ | force_disable_when_non_interactive: true のとき読み書きとも無効 | 承認する人間が存在しない環境でキャッシュを持つ意味がなく、誤って持ち込まれたキャッシュが悪用されうるため |
+| チケット承認ゲート | 承認済みチケットのハッシュ照合のみ実施。未承認なら全 allow を ask に降格 → ASK_FALLBACK により deny | 事前に人間が承認したチケットのみが CI で有効になる |
+| 昇格試行・逸脱レポート | 画面表示は省略し、監査ログと標準エラー出力に記録 | |
+| Hook 完全性検証 | hook_integrity の設定に関わらずフェイルクローズ | 人間の確認ゲートが機能しないため |
+
+### 19.2 CI 向け推奨設定
+
+CI では「事前に承認された狭いチケット」を使い、ask が一切発生しない状態を目指す。ask が発生する＝設定不備、として扱う。
+
+```yaml
+# .claude/hooks/config.yaml（CI 用オーバーレイ）
+approval_cache:
+  mode: off
+  force_disable_when_non_interactive: true
+hook_integrity: strict
+post_tool_use:
+  auto_restore: auto
+```
+
+```bash
+export TICKET_GUARD_ASK_FALLBACK=deny
+export TICKET_GUARD_LOG_LEVEL=info
+```
+
+### 19.3 CI でのデバッグ支援
+
+ask による deny が発生した場合、通常の deny と区別できるようログとエラー出力に明記する。
+
+```
+[Ticket Guard] 操作が拒否されました（非対話セッション）
+  ツール : Write
+  対象   : /repo/reports/output.json
+  理由   : IMPL_PATH_UNDEF → ASK_FALLBACK=deny
+
+対話環境であれば確認プロンプトが表示される操作です。
+CI で実行する場合、チケットの target_directories.write に
+"reports" を追加してください。
+```
 
 ---
 
 ## 20. 判定例カタログ
 
-> 転記注記: §20.1 前提設定 と §20.2 パスアクセス（判定例 #1〜#14）は提供されたスクリーンショットに写っていない。以下は §20.3 から始まる。判定例の通し番号が #15 から始まるのはそのためで、欠番ではない。
+### 20.1 前提設定
+
+```yaml
+# Layer 0-A: settings.json permissions.deny
+#   WebFetch, Bash(sudo:*)
+
+# Layer 1: config.yaml
+sandbox_root: "."
+expected_roots:
+  read:  ["src", "tests", "docs"]
+  write: ["src", "tests"]
+tools:
+  Bash: allow
+  Write: allow
+  Edit: allow
+  Read: allow
+target_directories:
+  read:
+    ".env": deny
+    "secrets": deny
+  write:
+    ".env": deny
+    ".env.*": deny
+    "secrets": deny
+    "infra": deny
+    "docs": deny
+    ".claude/hooks": deny
+    ".claude/settings.json": deny
+    ".current-ticket.md": deny
+```
+
+> 転記注記: この YAML は原文の画面下端で `".current-ticket.md": deny` の行まで写っており、その先（ticket 側の宣言など）は提供された写真に無い。
+
+### 20.2 パスアクセス
+
+| # | 操作 | 判定 | reason_code | 説明 |
+|---|---|---|---|---|
+| 1 | `Read: src/App.tsx` | 🟢 allow | — | 未宣言領域 + ticket allow |
+| 2 | `Read: .env` | 🔴 deny | DENY_PATH | Layer1 明示宣言 |
+| 3 | `Read: /usr/lib/python3/foo.py` | 🟠 ask | EXPL_SANDBOX_READ | sandbox 外 read。非キャッシュ |
+| 4 | `Write: src/components/Btn.tsx` | 🟢 allow | — | ticket allow + expected_roots 内 |
+| 5 | `Write: tmp/work/note.md` | 🟢 allow | — | ticket allow。expected_roots 外 → 逸脱として記録 |
+| 6 | `Write: tmp/other/x.txt` | 🟠 ask | IMPL_PATH_UNDEF | どのレイヤも未言及 |
+| 7 | `Write: docs/api.md` | 🔴 deny | DENY_PATH | Layer1 明示宣言 |
+| 8 | `Write: migrations/0042.sql` | 🟠 ask | EXPL_PATH_ASK | Layer1 明示 ask。毎回確認 |
+| 9 | `Write: .claude/skills/foo.md` | 🟠 ask | IMPL_PATH_UNDEF | .claude/hooks 等は deny だが skills は未宣言 |
+| 10 | `Write: .claude/hooks/pre_tool_use.py` | 🔴 deny | DENY_PATH | Layer1 明示宣言 |
+| 11 | `Write: .claude/approved-tickets.jsonl` | 🔴 deny | DENY_BUILTIN | Layer 0-B 不変 |
+| 12 | `Write: /etc/hosts` | 🔴 deny | DENY_SANDBOX | sandbox 外 write |
+| 13 | `Write: ../other-repo/x.ts` | 🔴 deny | DENY_SANDBOX | 正規化後 sandbox 外 |
+| 14 | `Read: src/link（→/etc/passwd）` | 🟠 ask | IMPL_SYMLINK_ESCAPE<br>EXPL_SANDBOX_READ | 実体解決で sandbox 外。非キャッシュ |
 
 ### 20.3 Bashコマンド
 

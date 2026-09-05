@@ -4,6 +4,9 @@ title: i0009-64. 上向き探索で見つけた .claude が HOOK_ROOT の worktr
 description: cwd から上向きに .claude を探すだけでは cd 一つでガードが全面バイパスされることが実測で分かり、候補が HOOK_ROOT の worktree であることを fork ゼロの 2 経路で確かめると定めた判断
 tags: [ddr, hooks, worktree, 無効化]
 keywords: [HOOK_WORKTREE, HOOK_ROOT, worktree, cwd, gitdir, __hc_is_worktree_of, i0009-55, 全面バイパス]
+status: 一部置き換え済み
+superseded_by: i0050-07-作業ツリー解決は相互参照の双方向を要求する.md
+superseded_scope: 「相互参照は片方でよい」という判定の緩さと、「差分の事後検査は HOOK_ROOT の作業ツリーだけを見る」という残る穴の記述。上向き探索・fork ゼロの制約・正規化の規則は有効
 ---
 
 # i0009-64. 上向き探索で見つけた `.claude` が `HOOK_ROOT` の worktree かを確かめる

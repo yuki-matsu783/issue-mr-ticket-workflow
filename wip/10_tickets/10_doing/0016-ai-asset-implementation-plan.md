@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T16:05:45+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "10a96c0"
 ---
 
 # 0016 AI アセット実装・テスト計画: worktree 運用と並列実施の設計を実装ステップに割り付ける

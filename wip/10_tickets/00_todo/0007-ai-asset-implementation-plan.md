@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation-plan
-predecessors: ["0005", "0006"]
+predecessors: ["0005", "0006", "0008", "0009"]
 executor: opus
 human_review: {required: true, reason: "基準どおり（work-defaults.md: 許可範囲とロックアウト対策を実装前に見る）"}
 adversarial_review: {required: false, reason: "基準どおり"}

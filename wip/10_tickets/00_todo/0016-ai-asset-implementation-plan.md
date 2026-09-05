@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation-plan
-predecessors: ["0012", "0013", "0014", "0015"]
+predecessors: ["0012", "0013", "0014", "0015", "0017"]
 executor: opus
 human_review: {required: false, reason: "全体計画書の方針（差分 3）"}
 adversarial_review: {required: true, reason: "全体計画書の方針（差分 3: 基準では不要だが本 issue では要）"}

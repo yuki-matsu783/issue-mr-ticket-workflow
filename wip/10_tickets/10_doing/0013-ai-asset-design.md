@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T12:15:14+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "9f09175"
 ---
 
 # 0013 AI アセット設計: 宣言範囲の強制・実行者照合・現在地の導出と、コマンド分類の穴

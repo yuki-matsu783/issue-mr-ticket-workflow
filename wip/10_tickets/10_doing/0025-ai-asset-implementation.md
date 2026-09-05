@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/skills/**", ".claude/agents/**", ".claude/rules/**", ".claude/evals/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-06T03:40:26+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "b8dd2e8"
 ---
 
 # 0025 S8 スキル・ルール・エージェントと eval 定義

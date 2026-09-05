@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "work-defaults の基準どおり�
 allow:
   write: ["wip/**"]
   ops: ["remote-write:issue-create"]
-started_at: ""
+started_at: "2026-09-06T07:53:03+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "a3a87b0"
 ---
 
 # 0028 フィードバック計画: issue #50 の改善候補の洗い出しと後続フェーズの要否の確定

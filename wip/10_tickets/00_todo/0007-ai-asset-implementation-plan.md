@@ -3,7 +3,7 @@ type: ticket
 ticket_type: ai-asset-implementation-plan
 predecessors: ["0005", "0006", "0008", "0009"]
 executor: opus
-human_review: {required: true, reason: "基準どおり（work-defaults.md: 許可範囲とロックアウト対策を実装前に見る）"}
+human_review: {required: false, reason: "基準から外す。ユーザーの指示（2026-09-05「レビューなしで draft 解消まで進めて」）により、残りのフェーズは人間レビューを行わず draft 解除まで進める"}
 adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]

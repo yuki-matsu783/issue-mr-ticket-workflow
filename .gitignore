@@ -43,3 +43,6 @@ logs/
 
 # settings.json の段階登録（⓪ ① ②）で人間が取るバックアップ。ローカル限りの安全網で、リポジトリには残さない
 .claude/settings.json.bak-*
+
+# Claude Code のサブエージェント隔離が作る作業ツリーの置き場。ローカル限りで追跡しない（設計計画書 結論方針 P10）
+.claude/worktrees/

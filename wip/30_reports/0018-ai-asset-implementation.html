@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0018〜0027 AI アセット実装・テスト結果 — 実装フェーズの許可範囲の設定と .claude/worktrees/ の無視（S1 分）</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット実装・テスト結果レポート / 実装（S1 分）</p>
+  <h1 id="title" data-required>0018〜0027 AI アセット実装・テスト結果 — 実装フェーズの許可範囲の設定と .claude/worktrees/ の無視（S1 分）</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 3</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li><a href="#conditions">実施条件</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. scope-limits.json の allow に .gitignore を足した</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. .gitignore に .claude/worktrees/ を足した</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 変えた判定を踏み、自分が止まらないことを確かめた</a></li>
+          <li><a href="#f4"><span class="mk warn">△</span> 4. common.confirm の壁と WF601 の見え方のずれ</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#assets">作成・更新したアセットの一覧</a></li>
+      <li><a href="#tests">テスト結果</a></li>
+      <li><a href="#inspection">検査結果</a></li>
+      <li><a href="#deviations">仕様からの逸脱</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
+    <div><dt>チケット</dt><dd>0018〜0027（現時点の内容は 0018 / S1 分）</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">S1（0018）は実装フェーズの<b>入口の設定</b>を 2 つ変えた。①<code>.claude/hooks/config/scope-limits.json</code> の <code>types["ai-asset-implementation"].allow</code> に <code>.gitignore</code> を足し（<code>.gitattributes</code> と同じ「<code>common.protected</code> を明示で判定順 (2) を通す」形）、②<code>.gitignore</code> に <code>.claude/worktrees/</code> を足した。①→② の順を守り、②が <code>WF201</code> にならず <b>判定 stage 5 の allow</b> で記録されたことをもって、変えた判定を実際に踏んだことを確かめた。機械テストは <code>HK-T01</code> / <code>HK-T02</code> とも PASS、<code>jq -e .</code> も成功、変更直後の <code>Write</code> と提供コマンド <code>ticket.sh next</code> も通り、機構は自分を止めていない。一方で <code>common.confirm</code> の壁は計画書の保留 P5 のとおり顕在化し、①の編集は呼び出し元のメインエージェントが代行した。さらに、宣言済みのパスでも <code>workflow-diff-check</code> が <code>WF601</code>（許可範囲外）を出し続けることが分かった。どちらも仕様どおりの振る舞いなので仕様は直さず、逸脱として記録した。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>3</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><b><code>common.confirm</code> のパスをサブエージェント実行者が書けない運用をこのまま続けてよいか</b>（<a href="#deviations">D3</a>・<a href="#deviations">D4</a>）。S1 は呼び出し元のメインエージェントが <code>scope-limits.json</code> の 1 行だけを代行して抜けた。同じ問題は S10（0027 / <code>.claude/settings.json</code>）でも起きるが、計画書は 0027 の実行者を最初からメインエージェントに置いているので実害は無い見込み。「サブエージェントに委ねたチケットの一部を呼び出し元が代行する」形自体の是非を判断してほしい</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇判断が欲しい</p>
+      <p class="sub">決めた方針の承認 / 決められない点の判断</p>
+      <ul>
+        <li><b><code>workflow-diff-check</code> の <code>WF601</code> が、宣言済みの <code>common.confirm</code> パスを許可範囲外として報告する件</b>（<a href="#f4">f4</a> / D4）。差分検査が「宣言」ではなく「<code>scope_classify</code> の分類が <code>allow</code> か」で判定するために起きる。AI が「巻き戻すべき差分」と誤読して成果を消す事故が起こり得る。<b>このフェーズでは直さず</b>フィードバック計画（0028）へ渡す案で進めてよいか</li>
+        <li><b><code>.gitignore</code> を <code>allow</code> に残すか</b>。S1 の目的は 1 度きりの編集で達成される。<b>残す側に倒した</b>（<code>.gitattributes</code> と同じ扱いにしておくほうが、以後のフェーズが設定変更から始めずに済む）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li><code>.gitignore</code> の追記 2 行（コメント 1 行 + <code>.claude/worktrees/</code>）の文言と置き場所（末尾）</li>
+        <li>実装計画書 S1 の記述 <code>WF205</code> は <code>WF201</code> の誤記（D5）。同じ計画書の別の 2 か所と実測は <code>WF201</code></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><b><code>.gitignore</code> の <code>.claude/worktrees/</code> が実際に効くこと</b>（<code>push.sh</code> 項目 1 が落ちないこと）— <code>push.sh</code> は S1 の <code>allow.ops</code> に無く、<code>.claude/worktrees/</code> が作られる状況（サブエージェント隔離）も S10 まで発生しない。引き取り先: S10（0027）の実測 / 切れ目の push</li>
+      <li><b><code>scope-limits.json</code> の編集がサブエージェント実行者でも通る条件</b> — 判定順 (4) の <code>WF203</code>（ask）はヘッドレスで deny になるため、実行者からは 1 度も成功させられなかった（代行で回避）。引き取り先: フィードバック計画（0028）</li>
+      <li><b><code>HK-T02</code> が <code>.gitignore</code> の追加そのものを検査しているか</b> — <code>HK-T02</code> は 3 つのキー集合の照合と <code>commands.build-test</code> の振る舞いを見るテストで、<code>types[*].allow</code> の中身の網羅は見ない。追加の妥当性はテストではなく仕様書 §8 との突き合わせで確かめた（D1）。引き取り先: S9（0026）の全体検査</li>
+    </ul>
+  </div>
+</section>
+
+<section id="conditions">
+  <h2>実施条件（測った対象・環境）</h2>
+  <ul>
+    <li>基準点: <code>9c2e4d7</code>（チケット 0018 の <code>base_sha</code>）。着手コミット <code>6dcaabc</code></li>
+    <li>ブランチ: <code>feature-50-worktree-parallel-tickets</code></li>
+    <li>実行コマンド: <code>bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*config_integrity*'</code> / 同 <code>--ids</code> / <code>jq -e . .claude/hooks/config/scope-limits.json</code></li>
+    <li><code>jq</code> 1.6</li>
+  </ul>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">scope-limits.json の ai-asset-implementation の allow に .gitignore を足した <span class="chip good">◎良</span> <span class="basis">根拠: git diff 9c2e4d7 / jq -e . が終了コード 0</span></h3>
+      <p><code>types["ai-asset-implementation"].allow</code> の末尾（<code>".gitattributes"</code> の後ろ）に <code>".gitignore"</code> を 1 要素だけ足した。差分は 1 行の置換。形は <code>.gitattributes</code> と同じで、<b><code>common.protected</code> に居るパスを型の <code>allow</code> に明示することで判定順 (2) を抜ける</b>（フック共通仕様 §8「上限設定」）。<code>.gitignore</code> は <code>common.confirm</code> には入っていないので、明示だけで stage 5 の allow に落ちる。<code>scope-limits.json</code> が壊れると <code>WF210</code> で全書き込みが止まるため、計画書のロックアウト対策どおり編集は 1 回にまとめ、直後に構文を確かめた。<b>この編集は実行者（サブエージェント）ではなく呼び出し元のメインエージェントが代行した</b>（理由は <a href="#f4">f4</a> と D3）。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ git diff 9c2e4d7 -- .claude/hooks/config/scope-limits.json
+-    "ai-asset-implementation": {"allow": [..., "CLAUDE.md", ".gitattributes"], ...}
++    "ai-asset-implementation": {"allow": [..., "CLAUDE.md", ".gitattributes", ".gitignore"], ...}
+
+$ jq -e . .claude/hooks/config/scope-limits.json &gt; /dev/null; echo $?
+0</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>実装フェーズが <code>.gitignore</code> を書けるようになり、構文も壊れていない。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">.gitignore に .claude/worktrees/ を足した <span class="chip good">◎良</span> <span class="basis">根拠: git diff 9c2e4d7 -- .gitignore（3 行追加）</span></h3>
+      <p>末尾に「Claude Code のサブエージェント隔離が作る作業ツリーの置き場」のコメント 1 行と <code>.claude/worktrees/</code> を足した（設計計画書 結論方針 P10 後半 / 設計結果 残課題 R55、実装計画書 変更対象 #2）。<code>worktree.sh</code> の既定の置き場はリポジトリの外なので、この行が効くのは <b>Claude Code のサブエージェント隔離（<code>isolation: "worktree"</code>）や <code>--worktree</code> 起動のような外部の仕組みが <code>.claude/worktrees/</code> を作る場合だけ</b>である。実装計画書の保留 P4 のとおり「足しても失うものが無い」ので足す側に倒してある。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ git diff 9c2e4d7 -- .gitignore
++
++# Claude Code のサブエージェント隔離が作る作業ツリーの置き場。ローカル限りで追跡しない（設計計画書 結論方針 P10）
++.claude/worktrees/</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>隔離の作業ツリーが作られても <code>push.sh</code> 項目 1（未コミットなし）を落とさない。効くことの実証は S10 の実測に残る。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">変えた判定を実際に踏み、機構が自分を止めないことを確かめた <span class="chip good">◎良</span> <span class="basis">根拠: run-tests.sh --ids / logs/hooks/decisions.jsonl の 1 行</span></h3>
+      <p>計画書のロックアウト対策 S1 が要求する 2 点をどちらも踏んだ。①<code>HK-T02</code> が <code>scope-limits.json</code> を実際に読んで <code>scope_classify</code> を走らせること（<code>PASS / exit 0 / passed=95 failures=0</code>）。②<code>scope-limits.json</code> を直した後の <code>.gitignore</code> への <code>Edit</code> が <code>WF201</code> にならず allow（判定 stage 5）で記録されたこと。<code>note</code> の「判定 5」が判定順 (5)（型の <code>allow</code> に一致）を指す。<code>.gitignore</code> は <code>common.protected</code> に居るので、S1 の①が無ければ判定順 (2) で <code>WF201</code> になる経路である。加えて、中核の設定を変えた直後に <code>Write</code>（<code>wip/tmp/0018-selfcheck.txt</code>）と提供コマンド <code>ticket.sh next</code> の 2 経路が通ることを確かめた。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*config_integrity*' --ids
+| .claude/hooks/tests/test_config_integrity.sh | PASS | exit 0 | passed=95 failures=0 |
+PASS ID: HK-T01 HK-T02 HK-T09
+FAIL ID:
+重複 ID: なし
+OK: 1 本 / 3 件
+
+$ grep '"target":".gitignore"' logs/hooks/decisions.jsonl | tail -1
+{"ts":"2026-09-05T19:15:34+09:00", ... ,"hook":"workflow-guard","event":"PreToolUse",
+ "decision":"allow","id":"","tool":"Edit","target":".gitignore",
+ "ticket":"0018-ai-asset-implementation.md","note":"判定 5 / 種類 ai-asset-implementation"}
+
+$ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh next
+{"current":"0018","next":null,"type":"ai-asset-implementation","skill":"10-task-ai-asset-implementation-exec"}</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>変えた判定（判定順 (2) を型の <code>allow</code> で抜ける経路）を実際に踏んで allow に抜けた。復旧手順は使わずに済んだ。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">4</span>
+      <h3 id="f4">common.confirm の壁と WF601 の見え方のずれが、計画書の想定どおり（一部は想定外に）出た <span class="chip warn">△注意</span> <span class="basis">根拠: 実行者側の deny と、以後全ツール呼び出しに付く WF601</span></h3>
+      <p><code>.claude/hooks/config/**</code> は <code>common.confirm</code> なので、判定順 (4) が <code>WF203</code>（ask）を返し、<b>宣言の有無に関わらず (5) に落ちない</b>。サブエージェント実行者は確認に答えられないため deny になり、f1 の編集は成立しなかった。計画書の保留 P5 が予告していた事象で、対処も保留 P5 が書いたとおり（迂回せず呼び出し元のメインエージェントが 1 ファイルの編集だけを代行）にした（D3）。想定外だったのは<b>その後</b>で、チケットの <code>allow.write</code> に <code>.claude/hooks/config/**</code> が入っているにもかかわらず、<code>workflow-diff-check</code>（PostToolUse）が以後すべてのツール呼び出しで許可範囲外として報告し続けた（D4）。識別子が <code>WF203</code> と併記されているので宣言違反ではないと読めるが、文面は「巻き戻せ」と指示する。<b>指示に従って巻き戻すと計画の成果が消える</b>ので、判断の分かれ目としてここに残す。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>WF601: 作業中チケット 0018-ai-asset-implementation.md（種類: ai-asset-implementation）の
+許可範囲外に差分がある。基準点は 9c2e4d7。
+- .claude/hooks/config/scope-limits.json（変更 / WF203）
+復旧: 追跡済みの変更は git checkout 9c2e4d7 -- &lt;path&gt; …
+
+# チケット 0018 の宣言
+allow:
+  write: ["wip/**", ".claude/hooks/config/**", ".gitignore"]</code></pre>
+      </details>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>差分検査は「宣言したか」ではなく「<code>scope_classify</code> の分類が <code>allow</code> か」で見ている。実装フェーズの残り（S2〜S10）でも出続けるので、巻き戻しの誤爆に注意が要る。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td><code>jq -e . .claude/hooks/config/scope-limits.json</code></td><td>終了コード 0（構文は壊れていない）</td></tr>
+      <tr><td><code>run-tests.sh --filter '*config_integrity*'</code></td><td><code>PASS / exit 0 / passed=95 failures=0</code>（1 本 / 3 件）</td></tr>
+      <tr><td>同 <code>--ids</code></td><td><code>PASS ID: HK-T01 HK-T02 HK-T09</code> / <code>FAIL ID:</code> 空 / 重複 ID なし</td></tr>
+      <tr><td><code>.gitignore</code> の <code>Edit</code> が allow / stage 5</td><td><code>logs/hooks/decisions.jsonl</code> に 1 行（<code>"decision":"allow"</code> かつ <code>"note":"判定 5 / 種類 ai-asset-implementation"</code>）。同じ対象に <code>WF201</code> の行は無い</td></tr>
+      <tr><td>変更が S1 の許可範囲に収まっているか</td><td><code>git diff 9c2e4d7 --stat</code> = <code>scope-limits.json</code> 1 行 / <code>.gitignore</code> 3 行 / チケット 1 枚。いずれも <code>allow.write</code> の内側</td></tr>
+      <tr><td>中核変更後に自分が動くか</td><td><code>Write</code>（<code>wip/tmp/</code>）と <code>ticket.sh next</code> の 2 経路が成功</td></tr>
+      <tr><td>S1 が担当する参照更新</td><td>実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。<b>S1 の担当は 0 行</b></td></tr>
+      <tr><td>プレースホルダ</td><td>二重波かっこのテンプレート記法は md・HTML とも 0 件。<code>TODO</code> / <code>TBD</code> は検査項目名として書いた行以外に 0 件</td></tr>
+      <tr><td>frontmatter</td><td>このレポートの md に <code>type</code> / <code>title</code> / <code>description</code> / <code>tags</code> / <code>keywords</code> の 5 キー。S1 は frontmatter を持つアセットを作成・変更していない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="assets">
+  <h2>作成・更新したアセットの一覧（仕様書の節との対応）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>アセット</th><th>種別</th><th>変更</th><th>仕様書の節</th><th>チケット</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>.claude/hooks/config/scope-limits.json</code></td><td>フックの設定</td><td>更新（1 行）</td><td><code>10_spec/フック共通仕様.md</code> §8「上限設定」（<code>ai-asset-implementation</code> の行）</td><td>0018</td></tr>
+      <tr><td>2</td><td><code>.gitignore</code></td><td>リポジトリ設定</td><td>更新（2 行追加）</td><td>設計計画書 結論方針 P10 後半 / 設計結果 残課題 R55（仕様書に節は無い）</td><td>0018</td></tr>
+      <tr><td>3</td><td><code>wip/30_reports/0018-ai-asset-implementation.md</code> / <code>.html</code></td><td>成果物（レポート）</td><td>新規</td><td><code>10_spec/skills/10-task-ai-asset-implementation-exec.md</code>「OUT ひな形」</td><td>0018</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><code>.claude/skills/**</code> / <code>.claude/hooks/*.sh</code> / <code>.claude/rules/**</code> / <code>.claude/agents/**</code> / <code>.claude/evals/**</code> / <code>.claude/settings.json</code> は S1 では<b>1 件も触っていない</b>。</p>
+</section>
+
+<section id="tests">
+  <h2>テスト結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>テスト ID</th><th>対象</th><th>実行コマンド</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>HK-T01</td><td><code>settings.json</code> の登録表（PreToolUse <code>Agent</code> の行が無いことの負のコントロール。S1 では <code>settings.json</code> を変えないことの確認として踏む）</td><td><code>run-tests.sh --filter '*config_integrity*'</code></td><td><b>PASS</b></td></tr>
+      <tr><td>HK-T02</td><td><code>scope-limits.json</code> の 3 つのキー集合の照合と <code>commands.build-test</code> の振る舞い</td><td>同上</td><td><b>PASS</b></td></tr>
+      <tr><td>HK-T09</td><td>同じテストファイル（<code>test_config_integrity.sh</code>）が持つ 3 件目。S1 の DoD には無いが同時に走る</td><td>同上</td><td><b>PASS</b>（参考）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <ul>
+    <li>集計: <code>1 本 / 3 件</code>、<code>passed=95 failures=0</code>、<code>FAIL</code> 0 件、重複 ID なし</li>
+    <li>テスト先行（失敗確認 → 実装 → 成功）は<b>適用していない</b>。S1 は既存のテストが読む設定値を変えるだけで、新しいテストを足していないため（計画書「依存するテスト」も S1 に新設テストを割り付けていない）</li>
+    <li><b>eval: 該当なし（0 件）</b>。S1 は設定ファイルのみを変更し、機械検証できない指示文のアセット（スキル・ルール・エージェント）を作成・変更していない。<b>このフェーズで eval は実行しない</b>（S5 以降で作る eval も定義まで）</li>
+  </ul>
+</section>
+
+<section id="inspection">
+  <h2>検査結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検査</th><th>対象</th><th>件数</th><th>判定</th></tr></thead>
+    <tbody>
+      <tr><td>プレースホルダ（二重波かっこのテンプレート記法 / <code>TODO</code> / <code>TBD</code>）</td><td>このレポートの md と html</td><td>0 件（<code>TODO</code> / <code>TBD</code> は検査項目名として書いた行を除く）</td><td>OK</td></tr>
+      <tr><td>frontmatter の必須項目</td><td>上記 md（<code>type</code> / <code>title</code> / <code>description</code> / <code>tags</code> / <code>keywords</code>）</td><td>5 / 5</td><td>OK。S1 は frontmatter を持つアセットを作成・変更していない</td></tr>
+      <tr><td>参照更新一覧の消し込み</td><td>実装計画書の 7 行</td><td>S1 の担当 0 行</td><td>対象なし（全 7 行が S9 / 0026 担当）</td></tr>
+      <tr><td>HTML ビュー</td><td><code>wip/30_reports/0018-ai-asset-implementation.html</code></td><td><code>check-html.sh</code> 7 項目</td><td>OK（出力は作業ログ）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="deviations">
+  <h2>仕様からの逸脱</h2>
+  <p><b>設計文書（<code>.claude/docs/</code> 配下）は 1 文字も直していない</b>（実装フェーズの <code>deny</code>）。食い違いはすべてここに記録し、フィードバック計画（0028）→ 設計反映フェーズへ渡す。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>逸脱</th><th>仕様・計画の記述</th><th>実装の実態</th><th>扱い</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td>フック共通仕様 §8 の<b>初期値の JSON</b>（<code>"ai-asset-implementation"</code> の行）に <code>.gitignore</code> が無い</td><td>L306: <code>"allow": [".claude/skills/**", …, ".claude/evals/**", ".gitattributes"]</code></td><td>実物は <code>…, "CLAUDE.md", ".gitattributes", ".gitignore"</code></td><td>仕様は直さず記録。設計反映で JSON と表を実物に合わせる</td></tr>
+      <tr><td>D2</td><td>同 §8 の初期値の JSON と同節の表が、S1 の変更より前から食い違っている</td><td>L306 の JSON には <code>CLAUDE.md</code> が<b>無い</b>が、L330 の表にはある</td><td>実物には <code>CLAUDE.md</code> がある（表が正しい）</td><td>S1 と無関係な既存の不整合。D1 と同じ箇所を直すときに一緒に直す</td></tr>
+      <tr><td>D3</td><td><code>common.confirm</code> のパスは、チケットで宣言しても<b>サブエージェント実行者には書けない</b></td><td>実装計画書 保留 P5 が予告（「サブエージェントは確認に答えられないので deny になり得る」）</td><td>そのとおり deny。呼び出し元のメインエージェントが編集を代行した</td><td>迂回せず代行という保留 P5 の運用に従った。是非は切れ目のレビューで人間に確認する</td></tr>
+      <tr><td>D4</td><td><code>workflow-diff-check</code> の <code>WF601</code> が、<b>チケットが宣言済みのパスを「許可範囲外」として報告する</b></td><td>チケット 0018 の <code>allow.write</code> に <code>.claude/hooks/config/**</code> がある</td><td><code>common.confirm</code> のパスは <code>scope_classify</code> が <code>confirm</code>（<code>WF203</code>）に分類するため <code>allow</code> にならず、差分検査が列挙し続ける</td><td><b>巻き戻さない</b>（巻き戻すと S1 の成果が消える）。宣言ではなく分類で見ている点の是非をフィードバック計画へ</td></tr>
+      <tr><td>D5</td><td>実装計画書 S1 の識別子の誤記</td><td>計画書 L236:「①が済むまで②は <b>WF205</b> で止まる」</td><td>正しくは <code>WF201</code>（<code>Edit</code> / <code>Write</code> ツールの宣言範囲外）。同計画書 L151・L153 と 0018 の DoD は <code>WF201</code></td><td>計画書の誤記。S9 の全体検査で直すか設計反映へ渡す</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>フック共通仕様 §8 の初期値 JSON と表に <code>.gitignore</code>（と JSON 側の <code>CLAUDE.md</code>）を反映する（D1・D2）→ <code>10_spec/フック共通仕様.md</code> / 設計反映フェーズ</li>
+    <li><code>common.confirm</code> のパスをサブエージェント実行者が扱えない件の恒久的な扱い（型の <code>allow</code> で <code>confirm</code> を上書きできる形にするか、実行者をメインエージェントに固定するか、代行を正式な運用として書くか）（D3）→ フィードバック計画（0028）→ 設計反映</li>
+    <li><code>workflow-diff-check</code> が宣言済みの <code>confirm</code> パスを許可範囲外として報告する件（D4）→ フィードバック計画（0028）→ 設計反映（<code>workflow-diff-check</code> 仕様 / <code>scope.sh</code>）</li>
+    <li>実装計画書 S1 の <code>WF205</code> → <code>WF201</code> の訂正（D5）→ S9（0026）の全体検査</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>S1 の実行者（サブエージェント）が <code>scope-limits.json</code> を編集できるかは五分五分（保留 P5）</td><td>できなかった（判定順 (4) の <code>WF203</code> が ask を返し、ヘッドレスでは deny）</td><td>迂回せず、呼び出し元のメインエージェントが<b>その 1 ファイルの編集だけ</b>を代行した。実行者は結果報告に上げる運用（保留 P5 のとおり）を守った</td></tr>
+      <tr><td>宣言に書いたパスは差分検査で許可範囲内として扱われる</td><td><code>common.confirm</code> のパスは宣言していても <code>WF601</code> で許可範囲外として報告され続ける</td><td>巻き戻さず、D4 として記録した。作業ログの「拒否・確認・迂回の記録」にも同じ判断を残した</td></tr>
+      <tr><td><code>.gitignore</code> を先に編集しようとすると <code>WF205</code> で止まる（計画書 L236）</td><td>止まるのは <code>WF201</code>（<code>Edit</code> ツールの宣言範囲外）。<code>WF205</code> は<b>コマンドによる書き込み</b>の識別子</td><td>D5 として記録。実測では①→②の順を守ったので、②は最初から allow で通った</td></tr>
+      <tr><td>中核を変えた直後は何かが止まりうる</td><td><code>Write</code>・<code>ticket.sh next</code>・<code>run-tests.sh</code> のいずれも止まらなかった</td><td>ロックアウト対策の復旧手順（<code>git show</code> → <code>Write</code>）は使わずに済んだ</td></tr>
+      <tr><td>（想定外）<code>mkdir -p wip/tmp</code> が通る</td><td><code>WF205</code> で拒否された。コマンドで書いてよいのは <code>wip/tmp/**</code> と <code>logs/**</code> で、<b>ディレクトリ <code>wip/tmp</code> そのもの</b>はパターンに含まれない</td><td>ディレクトリは既に存在していたので実害なし。R3 として残す</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><b>R1</b> <code>.gitignore</code> の <code>.claude/worktrees/</code> が実際に効くこと（<code>push.sh</code> 項目 1 が落ちないこと）の確認 → S10（0027）の実測 / 切れ目の push</li>
+    <li><b>R2</b> <code>.gitignore</code> を <code>ai-asset-implementation</code> の <code>allow</code> に恒久的に残すかの判断（S1 の目的は 1 度きりの編集で達成済み）→ 切れ目のレビュー / S9（0026）</li>
+    <li><b>R3</b> コマンドによる書き込みの許可パターンが <code>wip/tmp/**</code> で、ディレクトリ <code>wip/tmp</code> 自身の作成（<code>mkdir</code>）を通さない → フィードバック計画（0028）</li>
+    <li><b>R4</b> このレポートは 0019〜0027 が節を積み上げる器である。各チケットは md 側 <code>e5, e6, …</code> / HTML 側 <code>f5, f6, …</code> と連番を続け、サマリの件数・逸脱・残課題を<b>その都度更新</b>する（累積の数は「サマリ」1 か所にだけ置く）→ 0019〜0027</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

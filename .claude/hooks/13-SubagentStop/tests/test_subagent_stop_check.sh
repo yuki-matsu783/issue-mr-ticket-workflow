@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_subagent_stop_check.sh — subagent-stop-check.sh のテスト（仕様のテスト ID: SP-T01〜SP-T08）
+# test_subagent_stop_check.sh — subagent-stop-check.sh のテスト（仕様のテスト ID: SP-T01〜SP-T09）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*subagent_stop_check*'
 # テストは set -e を使わない（終了コードは hook_run が取る）
 set -uo pipefail
@@ -54,10 +54,12 @@ reset_all() {
   mkdir -p "$TMP_REPO/wip/10_tickets/00_todo" "$TMP_REPO/wip/10_tickets/10_doing" "$TMP_REPO/wip/10_tickets/20_done"
 }
 
+SP_CWD=""   # 入力 JSON の cwd。空なら本流（TMP_REPO）。作業ツリーの検査（SP-T09）で差し替える
+
 mk_payload() { # $1=event $2=tool $3=model $4=subagent_type $5=status $6=agentId $7=agent_id
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -nc \
     --arg ev "$1" --arg tn "$2" --arg model "$3" --arg st "$4" --arg status "$5" \
-    --arg rid "$6" --arg aid "$7" --arg cwd "$TMP_REPO" '
+    --arg rid "$6" --arg aid "$7" --arg cwd "${SP_CWD:-$TMP_REPO}" '
     {hook_event_name: $ev, session_id: "testsession", cwd: $cwd, tool_input: {}}
     | (if $tn != "" then .tool_name = $tn else . end)
     | (if $model != "" then .tool_input.model = $model else . end)
@@ -179,6 +181,24 @@ case_record_replay() {
   # tool_response.agentId で引く。別の id では記録が見つからず、その場の検査になる（該当なし）
   post completed "" "" A2
   assert_eq "SP-T05" "" "$R_OUT"
+
+  # 縮退の前提を別側から固定する: 実運用の登録に PreToolUse `Agent` の行は無い（HK-T01 と同じ事実）。
+  # したがって印は生じず、WF801 の判定は実運用では常に縮退の側に落ちる
+  local settings="$LOGGER_ROOT/.claude/settings.json"
+  assert_eq "SP-T05" "0" "$(tl_jq -r '[.hooks.PreToolUse[]? | select((.matcher // "") | test("Agent")) | .hooks[]?.command | select(test("subagent-start-check"))] | length' "$settings" 2>/dev/null)"
+  # 正のコントロール: SubagentStart には登録されている（検索語が間違っていて 0 件なのではない）
+  assert_eq "SP-T05" "1" "$(tl_jq -r '[.hooks.SubagentStart[]? | .hooks[]?.command | select(test("subagent-start-check"))] | length' "$settings" 2>/dev/null)"
+
+  # WF801 を出すのは縮退時だけ。印はテストが自分で置いて作る（実運用の登録に依存しない）
+  reset_all
+  write_ticket "$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md" implementation opus 1
+  post completed 'claude-sonnet-4-5-20250929' task-executor A3
+  assert_contains "SP-T05" "WF801"
+  mkdir -p "$TMP_REPO/logs/sessions/testsession"
+  printf '{"at":"2026-09-01T00:00:00+0900","event":"PreToolUse","tool":"Agent"}\n' \
+    > "$TMP_REPO/logs/sessions/testsession/subagent-start-check.json"
+  post completed 'claude-sonnet-4-5-20250929' task-executor A3
+  assert_not_contains "SP-T05" "WF801"
 }
 
 # ---- SP-T06: git が使えない環境で無出力・終了 0 ----
@@ -276,6 +296,92 @@ case_degraded() {
   assert_contains "SP-T08" "WF814"
 }
 
+# ---- 作業ツリーをまたぐ判定の足場（SP-T09）----
+# 実行者照合は git を使わない（チケットの frontmatter とモデル名だけ）ので、疑似の作業ツリー
+# （`<作業ツリー>/.git` と `<本流>/.git/worktrees/<名前>/gitdir` の相互参照）で足りる（0021 の WG-T19 と同じ作り）
+sp_wt_fixture() { # $1=作業ツリーの置き場 $2=登録名
+  mkdir -p "$1/.claude" "$1/wip/10_tickets/00_todo" "$1/wip/10_tickets/10_doing" \
+           "$1/wip/10_tickets/20_done" "$TMP_REPO/.git/worktrees/$2"
+  printf 'gitdir: %s/.git/worktrees/%s\n' "$TMP_REPO" "$2" > "$1/.git"
+  printf '%s\n' "$1/.git" > "$TMP_REPO/.git/worktrees/$2/gitdir"
+  return 0
+}
+
+sp_doing_count() { # $1=作業ツリーのルート
+  local f n=0 ng=0
+  shopt -q nullglob && ng=1
+  shopt -s nullglob
+  for f in "$1"/wip/10_tickets/10_doing/*.md; do n=$(( n + 1 )); done
+  (( ng )) || shopt -u nullglob
+  printf '%s' "$n"
+}
+
+sp_executor_of() { # $1=チケット → frontmatter の executor
+  sed -n 's/^executor: //p' "$1" | head -n 1 | tr -d '\r'
+}
+
+# ---- SP-T09: 実行者照合が呼び出し元の作業ツリーのチケットで行われる（A5）----
+case_worktree_executor() {
+  local wt main_tk wt_tk
+  reset_all
+  make_tmp_dir
+  wt="$TMP_DIR/w1"
+  sp_wt_fixture "$wt" w1
+  main_tk="$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md"
+  wt_tk="$wt/wip/10_tickets/10_doing/0200-implementation.md"
+  write_ticket "$main_tk" implementation opus 1
+  write_ticket "$wt_tk"   implementation sonnet 1
+
+  # 前提（両方の枚数と executor）をテスト自身が assert してから判定を呼ぶ
+  assert_eq "SP-T09" "1" "$(sp_doing_count "$TMP_REPO")"
+  assert_eq "SP-T09" "1" "$(sp_doing_count "$wt")"
+  assert_eq "SP-T09" "opus" "$(sp_executor_of "$main_tk")"
+  assert_eq "SP-T09" "sonnet" "$(sp_executor_of "$wt_tk")"
+
+  # PostToolUse `Agent` の cwd は呼び出し元のもの。本流から呼べば本流のチケットで判定する
+  SP_CWD="$TMP_REPO"
+  post completed 'claude-opus-5' task-executor A9          # 本流の executor と一致
+  assert_not_contains "SP-T09" "WF801"
+  post completed 'claude-sonnet-4-5-20250929' task-executor A9   # worktree 側の executor とは一致するが不一致
+  assert_contains "SP-T09" "WF801"
+  assert_contains "SP-T09" "executor は opus"
+  assert_not_contains "SP-T09" "executor は sonnet"
+
+  # cwd を worktree にすると判定が worktree 側のチケットに切り替わる
+  SP_CWD="$wt"
+  post completed 'claude-sonnet-4-5-20250929' task-executor A9
+  assert_not_contains "SP-T09" "WF801"
+  post completed 'claude-opus-5' task-executor A9
+  assert_contains "SP-T09" "WF801"
+  assert_contains "SP-T09" "executor は sonnet"
+  assert_not_contains "SP-T09" "executor は opus"
+
+  # 作業ツリーの集合を読めない状態では WF815 を出し、本流のチケットで代用しない
+  mv "$TMP_REPO/.git/worktrees" "$TMP_REPO/.git/worktrees-off"
+  printf 'x\n' > "$TMP_REPO/.git/worktrees"
+  post completed 'claude-sonnet-4-5-20250929' task-executor A9
+  assert_contains "SP-T09" "WF815"
+  # WF815 の文面が「WF801」「WF811〜813」に言及するので、識別子ではなく各判定の文面で見る（SP-T07 と同じ）
+  assert_not_contains "SP-T09" "実行者が違う"
+  assert_not_contains "SP-T09" "executor は opus"     # 本流のチケットで代用していない
+  assert_not_contains "SP-T09" "作業中のまま残っている"
+  assert_exit "SP-T09" 0
+  # SubagentStop の経路でも同じ（検査せず WF815 を記録する）
+  stop A9
+  assert_eq "SP-T09" "notify" "$(tail -n 1 "$DEC" | tl_jq -r '.decision // ""' 2>/dev/null)"
+  assert_eq "SP-T09" "WF815" "$(tail -n 1 "$DEC" | tl_jq -r '.id // ""' 2>/dev/null)"
+
+  # 戻せば元どおり（WF815 が「読めない状態」に由来することの対照）。
+  # agentId は A9 と別にする — 直前の stop A9 が WF815 を記録に残しており、同じ id だと読み戻してしまう
+  rm -f "$TMP_REPO/.git/worktrees"
+  mv "$TMP_REPO/.git/worktrees-off" "$TMP_REPO/.git/worktrees"
+  post completed 'claude-opus-5' task-executor A10
+  assert_not_contains "SP-T09" "WF815"
+  assert_contains "SP-T09" "実行者が違う"
+  assert_contains "SP-T09" "executor は sonnet"
+  SP_CWD=""
+}
+
 # ---- 停止中 ----
 case_enforce() {
   reset_all
@@ -295,6 +401,7 @@ case_record_replay
 case_no_git
 case_async
 case_degraded
+case_worktree_executor
 case_enforce
 cd "$LOGGER_ROOT" || true
 finish

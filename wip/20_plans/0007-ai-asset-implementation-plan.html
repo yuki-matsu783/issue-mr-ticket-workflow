@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0007 AI アセット実装・テスト計画 — 実装対象なし（変更先が .claude/docs/ の 1 ファイルのみ）</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <!-- 種別とフェーズ（例: 調査計画 / 調査） -->
+  <p class="kind">AI アセット実装・テスト計画 / issue #52</p>
+  <!-- 題名（md の H1 と同じ） -->
+  <h1 id="title" data-required>0007 AI アセット実装・テスト計画 — 実装対象なし（変更先が .claude/docs/ の 1 ファイルのみ）</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <!-- 削除した任意節の行は消す -->
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <!-- 対象（issue / PR）は必須。値の無いその他の項目は div ごと削除する -->
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/52">#52</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/53">#53</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/hook-mechanism-hx89wi</code></dd></div>
+    <div><dt>チケット</dt><dd>0007</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<!-- 必須: この計画で何をするか（結論方針。1〜3 文 + 決めたこと） -->
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">AI アセット実装・テストフェーズの入口として、<code>.claude/</code> 配下のアセット（スキル・フック・ルール・エージェント・<code>settings.json</code>・<code>evals</code>）とテストに変更対象があるかを判断する。結論は<strong>対象なし</strong>で、実装チケットは 1 枚も起こさず、次の計画チケット（<code>feedback-plan</code>）1 枚だけを起こしてフェーズ列を先へ進める。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li><strong>実装対象は無い</strong>。この issue が <code>wip/</code> の外で変更したのは <code>.claude/docs/00_requirement/hook機構.md</code> の 1 ファイルだけで、そのパスは <code>ai-asset-implementation</code> 型の <code>deny</code> に入っている（検証 V1・V2）</li>
+      <li><strong>中核（フック・<code>settings.json</code>）の変更は不要</strong>。取り込んだのは外部の設計文書の文面で、機構の判定経路を 1 つも変えない。<code>.claude/docs/</code> の文書はフックからもテストからも読まれない（V4）</li>
+      <li><strong>テスト ID の割付は 0 行</strong>。この issue が仕様書に足したテスト ID は 0 件で、抽出結果と割付表の行数が一致する（V3）。eval も定義しない</li>
+      <li><strong>実装チケットは起こさず、次の計画チケット 0010（<code>feedback-plan</code>）を 1 枚だけ作る</strong>（<code>10-task-investigation-plan</code> 共通手順 5 の「対象なし」の扱い）</li>
+      <li>issue #52 の受け入れ条件 A1〜A4 は AI アセット設計フェーズ（0005・0006・0008・0009）で充足済みで、<strong>このフェーズが担う受け入れ条件は無い</strong></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 必須: 対象と範囲（変更対象・調査観点・根拠とする文書） -->
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td>変更対象のアセット</td><td><strong>対象なし（新規 / 更新 / 削除とも 0 件）</strong>。<code>.claude/skills/</code>・<code>hooks/</code>・<code>rules/</code>・<code>agents/</code>・<code>settings.json</code>・<code>evals/</code>・<code>CLAUDE.md</code>・<code>.gitattributes</code> のいずれにも差分が無い</td><td><code>git diff --name-only origin/main...HEAD</code>（<code>wip/</code> の外は 1 件のみ）／<code>scope-limits.json</code> 22〜23 行目／0004 の結論方針「中核を変えない」</td></tr>
+      <tr><td>この issue の唯一の変更ファイル</td><td><code>.claude/docs/00_requirement/hook機構.md</code>（2383 行）。AI アセット設計フェーズで取り込み済み</td><td>この type では書けない（<code>ai-asset-implementation</code> の <code>deny</code> に <code>.claude/docs/**</code>）</td></tr>
+      <tr><td>根拠とする入力</td><td>全体計画書（種別・フェーズ列・方針・承認①②③）／AI アセット設計計画書 <code>wip/20_plans/0004-ai-asset-design-plan.md</code>／調査結果 <code>wip/30_reports/0003-investigation.md</code>／設計実施チケット 0005・0006・0008・0009 の作業ログ（設計結果レポートは作られていない）／<code>.claude/hooks/config/scope-limits.json</code></td><td>いずれも読み取りのみ（<code>allow.ops</code> は <code>read</code> / <code>remote-read</code>）</td></tr>
+      <tr><td>扱わない対象</td><td><code>hook機構.md</code> の内容の追加・訂正（設計フェーズで完了）／取り込んだ設計と既存 <code>.claude/hooks/</code> 実装との差分分析／生写し文書の型（章順・EARS・mermaid）への変換／作業ログに挙がった AI アセット改善候補の対応先の決定</td><td>全体計画書 承認①・保留 P3 / P4。改善候補は <code>feedback-plan</code> の役割</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 方法とステップ（対象と方法・許可範囲・依存・順序） -->
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>S1 実装対象の有無を 4 つの機械的確認で判断する（チケット 0007。先行 0005・0006・0008・0009）</h3>
+      <p>変更ファイルの範囲・型の上限・テスト ID・参照と依存テストを続けて確認し、計画書に根拠を書く。確認が 1 つでも「対象あり」を返したらステップ表を固定順で組み直す必要があるため、確認を分割せず 1 チケットに閉じた。結果は 4 つとも「対象なし」を支持し、反例は出なかった。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>S2 フィードバック計画（チケット 0010。先行 0007）</h3>
+      <p>全チケットの作業ログ・レビュー指摘・レポートの残課題から改善候補を洗い出し、後続フェーズの要否と対応先を確定する。全体計画書のフェーズ列で 0007 の次に来るのがこのフェーズである。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>実装ステップ（S1 と S2 の間に入るはずだったもの）は 0 件</h3>
+      <p>固定順の 5 段はいずれも該当なし。<strong>設定・定義</strong>: <code>settings.json</code> と <code>.claude/hooks/config/**</code> の差分 0 件。<strong>中核</strong>: <code>.claude/hooks/**</code> と提供コマンド（<code>ticket.sh</code> / <code>commit.sh</code> / <code>push.sh</code> / <code>boundary.sh</code> / <code>finalize.sh</code>）の差分 0 件。<strong>中核の機械テスト</strong>: 中核を変えないので隣接させるテストが無い。<strong>スキル・ルール・エージェント</strong>: 差分 0 件。<strong>参照更新</strong>: 名称・パスの変更が 0 件。計画書の記述順とチケットの実行順は一致している（S1 = 0007 → S2 = 0010）。</p>
+    </li>
+  </ol>
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>実装ステップ（0 件）</td><td><strong>該当なし</strong>（宣言する対象が無い）</td><td>該当なし</td></tr>
+      <tr><td>参考: <code>ai-asset-implementation</code> 型の上限（<code>scope-limits.json</code>）</td><td><code>.claude/skills/**</code>・<code>.claude/hooks/**</code>・<code>.claude/rules/**</code>・<code>.claude/agents/**</code>・<code>.claude/settings.json</code>・<code>.claude/evals/**</code>・<code>CLAUDE.md</code>・<code>.gitattributes</code>（<code>.claude/docs/**</code> と <code>apl/**</code> は <code>deny</code>）</td><td><code>read</code> / <code>build-test</code> / <code>hook-test</code> / <code>remote-read</code></td></tr>
+      <tr><td>参考: 全体計画書「やってよいこと」の <code>ai-asset-implementation</code> 行</td><td><code>wip/**</code></td><td><code>read</code> / <code>remote-read</code> / <code>hook-test</code></td></tr>
+      <tr><td>S2（0010、type <code>feedback-plan</code>）</td><td><code>wip/**</code></td><td><code>read</code> / <code>remote-read</code> / <code>remote-write:issue-create</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: 検証（テスト方針・テスト ID の割付・成果物の形） -->
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>V1 この issue が <code>wip/</code> の外で触ったファイル</td><td><code>git diff --name-only origin/main...HEAD | grep -v '^wip/'</code></td><td>期待値「1 件だけ並ぶ（0 件ではない）」に対し <code>.claude/docs/00_requirement/hook機構.md</code> の 1 件のみ</td></tr>
+      <tr><td>V2 型の上限に、触ったファイルが入るか</td><td><code>.claude/hooks/config/scope-limits.json</code> 22〜23 行目を読む</td><td><code>"deny": [".claude/docs/**", "apl/**"]</code>。V1 の 1 件は <code>deny</code> に当たり、この type では構造上書き込めない</td></tr>
+      <tr><td>V3 この issue が仕様書に足したテスト ID</td><td><code>git diff --name-only origin/main...HEAD -- .claude/docs/10_spec/ | wc -l</code> と <code>grep -rhoE "[A-Z]{2,6}-[TE][0-9]{2}[a-z]?" .claude/docs/00_requirement/hook機構.md | sort -u | wc -l</code></td><td>どちらも <code>0</code>。<code>.claude/docs/10_spec/</code> 全体の抽出件数は md 正文「テスト方針」節のコマンド出力に 1 か所だけ置いた（この issue が増減させたものは 0 件）。<strong>割付表の行数 0 と抽出結果 0 件が一致する</strong></td></tr>
+      <tr><td>V4 参照更新と依存テスト</td><td><code>grep -rn "hook機構" .claude --exclude-dir=docs | wc -l</code> ／ <code>grep -rn "hook機構\|00_requirement/hook" .claude/hooks/tests .claude/skills --include="*.sh" | wc -l</code></td><td>どちらも <code>0</code>。名称もパスも変えていないため更新すべき参照が発生しない</td></tr>
+      <tr><td>テスト方針（機械テスト / eval）</td><td>テスト ID をステップへ割り付ける</td><td><strong>機械テスト 0 件・eval 0 件</strong>。既存の機械テストも実行しない（この計画チケットの <code>allow.ops</code> に <code>build-test</code> / <code>hook-test</code> は無く、計画タスクは読み取りだけで判断する）</td></tr>
+      <tr><td>参照更新一覧 1: <code>hook機構</code></td><td><code>grep -rn "hook機構" .</code>（<code>.git</code> / <code>wip</code> / <code>node_modules</code> を除外。行末に依存しない検索語）</td><td>期待値は「残るもの」で書く: 実装の前後で変わらず <code>logs/hooks/decisions.jsonl</code>・<code>logs/sh/hook-workflow-guard.log</code>・<code>logs/sh/commit.log</code>・<code>logs/review-history.jsonl</code> の 4 ファイルに 118 件が残る（作業の監査記録であって参照ではない）。<code>.claude/</code> 配下（<code>docs</code> を除く）は 0 件のまま。除外は文書自身と <code>wip/**</code></td></tr>
+      <tr><td>参照更新一覧 2: 文書のパス</td><td><code>grep -rn "hook機構\|00_requirement/hook" .claude/hooks/tests .claude/skills --include="*.sh"</code></td><td>0 件のまま。<strong>この 0 件が「検索語の誤り」でないことは、同じ検索語が <code>logs/</code> に対して 118 件ヒットすること（上の行）で裏づけた</strong></td></tr>
+      <tr><td>参照更新一覧 3: <code>00_requirement</code> を含むパス文字列</td><td><code>grep -rn "00_requirement" .claude --include="*.sh"</code></td><td>実装の前後で変わらず 2 件が残る: <code>.claude/skills/20-common-step-ticket/scripts/ticket-check.sh:15</code>（コメント）、<code>.claude/hooks/tests/test_config_integrity.sh:206</code>（<code>HK-T02</code> の期待値。パスは <code>apl/vscode-ticket-board/docs/...</code> で <code>.claude/docs/</code> ではない）。どちらも <code>hook機構.md</code> を指していないので更新不要</td></tr>
+      <tr><td>依存するテスト</td><td>変更対象を入力・期待値に持つテストファイルの検索</td><td><strong>0 件</strong>。<code>.claude/hooks/tests/</code> と <code>.claude/skills/*/scripts/tests/</code> のどのスクリプトも <code>hook機構.md</code> を読まない。<code>test_config_integrity.sh</code> は <code>scope-limits.json</code> を検査するが、その設定を変えないので期待値も変わらない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 必須: チケット（実施チケット群と次の計画チケット・依存） -->
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>—</td><td>ai-asset-implementation</td><td><strong>起こさない</strong>（対象なし。V1〜V4 が根拠。<code>10-task-investigation-plan</code> 共通手順 5 の「対象なしのときは実施チケットを飛ばす」に従った）</td><td>—</td></tr>
+      <tr><td>0010</td><td>feedback-plan</td><td>全チケットの作業ログ・レビュー指摘・レポートの残課題から改善候補を洗い出し、後続フェーズの要否と対応先を確定する。実行者はメインエージェント（<code>work-defaults.md</code> と <code>task-types.tsv</code> のとおり基準どおり）。人間レビューは基準では「要」だが、ユーザーの指示（2026-09-05）により残りのフェーズはレビューを省略するため <code>false</code>。敵対的レビューは不要（基準どおり）</td><td>0007</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 任意: リスクと復旧（ロックアウト対策・巻き戻し）。無ければ節ごと削除 -->
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td><strong>ロックアウト対策: 対象なし</strong>（中核ステップ 0 件）</td><td>ロックアウトは中核を書き換えた直後の最初の操作で起きるが、<code>settings.json</code>・<code>.claude/hooks/**</code>・提供コマンドのいずれにも差分が無い（V1）</td><td>この計画チケット（0007）の書き込み先は <code>wip/**</code> のみで判定経路に影響しない。書き損じたときの基準点はチケットの <code>base_sha</code> = <code>2174923</code>（<code>git checkout 2174923 -- wip/20_plans/0007-ai-asset-implementation-plan.md</code>）。強制無効化 <code>WORKFLOW_ENTRY_ENFORCE=0</code> は使わない</td></tr>
+      <tr><td>「対象なし」の判断が誤っていて、後から実装すべきアセットが見つかる</td><td>このフェーズを飛ばしたまま <code>feedback-plan</code> へ進み、改善が 1 サイクル遅れる</td><td><code>feedback-plan</code>（0010）が全チケットの作業ログを機械的になぞる工程を持つので、そこで拾える。拾えたら後続フェーズとして <code>ai-asset-implementation-plan</code> を改めて立てる。V1〜V4 は <code>git diff</code> と <code>grep</code> で再現でき、検証コストは低い</td></tr>
+      <tr><td>設計実施の作業ログに挙がった AI アセット改善候補を、この計画で実装対象に取り込んでしまう</td><td>issue #52 のスコープ（承認①「文書の取り込みのみ」）を越え、レビューの単位が崩れる</td><td>取り込まなかった。対応先の決定は <code>feedback-plan</code> の役割で、この計画書は候補の在り処を指すだけにとどめた</td></tr>
+      <tr><td>実装フェーズを「対象なし」で通過した記録が残らず、後から省略したように見える</td><td>監査可能性の低下</td><td>この計画書（md + HTML）と 0007 のチケット・作業ログが記録として残る。全体計画書のフェーズ列も「採用（ただし対象なしで即完了する見込み）」と書いており、省略ではないことが読み取れる</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 任意: スコープ外。無ければ節ごと削除 -->
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li>設計実施チケットの作業ログ「AI アセットに反映すべき内容」に挙がった改善候補 5 件。<strong>この計画では実装対象にしない</strong>（issue #52 のスコープは文書の取り込みのみ。承認①）。対応先は <code>feedback-plan</code>（0010）が決める。
+      <ol>
+        <li>添付画像を根拠にする作業では「会話に見えている」と「転記できる精度で読めている」を分けて確認する手順が要る（0005・0006 の作業ログ）</li>
+        <li>スクラッチパッドが作業ツリー外にあり WF209 で使えないため、下書き置き場に <code>wip/tmp/</code> を使うことを共通ステップに書く（0005）</li>
+        <li>長文の生成は Bash のヒアドキュメントではなく Write ツールを使う、という運用がどの共通ステップにも書かれていない（0008）</li>
+        <li>外部資料の取り込みでは「実際に読めた範囲」を先に確定してから範囲を宣言する手順（0006 で未確認の節を「揃った」と issue に書いてしまい訂正が必要になった）</li>
+        <li>セッションのアップロード領域に画像がファイルとして残ることが転記作業の検証手段としてどのスキルにも書かれていない／敵対的レビューの指摘を「原文由来か転記誤りかを実行者に確認させる」条件付きで書く書式が有効だった（0009）</li>
+      </ol>
+    </li>
+    <li>全体計画書の表題「§1〜§5 を取り込む」が確定した範囲（§0〜補遺）とずれている件。0004 のスコープ外に記載済みで、統括レポートで触れる</li>
+  </ul>
+</section>
+
+<!-- 必須: 保留した点 / 対象なし。無ければ「無し」 -->
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td><strong>対象なしの根拠（まとめ）</strong></td><td>この issue が <code>wip/</code> の外で変更したファイルは <code>.claude/docs/00_requirement/hook機構.md</code> の 1 件のみで（V1）、そのパスは <code>ai-asset-implementation</code> 型の <code>deny</code> に入っている（V2）。仕様書に足したテスト ID は 0 件（V3）、参照更新も依存テストも 0 件（V4）。したがって実装チケットは 1 枚も起こさず、次の計画チケット 1 枚（0010 <code>feedback-plan</code>）だけを作る</td></tr>
+      <tr><td><strong>設計差し戻し: 無し</strong></td><td>仕様書にテスト ID が無くて実装に落とせない状況ではない。0004 の「文書一覧と骨子」が 1:1:1 の要件定義書・仕様書を<strong>対象なし</strong>と明示し、その根拠（新規・変更するアセットが 1 つも無い）を人間と合意している（承認②）。実装すべきアセットが無いのだから仕様書とテスト ID の不在は欠落ではなく、<code>ai-asset-design</code> の追加チケットは提案しない</td></tr>
+      <tr><td>P1 設計実施の作業ログに挙がった AI アセット改善候補 5 件（スコープ外の表）の対応先。現行の記述は 0005・0006・0008・0009 の作業ログ「AI アセットに反映すべき内容」にあるだけで、issue にも別チケットにもなっていない</td><td>フィードバック計画（0010）。改善候補を観点と類型で分類し、この issue 内で扱うか別 issue に切り出すかを人間と合意する</td></tr>
+      <tr><td>P2 取り込んだ設計と既存 <code>.claude/hooks/</code> 実装との差分（何が既にあり何が無いか）。全体計画書 保留 P4 のまま未決で、承認①でこの issue のスコープ外と合意済み</td><td>フィードバック計画（0010）で別 issue にする想定。全体計画書 P4 の記載を引き継ぐ</td></tr>
+      <tr><td>P3 生写しの文書を <code>20-common-step-requirement</code> の型（章順・EARS・mermaid・1:1 の仕様書）へ変換するか。全体計画書 保留 P3 のまま未決。<code>hook機構.md</code> に frontmatter が無い件も同じ枠</td><td>フィードバック計画（0010）で別 issue にする想定</td></tr>
+      <tr><td>P4 既存部（§6〜§12.2）と原文の差が他にもある可能性（0009 では指摘のあった 2 か所しか突き合わせていない）</td><td>フィードバック計画（0010）。原本との全件突き合わせは別 issue の候補</td></tr>
+      <tr><td>保留の確認</td><td>P1〜P4 はいずれも「既に満たされていないか」を確認したうえで残した。P2・P3 は全体計画書に記載された時点から状況が変わっておらず（V1 のとおり <code>.claude/hooks/**</code> に差分が無く、<code>hook機構.md</code> に frontmatter も追加されていない）、P1・P4 は 0005〜0009 の作業ログにある記述が唯一の記録で、まだどこにも引き取られていない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer>issue #52 / PR #53 — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

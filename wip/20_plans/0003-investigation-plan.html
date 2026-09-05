@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0003 調査計画 — worktree 上での機構の挙動と、1 issue 内チケット並列実施の費用対効果</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査計画 / 調査</p>
+  <h1 id="title" data-required>0003 調査計画 — worktree 上での機構の挙動と、1 issue 内チケット並列実施の費用対効果</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#out-of-scope">スコープ外</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
+    <div><dt>チケット</dt><dd>0003</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-04</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">DDR <code>i0001-23</code> は「並列時だけ別ブランチ・別作業ツリーに分ける」案を「1 issue = 1 ブランチ = 1 MR の原則と衝突し、統合のコストが利得を上回る」として却下した。本フェーズは、この却下理由が git worktree という具体的な手段のもとで今も成り立つかを、測れる問いに分解して答える。効く受け入れ条件は A1（worktree 上で機構が健全に動くことの実測）と A4（並列実施の採否と理由を DDR に残す）で、A5・A6 には「並列を採用する場合に何が要るか」の材料として効く。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li>調査観点を 6 つ（A〜F）に分け、1 観点 = 1 調査チケット（0004〜0009）に割り付ける。次の計画チケットは <code>ai-asset-design-plan</code> を 1 枚（0010）。</li>
+      <li>全体計画書の保留 P1（並列の採否）はここでは決めない。判断材料だけを揃えて AI アセット設計計画（0010）へ渡す。</li>
+      <li>全体計画書の保留 P3 は本計画で決着させる ── <span class="chip good">ユーザー実行で回す</span>。先に <code>scope.sh</code> の穴を直してから実測する道は採らない。</li>
+      <li>実測が要る問いは調査から外さず、「予測 + そのまま貼れるコマンド列」の形で調査結果レポートに残し、実行は人間に回す。実行結果は <code>wip/tmp/worktree-probe/</code> に置き、観点 F（0009）が突き合わせる。</li>
+    </ul>
+  </div>
+  <div class="box warn">
+    <p class="label">実測の扱い（この計画の前提）</p>
+    <p>全体計画書の差分 2 のとおり、<code>scope.sh</code> の git 分類に <code>checkout</code> / <code>switch</code> / <code>worktree</code> が無く、<strong>どの <code>allow.ops</code> を宣言しても AI からは実行できない</strong>（<code>WF204: … はどの分類にも当たらない（既定拒否）</code>）。本チケットの実施中にも <code>cd</code> が同じ理由で 2 回拒否された。したがって worktree を実際に作る実測は、(1) 調査チケット 0004〜0007 が読み取りで答えられるところまで答えて残余を実測手順にする → (2) 実行の依頼は 0008 完了時点の切れ目で呼び出し元がまとめてユーザーに渡す → (3) 結果を <code>wip/tmp/worktree-probe/</code> に受け取る → (4) 0009 が予測と突き合わせる、の順で行う。</p>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td>根拠とする入力</td><td>全体計画書（フェーズ列・方針・差分 1〜3・保留 P1 / P3）、issue #50 本文（受け入れ条件 A1〜A6・確かめる必要があること・スコープ外）</td><td><code>wip/00_overall_plan/overall-plan.md</code> / issue #50</td></tr>
+      <tr><td>根拠とする決定</td><td>チケットの並列実施の廃止／worktree では cwd 側の作業ツリーを採る</td><td>DDR <code>i0001-23</code> / DDR <code>i0009-55</code></td></tr>
+      <tr><td>扱う対象</td><td><code>.claude/hooks/</code>（<code>lib/hook-common.sh</code>・<code>lib/scope.sh</code>・各イベントのフック）、提供コマンド 5 本（<code>ticket.sh</code> / <code>commit.sh</code> / <code>push.sh</code> / <code>boundary.sh</code> / <code>finalize.sh</code>）、<code>logs/</code> 配下の進行状態とロック、<code>wip/10_tickets/</code> と <code>wip/30_reports/</code> のファイル運用、関連する要件・仕様・DDR、Agent ツールの worktree に関する外部仕様</td><td>受け入れ条件 A1 / A4 / A5 / A6</td></tr>
+      <tr><td>扱わない対象</td><td>直し方の決定（AI アセット設計 0010 以降）／実際のコード変更（AI アセット実装）／別 issue 同士の並行／1 issue = 1 ブランチ = 1 MR の原則の変更／マージ操作</td><td>issue #50「スコープ外」</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>調査観点</h3>
+  <p>読み取りで答えられる問いと、実測でしか答えが出ない問いを混ぜず、後者は「予測 + 実測手順」の形に落として観点の中に残す。答えが次の計画（0010）に効かない問い ── worktree 一般の運用ノウハウ、他プロジェクトでの並列開発事例 ── は観点に含めない。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>観点</th><th>問い</th><th>どの判断点・受け入れ条件に効くか</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>Claude が worktree に入ったとき、フックは worktree 側の <code>wip/</code> と <code>logs/</code> を見て判定するか。<code>workflow-guard</code>（WIP リミット・宣言範囲）・<code>workflow-diff-check</code>（差分の基準点）・<code>workflow-entry</code>（継続条件）・<code>workflow-state-guard</code>（置き場保護）・<code>session-start</code> が、DDR <code>i0009-55</code> の言う「静かな無効化」に落ちない実装になっているか。<code>HOOK_ROOT</code> を使うべき箇所と <code>HOOK_WORKTREE</code> を使うべき箇所が取り違えられていないか</td><td>A1 / A5 / 保留 P1</td></tr>
+      <tr><td>B</td><td>提供コマンド 5 本と <code>logs/</code> 配下の状態ファイルは worktree ごとに分かれるか。<code>logs/</code> は <code>.gitignore</code> されており worktree には存在しないが、その状態で <code>boundary.sh</code> / <code>push.sh</code> / <code>finalize.sh</code> / <code>ticket.sh</code> は何を読み、無いときにどう振る舞うか。<code>__ss_load</code> の <code>LOGGER_ROOT</code> 解決が、本流の絶対パスで呼ばれたときに worktree とずれないか</td><td>A1 / A5 / 保留 P1</td></tr>
+      <tr><td>C</td><td>サブエージェントを呼び出し元と別の worktree で動かせるか。Agent ツールに作業ディレクトリ／worktree を指定する手段があるか。<code>subagent-start-check</code> は起動されるサブエージェント側の <code>cwd</code> を見るのか呼び出し元の <code>cwd</code> を見るのか。動かせないなら「1 プロセス内での並列」は成立せず、A4 の採否がその時点で決まる</td><td>A4 / A5 / 保留 P1</td></tr>
+      <tr><td>D</td><td>1 issue = 1 ブランチ = 1 MR を保ったまま複数 worktree を使えるか。git は同じブランチを 2 つの作業ツリーで checkout させないが、その回避策（detached HEAD / サブブランチ + 合流 / <code>--force</code>）それぞれで何が起きるか。並列作業の成果を feature ブランチへ合流させるとき、<code>wip/10_tickets/</code> のファイル移動・連番の採番・<code>wip/30_reports/</code> の同一ファイルへの追記・<code>ticket.sh</code> と <code>commit.sh</code> の状態遷移コミットは、どんな衝突を何件生むか</td><td>A4 / A6 / 保留 P1</td></tr>
+      <tr><td>E</td><td><code>scope.sh</code> の git 分類にどれだけ穴があるか（<code>checkout</code> / <code>switch</code> / <code>worktree</code> / <code>cd</code> が <code>unknown</code> → 既定拒否）。穴を塞ぐ案は何通りあり、それぞれ <code>block-direct-git.sh</code>・<code>scope-limits.json</code>・既存のテストにどう影響するか</td><td>A1 / 保留 P3 の後始末</td></tr>
+      <tr><td>F</td><td>人間が実行した実測の結果は、A〜D の予測と一致するか。食い違った項目はどれで、並列採否（保留 P1）と A1 の「動かない箇所」の一覧はどう確定するか</td><td>A1 / A4 / 保留 P1</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <p>読み取りで答えが出る観点を先に片付け、実測は 1 回にまとめる。実測の実行が人間側に依存するため、<strong>実測を待つ箇所を 1 か所（S6 の直前）に集める</strong>のが順序の理由である。</p>
+  <ol class="steps">
+    <li class="step">
+      <span class="step-no">1</span>
+      <h3>S1 観点 A ── フック側の作業ツリー解決（チケット 0004 / 先行 —）</h3>
+      <p><code>grep -rn "HOOK_ROOT\|HOOK_WORKTREE" .claude/hooks/</code> で全参照を機械的に抜き、1 件ずつ「スクリプトの置き場（<code>HOOK_ROOT</code> が正）」「作業ツリーの状態（<code>HOOK_WORKTREE</code> が正）」のどちらを指すべきかを判定して表にする。読む場所は <code>lib/hook-common.sh</code>（<code>__hc_resolve_worktree</code> / <code>__hc_is_worktree_of</code>）、<code>20-PreToolUse/*.sh</code>、<code>22-PostToolUse/*.sh</code>、<code>10-UserPromptSubmit/workflow-entry.sh</code>、<code>00-SessionStart/session-start.sh</code>、<code>13-SubagentStop/subagent-stop-check.sh</code>、<code>lib/tests/test_hook_common.sh</code>、フック共通仕様 §2、DDR <code>i0009-55</code>。既存テストが検証済みの範囲を特定し、残余を実測手順にする。外部調査は不要。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">2</span>
+      <h3>S2 観点 B ── 提供コマンドと <code>logs/</code> 状態ファイル（チケット 0005 / 先行 0004）</h3>
+      <p><code>grep -n 'LOGGER_ROOT\|logs/'</code> を各スクリプトに当てて状態ファイルへの依存を全件抜き、「コマンド × 依存する状態ファイル × 無いときの振る舞い（既定値 / 警告 / 停止）」の表を作る。<code>__ss_load</code> の探索順（<code>BASH_SOURCE</code> 上向き → <code>CLAUDE_PROJECT_DIR</code> → <code>git rev-parse</code>）に、相対パス起動と本流の絶対パス起動を当てはめて解決先を書き分ける。読む場所は <code>.claude/skills/*/scripts/*.sh</code> の <code>__ss_load</code> 行、5 本の提供コマンド、<code>logger.sh</code>、<code>.gitignore</code>（<code>logs/</code>）、<code>logs/</code> 配下の実ファイル一覧、各コマンドの仕様書。残余を実測手順にする。外部調査は不要。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">3</span>
+      <h3>S3 観点 C ── サブエージェントを別 worktree で動かせるか（チケット 0006 / 先行 —）</h3>
+      <p>Claude Code / Agent ツールの公式ドキュメントを WebFetch で読み、作業ディレクトリ／worktree を指定できるかを<strong>引用（URL と該当行）付き</strong>で確定する。取得できないときは「不明」と明記して実測手順に落とす。あわせて <code>12-SubagentStart/subagent-start-check.sh</code>、<code>.claude/agents/task-executor.md</code>、<code>00-workflow-issue-mr-driven/SKILL.md</code> の起動手順と <code>assets/subagent-prompt.template.md</code> を読み、<code>logs/hooks/decisions.jsonl</code> の過去レコードからサブエージェント実行時の <code>cwd</code> の実値を拾って呼び出し元と一致していたかを見る。<strong>外部調査 要</strong>（<code>allow.ops</code> に <code>web</code>）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">4</span>
+      <h3>S4 観点 D ── ブランチ構成と合流コスト（チケット 0007 / 先行 0004, 0005）</h3>
+      <p>選択肢（detached HEAD / サブブランチ + 合流 / <code>--force</code>）ごとに表を作り、成立可否・合流手順・衝突の種類を書く。衝突の件数は <code>git log --diff-filter=R --name-status -- wip/10_tickets/</code> などで<strong>過去 issue の実データ</strong>から見積もる（1 チケットあたりの rename 件数・同一ファイルへの追記回数）。読む場所は <code>ticket.sh</code>（採番・ファイル移動・状態遷移コミット）、<code>commit.sh</code> / <code>push.sh</code> の push 前チェック 4 項目、<code>00-workflow-issue-mr-driven/SKILL.md</code> の切れ目、<code>boundary.sh</code>。DDR <code>i0001-23</code> の却下理由の各文に対して「今も成り立つ / 成り立たない」を根拠付きで判定する。<strong>外部調査 要</strong>（git 公式の worktree 制約のみ。<code>allow.ops</code> に <code>web</code>）。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">5</span>
+      <h3>S5 観点 E ── <code>scope.sh</code> の git 分類の穴（チケット 0008 / 先行 —）</h3>
+      <p><code>git help -a</code> などで得た git サブコマンド一覧を <code>_SC_GIT_READ_SUBCMDS</code> と突き合わせ、<code>unknown</code> に落ちるものを全件列挙する。<code>cd</code> のように <code>_SC_READ_ONLY_CMDS</code> に無い基本コマンドも同様に洗う。読む場所は <code>lib/scope.sh</code>（<code>scope_classify</code> / <code>_SC_GIT_READ_SUBCMDS</code> / <code>_SC_READ_ONLY_CMDS</code>）、<code>block-direct-git.sh</code>、<code>workflow-guard.sh</code>（WF204 / WF205）、<code>config/scope-limits.json</code>、<code>lib/tests/test_scope.sh</code>、該当仕様。塞ぎ方は<strong>最低 2 案</strong>（既存分類への追加 / 新分類の導入）を挙げ、案ごとに <code>block-direct-git.sh</code> との関係・影響するテスト ID・拒否が緩む範囲を書く。外部調査は不要。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">6</span>
+      <h3>（切れ目）実測の依頼と受け取り（チケットなし / 先行 0008）</h3>
+      <p>呼び出し元（メインエージェント）が 0004〜0007 の実測手順をまとめてユーザーに渡し、実行結果を <code>wip/tmp/worktree-probe/</code> に受け取る。AI は <code>git worktree add</code> / <code>git checkout -b</code> を実行できない（WF204 既定拒否）ため、この 1 か所だけが人間の手を要する。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">7</span>
+      <h3>S6 観点 F ── 実測結果の突き合わせ（チケット 0009 / 先行 0004〜0008）</h3>
+      <p><code>wip/tmp/worktree-probe/</code> 配下の実測結果と <code>wip/30_reports/0004-investigation.md</code> の A〜D の予測を 1 対 1 で並べ、「一致 / 不一致（実測が正） / 未取得」の 3 値で判定する。不一致は原因の候補まで書く。未取得は理由と再実行手順を残課題へ。A1 の「動かない箇所」一覧と保留 P1 の判断材料を確定する。外部調査は不要。</p>
+    </li>
+    <li class="step">
+      <span class="step-no">8</span>
+      <h3>S7 次フェーズの計画（チケット 0010 / 先行 0004〜0009）</h3>
+      <p>AI アセット設計計画。全体計画書のフェーズ列 #3 に対応する。</p>
+    </li>
+  </ol>
+
+  <h3>対象と方法</h3>
+  <p>書き込みは <code>wip/**</code> のみ。上のステップを観点ごとに「読む場所 / 確かめ方 / 外部調査の要否」で整理すると次のとおり。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>観点</th><th>読む場所</th><th>確かめ方</th><th>外部調査</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><code>lib/hook-common.sh</code>、<code>20-PreToolUse/*.sh</code>、<code>22-PostToolUse/*.sh</code>、<code>10-UserPromptSubmit/workflow-entry.sh</code>、<code>00-SessionStart/session-start.sh</code>、<code>13-SubagentStop/subagent-stop-check.sh</code>、<code>lib/tests/test_hook_common.sh</code>、フック共通仕様 §2、DDR <code>i0009-55</code></td><td>全参照を機械的に抜き、1 件ずつ置き場／作業ツリーのどちらを指すべきかを判定して表にする。既存テストの検証済み範囲を特定し、残余を実測手順にする</td><td>不要</td></tr>
+      <tr><td>B</td><td><code>.claude/skills/*/scripts/*.sh</code> の <code>__ss_load</code> 行、提供コマンド 5 本、<code>logger.sh</code>、<code>.gitignore</code>、<code>logs/</code> 配下の実ファイル一覧、各コマンドの仕様書</td><td>状態ファイルへの依存を全件抜いて表にし、<code>__ss_load</code> の探索順に起動パスを当てはめて解決先を書き分ける。残余を実測手順にする</td><td>不要</td></tr>
+      <tr><td>C</td><td>Claude Code / Agent ツールの公式ドキュメント、<code>subagent-start-check.sh</code>、<code>agents/task-executor.md</code>、<code>00-workflow-issue-mr-driven/SKILL.md</code> と <code>assets/subagent-prompt.template.md</code>、<code>logs/hooks/decisions.jsonl</code></td><td>公式を引用（URL と該当行）付きで確定する。取得できないときは「不明」と明記して実測手順に落とす。<code>decisions.jsonl</code> から <code>cwd</code> の実値を拾う</td><td><strong>要</strong></td></tr>
+      <tr><td>D</td><td><code>git worktree</code> の同一ブランチ制約に関する公式ドキュメント、<code>ticket.sh</code>、<code>commit.sh</code> / <code>push.sh</code>、<code>00-workflow-issue-mr-driven/SKILL.md</code> の切れ目、<code>boundary.sh</code>、過去 issue の git ログ</td><td>選択肢ごとの比較表を作り、衝突件数を過去 issue の実データから見積もる。DDR <code>i0001-23</code> の却下理由の各文を根拠付きで判定する</td><td>要</td></tr>
+      <tr><td>E</td><td><code>lib/scope.sh</code>、<code>block-direct-git.sh</code>、<code>workflow-guard.sh</code>、<code>config/scope-limits.json</code>、<code>lib/tests/test_scope.sh</code>、該当仕様</td><td>git サブコマンド一覧を <code>_SC_GIT_READ_SUBCMDS</code> と突き合わせて <code>unknown</code> を全件列挙する。塞ぎ方を 2 案以上挙げ、案ごとの影響を書く</td><td>不要</td></tr>
+      <tr><td>F</td><td><code>wip/tmp/worktree-probe/</code> 配下の実測結果、<code>wip/30_reports/0004-investigation.md</code> の A〜D の予測</td><td>予測と実測を 1 対 1 で並べ、3 値で判定する。不一致は原因の候補まで、未取得は理由と再実行手順を書く</td><td>不要</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>S1 / S2 / S6（0004・0005・0009）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code></td></tr>
+      <tr><td>S3 / S4（0006・0007）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code>, <code>web</code>（外部技術調査）</td></tr>
+      <tr><td>S5（0008）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code></td></tr>
+      <tr><td>S7（0010）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>全体計画書は <code>investigation</code> に <code>build-test</code>（既存テストの実行のみ）も許しているが、<strong>本計画では宣言しない</strong>。観点 A・B・E は既存テストを「読む」ことで検証済み範囲を特定でき、実行が要る確認は worktree を作る実測とひとまとまりで人間側に回るためである。実行が必要と分かったら未着手チケットの見直しで足す。<code>.claude/**</code> は読むだけで、一時的な変更（<code>settings.json</code> へのフックの一時登録など）は計画しない。</p>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <p>全ステップが終わった時点で、次がすべて成り立つことをもって「調査フェーズができた」とする。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>観点が判断点と受け入れ条件を網羅している</td><td>本計画書「調査観点」表の「効く先」列を読む</td><td>A1・A4・A5・A6・保留 P1・保留 P3 がすべて 1 回以上現れる</td></tr>
+      <tr><td>調査チケットが観点と 1 対 1 で存在する</td><td><code>ls wip/10_tickets/00_todo/</code></td><td><code>0004</code>〜<code>0010</code> の 7 枚</td></tr>
+      <tr><td>次の計画チケットが 1 枚だけ</td><td><code>grep -l "ticket_type: ai-asset-design-plan" wip/10_tickets/00_todo/*.md | wc -l</code></td><td><code>1</code></td></tr>
+      <tr><td>調査結果レポートが md と HTML の対で存在する</td><td><code>ls wip/30_reports/0004-investigation.*</code></td><td><code>.md</code> と <code>.html</code> の 2 件</td></tr>
+      <tr><td>A1 の「動かない箇所」が一覧になっている</td><td><code>wip/30_reports/0004-investigation.md</code> の観点 F の節</td><td>箇所ごとにファイル・行・症状・実測の出力が添えられている</td></tr>
+      <tr><td>却下理由の再評価が済んでいる</td><td>同レポートの観点 D の節</td><td>DDR <code>i0001-23</code> の却下文 3 つそれぞれに「今も成り立つ / 成り立たない」と根拠がある</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>成果物の形</h3>
+  <p>成果物は <code>wip/30_reports/0004-investigation.md</code>（と同名の HTML）1 本で、観点ごとに節を足して積み上げる。「分かった」で終わらせないため、観点ごとに<strong>必要な記載の粒度</strong>を先に決めておく。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>観点</th><th>調査結果レポートに必要な記載</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><code>HOOK_ROOT</code> / <code>HOOK_WORKTREE</code> の全参照一覧（ファイル:行・どちらを指すべきか・現状の判定）と件数。<code>test_hook_common.sh</code> が検証済みの範囲。実測手順（コマンド列 + 観点ごとの予測）と、実測でしか確かめられない項目の一覧</td></tr>
+      <tr><td>B</td><td>「提供コマンド × 依存する状態ファイル × 無いときの振る舞い」の表（5 コマンド分）。<code>__ss_load</code> の解決先が起動パス（相対 / 本流の絶対）でどう変わるかの対応表。<code>logs/</code> が無い worktree で最初に壊れるコマンドの特定。実測手順と予測</td></tr>
+      <tr><td>C</td><td>可否の結論と、公式ドキュメントの URL・引用・取得日。<code>decisions.jsonl</code> から拾ったサブエージェント実行時の <code>cwd</code> の実値（件数付き）。動かせない場合の代替（人間が別セッションを開く等）が成立する条件。実測手順と予測</td></tr>
+      <tr><td>D</td><td>ブランチ構成の選択肢 3 案の比較表（成立可否・合流手順・衝突の種類）。過去 issue の実データから出した衝突件数の見積もり（1 チケットあたりの rename 件数・同一レポートへの追記回数、算出に使ったコマンドと出力）。DDR <code>i0001-23</code> の却下文 3 つそれぞれへの「今も成り立つ / 成り立たない」の判定と根拠</td></tr>
+      <tr><td>E</td><td><code>unknown</code> に落ちる git サブコマンドと基本コマンドの全件一覧（<code>cd</code> を含む）。塞ぎ方 2 案以上について、変更する箇所・<code>block-direct-git.sh</code> との関係・影響する既存テスト ID・拒否が緩む範囲</td></tr>
+      <tr><td>F</td><td>「予測 / 実測 / 判定（一致・不一致・未取得）」の 3 列表。A1 の「動かない箇所」の一覧（ファイル・行・症状・実測の出力）。保留 P1 を決めるために揃った材料と、まだ足りない材料</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <p>DoD は調査チケットの型（「観点への答えがレポートに書かれている」「根拠が添えられている」「答えが出なかった問いは理由付きで残課題に残っている」）に、観点固有の粒度を足して書く。実行者・レビュー要否は全体計画書の方針（差分 1・差分 3）に従い、全チケットが実行者 opus・人間レビュー不要・敵対的レビュー要（0010 のみ不要）である。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0004</td><td><code>investigation</code></td><td>S1 / 観点 A: worktree 上でのフックの作業ツリー解決と、WIP・宣言範囲・差分判定の健全性</td><td>—</td></tr>
+      <tr><td>0005</td><td><code>investigation</code></td><td>S2 / 観点 B: 提供コマンドと <code>logs/</code> 状態ファイルの worktree 分離</td><td>0004</td></tr>
+      <tr><td>0006</td><td><code>investigation</code></td><td>S3 / 観点 C: サブエージェントを別 worktree で動かせるか</td><td>—</td></tr>
+      <tr><td>0007</td><td><code>investigation</code></td><td>S4 / 観点 D: 1 issue = 1 ブランチとの両立と、並列成果の合流コスト</td><td>0004, 0005</td></tr>
+      <tr><td>0008</td><td><code>investigation</code></td><td>S5 / 観点 E: <code>scope.sh</code> の git 分類の穴と塞ぎ方の選択肢</td><td>—</td></tr>
+      <tr><td>0009</td><td><code>investigation</code></td><td>S6 / 観点 F: 実測結果と予測の突き合わせ、並列採否の判断材料の確定</td><td>0004, 0005, 0006, 0007, 0008</td></tr>
+      <tr><td>0010</td><td><code>ai-asset-design-plan</code></td><td>S7 / 次フェーズ（AI アセット設計）の計画</td><td>0004, 0005, 0006, 0007, 0008, 0009</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>敵対的レビューは全体計画書の差分 3 のとおり<strong>フェーズごとに 1 回</strong>であり、チケットごとに 1 回ではない。切れ目で <code>00-workflow-issue-mr-driven</code> が上限を管理する。</p>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td>実測結果が返らないまま 0009 に入る（兆候: <code>wip/tmp/worktree-probe/</code> が空）</td><td>観点 F が空振りし、保留 P1 の判断材料が揃わない</td><td>0009 は突き合わせを行わず、未取得項目を再実行手順つきで残課題に残して完了する。0010（AI アセット設計計画）は「実測なしでは保留 P1 を決められない」と明記して呼び出し元に判断を戻す</td></tr>
+      <tr><td>実測で worktree を作った結果、本流の <code>logs/</code> や <code>wip/</code> が壊れる（兆候: <code>git status</code> に想定外の差分）</td><td>本 issue の作業そのものが失われる</td><td>実測手順に「worktree は <code>../</code> 配下の新規ディレクトリに作り、終わったら <code>git worktree remove</code> で片付ける」「本流の <code>wip/</code> <code>logs/</code> には触れない」を必ず含める。壊れたら着手時の <code>base_sha</code>（0003 は <code>8c68128</code>）を基準に戻す</td></tr>
+      <tr><td>観点 C が「別 worktree で動かせない」と出て、以降の観点が空振りする</td><td>0007 以降の前提が崩れる</td><td>0007 以降は「並列を採らない場合でも A1・A2・A3 のために worktree 上の健全性は要る」ことを理由に続行する。観点 D は合流コストの見積もりを「開始時 worktree 分離（狙い B）でも同じ問題が出るか」に読み替える</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="out-of-scope">
+  <h2>スコープ外</h2>
+  <ul>
+    <li>穴の塞ぎ方・worktree 運用の既定・並列方式そのものの<strong>決定</strong>（AI アセット設計 0010 以降が引き取る）</li>
+    <li>全体計画書の保留 P2（本全体計画の実施中に見つかった機構の不具合 4 件）の調査（全体まとめで別 issue として起票する）</li>
+    <li>別 issue 同士の並行、1 issue = 1 ブランチ = 1 MR の原則の変更、マージ操作の自動化（いずれも issue #50 のスコープ外）</li>
+  </ul>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td><strong>P1</strong> 1 issue 内の並列実施を採用するか見送るか。全体計画書の保留 P1 をそのまま引き継ぐ。現行の正史では DDR <code>i0001-23</code>「チケットの並列実施を廃止する。チケットは常に 1 枚ずつ、タスクの実行者の中で直列に実施する」が生きており、本フェーズはこれを覆す材料を集めるだけで覆さない</td><td>AI アセット設計計画（0010）。材料は 0009 の観点 F</td></tr>
+      <tr><td><strong>P2</strong> <code>logs/</code> が <code>.gitignore</code>（<code>logs/</code> 行）されているため worktree 側に複製されない。worktree で進行状態をどう用意するか（本流からコピーする / worktree ごとに新規に作る / 本流の <code>logs/</code> を共有する）。現行の DDR <code>i0009-55</code> は「<code>logs/</code> と <code>wip/</code> は作業ツリー側に置く（worktree ごとに進行状態が分かれる）」と決めているが、<strong>存在しないときの初期化については何も決めていない</strong></td><td>AI アセット設計。材料は 0005 の観点 B</td></tr>
+      <tr><td><strong>P3</strong> <code>scope.sh</code> の git 分類の穴の塞ぎ方（どの案を採るか）。現行の <code>scope.sh</code> は <code>scope_classify</code> の git 分岐で <code>_SC_GIT_READ_SUBCMDS</code> に無いサブコマンドを <code>unknown</code> に落とし、<code>workflow-guard</code> が WF204 で既定拒否する</td><td>AI アセット設計。案は 0008 の観点 E が出す</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>全体計画書の保留 P3 の決着</h3>
+  <p>全体計画書の保留 P3「調査で必要な実測を、ユーザー実行で回すか、先に git 分類の穴を直してから回すか」は、本計画で<strong>ユーザー実行で回す</strong>と決めた。理由は 3 つ。</p>
+  <ol>
+    <li>穴を先に直すのはフェーズ列（調査 → AI アセット設計 → AI アセット実装）の逆行で、<code>scope.sh</code> は中核（フック共通ライブラリ）にあたるため、設計と実装計画のレビューを飛ばして触ることになる</li>
+    <li>塞ぎ方そのものが設計判断であり（観点 E で 2 案以上を出す）、調査の途中で 1 案を実装で固定すると、設計フェーズの選択肢が調査の都合で狭まる</li>
+    <li>実測は worktree の作成・削除を含む数コマンドで、1 回にまとめれば人間の手間は小さい。恒常的な迂回路を先に作るほどの頻度ではない</li>
+  </ol>
+  <p>この決着により、全体計画書の保留 P3 は解消済みとして扱う（全体計画書自体は書き換えない）。</p>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

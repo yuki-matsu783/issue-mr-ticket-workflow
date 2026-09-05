@@ -4,6 +4,9 @@ title: i0009-55. worktree では cwd 側の作業ツリーを採る
 description: CLAUDE_PROJECT_DIR が worktree に追随せず機構が worktree の中で丸ごと無効になることが公式で分かり、cwd から .claude を上向きに探して作業ツリーを決めると定めた判断
 tags: [ddr, hooks, worktree, ロックアウト, 無効化]
 keywords: [worktree, CLAUDE_PROJECT_DIR, cwd, HOOK_ROOT, LOGGER_ROOT, git rev-parse, i0009-20, i0009-22]
+status: 一部置き換え済み
+superseded_by: i0050-02-進行状態とロックと集計は共有ルートに一本化する.md
+superseded_scope: 「logs/ は作業ツリー側に置く」という置き場の決定（進行状態・ロック・集計は共有ルートへ移す）。作業ツリーの解決順と wip/ の置き場は有効
 ---
 
 # i0009-55. worktree では `cwd` 側の作業ツリーを採る

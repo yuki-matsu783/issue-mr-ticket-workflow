@@ -1564,3 +1564,559 @@ frontmatter 全文を目視させる設計を採らない。人間には「何�
 ```
 
 「無確認で書き込み可能になる領域」を最上部に置く理由：これが実質的な被害上限を決める情報であり、人間が最初に見るべき項目であるため。
+
+### 17.3 リスクスコア
+
+| 要素 | 加点 | 理由 |
+|---|---|---|
+| 新規 write allow ルール 1 件につき | +5 | 影響範囲の広さに比例させるため |
+| expected_roots 外への write allow 1 件につき | +15 | 委譲設計における主要な穴であるため |
+| expected_roots 外への read allow 1 件につき | +5 | 書き込みより影響が小さいため |
+| 高影響領域（.claude/**, .github/**, ci/**, Dockerfile, *.tf）への write allow | +35 | 実行環境・CI・エージェント定義への波及があるため |
+| Layer1 の deny サブツリー内への allow 要求 1 件につき | +25 | 通常の作業では発生しえない要求であるため |
+| Layer 0-B 不変 deny 領域への要求 1 件につき | +50 | 防御機構の偽装を試みる要求であるため |
+| Layer1 の明示 ask を allow にする要求 1 件につき | +15 | 意図的な確認ポイントの無効化を試みるため |
+| tools の緩和要求 1 件につき | +20 | |
+| approval_cache の緩和要求 | +25 | 確認機構そのものの緩和であるため |
+| sandbox 外を含む要求 | +30 | |
+| ワイルドカード / `/` / `..` / `$HOME` を含むパス | +25 | 影響範囲が不定であるため |
+| immutable 対象への記述 | +20 | |
+| ルール総数が 20 件超 | +10 | レビュー困難化による承認形骸化を招くため |
+| 前回チケットから write allow 領域が 2 倍以上に拡大 | +15 | 段階的な権限拡大の検知 |
+
+| スコア | レベル | 挙動 |
+|---|---|---|
+| 0–19 | LOW | 通常承認 |
+| 20–39 | MEDIUM | 通常承認（該当項目を警告表示） |
+| 40–69 | HIGH | 二段階承認（§17.4） |
+| 70+ | CRITICAL | 二段階承認 ＋ 監査ログへ severity: critical で記録 |
+
+### 17.4 二段階承認
+
+リスクスコアが `high_risk_threshold`（既定 40）を超える場合、`[a] 承認` のワンキーを無効化し、チケット ID の手入力を要求する。反射的な承認操作を物理的に阻止するため。
+
+> 転記注記: **ここから §20.2 までは提供されたスクリーンショットに写っていない。** 欠落しているのは §17.4 の承認画面例（チケット ID 手入力を求める表示）、§17.5 承認台帳とチケット完全性検証、§17.6 この対策の限界、§18 PostToolUse：事後変更監視（18.1〜18.6）、§19 非対話セッション（CI/CD）制御（19.1〜19.3）、§20.1 前提設定、§20.2 パスアクセスの判定例（#1〜#14）である。
+>
+> 他節からの参照によって、これらの節が扱う内容の一部は分かっている。§9.4 の検証項目 7 と §14.9 が「チケット未承認検出 → §17.5 の降格処理」を参照し、§3.3 の T-4 が「§17.5 承認台帳」を挙げる。§2.4 と §14.9 が「PostToolUse による事後検証（§18）」「PostToolUse による事後無効化（§18.3）」を参照し、§16.5 の運用方針と §21 の #22 が PostToolUse の事後検知と復元指示に触れる。§10.1 の `TICKET_GUARD_ASK_FALLBACK` と §15 の判定フロー末尾（`[ 対話？ ] NO (CI) → [ASK_FALLBACK] 既定 deny`）、および §14.9 の `force_disable_when_non_interactive` が §19 の非対話セッションの扱いに対応する。ただしこれらは参照であって本文ではないので、節そのものは補わずに空けてある。原本から取り込むこと。
+
+---
+
+## 20. 判定例カタログ
+
+> 転記注記: §20.1 前提設定 と §20.2 パスアクセス（判定例 #1〜#14）は提供されたスクリーンショットに写っていない。以下は §20.3 から始まる。判定例の通し番号が #15 から始まるのはそのためで、欠番ではない。
+
+### 20.3 Bashコマンド
+
+| # | コマンド | 判定 | reason_code | 説明 |
+|---|---|---|---|---|
+| 15 | `npm run build` | 🟢 allow | — | 該当ルールなし。ただし PostToolUse で出力先を検証 |
+| 16 | `git commit -m "Fix DROP bug"` | 🟢 allow | — | クォート内。DB クライアント非共起 |
+| 17 | `grep -rn "DROP TABLE" ./src` | 🟢 allow | — | DB クライアント非共起 |
+| 18 | `rm -rf src/components/old` | 🟢 allow | — | ticket allow 領域 |
+| 19 | `rm -rf docs/legacy` | 🔴 deny | DENY_PATH | Layer1 write deny |
+| 20 | `mv src/a.ts docs/a.ts` | 🔴 deny | DENY_PATH | 移動先が deny |
+| 21 | `mv docs/a.md src/a.md` | 🔴 deny | DENY_PATH | 移動元が deny |
+| 22 | `cp src/a.ts tmp/work/a.ts` | 🟢 allow | — | 元 read / 先 write ともに許可 |
+| 23 | `echo "x" > src/a.txt` | 🔴 deny | DENY_REDIRECT | リダイレクト一律遮断。Write ツール使用を hint |
+| 24 | `sed -i 's/a/b/' src/a.ts` | 🟢 allow | — | インプレース編集はパス判定へ |
+| 25 | `sed -i 's/a/b/' .env` | 🔴 deny | DENY_PATH | |
+| 26 | `psql -d mydb -c "SELECT 1"` | 🟢 allow | — | 破壊的キーワードなし |
+| 27 | `echo "DROP TABLE u;" \| psql -d db` | 🔴 deny | DENY_DB_DESTRUCTIVE | 順序逆転でも共起判定で捕捉 |
+| 28 | `psql -d db <<EOF` / `DROP TABLE u;` / `EOF` | 🔴 deny | DENY_REDIRECT<br>DENY_DB_DESTRUCTIVE | 2 経路で捕捉 |
+| 29 | `psql -d db -f clean.sql`（中身に DROP） | 🔴 deny | DENY_DB_DESTRUCTIVE | ファイル内容を読んで再判定 |
+| 30 | `psql -d db -f clean.sql`（読取不可） | 🟠 ask | IMPL_HASH_UNAVAILABLE | 非キャッシュ。毎回確認 |
+| 31 | `npm run build && terraform destroy` | 🔴 deny | DENY_COMMAND_PATTERN | 連鎖分割で後段を検知 |
+| 32 | `git push --force origin main` | 🔴 deny | DENY_COMMAND_PATTERN | |
+| 33 | `bash scripts/seed.sh` | 🟠 ask | IMPL_PATH_UNDEF (exec) | 内容ハッシュ付き・exact |
+| 34 | `bash scripts/seed.sh`（内容変更後） | 🟠 ask | 同上 | ハッシュ変化で再確認 |
+| 35 | `rm -rf $TARGET` | 🟠 ask | IMPL_PARSE_UNCERTAIN | 変数展開で対象不定 |
+| 36 | `rm -rf src/*.tmp` | 🟠 ask | IMPL_GLOB_UNRESOLVED | 展開結果に依存 |
+| 37 | `sudo rm -rf /` | 🔴 遮断 | — | Layer 0-A。Hook 到達せず |
+| 38 | `echo "x" > .git/hooks/pre-commit` | 🔴 deny | DENY_REDIRECT<br>DENY_BUILTIN | 2 経路で捕捉 |
+
+### 20.4 ツール
+
+| # | 操作 | 判定 | 説明 |
+|---|---|---|---|
+| 39 | `Bash(...)` | 🟢 allow | Layer1 allow + ticket 無指定 |
+| 40 | `WebFetch(...)` | 🔴 遮断 | Layer 0-A |
+| 41 | `WebSearch(...)` | 🟠 ask | Layer1 未記載 + ticket 無指定 → default_tool_ceiling |
+| 42 | `Task(...)` | 🟠 ask | 同上 |
+
+### 20.5 キャッシュ挙動
+
+| # | シナリオ | 挙動 |
+|---|---|---|
+| 43 | Write: tmp/other/a.txt を prefix 承認 → Write: tmp/other/b.txt | 🟢 allow（キャッシュヒット） |
+| 44 | 上記の後 Read: tmp/other/a.txt | 🟠 ask（access が異なる） |
+| 45 | 上記の後 Write: tmp/another/c.txt | 🟠 ask（subject が異なる） |
+| 46 | Write: migrations/x.sql を承認 → 再度同じ操作 | 🟡 ask（明示的 ask はキャッシュされない） |
+| 47 | 承認後に config.yaml を編集 | 全キャッシュ失効（config_hash 変更） |
+| 48 | 承認後に 61 分経過 | 該当エントリ失効（TTL） |
+| 49 | ネガティブキャッシュ登録後、同一操作 | 🔴 deny（確認なし） |
+
+---
+
+## 21. 攻撃・すり抜けパターン別 防御マトリクス
+
+| # | パターン | 検知層 | 判定 | 検知理由 |
+|---|---|---|---|---|
+| 1 | `psql * DROP *` の順序逆転 | PreToolUse ⑥ | 🔴 deny | コマンドとキーワードの共起判定（順序非依存） |
+| 2 | ヒアドキュメント経由 | PreToolUse ②⑥ | 🔴 deny | リダイレクト遮断 + DOTALL 全文検索 |
+| 3 | SQL ファイル経由（-f） | PreToolUse ⑥ | 🔴 deny | ファイル内容を読んで再判定 |
+| 4 | スクリプト生成 → 実行 | PreToolUse ③ + 内容ハッシュ | 🟠 ask | exec 判定 + 内容変更で再確認 |
+| 5 | 承認済みスクリプトの中身差し替え | 承認キャッシュ §14.6 | 🟠 ask | 内容ハッシュが変化し別キーになる |
+| 6 | 連鎖コマンドの後段に破壊操作 | PreToolUse ① | 🔴 deny | `&&` `;` `\|` で分割して全数走査 |
+| 7 | サブシェル `$(...)` 内に隠蔽 | PreToolUse ① | 🔴 deny | 再帰的に展開して解析 |
+| 8 | シンボリックリンクで sandbox 脱出 | PreToolUse ② | 🔴 deny / 🟠 ask | 実体解決後に境界判定 + 境界変化を検知 |
+| 9 | 相対パス `../` で外部アクセス | PreToolUse ② | 🔴 deny | 正規化後に境界判定 |
+| 10 | チケットで tools を昇格 | §11.2 | 🟡 ask | Layer1 明示宣言との strictest |
+| 11 | チケットで deny サブツリーをくり抜き | §11.1 順 3 | 🔴 deny | Layer1 単独ツリーで先に最長一致を確定 |
+| 12 | チケットで明示 ask を allow 化 | §11.1 順 3 | 🟡 ask | strictest により ask 維持 |
+| 13 | チケットで sandbox 外に allow | §11.1 順 2 | 🔴 deny | sandbox 境界が優先 |
+| 14 | チケットで approval_cache を緩和 | §8.6 | クランプ | max_* で上限固定 |
+| 15 | 環境変数で確認機構を無効化 | §10.2 | クランプ | 緩和方向は Layer1 上限でクランプ |
+| 16 | チケット自身を書き換えて権限追記 | §17.5 | 全 ask 降格 | frontmatter_hash 不一致 → 未承認扱い |
+| 17 | 承認台帳を書き換えて偽装 | Layer 0-B | 🔴 deny | 不変 deny |
+| 18 | 承認キャッシュファイルに直接注入 | Layer 0-B | 🔴 deny | 不変 deny |
+| 19 | `.git/hooks/pre-commit` に注入 | Layer 0-B | 🔴 deny | 不変 deny |
+| 20 | Hook スクリプトを書き換え | Layer1 推奨 + §7.4 | 🔴 deny + 検知 | write deny + 完全性検証 |
+| 21 | settings.json を書き換え | Layer1 推奨 | 🔴 deny | write deny |
+| 22 | ビルド副作用で .env.production 生成 | PostToolUse | 🔴 検知 | git 差分で事後検知 + 復元指示 |
+| 23 | 大量ルールでレビュー疲れを誘発 | §9.4 / §17.3 | 拒否 / 加点 | max_ticket_rules + リスクスコア |
+| 24 | 段階的な権限拡大 | §17.3 | 加点 | 前回チケットとの差分比較 |
+| 25 | `.claude/skills` への書き込みで挙動改変 | §16.2 / §17.3 | 🟠 ask + 可視化 | 未宣言なら ask。allow 宣言時は SENSITIVE_AREA_GRANT + 35 点 |
+| 26 | expected_roots 外への allow を紛れ込ませる | §16.2 / §17.2 | allow + 可視化 | SCOPE_DEVIATION として承認画面と起動時に強調表示 |
+
+---
+
+## 22. セキュリティ不変条件と保証範囲
+
+### 22.1 不変条件
+
+実装は以下を常に満たさなければならない。テストで検証可能な形で記述する。
+
+| # | 不変条件 |
+|---|---|
+| I-1 | Layer 0-B の 3 パスへの write は、いかなる設定・チケット・環境変数・キャッシュによっても許可されない |
+| I-2 | sandbox 外への write / exec は、いかなる設定・チケット・環境変数・キャッシュによっても許可されない |
+| I-3 | Layer 1 が明示宣言した deny は、チケット・環境変数によって ask / allow にならない |
+| I-4 | Layer 1 が明示宣言した ask は、チケット・環境変数によって allow にならない |
+| I-5 | 承認キャッシュは deny 判定を allow に変えない |
+| I-6 | deny_commands は下位レイヤから削除・無効化されない |
+| I-7 | approval_cache の実効値は Layer 1 の max_* を超えない |
+| I-8 | 解析不能・判定不確定な入力は必ず ask 以上の厳しさになる |
+| I-9 | チケットの frontmatter_hash と config_hash の組が承認台帳に存在しない場合、すべての allow が ask 以上に降格する |
+| I-10 | 却下された昇格試行と、expected_roots を逸脱した許可は、必ず監査ログに記録される |
+| I-11 | 内容ハッシュ対象コマンドの承認は、対象ファイルの内容が変化した時点で無効になる |
+
+### 22.2 保証する範囲
+
+| 保証内容 | 前提条件 |
+|---|---|
+| Layer 1 が明示宣言した保護領域は、チケット承認が完全に形骸化しても守られる | Layer 1 の変更が PR + レビューを経ること |
+| sandbox 外への書き込みは発生しない | sandbox_extra_roots に広域パスを設定しないこと |
+| 防御機構の判定結果の偽装は発生しない | 脅威モデル D が成立しないこと |
+
+### 22.3 保証しない範囲
+
+| 保証しない内容 | 理由 | 緩和策 |
+|---|---|---|
+| Layer 1 が列挙していない領域の保護 | 未宣言領域はチケットに委譲する設計であるため | expected_roots による逸脱可視化、リスクスコア、PostToolUse |
+| Git 管理外ファイルの事後検知 | git status に現れないため | 重要な生成物は Git 管理下に置く、または target_directories に明示宣言する |
+| 任意シェル実行が可能な主体への防御 | 同一ユーザー権限では原理的に境界にならない | §23.3 の OS/FS 権限分離 |
+| Hook 自体のバグによる判定漏れ | — | Layer 0-A（settings.json）による二重防御 |
+| ネットワーク経由の情報流出 | ファイルシステム操作の制御が対象範囲であるため | Layer 0-A で WebFetch を deny、ネットワークポリシー |
+
+---
+
+## 23. システムの限界と最終防衛策
+
+### 23.1 設計上の限界
+
+| # | 限界 | 影響 | 対応方針 |
+|---|---|---|---|
+| L-1 | プロジェクト設定の列挙品質が防御力を決める | target_directories に書き漏れた保護対象は、チケットが allow を宣言すれば許可される | テンプレート提供（付録 C）、CI での lint、expected_roots による逸脱監視、定期的な監査ログレビュー |
+| L-2 | シェル構文解析の網羅性に限界がある | 想定外の構文・エイリアス・シェル関数による回避 | 解析不確定は ask に倒す（I-8）、PostToolUse による事後検証 |
+| L-3 | Git 管理外の変更を検知できない | .gitignore 対象ファイルの汚染 | 重要ファイルは Git 管理下に置く |
+| L-4 | 同一ユーザー権限では防御機構自体を守りきれない | 任意シェル実行が成立した時点で全防御が無効 | §23.3 |
+| L-5 | ネットワーク経由の情報流出を防げない | 認証情報の外部送信 | Layer 0-A + ネットワーク層の制御 |
+| L-6 | Hook の実行時間がツール呼び出しごとに加算される | 体験の劣化 | 内容ハッシュのサイズ上限、正規表現の事前コンパイル、判定結果のメモ化 |
+
+### 23.2 運用上の推奨事項
+
+| 推奨 | 目的 |
+|---|---|
+| config.yaml に CODEOWNERS を設定し、Code Owner レビューを必須にする | Layer 1 の変更が無審査で通ることを防ぐ |
+| CI で config.yaml を lint する（sandbox_extra_roots の禁止値、expected_roots の広域指定など） | 設定ミスの早期検知 |
+| 監査ログを外部ストレージへ転送し、SCOPE_DEVIATION / SENSITIVE_AREA_GRANT / risk_score >= 40 を継続監視する | 列挙漏れと異常なチケット生成の検知 |
+| 恒久的に不要なツールは settings.json の permissions.deny に記載する | Hook より外側での二重防御 |
+| チケットは作業単位で細かく分割する | 権限スコープの最小化とレビュー品質の維持 |
+| 本番近傍・監査対象の作業では TICKET_GUARD_STRICT=1 を使用する | 確認機構の全面有効化 |
+
+### 23.3 最終防衛策：OS / インフラ層
+
+本システムはアプリケーション層のガードレールであり、それ自体を最終防衛線にしてはならない。以下を併用する。
+
+| 層 | 対策 | 防ぐもの |
+|---|---|---|
+| ファイルシステム | `.claude/hooks/**`、settings.json、承認台帳を Claude Code 実行ユーザーとは別のオーナーにし、chmod 444 とする | 防御機構自身の書き換え（脅威モデル D への部分的対処） |
+| 実行環境 | コンテナ / VM 内で実行し、ホストのファイルシステムをマウントしない | プロジェクト外領域への波及 |
+| ユーザー権限 | 専用の低権限ユーザーで実行し、sudo を与えない | 特権昇格 |
+| IAM | 開発環境の認証情報に本番リソースへの権限を与えない。本番操作は別クレデンシャル・別経路とする | クラウドインフラの破壊 |
+| DB | 開発用接続には DROP / TRUNCATE 権限を付与しない。本番 DB への直接接続経路を持たせない | データ消失 |
+| ネットワーク | 外部通信を許可リスト方式で制限する | 情報流出 |
+| バックアップ | 本番 DB の PITR、リポジトリのミラーリング | 万一の際の復旧 |
+
+IAM と DB 権限の設計が最も重要である。本システムがすべて突破されても、実行環境の認証情報が本番リソースを破壊できなければ、最悪の被害は発生しない。
+
+---
+
+## 付録A. 判定チートシート
+
+### A.1 パス権限の決定順序
+
+```
+① Layer 0-B 不変 deny        → deny
+② sandbox 外                 → write/exec: deny  /  read: ask（明示）
+③ Layer1 に該当ルールあり     → strictest(Layer1, ticket)
+                                 ※ ticket 無指定なら Layer1 値
+④ ticket に明示ルールあり     → その値
+⑤ いずれも該当なし            → ask（暗黙）
+```
+
+### A.2 ツール権限の決定順序
+
+```
+① settings.json permissions.deny → 遮断（Hook 到達せず）
+② Layer1.tools に記載あり        → strictest(Layer1, ticket)
+③ ticket に指定あり              → その値
+④ いずれも指定なし               → default_tool_ceiling（既定 ask）
+```
+
+### A.3 「何を書けば何が守られるか」
+
+| 守りたいもの | 書く場所 | 効果 |
+|---|---|---|
+| 恒久的に使わせないツール | settings.json の permissions.deny | Hook 到達前に遮断。最も硬い |
+| 絶対に書き換えさせないファイル | config.yaml の target_directories.write: deny | チケットから緩められない |
+| 毎回人間が見るべき対象 | config.yaml の target_directories: ask | チケットから allow にできない |
+| 危険なコマンドパターン | config.yaml の deny_commands | 削除不能。全レイヤで結合 |
+| 委譲してよい世界の外縁 | config.yaml の sandbox_root | 外部への write/exec を固定 deny |
+| 想定作業範囲（強制なし） | config.yaml の expected_roots | 逸脱時に可視化・加点・キャッシュ降格 |
+| 今回の作業で使う領域 | チケットの target_directories | 未宣言領域なら allow が成立 |
+
+### A.4 askの分類早見
+
+| 発生源 | 分類 | 既定でキャッシュ |
+|---|---|---|
+| 設定に ask と明記 | 明示的 | ✗（ask_once: true なら ✓） |
+| sandbox 外の read | 明示的 | ✗（常に非キャッシュ） |
+| どのレイヤも未言及 | 暗黙的 | ✓ |
+| default_tool_ceiling | 暗黙的 | ✓ |
+| 変数展開・glob で対象不定 | 暗黙的 | ✓ |
+| シンボリックリンクの境界変化 | 暗黙的 | ✗（常に非キャッシュ） |
+| 内容ハッシュ取得不可 | 暗黙的 | ✗（常に非キャッシュ） |
+
+---
+
+## 付録B. reason_code一覧
+
+### B.1 deny系
+
+| code | access | 発生条件 |
+|---|---|---|
+| DENY_BUILTIN | write | Layer 0-B 不変 deny に該当 |
+| DENY_SANDBOX | write / exec | sandbox 外 |
+| DENY_PATH | read / write / exec | Layer 1 または ticket が deny を宣言 |
+| DENY_TOOL | tool | ツール権限が deny |
+| DENY_REDIRECT | write | リダイレクト / ヒアドキュメント / tee |
+| DENY_DB_DESTRUCTIVE | exec | DB クライアントと破壊的キーワードの共起 |
+| DENY_COMMAND_PATTERN | exec | deny_commands の正規表現に一致 |
+
+### B.2 明示的ask系
+
+| code | access | 発生条件 |
+|---|---|---|
+| EXPL_PATH_ASK | read / write / exec | 設定に ask と明記 |
+| EXPL_TOOL_ASK | tool | tools に ask と明記 |
+| EXPL_SANDBOX_READ | read | sandbox 外の読み取り。常に非キャッシュ |
+
+### B.3 暗黙的ask系
+
+| code | access | 発生条件 | キャッシュ |
+|---|---|---|---|
+| IMPL_PATH_UNDEF | read / write / exec | どのレイヤも該当ルールを持たない | ✓ |
+| IMPL_TOOL_UNDEF | tool | default_tool_ceiling によるフォールバック | ✓ |
+| IMPL_PARSE_UNCERTAIN | exec | 変数展開等で対象パスが確定できない | ✓ |
+| IMPL_GLOB_UNRESOLVED | read / write | ワイルドカードで対象が展開時に決まる | ✓ |
+| IMPL_SYMLINK_ESCAPE | 全種 | 正規化前後で sandbox の内外が変化 | ✗ |
+| IMPL_HASH_UNAVAILABLE | exec | 内容ハッシュが取得できない | ✗ |
+| IMPL_TICKET_UNAPPROVED | 全種 | チケット未承認による allow → ask 降格 | ✗ |
+
+### B.4 レポート系（判定ではなく記録）
+
+| code | 内容 |
+|---|---|
+| CEILING_TOOL | ticket の tools 緩和要求が却下された |
+| CEILING_PARENT_DENY | Layer1 の deny サブツリー内への要求が却下された |
+| CEILING_EXPLICIT_ASK | Layer1 の明示 ask への allow 要求が却下された |
+| CEILING_SANDBOX | sandbox 外への allow 要求が却下された |
+| CEILING_BUILTIN | Layer 0-B 不変 deny への要求が却下された |
+| CEILING_CLAMP | approval_cache が max_* でクランプされた |
+| IMMUTABLE_IGNORED | immutable 対象への記述が無視された |
+| INVALID_PATH | 不正なパス指定が無視された |
+| RULE_LIMIT_EXCEEDED | ルール総数が上限を超過した |
+| SCOPE_DEVIATION | expected_roots 外への allow が有効になった |
+| SENSITIVE_AREA_GRANT | 高影響領域への write allow が有効になった |
+| POST_VIOLATION | PostToolUse が保護領域の変更を検知した |
+| TICKET_UNAPPROVED | チケットのハッシュが承認台帳と一致しない |
+| HOOK_INTEGRITY_MISMATCH | Hook スクリプトのハッシュが不一致 |
+
+---
+
+## 付録C. 設定テンプレート
+
+### C.1 .claude/settings.json
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "WebFetch",
+      "Bash(sudo:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)"
+    ]
+  },
+  "hooks": {
+```
+
+> 転記注記: C.1 の JSON は原文のスクリーンショットが `"hooks": {` の行で切れている。以降の Hook 登録部分は取り込めていない。原本から補うこと。
+
+### C.2 .claude/hooks/config.yaml
+
+```yaml
+# ────────────────────────────────
+# ① サンドボックス境界
+#     ここで指定した範囲の外への write / exec は常に deny。
+# ────────────────────────────────
+sandbox_root: "."
+sandbox_extra_roots: []
+
+# ────────────────────────────────
+# ② ツール権限
+#     ここに記載したツールは、チケットから緩められない。
+#     記載のないツールはチケットの宣言に従う。
+# ────────────────────────────────
+default_tool_ceiling: ask
+
+tools:
+  Read:      allow
+  Glob:      allow
+  Grep:      allow
+  Edit:      allow
+  Write:     allow
+  MultiEdit: allow
+  Bash:      allow
+  Task:      ask
+  WebSearch: ask
+
+# ────────────────────────────────
+# ③ 想定作業範囲（判定には影響しない）
+#     チケットがこの範囲外に allow を宣言した場合、
+#     承認画面での強調表示・リスク加点・キャッシュ降格を行う。
+# ────────────────────────────────
+expected_roots:
+  read:  ["src", "tests", "docs", "public", "scripts"]
+  write: ["src", "tests"]
+  exec:  ["node_modules/.bin", "scripts"]
+
+strict_delegation: false    # true にすると expected_roots が判定に作用する
+
+# ────────────────────────────────
+# ④ 絶対防衛線
+#     ここに書いたものはチケットから緩められない。
+#     ★ 守るべき対象をここに列挙することが防御の中核 ★
+# ────────────────────────────────
+target_directories:
+```
+
+> 転記注記: C.2 の YAML は原文のスクリーンショットが `target_directories:` の行で切れている。⑤〜⑧ に当たる残りの設定項目は取り込めていない。原本から補うこと。
+
+### C.3 .current-ticket.md
+
+```markdown
+---
+ticket: PROJ-1234
+title: ユーザー設定画面のリファクタリング
+rationale: |
+  src/components/Settings 配下のコンポーネントを責務ごとに分割する。
+  設定値の読み込みロジックを確認するため config/ の read が必要。
+
+target_directories:
+  read:
+    "src": allow
+    "docs": allow
+  write:
+    "src/components/Settings": allow
+---
+
+## 作業内容
+
+1. Settings.tsx を SettingsForm / SettingsPreview に分割
+2. 対応するテストを tests/components/Settings 配下に追加
+3. Storybook のストーリーを更新
+
+## 完了条件
+
+- [ ] `npm test` が通ること
+- [ ] 既存の振る舞いが変わっていないこと
+```
+
+作業中
+
+- ファイル生成にはリダイレクト（`>`）を使わず、Write ツールを使うこと。
+- 拒否された場合は同じ手段を繰り返さず、返された hint に従って代替手段を検討すること。
+- PostToolUse から保護領域の変更を通知された場合は、作業を中断し、指示された復元手順を実行してから原因（ビルド設定等）を修正すること。
+- 確認プロンプトが頻発する場合は、無理に回避しようとせず、必要な領域をチケットに追記して再承認を求めること。
+
+やってはいけないこと
+
+- Hook スクリプト・設定ファイル・承認台帳の書き換え。
+- `.current-ticket.md` の自己編集による権限の追記。
+- 制約を回避する目的でのスクリプト生成・間接実行。
+
+---
+
+## 付録D. トラブルシューティング
+
+### D.1 症状別の対処
+
+| 症状 | 原因 | 対処 |
+|---|---|---|
+| すべての操作で確認が出る | tools セクションが未記載で default_tool_ceiling: ask に落ちている | config.yaml の tools に使用ツールを明記する |
+| 同じファイルで何度も確認が出る | 明示的 ask（ask_once: false）である／mode: off になっている／内容ハッシュ対象で内容が変化している | 意図した確認であればそのまま。不要なら ask_once: true に変更 |
+| セッション途中で突然全部聞かれ出した | config.yaml またはチケットが編集され config_hash が変わった／TTL 超過 | 意図した編集であれば承認し直す。意図しない場合は差分を確認 |
+| チケットに書いた allow が効かない | Layer 1 が同じパスに deny / ask を明示宣言している | 起動時レポートの CEILING_* を確認。必要なら config.yaml を PR で更新 |
+| 「未承認チケット」と表示され全部 ask になる | frontmatter が編集された／config.yaml が変更された／チケットを切り替えた | 承認ゲートで再承認する |
+| Hook 完全性エラーが出る | Hook スクリプトまたは config.yaml が変更された | 差分を確認し、意図した変更であれば承認して .integrity を更新 |
+| CI だけ失敗する | 非対話セッションで ask が deny に落ちている | エラー出力の ASK_FALLBACK 表示を確認し、該当パスをチケットまたは config.yaml に追加 |
+| `>` によるファイル生成が拒否される | DENY_REDIRECT（仕様） | Write ツールを使用する |
+| psql が実行できない | DENY_DB_DESTRUCTIVE（破壊的キーワードとの共起） | 参照系のみなら該当キーワードを含めない。破壊操作が必要なら人間が別経路で実行 |
+| ツール呼び出しが遅い | 内容ハッシュ計算・シンボリックリンク解決のコスト | max_hash_file_size_mb を下げる。content_hash_commands を必要最小限にする |
+
+### D.2 診断コマンド
+
+```bash
+# 現在の実効権限を表示（判定は行わない）
+python .claude/hooks/pre_tool_use.py --explain
+
+# 特定の操作がどう判定されるかを試験
+python .claude/hooks/pre_tool_use.py --dry-run \
+  --tool Write --path src/components/A.tsx
+
+python .claude/hooks/pre_tool_use.py --dry-run \
+  --tool Bash --command 'rm -rf docs/legacy'
+
+# config.yaml の妥当性検証
+python .claude/hooks/pre_tool_use.py --lint
+
+# 現在の承認キャッシュ一覧
+python .claude/hooks/pre_tool_use.py --show-cache
+
+# 承認キャッシュを手動クリア
+python .claude/hooks/pre_tool_use.py --clear-cache
+
+# チケットの承認状態とリスクスコアを確認
+python .claude/hooks/pre_tool_use.py --check-ticket
+```
+
+`--explain` の出力例
+
+```
+Ticket Guard — 実効権限レポート
+ticket : PROJ-1234（承認済み / risk 23 MEDIUM）
+config_hash : a1b2c3d4e5f6
+session : 対話 / cache=implicit scope=prefix ttl=60m
+
+■ ツール
+allow : Read Glob Grep Edit Write MultiEdit Bash
+ask   : Task WebSearch
+deny  : (settings.json) WebFetch
+
+■ write
+allow : src/components/Settings/**
+ask   : package-lock.json migrations （明示）
+```
+
+> 転記注記: `--explain` の出力例は原文のスクリーンショットが「ask : package-lock.json migrations（明示）」の行で切れている。read / exec の項が続くと見られるが取り込めていない。原本から補うこと。
+
+### D.3 段階的な導入手順
+
+いきなり全設定を有効にすると確認が頻発して定着しないため、以下の順で導入する。
+
+| 段階 | 設定 | 目的 |
+|---|---|---|
+| 1. 観測 | tools を全 allow、target_directories は最小限（認証情報のみ deny）、post_tool_use.auto_restore: off、TICKET_GUARD_LOG_LEVEL=info | 実際にどのパス・コマンドが使われるかを監査ログで把握する |
+| 2. 列挙 | 監査ログをもとに expected_roots を実態に合わせて設定。target_directories.write に保護対象を追記 | 逸脱検知の基準線を作る |
+| 3. 遮断 | deny_commands を有効化。post_tool_use.auto_restore: warn | 破壊的コマンドの遮断を開始 |
+| 4. 委譲 | チケット運用を開始。承認ゲートを有効化 | 作業単位のスコープ制御へ移行 |
+| 5. 強化 | immutable の設定、hook_integrity: strict（本番近傍のみ）、CI での lint | 設定自体の保護 |
+
+各段階で 1〜2 週間の運用を経て、SCOPE_DEVIATION の発生パターンから列挙漏れを是正してから次へ進む。
+
+### D.4 設定lintの検証項目
+
+CI で `--lint` を実行し、以下を検証する。
+
+| # | 検証項目 | レベル |
+|---|---|---|
+| 1 | sandbox_extra_roots に禁止値（`/`, `/etc`, `$HOME` 等）が含まれていないか | error |
+| 2 | expected_roots に `.` や `/` が含まれていないか | error |
+| 3 | deny_commands の正規表現がコンパイル可能か | error |
+| 4 | target_directories のパスに `..` や絶対パスが含まれていないか | error |
+| 5 | max_* が既定値より緩くなっていないか | warn |
+| 6 | tools セクションが存在するか | warn |
+| 7 | `.claude/hooks` / settings.json / `.current-ticket.md` が write deny に含まれているか | warn |
+| 8 | expected_roots と target_directories.deny が重複していないか | warn |
+| 9 | immutable に主要項目が含まれているか | info |
+
+---
+
+## 補遺：本設計の要点
+
+本システムの防御は、以下の 3 層構造で成り立つ。
+
+```
+┌────────────────────────────────┐
+│【硬い層】変更に人間の PR を要する               │
+│ - settings.json permissions                     │
+│ - Layer 0-B 組み込み不変 deny（3 パス）          │
+│ - config.yaml の target_directories / deny_commands │
+│ - sandbox_root                                  │
+│ → チケットからは一切緩められない                 │
+└────────────────────────────────┘
+┌────────────────────────────────┐
+│【柔らかい層】チケットに委譲                     │
+│ - 上記が言及していない sandbox 内の領域          │
+│ - config.yaml の tools に記載のないツール        │
+│ → チケットの宣言がそのまま有効                   │
+│ → 沈黙していれば暗黙的 ask                       │
+└────────────────────────────────┘
+┌────────────────────────────────┐
+│【監視層】判定に影響せず、逸脱を可視化            │
+│ - expected_roots による逸脱検知                  │
+│ - リスクスコアと二段階承認                       │
+│ - PostToolUse による事後検証                     │
+│ - 監査ログ                                       │
+│ → 硬い層の列挙漏れを運用の中で是正する            │
+└────────────────────────────────┘
+```
+
+硬い層に何を書くかが防御力を決め、監視層がその列挙漏れを見つける。柔らかい層の存在は、確認疲れによる承認の形骸化を避けて、硬い層と監視層を実際に機能させ続けるための設計上の選択である。
+
+そのうえで、本システムはアプリケーション層のガードレールにすぎない。最終的な被害の上限は、§23.3 の IAM・DB 権限・実行環境の分離が決定する。

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>0012〜 AI アセット設計結果 — 作業ツリーの三分・進行状態の一本化・宣言範囲と実行者照合の一意性・コマンド分類の穴</title>
+<title>0012〜 AI アセット設計結果 — 作業ツリーの三分・進行状態の一本化・宣言範囲と実行者照合の一意性・コマンド分類の穴・worktree の提供コマンドと合流手順</title>
 <style>
   /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
   * { box-sizing: border-box; }
@@ -127,11 +127,11 @@
 
 <aside class="sidebar">
   <p class="kind">AI アセット設計結果レポート / AI アセット設計</p>
-  <h1 id="title" data-required>0012〜 AI アセット設計結果 — 作業ツリーの三分・進行状態の一本化・宣言範囲と実行者照合の一意性・コマンド分類の穴</h1>
+  <h1 id="title" data-required>0012〜 AI アセット設計結果 — 作業ツリーの三分・進行状態の一本化・宣言範囲と実行者照合の一意性・コマンド分類の穴・worktree の提供コマンドと合流手順</h1>
 
   <p class="counts" id="counts" data-required>
-    <span class="chip good">◎良 6</span>
-    <span class="chip warn">△注意 2</span>
+    <span class="chip good">◎良 19</span>
+    <span class="chip warn">△注意 5</span>
     <span class="chip stop">✕問題 0</span>
   </p>
 
@@ -159,10 +159,20 @@
           <li><a href="#f14"><span class="mk good">◎</span> 14. cmdpos の P-1・P-2</a></li>
           <li><a href="#f15"><span class="mk good">◎</span> 15. DDR i0050-04 と束の書き分け</a></li>
           <li><a href="#f16"><span class="mk warn">△</span> 16. 骨子から外れた判断が 3 件（0013）</a></li>
+          <li><a href="#f17"><span class="mk good">◎</span> 17. 20-common-step-worktree の新設と 4 サブコマンド</a></li>
+          <li><a href="#f18"><span class="mk good">◎</span> 18. 合流手順（A6）の 5 点の確定</a></li>
+          <li><a href="#f19"><span class="mk good">◎</span> 19. 合流の記録先（保留 P3）の決着</a></li>
+          <li><a href="#f20"><span class="mk good">◎</span> 20. 本流かどうかの判定を 1 か所に</a></li>
+          <li><a href="#f21"><span class="mk good">◎</span> 21. 採番の一本化と push の本流限定</a></li>
+          <li><a href="#f22"><span class="mk warn">△</span> 22. git merge の決着と残した素通りの穴</a></li>
+          <li><a href="#f23"><span class="mk good">◎</span> 23. DDR 2 本と i0004-07 の部分置き換え</a></li>
+          <li><a href="#f24"><span class="mk warn">△</span> 24. 束の書き分けと骨子から外れた判断 2 件（0014）</a></li>
         </ol>
       </li>
       <li><a href="#verified">検証の結果</a></li>
       <li><a href="#docs">作成・更新した文書</a></li>
+      <li><a href="#tests14">受け入れ条件 × テスト ID の対応（0014）</a></li>
+      <li><a href="#headless14">ヘッドレス実行の帰結（0014）</a></li>
       <li><a href="#tests">受け入れ条件 × テスト ID の対応（0012）</a></li>
       <li><a href="#tests13">受け入れ条件 × テスト ID の対応（0013）</a></li>
       <li><a href="#headless13">ヘッドレス実行の帰結（0013）</a></li>
@@ -177,7 +187,7 @@
     <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">#50</a></dd></div>
     <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">#51</a>（draft）</dd></div>
     <div><dt>ブランチ</dt><dd><code>feature-50-worktree-parallel-tickets</code></dd></div>
-    <div><dt>チケット</dt><dd>0012〜0015（本稿は 0013 まで）</dd></div>
+    <div><dt>チケット</dt><dd>0012〜0015（本稿は 0014 まで）</dd></div>
     <div><dt>作成日</dt><dd>2026-09-05</dd></div>
     <div><dt>正文</dt><dd>同名の .md</dd></div>
   </dl>
@@ -188,17 +198,20 @@
 <section id="overview" data-required>
   <p class="lead"><b>0012 まで。</b> AI アセット設計計画書（<code>wip/20_plans/0010-ai-asset-design-plan.md</code>）の結論方針 P1・P1a・P3・P8・P9 を <code>.claude/docs/</code> の正史へ落とした。フック共通仕様に<b>作業ツリーの三分</b>（<code>HOOK_ROOT</code> / <code>HOOK_WORKTREE</code> / <code>HOOK_SHARED_ROOT</code>）と<b>進行状態・ロック・集計の共有ルートへの一本化</b>を定め、<code>workflow-state-guard</code> に<b>作業ツリーをまたぐ絶対パスの保護</b>（A1-2。無条件）、<code>workflow-diff-check</code> に<b>作業ツリーごとに一意な差分の基準点</b>（A5）と<b>仕様 §13 の書き戻し</b>（P9）を書いた。DDR は 3 本（<code>i0050-01</code> / <code>i0050-02</code> / <code>i0050-07</code>）作り、置き換えられた 3 本には frontmatter の <code>status</code> と置き換え先だけを足した。更新した文書は要件 3・仕様 3・DDR 新規 3・DDR frontmatter 3 の計 12 ファイル。</p>
   <p class="lead"><b>0013 まで。</b> 続けて結論方針 P6・P7 と受け入れ条件 A1-1・A1-5・A1-6・A5 を落とした。<code>workflow-guard</code> に<b>宣言範囲の強制が「その作業ツリーの作業中チケット 1 枚」で一意に決まる</b>ことと <b><code>WF207</code> が「1 作業ツリーあたり 2 枚」を指す</b>ことを書き、A1-6 を閉じる機械テスト観点を <code>WG-T19</code> / <code>WG-T20</code>（負のコントロールの前提をテスト自身が枚数の assert で作る）として置いた。<code>subagent-start-check</code> に<b>対象チケットを採る作業ツリーを経路ごとに確定</b>させ（<code>SA-T10</code> / <code>SA-T11</code>・<code>WF804</code>）、<code>session-start</code> に<b>現在地を断定しない</b>形（<code>WF705</code>・<code>SE-T11</code>）を定めた。フック共通仕様 §8 に<b>分類の穴の塞ぎ方</b>（<code>worktree list</code> の <code>read</code> 化・逆向きの穴 5 件・グローバル <code>-c</code> の一律 <code>unknown</code>・<code>cd</code> を通さない）、§7 に <code>cmdpos.sh</code> の P-1・P-2 を書き、DDR <code>i0050-04</code> を作った。0013 で更新した文書は要件 3・仕様 4（横断 1 を含む）・DDR 新規 1 の計 8 ファイル。</p>
+  <p class="lead"><b>0014 まで。</b> 続けて結論方針 P4・P4a・P5・P10 と受け入れ条件 A2・A6 を落とした。<b><code>20-common-step-worktree</code> を要件・仕様の対で新設</b>し、<code>worktree.sh</code> の 4 サブコマンド（<code>add</code> / <code>list</code> / <code>merge</code> / <code>remove</code>）の引数・出力・判定順・エラー識別子 <code>WT001</code>〜<code>WT008</code>・テスト観点 <code>WT-T01</code>〜<code>WT-T12</code>・eval <code>WT-E01</code>〜<code>WT-E03</code> を書いた。<b>合流手順（A6）</b>は「単位はタスクの切れ目 / 実行者は AI（<code>worktree.sh merge</code> 経由）/ 前提検査 6 項目 / 解けない衝突は中断して失敗終了 / 記録は共有ルートの <code>logs/worktree-merges.jsonl</code>」で確定した。<b>採番は本流に一本化</b>（<code>TK009</code>・<code>TICKET-T13</code>）、<b>push も本流限定</b>（push 前チェック 項目 5・<code>CP-T12</code>・スキップ不可）にした。フック共通仕様は §5・§6 に触り、DDR <code>i0050-03</code>・<code>i0050-05</code> を作って <code>i0004-07</code> を部分置き換えにした。0014 で更新した文書は要件 3（うち新規 1）・仕様 4（うち新規 1・横断 1）・DDR 新規 2・DDR frontmatter 1 の計 10 ファイル。</p>
   <ul class="kpis">
-    <li class="kpi good"><b>13</b><span>◎良</span></li>
-    <li class="kpi warn"><b>3</b><span>△注意</span></li>
+    <li class="kpi good"><b>19</b><span>◎良</span></li>
+    <li class="kpi warn"><b>5</b><span>△注意</span></li>
     <li class="kpi stop"><b>0</b><span>✕問題</span></li>
   </ul>
-  <p class="sub">件数は 0012＋0013 の累計（0012: ◎良 6 / △注意 2、0013: ◎良 7 / △注意 1）。</p>
+  <p class="sub">件数は 0012＋0013＋0014 の累計（0012: ◎良 6 / △注意 2、0013: ◎良 7 / △注意 1、0014: ◎良 6 / △注意 2）。累計はこの 1 か所とサイドバーのチップだけが持つ。</p>
   <div class="focuses">
     <div class="focus must" id="focus-must" data-required>
       <p class="label">◆特に見てほしい</p>
       <p class="sub">判断に困っている</p>
       <ul>
+        <li><b>（0014）<code>git merge</code> の素通りの穴を、本 issue では閉じずに残した</b>（<a href="#f22">e22</a>）。合流は <code>worktree.sh merge</code> に一本化したが、<code>git merge &lt;ローカルブランチ&gt;</code> を AI が直接打っても、<b>タスクの切れ目（作業中チケット 0 枚）では <code>workflow-guard</code> が判定に入らないので素通りする</b>。合流はまさにその時点で行われるので、「提供コマンドを通す」は<b>規約であって強制ではない</b>。閉じるには <code>workflow-guard</code> の制御方式 1 に手を入れることになり、0013 が確定させた仕様と、切れ目でのすべての操作の扱いに波及する。残課題 R53 として別 issue に出したが、<b>本 issue で閉じるべきなら差し戻してほしい</b></li>
+        <li><b>（0014）合流の記録先を決めるためにフック共通仕様 §5 に行を 1 つ足した</b>（<a href="#f19">e19</a>）。計画書の割り付けでは 0014 が触るのは §6 だけだが、保留 P3（合流の記録をどこに置くか）が 0014 に投げられており、記録の置き場の正は §5 の表なので、そこに登録しないと台帳が不完全になる。0012 が書いた §5 の記述は 1 文字も変えず、表に 1 行と根拠の箇条書き 1 行を足した</li>
         <li><b>（0013）計画書の骨子が書く「PreToolUse <code>Agent</code> = 呼び出し元」という経路が、登録表には存在しない</b>（<a href="#f16">e16-1</a>）。<code>settings.json</code> の登録表（共通仕様 §1）は「<code>subagent-start-check</code> を PreToolUse <code>Agent</code> に登録する行は無い」と明記し、実行者照合（WF801）は <b>PostToolUse <code>Agent</code></b>（<code>subagent-stop-check</code>）で行われる。<b>経路の名前を PostToolUse に読み替えて</b>「呼び出し元の作業ツリーを見る」を確定させた。読み替えの当否を見てほしい</li>
         <li><b>（0013）L1（git サブコマンド 145 件）と L2（基本コマンド 67 語。<code>cd</code> を含む）を、<code>worktree list</code> の 1 件を除いて開かないと決めた</b>（<a href="#f13">e13</a>・<a href="#f16">e16-2</a>）。計画書の束 2 の 3 は「L1〜L3 を扱う」と書くが、結論方針 P6（案 D 主軸 + 案 C の限定適用）に従うと開くのは 1 件だけになる。<b>「扱う」を「決着させる（開かないことを仕様に明記する）」と読んだ</b>。この決定の帰結は本チケットの実施中にも出ていて、<code>cd</code> と <code>python</code> が実際に WF204 で拒否された（迂回せず Edit / Write ツールで進めた）。手数の問題を残す判断なので、開ける範囲を広げるべきなら差し戻してほしい</li>
         <li><b>計画書が指定したテスト ID の接頭辞 <code>WD-T</code> を使わず、<code>DC-T08</code> / <code>DC-T09</code> を採った</b>（<a href="#f8">e8-1</a>）。<code>workflow-diff-check</code> の仕様が現に使っている接頭辞は <code>DC-T</code>（<code>DC-T01</code>〜<code>DC-T07</code>、テストの実体も <code>DC-T</code>）で、<code>WD-T</code> を新設すると 1 つのアセットが 2 つのテスト ID 接頭辞を持つ。計画書の骨子から外れる判断なので、<code>WD-T</code> でなければならない理由があれば差し戻してほしい</li>
@@ -209,6 +222,10 @@
       <p class="label">◇判断が欲しい</p>
       <p class="sub">決めた方針の承認 / 決められない点の判断</p>
       <ul>
+        <li><b>（0014）本流かどうかの判定を「リポジトリルート直下の <code>.git</code> がディレクトリか」の 1 つに決め、<code>worktree.sh</code> / <code>ticket.sh</code> / <code>push.sh</code> の 3 つで共有した</b>（<a href="#f20">e20</a>）。<code>git</code> を呼ばずに済み、フック側の共有ルート（<code>HOOK_SHARED_ROOT</code>）と同じ根を指す。正は <code>20-common-step-worktree</code> 仕様に 1 か所だけ置き、他の 2 つは参照する形にした</li>
+        <li><b>（0014）push の本流限定に新しいエラー識別子を作らず、push 前チェックの「項目 5」にした</b>（<a href="#f21">e21</a>）。チケットの DoD が push 側には「テスト ID が振られている」だけを求め、エラー識別子を求めていないことに合わせた。項目 4 と同じく<b>スキップ記録では飛ばせない</b>ようにしてある</li>
+        <li><b>（0014）<code>WT-E</code>（eval ID の接頭辞）を §6 の主表の <code>WT001–008</code> の行で登録した</b>（<a href="#f17">e17</a>）。下の「eval ID の接頭辞」の表は「issue #10 で作る 19 のアセット」を固定するものと本文が明記しているので、そこに 20 行目を足さず、主表の行に併記した</li>
+        <li><b>（0014）<code>ticket.sh</code> の要件の依存関係を 6 項目から 5 項目に戻すため、既存の 2 行（テンプレート / スクリプト）を 1 行に統合した</b>（<a href="#f21">e21</a>）。ルールの目安（依存関係は 5 項目以内）を守るための整理で、あわせて実態と合わなくなっていた「未作成」の注記を落とした</li>
         <li><b>（0013）<code>worktree.sh</code> の「作業ツリーの置き場を指す引数」を書き込み判定の対象外にした</b>（<a href="#f9">e9</a>）。作業ツリーの既定の置き場はリポジトリの外なので、当てると必ず WF209 になり提供コマンドが成立しない。統制に口を開ける形なので、あわせて「除外する引数を増やすときは、その妥当性をコマンド自身が検査することを同じ変更で書く」という縛りを仕様に置いた</li>
         <li><b>（0013）グローバル <code>-c</code> / <code>--config-env</code> を設定名によらず一律 <code>unknown</code> に倒した</b>（計画書の保留 P4 の決着。<a href="#f13">e13</a>）。既存の正当な用途を潰さないことは <code>grep -rn "git -c |--config-env" .claude/</code> で確かめた（該当はテスト 2 件のみで、どちらも分類が変わらない）</li>
         <li><b>（0013）識別子を 2 つ新設した</b>（<code>WF705</code> = 現在地を断定できない、<code>WF804</code> = 作業ツリーを確定できないため注入していない）。既存（<code>WF703</code> = MR 未記録、<code>WF802</code> = 注入）に相乗りさせると 1 番号に 2 原因が乗るため分けた。<code>WF705</code> と <code>WF703</code> は<b>同時に出る</b>（現在地の表明と直し方の案内で役割が違う）</li>
@@ -226,6 +243,9 @@
         <li>1 つの決定が効く箇所を書き換え前に <code>grep</code> で洗い出し、frontmatter の <code>description</code> / <code>keywords</code> まで揃えた（<a href="#f7">e7</a> の 2 点目）</li>
         <li>（0013）束 1 由来（合流後に <code>10_doing</code> が 2 枚になる状態の扱い）を「並列実施を行う場合」の条件付きで、束 2 由来（A1-1・L1〜L4・<code>cmdpos</code> の P-1・P-2）を無条件で書いた（<a href="#f15">e15</a>）</li>
         <li>（0013）<code>cmdpos.sh</code> の P-1・P-2 は、どの案を採っても独立に必要な修正としてそのまま §7 に落とした（<a href="#f14">e14</a>）</li>
+        <li>（0014）束 1 由来（採番の一本化・合流をタスクの切れ目に固定すること・作業ツリー側の <code>logs/</code> の用意）を「並列実施を行う場合」の条件付きで、worktree を 1 つ使うだけで成り立つ記述（置き場・ブランチ名・push の本流限定・片付け）を無条件で書いた（<a href="#f24">e24</a>）</li>
+        <li>（0014）<code>worktree.sh</code> の引数の形（<code>add &lt;名前&gt; [&lt;置き場&gt;]</code> / <code>remove &lt;名前|置き場&gt;</code> / <code>merge</code> の対象はブランチ名 / <code>-m</code> の件名）を、0013 が <code>workflow-guard</code> 仕様に書いた「置き場を指す引数」の縛りとそのまま一致させた（<a href="#f17">e17</a>）</li>
+        <li>（0014）採った識別子（<code>WT001</code>〜<code>WT008</code>・<code>WT-T01</code>〜<code>WT-T12</code>・<code>WT-E01</code>〜<code>WT-E03</code>・<code>TK009</code>・<code>TICKET-T13</code>・<code>CP-T12</code>）はすべて同じチケットの中で入力・期待・判定方法の行を持たせ、予約だけの識別子を作らなかった（<a href="#f17">e17</a>・<a href="#f21">e21</a>）</li>
       </ul>
     </div>
   </div>
@@ -241,6 +261,10 @@
       <li><b>（0013）新しいテスト観点（<code>WG-T19</code>・<code>WG-T20</code>・<code>WG-T21</code>・<code>SA-T10</code>・<code>SA-T11</code>・<code>SE-T11</code>）が実際に通るか</b> — 設計フェーズの許可範囲は <code>wip/**</code> と <code>.claude/docs/**</code> で、テストの実体を作れない（<code>allow.ops</code> に <code>build-test</code> も <code>hook-test</code> も無い）。引き取り先: AI アセット実装・テストフェーズ（0016）</li>
       <li><b>（0013）<code>git -c diff.external=&lt;コマンド&gt; diff</code> が実際に任意コマンドを実行するか</b> — 実行すると任意コマンドの実行そのものになるため、調査でも本チケットでも実行していない。分類が <code>read</code> であることは 0009 の実測で確定しており、閉じる判断はその 1 点で足りる。引き取り先: 閉じるので確かめる必要が無くなった（<code>WF204</code> に倒れることを <code>HK-T15</code> で固定する）</li>
       <li><b>（0013）「サブコマンド + オプション」の限定適用で、通っていた読み取り形が落ちないかの網羅</b> — 対象を 6 か所・閉じる向きに限ったので理屈の上では落ちないが、<code>git branch</code> のオプションの全件（版ごとに増える）を突き合わせてはいない。引き取り先: AI アセット実装（<code>HK-T15</code> に「閉じる側と通す側の対」を置いたので、落ちれば検出される）</li>
+      <li><b>（0014）<code>worktree.sh</code> の 4 サブコマンドが実際に動くか</b>（<code>git worktree add</code> が既定の置き場に作れるか・<code>git merge --abort</code> が本当に合流前へ戻すか・<code>git branch -d</code> が合流後に通るか） — 設計フェーズの許可範囲は <code>wip/**</code> と <code>.claude/docs/**</code> で、スクリプトの実体を作れない。<code>git worktree</code> / <code>git merge</code> はフックが WF204 で拒否する（本チケットでも実行していない）。引き取り先: AI アセット実装・テストフェーズ（<code>WT-T01</code>〜<code>WT-T12</code>）</li>
+      <li><b>（0014）「<code>.git</code> がディレクトリか」で本流を判定する形が、この環境の git の全経路で成り立つか</b> — 実行して確かめていない。本リポジトリに submodule が無く、<code>GIT_DIR</code> を明示する経路も機構の中に無いことまでは読み取りで確かめた。引き取り先: AI アセット実装（<code>WT-T11</code>）</li>
+      <li><b>（0014）合流時に実際に出る衝突の件数と種類</b>（P4a のレポート追記規約を入れた後に何箇所が残るか） — 規約そのものは 0015 の担当で、並列で走らせた実績も無い。引き取り先: 0015 ／実運用の 1 回目（合流の記録に <code>conflicts</code> が残るので後から数えられる）</li>
+      <li><b>（0014）<code>.gitignore</code> に <code>.claude/worktrees/</code> を足すこと</b>（結論方針 P10 の後半） — <code>.gitignore</code> は <code>common.protected</code> で、設計フェーズでも実装フェーズの allow にも入っていない。仕様には push 前チェック 項目 1 の前提として書いた。引き取り先: 0016（実装計画が許可範囲の追加を提案する。残課題 R55）</li>
     </ul>
   </div>
 </section>
@@ -612,6 +636,131 @@ i0050-07 supersedes    i0009-64（相互参照は片方向）  / i0009-64 supers
         <p>1 と 2 は<b>◆特に見てほしい</b>に挙げてある。3 は 0012 からの申し送りなので判断の余地が小さい。</p>
       </div>
     </li>
+    <li class="tl-item">
+      <span class="tl-dot good">17</span>
+      <h3 id="f17">e17. <code>20-common-step-worktree</code> を要件・仕様の対で新設し、4 サブコマンドを実装が推測なしに作れる粒度まで書いた <span class="chip good">◎良</span> <span class="basis">根拠: 計画書「文書一覧と骨子」1 行目・0013 が workflow-guard 仕様に書いた引数の縛り</span></h3>
+      <p>新規の 2 書は 1:1 の対で、テンプレートの章順と節順（メイン → 代替 → 例外 → 規約 2 節 → 整合）に従う。メインフローには mermaid（<code>M1</code>〜<code>M13</code>。上限 15 以下）を置き、離脱先の <code>A1</code> / <code>E1</code> / <code>E2</code> / <code>E3</code> を代替・例外の識別子と一致させた。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>サブコマンド</th><th>引数</th><th>判定順の要点</th></tr></thead>
+        <tbody>
+          <tr><td><code>add</code></td><td><code>&lt;名前&gt; [&lt;置き場&gt;]</code></td><td>名前の形式 → 本流検査 → 置き場（既定 <code>../&lt;リポジトリ名&gt;-wt/&lt;名前&gt;</code>。<b>リポジトリの配下なら WT002</b>）→ サブブランチ名 <code>&lt;本流のブランチ&gt;--wt-&lt;名前&gt;</code> → <code>git worktree add -b</code> → <b><code>logs/hooks/</code> と <code>logs/sh/</code> の 2 つだけ</b>を作る → 出力</td></tr>
+          <tr><td><code>list</code></td><td>なし</td><td><code>git worktree list --porcelain</code> → 各ツリーの <code>path</code> / <code>branch</code> / <code>main</code> / <code>managed</code> / <code>doing</code> / <code>dirty</code> を JSON 配列で返す</td></tr>
+          <tr><td><code>merge</code></td><td><code>&lt;名前&gt;｜&lt;サブブランチ名&gt;｜--all [-m &lt;件名&gt;]</code></td><td>対象の解決（管理対象外は WT005）→ <b>前提検査 6 項目を全対象まとめて先に</b>（WT003）→ <code>git merge --no-ff</code> → 衝突なら <code>--abort</code> して WT004 → 記録を追記 → 出力</td></tr>
+          <tr><td><code>remove</code></td><td><code>&lt;名前&gt;｜&lt;置き場&gt; [--force]</code></td><td>対象の解決 → 前提検査（未コミット / 未合流。WT006。<b>未コミットは <code>--force</code> でも飛ばさない</b>）→ <code>git worktree remove</code> → <code>git branch -d</code> → <code>git worktree prune</code></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><b>引数の形は 0013 が <code>workflow-guard</code> 仕様に書いた縛りとそのまま一致させた。</b> 0013 は「<code>add</code> の置き場、<code>remove</code> の位置引数には書き込み判定を当てない」「それ以外の引数（<code>-m</code> のメッセージ、合流対象のブランチ名）はパスではない」と書いており、本仕様の 4 サブコマンドはこの記述の外に引数を持たない。0013 が求めた受け皿（「置き場が妥当かは <code>worktree.sh</code> 自身が検査する」）は <code>add</code> の手順 2・3・4（WT002）に置いた。</p>
+      <div class="box good">
+        <p class="label">◎良</p>
+        <p><code>add</code> の手順 6 が DoD の「進行状態を複製しない」に当たる。作るのは <code>logs/hooks/</code> と <code>logs/sh/</code> の 2 つだけで、<code>mr.json</code> / <code>review-state.json</code> / <code>merge-state.json</code> / <code>push-state.json</code> / <code>locks/</code> / <code>usage/</code> / <code>sessions/</code> は作らずコピーもしない。<code>WT-T01</code> が<b>これらが 1 つも作られていないこと</b>を assert する形で固定する。eval は 3 件で、判定方法（実行ログ上のコマンド列の件数）まで書いた。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">18</span>
+      <h3 id="f18">e18. 合流手順（A6）の 5 点を確定させた <span class="chip good">◎良</span> <span class="basis">根拠: 調査 e33 の 5 点・計画書 P4 / P4a・受け入れ条件 A6</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>調査 e33 が求めた点</th><th>決めたこと</th><th>書いた場所</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>合流の単位</td><td><b>タスクの切れ目</b>（合流に関わるどの作業ツリーも作業中 0 枚）。前提検査の項目 3・5 として機械が判定する</td><td>要件 メイン 5 番目・仕様 <code>merge</code> 3</td></tr>
+          <tr><td>2</td><td>実行者と <code>scope.sh</code> の手当て</td><td><b>AI（<code>worktree.sh merge</code> 経由）</b>。分類は広げない（<code>merge-base</code> は「取り込みに限る」のまま、ローカルブランチの合流は <code>unknown</code> のまま）</td><td>仕様 概要・禁止事項／DDR <code>i0050-03</code></td></tr>
+          <tr><td>3</td><td>衝突の解消の担当</td><td>自動で解けるものは git、<b>解けないものは人</b>。コマンドは <code>--abort</code> で合流前に戻して失敗終了し、AI は解消を試みず人に返す</td><td>要件 例外 <b>[E2]</b>・仕様 <code>merge</code> 4（WT004）・<code>WT-E02</code></td></tr>
+          <tr><td>4</td><td>作業ツリーとブランチの後始末</td><td><b><code>worktree.sh remove</code></b>。未コミットの差分と未合流のコミットを検査してから消し、<code>git branch -d</code> と <code>git worktree prune</code> まで行う</td><td>要件 メイン 8 番目・仕様 <code>remove</code></td></tr>
+          <tr><td>5</td><td>合流の記録先</td><td><b>共有ルートの <code>logs/worktree-merges.jsonl</code></b>（<a href="#f19">e19</a>）</td><td>仕様「合流の記録」・フック共通仕様 §5</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>前提検査は 6 項目（本流で実行 / 本流と対象の双方の未コミット無し / 本流と対象の双方の作業中 0 枚 / 同じ issue のブランチ）で、<b>全対象をまとめて先に検査し、1 つでも欠ければ 1 件も合流しない</b>。「同じ issue のブランチか」は、サブブランチ名が <code>&lt;本流の現在ブランチ&gt;--wt-</code> で始まるかという<b>名前だけの前方一致</b>で判定する（feature ブランチの命名規約に <code>--</code> が現れないことを根拠にした）。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">19</span>
+      <h3 id="f19">e19. 合流の記録先（計画書の保留 P3）を共有ルートの <code>logs/worktree-merges.jsonl</code> に決めた <span class="chip good">◎良</span> <span class="basis">根拠: 計画書「保留した点」P3・フック共通仕様 §5（0012）</span></h3>
+      <ul>
+        <li><code>decisions.jsonl</code> は<b>フックの判定</b>の記録で、§5 の表の「書く側」が全フックに限られている。提供コマンドの結果を混ぜると 1 つのファイルに持ち主が 2 つできる</li>
+        <li><code>logs/sh/worktree.log</code> は自由書式で、合流の一覧を機械で出す用途に耐えない。加えて実行ログは<b>作業ツリー側</b>の置き場なので、片付けたら消える</li>
+        <li>合流は issue に属する事実で、作業ツリーを片付けた後も残らなければならない。したがって置き場は<b>共有ルート</b></li>
+      </ul>
+      <p>形は 1 行 1 件の JSONL（<code>ts</code> / <code>worktree</code> / <code>path</code> / <code>branch</code> / <code>into</code> / <code>result</code> / <code>merge_commit</code> / <code>tickets</code> / <code>conflicts</code>）で、<code>result</code> は <code>merged</code> / <code>up-to-date</code> / <code>aborted</code> の 3 値。<b>中断も記録に残す</b>ので、「合流を試みて止まった」ことが後から辿れる。</p>
+      <div class="box warn">
+        <p class="label">△ 計画書の割り付けから外れた点</p>
+        <p>フック共通仕様 §5 の表に行を 1 つ足した（0014 の割り付けは §6 のみ）。記録の置き場の正が §5 だから。0012 が書いた記述は変えていない。<b>◆特に見てほしい</b>に挙げてある。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">20</span>
+      <h3 id="f20">e20. 本流かどうかの判定を 1 つに決め、3 つの提供コマンドで共有した <span class="chip good">◎良</span> <span class="basis">根拠: 0012 の「設計への反映 4」・フック共通仕様 §2（共有ルート）</span></h3>
+      <p>提供コマンドは自分の読み込み行 1 本で置き場と作業ツリーを兼ねるので、そのままでは作業ツリーにいるときも自分のルートを「本流」と答えてしまう。判定を <b>「リポジトリルート直下の <code>.git</code> がディレクトリなら本流、ファイルなら作業ツリー」</b> に決めた。</p>
+      <ul>
+        <li><code>git worktree add</code> が作る作業ツリーの <code>.git</code> は <code>gitdir: …</code> の 1 行を持つ<b>ファイル</b>である</li>
+        <li><code>[ -d .git ]</code> / <code>[ -f .git ]</code> で済むので <code>git</code> を呼ばない</li>
+        <li>この判定が返す根は、フック共通仕様 §2 の<b>共有ルート</b>と同じディレクトリを指す</li>
+        <li>別 clone の運用では、その clone のルートも <code>.git</code> ディレクトリを持つので「本流」と判定される（意図どおり）</li>
+      </ul>
+      <p>正は <code>20-common-step-worktree</code> 仕様の 1 か所に置き、<code>ticket.sh</code> 仕様（<code>create</code> 手順 0）と <code>commit-push</code> 仕様（push 前チェック 項目 5）は「同じ判定を使う。ここで作り直さない」と参照する形にした。テストは <code>WT-T11</code>。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">21</span>
+      <h3 id="f21">e21. 採番の一本化（<code>TK009</code>）と push の本流限定（項目 5）を書き、テスト ID を振った <span class="chip good">◎良</span> <span class="basis">根拠: 計画書 P5 / 束 1 の 1・調査 e30（実測 D5）・計画書「文書一覧と骨子」7・8 行目</span></h3>
+      <p><b>採番（束 1 の 1 / P5）。</b> <code>create</code> の手順 0 に本流の検査を置き、作業ツリーでは <code>TK009</code>（終了 1）で拒否する。手順 2 には「走査するのは実行している作業ツリーの <code>wip/10_tickets/</code> だけで、手順 0 が本流に限っているので採る場所は 1 か所」と書いた。要件側は例外フローに 1 項目を足し、「<b>並列実施を行う場合</b>、作業ツリーごとに連番を採ると同じ番号が採られ、種類が違えば衝突せずに合流して同番号のチケットが 2 枚並ぶ」という束 1 の条件付きで理由を書いた。テストは <code>TICKET-T13</code>（負のコントロール込み）。</p>
+      <p><b>push（P4 の帰結）。</b> push 前チェックに<b>項目 5「本流で実行している」</b>を足し、項目 4 と同じく<b>スキップ記録では飛ばせない</b>ようにした。新しいエラー識別子は作らず CP005 の枠で返す。テストは <code>CP-T12</code>（作業ツリーで CP005・<code>git push</code> を実行しない／本流では通る／<code>commit.sh</code> は作業ツリーでも成功する）。</p>
+      <div class="box warn">
+        <p class="label">△ 書けなかったこと</p>
+        <p><code>.claude/worktrees/</code> を <code>.gitignore</code> に足すこと（P10 の後半）は、<code>.gitignore</code> が <code>common.protected</code> で設計フェーズの許可範囲外なのでできなかった。仕様の参照ナレッジと要件の前提条件に「追跡から除外されている前提」と書き、残課題 R55 に出した。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">22</span>
+      <h3 id="f22">e22. <code>git merge</code> が機構をどう通るかを決着させたが、素通りの穴は残した <span class="chip warn">△注意</span> <span class="basis">根拠: 調査 e28 / e41・DDR i0004-07・i0050-04（0013）</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>経路</th><th>決めたこと</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>提供コマンド内部の <code>git merge</code></td><td><b>通る。</b> 提供コマンド内部の <code>git</code> 実行はフックの判定の対象に現れない（§7-8）</td><td><code>worktree.sh merge</code> を唯一の合流の道とした</td></tr>
+          <tr><td>AI が直接打つ <code>git merge &lt;ローカルブランチ&gt;</code></td><td><b>分類は <code>unknown</code>（WF204）のまま。開かない</b></td><td>0013 の方針（分類を広げず提供コマンドで通す。<code>i0050-04</code>）と揃えた</td></tr>
+          <tr><td><code>merge-base</code> 分類の意味</td><td>「既定ブランチの取り込みに限る」の<b>まま</b>。広げない</td><td><code>i0004-07</code> の統制の意図を保つ</td></tr>
+          <tr><td>マージコミットのメッセージ</td><td>提供コマンドが規約に合う既定の件名（<code>chore: 作業ツリー &lt;名前&gt; の成果を合流する</code>）を与える</td><td><code>commit.sh</code> を通らない経路で規約外のコミットを作らない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">△注意 — 残した穴 2 つ</p>
+        <p>①<b>作業中チケットが 0 枚のとき <code>workflow-guard</code> が判定に入らないので、<code>git merge &lt;ローカルブランチ&gt;</code> は素通りする。</b> 合流はまさに切れ目で行われるので、「提供コマンドを通す」は規約であって強制ではない（残課題 R53）。②<b><code>git merge origin/&lt;既定ブランチ以外&gt;</code> が <code>merge-base</code> に分類される</b>（調査 e41）。0013 が「対象は次の 6 つに限る。網羅は主張しない」と明示して閉じたので、7 つ目を後から足すと 0013 の決定を上書きすることになる（残課題 R54）。<b>◆特に見てほしい</b>に挙げてある。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">23</span>
+      <h3 id="f23">e23. DDR を 2 本作り、<code>i0004-07</code> を部分置き換えにした <span class="chip good">◎良</span> <span class="basis">根拠: 計画書「新規 DDR」の 0014 担当分・ai-asset-design-docs ルール</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>DDR</th><th>却下した案</th><th>置き換えの関係</th></tr></thead>
+        <tbody>
+          <tr><td><code>i0050-03</code>（合流はタスクの切れ目に固定し、提供コマンド経由でのみ行う）</td><td>8 件（J1 人間が合流 / J2 <code>merge</code> 分類を広げる / J4 コピーして積み直す / J5 レポート分割の全面適用 / チケットごとの合流 / AI が衝突を解消する / 実行ログで足りるとする / 危険なオプションを個別に弾く）</td><td><code>supersedes: i0004-07</code>。<code>i0004-07</code> 側に <code>status</code> / <code>superseded_by</code> / <code>superseded_scope</code> を<b>frontmatter だけ</b>足した（<code>git diff</code> は 3 insertions）</td></tr>
+          <tr><td><code>i0050-05</code>（チケットの採番は本流だけが行い、作業ツリーでは新規作成しない）</td><td>6 件（複合キー / ULID / 合流時の重複検査 / 他の作業ツリーも走査する / 番号の予約 / 重複は人が直す）</td><td>置き換えなし（新しい決定）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p><code>superseded_scope</code> は 1 行で「『取り込み以外の merge は merge-base 分類で拒否できる』という理由の記述」に限った。<b><code>block-direct-git</code> が <code>merge</code> を対象外にする決定と、<code>merge-base</code> 分類の意味は有効なまま</b>である（この 2 つを無効にすると合流の道そのものが閉じる）。<code>i0050-03</code> は <code>i0004-07</code> が「取り込み用の提供コマンド」を却下した理由（衝突解消をスクリプトに閉じ込められない）に正面から答えている: <b>本決定は衝突解消をスクリプトに閉じ込めず、中断して人に返す</b>。</p>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot warn">24</span>
+      <h3 id="f24">e24. 束 1 / 束 2 の書き分けと、計画書の骨子から外れた判断が 2 件（0014） <span class="chip warn">△注意</span> <span class="basis">根拠: 計画書「束 1 / 束 2 の区別の扱い」「文書一覧と骨子」「AI アセット設計チケット」</span></h3>
+      <p><b>束の書き分け。</b> 束 1 由来（採番の一本化・合流の単位・作業ツリー側の <code>logs/</code>）は「<b>並列実施を行う場合</b>」の条件付きで書いた。worktree を 1 つ使うだけで成り立つ記述（置き場をリポジトリの外に取ること・ブランチ名・push の本流限定・片付けの前提・合流の記録）は無条件で書いた。<code>add</code> 6 には 0012 と同じ形で「並列実施を行う場合も行わない場合も同じ」と明示した。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>骨子 / 割り付け</th><th>実際にしたこと</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>0014 が触るフック共通仕様の節は §6 だけ</td><td>§5 にも表 1 行 + 根拠 1 行を足した</td><td>保留 P3（合流の記録先）が 0014 に投げられており、記録の置き場の正は §5 の表だから（<a href="#f19">e19</a>）</td></tr>
+          <tr><td>2</td><td>push の本流限定に「新テスト観点」（エラー識別子の指定は無い）</td><td>新しいエラー識別子を作らず、push 前チェックの<b>項目 5</b>（スキップ不可）にした</td><td>対処が既存の CP005（未充足を解消して再実行）と同じで、DoD も push 側はテスト ID だけを求めている（<a href="#f21">e21</a>）</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box warn">
+        <p class="label">△ 既存文書のスタイルに合わせて意図的にしなかったこと</p>
+        <p><code>20-common-step-ticket</code> と <code>20-common-step-commit-push</code> の要件定義書には<b>メインフローの mermaid 図が無く、代替・例外の項目に識別子（<code>[A1]</code> / <code>[E1]</code>）も無い</b>（issue #10 より前に書かれた文書）。今回足した項目にも識別子を付けていない（図が無いので対応づける先が無い）。ルールは遡及適用を求めていないが、2 書とも受け入れ基準を増やしたので残課題 R45 の対象に加わる。</p>
+      </div>
+    </li>
   </ol>
 </section>
 
@@ -641,6 +790,20 @@ i0050-07 supersedes    i0009-64（相互参照は片方向）  / i0009-64 supers
       <tr><td>（0013）新しく書いた文に旧名・旧パスを増やしていない</td><td><code>grep -n 'work-[0-9]|hooks/boundary'</code> を本チケットで触った 7 ファイルに掛けて 0 件（<code>session-start</code> 仕様の <code>SE-T10</code> にある旧い置き場の記述は 0013 より前からの negative case）</td></tr>
       <tr><td>（0013）先行チケット（0012）が更新した文書を読み直した</td><td>フック共通仕様 §1・§2・§5・§6・§11・§13、<code>workflow-state-guard</code> / <code>workflow-diff-check</code> の差分、DDR 3 本を着手直後に読んだ。0012 の申し送り 3 点（既存接頭辞に合わせる / 案内側は「判定していない」と伝える / 畳めないパスは 2 つに分ける）を <a href="#f14">e14</a>・<a href="#f11">e11</a>・<a href="#f9">e9</a> で適用した</td></tr>
       <tr><td>（0013）チケットをまたぐ文書（フック共通仕様）で節が重なっていない</td><td>0012 は §1・§2・§5・§6・§11・§13、0013 は §2・§6・§7・§8・§11・§13。重なる 4 節は<b>行単位で別</b>（§2 は 0012 が三分・集合・畳み込み・倒し方 / 0013 は提供コマンドを呼ぶときの例外 1 項目を末尾に追加、§6 は 0012 が <code>WF605</code> の行 / 0013 が <code>WF701–709</code>・<code>WF801–809</code> の行、§11 は 0012 が <code>HK-T06</code>・<code>HK-T21</code>・<code>HK-T22</code> / 0013 が <code>HK-T05</code>・<code>HK-T15</code>、§13 は 0012 が緩和 1 項目の差し替え / 0013 は言い換え 1 か所）。<b>0012 の記述を書き換えた箇所は無い</b></td></tr>
+      <tr><td>（0014）担当文書がすべて更新されている（計画書「AI アセット設計チケット」表の 0014 の行）</td><td><code>00_requirement/skills/20-common-step-worktree.md</code>（新規）／<code>10_spec/skills/20-common-step-worktree.md</code>（新規）／<code>20-common-step-ticket</code> 要件・仕様／<code>20-common-step-commit-push</code> 要件・仕様／<code>10_spec/フック共通仕様.md</code> §6（+§5）／DDR <code>i0050-03</code>・<code>i0050-05</code> の 8 対象すべてに差分あり</td></tr>
+      <tr><td>（0014）1:1:1 が崩れていない</td><td>新設は <code>20-common-step-worktree</code> の 1 アセット（要件 1・仕様 1、同じ相対パス <code>skills/20-common-step-worktree.md</code>）。更新は <code>20-common-step-ticket</code>・<code>20-common-step-commit-push</code> の 2 アセット（各 要件 1・仕様 1）。2 アセットを 1 文書にまとめた箇所は無い</td></tr>
+      <tr><td>（0014）新規の要件定義書が章順・節順・図の規約に従っている</td><td>章順・節順ともテンプレートどおり。メインフローに mermaid（<code>M1</code>〜<code>M13</code>。上限 15 以下）を 1 つ置き、離脱先 <code>A1</code>・<code>E1</code>・<code>E2</code>・<code>E3</code> が代替・例外の識別子と一致。禁止節は無い。スコープ 含む 4・含まない 4、前提条件 4、依存関係 5、非機能要件 5 行（いずれも目安内）。自由記述は概要の 3 か所で約 390 字</td></tr>
+      <tr><td>（0014）採った識別子が同じチケットの中で定義されている</td><td><code>WT001</code>〜<code>WT008</code>（仕様のエラー識別子の表 + 台帳 §6）／<code>WT-T01</code>〜<code>WT-T12</code>（テスト観点の表）／<code>WT-E01</code>〜<code>WT-E03</code>（eval の表。入力・期待・判定方法を全件持つ）／<code>TK009</code>（<code>ticket.sh</code> 仕様の表 + <code>create</code> 手順 0 + 台帳 §6）／<code>TICKET-T13</code>・<code>CP-T12</code>（各テスト観点の表）。<b>予約だけの識別子は無い</b></td></tr>
+      <tr><td>（0014）識別子が 1 番号 1 原因になっている</td><td><code>WT001</code>（本流へ移る）・<code>WT003</code>（切れ目まで進める）・<code>WT005</code>（対象を正す）・<code>WT006</code>（コミットするか合流する）・<code>WT007</code>（git の出力を読む）は対処が別。<code>WT002</code> だけが 4 原因をまとめており、その理由（対処がどれも「別の名前か置き場を指す」で 1 つ）を仕様に明記した。push の本流限定に新しい番号を作らなかったのも、対処が既存の CP005 と同じだから</td></tr>
+      <tr><td>（0014）台帳（§6）と矛盾しない</td><td><code>TK001–008</code> → <code>TK001–009</code>（末尾に足す規則に従った旨を注記）／<code>WT001–008</code> の行を新設し <code>WT-T</code> と <code>WT-E</code> を併記／<code>CP001–008</code> の行に注記。<code>grep -rno "WT-T[0-9][0-9]|WT-E[0-9][0-9]|WT00[0-9]" .claude/</code> が新規の 3 文書以外で 0 件、<code>grep -rno "TK009|TICKET-T13|CP-T12" .claude/</code> が本チケットで書いた箇所だけ</td></tr>
+      <tr><td>（0014）仕様の「要件との対応」表が要件の受け入れ基準を全件カバーしている</td><td><code>20-common-step-worktree</code>: 受け入れ基準 30 件（メイン 8・代替 6・例外 7・規約 5・整合 4）に対して表は 30 行（機械的に数えて一致）／<code>20-common-step-ticket</code>: 追加 1 件に 1 行／<code>20-common-step-commit-push</code>: 追加 1 件に 1 行</td></tr>
+      <tr><td>（0014）要件定義書に内部構造が漏れていない</td><td><code>grep -n 'worktree\.sh|WT0|logs/|HOOK_|\.git|--force'</code> が 0 件（<code>.sh</code> の 1 件は「issue の受け入れ条件との対応」表に引いた <b>issue #50 の原文</b>で、この書が定める振る舞いの記述ではない）。<code>20-common-step-ticket</code> 要件の追記にも <code>TK009</code> / <code>.git</code> は書かず「提供スクリプトは作成を拒否し」と書いた</td></tr>
+      <tr><td>（0014）新しく書いた文に旧名・旧パスを増やしていない</td><td>本チケットで触った 9 ファイルに <code>grep -n 'work-[0-9]|hooks/boundary|docs/10_spec/skills/work'</code> が 0 件。参照したアセット名と DDR 名はすべて実在を確認済み</td></tr>
+      <tr><td>（0014）束 1 由来が条件付き・束 2 由来が無条件で書かれている</td><td>「並列実施を行う場合」を含む記述は 4 か所（<code>ticket.sh</code> 要件の例外フロー／<code>worktree.sh</code> 仕様 <code>merge</code> 3 の注記と <code>add</code> 6／<code>commit-push</code> 仕様 項目 5）。<code>add</code> 6 は 0012 と同じ形で両方を明示。置き場・ブランチ名・push の本流限定・片付け・記録は条件節なし</td></tr>
+      <tr><td>（0014）DDR が却下した案を持つ</td><td><code>i0050-03</code> 8 件 / <code>i0050-05</code> 6 件</td></tr>
+      <tr><td>（0014）置き換えの関係が対になっている</td><td><code>i0050-03</code> ↔ <code>i0004-07</code> が <code>supersedes</code> と <code>superseded_by</code> を対で持ち、<code>i0004-07</code> 側は <code>status: 一部置き換え済み</code> と <code>superseded_scope</code>（1 行）を持つ。<b>本文は変更していない</b>（<code>git diff</code> は frontmatter の 3 行のみ）</td></tr>
+      <tr><td>（0014）先行チケット（0012・0013）が更新した文書を読み直した</td><td>フック共通仕様 §2・§5・§6・§7・§8 と、DDR <code>i0050-01</code>・<code>i0050-02</code>・<code>i0050-04</code>・<code>i0050-07</code>、既存 3 本の <code>superseded_by</code> 注記を着手直後に読んだ。0013 の申し送り 2 点（<code>worktree.sh</code> の置き場を指す引数の縛り／<code>WF705</code>・<code>WF804</code> と衝突させないこと）は <a href="#f17">e17</a> と台帳の確認で守った</td></tr>
+      <tr><td>（0014）チケットをまたぐ文書（フック共通仕様）で節が重なっていない</td><td>0014 が触ったのは §5（表に 1 行 + 箇条書き 1 行）と §6（<code>TK001–009</code> の書き換え・<code>CP001–008</code> への注記・<code>WT001–008</code> の新設）と frontmatter。§5 は 0012 が書いた節だが<b>行単位で別</b>（0012 の記述は 1 文字も変えていない）。§6 は 0012 が <code>WF605</code>、0013 が <code>WF701–709</code>・<code>WF801–809</code> の行を触っており、重ならない</td></tr>
     </tbody>
   </table>
   </div>
@@ -665,6 +828,42 @@ i0050-07 supersedes    i0009-64（相互参照は片方向）  / i0009-64 supers
       <tr><td>11</td><td>（0013）<code>session-start</code>（フック）</td><td><code>00_requirement/hooks/00-SessionStart/session-start.md</code></td><td><code>10_spec/hooks/00-SessionStart/session-start.md</code></td><td>更新</td><td>要件: 概要（スコープ・受け入れ条件との対応）／メインフロー 3 件追加・1 件書き換え／代替フロー 1 件／前提条件／frontmatter。仕様: 概要／禁止事項 1 件／制御方式 4・7・8／エラー識別子（<code>WF705</code>）／回復手順／テスト観点 1 件／要件との対応 4 行追加・2 行書き換え／frontmatter</td></tr>
       <tr><td>12</td><td>（0013）横断（フック共通）</td><td>—</td><td><code>10_spec/フック共通仕様.md</code></td><td>更新</td><td>§2（提供コマンドを呼ぶときの例外を 1 項目）／§6（<code>WF705</code>・<code>WF804</code> の登録）／§7-1（P-1・P-2）・§7-2（区切りの但し書き）／§8（<code>read</code> の一覧の但し書き・限定適用 6 件・<code>cd</code> を足さないこと・既定拒否のまま残す範囲）／§11（<code>HK-T05</code>・<code>HK-T15</code> への追記）／§13（<code>cwd</code> 基準 → その作業ツリー基準の言い換え）</td></tr>
       <tr><td>13</td><td>（0013）DDR</td><td><code>20_ddr/i0050-04-分類の穴は提供コマンドとオプション判定の限定適用で塞ぎcdは通さない.md</code></td><td>—</td><td>新規</td><td>却下した案 7 件</td></tr>
+      <tr><td>14</td><td>（0014）<code>20-common-step-worktree</code>（スキル。提供コマンド <code>worktree.sh</code>）</td><td><code>00_requirement/skills/20-common-step-worktree.md</code></td><td><code>10_spec/skills/20-common-step-worktree.md</code></td><td><b>新規</b></td><td>要件: 全章（概要・issue の受け入れ条件との対応 6 行／ユーザーストーリー／メイン 8 + mermaid <code>M1</code>〜<code>M13</code>／代替 6／例外 7／規約 2 節／整合 4／前提条件／制約条件／依存関係／非機能要件）。仕様: 全節（概要・禁止事項／呼出条件／IN・OUT／サンプル／処理フロー／OUT ひな形／参照ナレッジ／Script 処理（本流の判定・共通の入口・<code>add</code>・<code>list</code>・<code>merge</code>・<code>remove</code>・合流の記録・<code>WT001</code>〜<code>WT008</code>・<code>WT-T01</code>〜<code>WT-T12</code>）／テスト観点（eval）<code>WT-E01</code>〜<code>WT-E03</code>／要件との対応 30 行）</td></tr>
+      <tr><td>15</td><td>（0014）<code>20-common-step-ticket</code>（<code>ticket.sh</code>）</td><td><code>00_requirement/skills/20-common-step-ticket.md</code></td><td><code>10_spec/skills/20-common-step-ticket.md</code></td><td>更新</td><td>要件: 概要（スコープ・issue の受け入れ条件との対応）／例外フロー 1 件／依存関係（2 行を 1 行に統合し <code>20-common-step-worktree</code> を追加）／frontmatter。仕様: 呼出条件／参照ナレッジ／<code>create</code> 手順 0 の新設と手順 2 の書き換え／エラー識別子 <code>TK009</code>／テスト観点 <code>TICKET-T13</code>／要件との対応 1 行／frontmatter</td></tr>
+      <tr><td>16</td><td>（0014）<code>20-common-step-commit-push</code>（<code>commit.sh</code> / <code>push.sh</code>）</td><td><code>00_requirement/skills/20-common-step-commit-push.md</code></td><td><code>10_spec/skills/20-common-step-commit-push.md</code></td><td>更新</td><td>要件: 概要（スコープ・issue の受け入れ条件との対応）／例外フロー 1 件／前提条件 1 件／依存関係／frontmatter。仕様: OUT ひな形（スキップ不可の項目）／参照ナレッジ 2 件／push 前チェックの表に項目 5／<code>push.sh</code> 2（スキップ不可）／テスト観点 <code>CP-T12</code>／要件との対応 1 行／frontmatter</td></tr>
+      <tr><td>17</td><td>（0014）横断（フック共通）</td><td>—</td><td><code>10_spec/フック共通仕様.md</code></td><td>更新</td><td>§5（<code>logs/worktree-merges.jsonl</code> の行と、<code>decisions.jsonl</code> に相乗りさせない根拠 1 行）／§6（<code>TK001–009</code> への更新・<code>CP001–008</code> の行への注記・<code>WT001–008</code> の行の新設）／frontmatter</td></tr>
+      <tr><td>18</td><td>（0014）DDR</td><td><code>20_ddr/i0050-03-合流はタスクの切れ目に固定し提供コマンド経由でのみ行う.md</code></td><td>—</td><td>新規</td><td>却下した案 8 件。<code>supersedes: i0004-07</code></td></tr>
+      <tr><td>19</td><td>（0014）DDR</td><td><code>20_ddr/i0050-05-チケットの採番は本流だけが行い作業ツリーでは新規作成しない.md</code></td><td>—</td><td>新規</td><td>却下した案 6 件</td></tr>
+      <tr><td>20</td><td>（0014）DDR（置き換えられた側）</td><td><code>20_ddr/i0004-07-…md</code></td><td>—</td><td>更新</td><td>frontmatter の <code>status</code> / <code>superseded_by</code> / <code>superseded_scope</code> の 3 行のみ（本文は変更なし）</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="tests14">
+  <h2>受け入れ条件 × テスト ID の対応（0014 の担当分）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件</th><th>本チケットで書いた文書</th><th>テスト ID（機械 / eval）</th></tr></thead>
+    <tbody>
+      <tr><td>A2</td><td>issue-MR 駆動を開始するときに worktree を切るかどうかの既定と手順が要件・仕様に定まっている</td><td><code>20-common-step-worktree</code> 要件（代替 <b>[A1]</b> = 既定は切らない／メイン M1〜M5 = 切る手順）・仕様（<code>add</code> の判定順・既定の置き場・<code>logs/</code> の初期化）</td><td><code>WT-T01</code>（機械）／<code>WT-T02</code>（機械）／<code>WT-E01</code>（eval）。<b>切る / 切らないの判断そのものと DDR <code>i0050-06</code> は 0015 の担当</b></td></tr>
+      <tr><td>A6</td><td>並列を採用する場合、並列作業の成果を feature ブランチへ合流させる手順（チケットファイルの衝突の扱いを含む）が定まっている</td><td><code>20-common-step-worktree</code> 要件（メイン M6〜M13／代替 <b>[A3]</b>・<b>[A4]</b>／例外 <b>[E1]</b>・<b>[E2]</b>／規約: 合流の記録）・仕様（<code>merge</code> の前提検査 6 項目・衝突時の <code>--abort</code> と WT004・記録・<code>remove</code>）／<code>20-common-step-ticket</code>（採番の一本化）／<code>20-common-step-commit-push</code>（push の本流限定）／フック共通仕様 §5・§6／DDR <code>i0050-03</code>・<code>i0050-05</code></td><td><code>WT-T04</code>・<code>WT-T05</code>・<code>WT-T06</code>・<code>WT-T07</code>・<code>WT-T08</code>・<code>WT-T12</code>（機械）／<code>TICKET-T13</code>（機械）／<code>CP-T12</code>（機械）／<code>WT-E02</code>・<code>WT-E03</code>（eval）</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>A1・A3・A4・A5 は 0014 の担当外（A1・A5 は 0012・0013、A3 と A4 の DDR <code>i0050-06</code> は 0015 が担う）。A6 の残り（レポート追記規約 / 切れ目での合流の起動手順）は 0015 が <code>10-task-investigation-exec</code> と <code>00-workflow-issue-mr-driven</code> で担う。</p>
+</section>
+
+<section id="headless14">
+  <h2>ヘッドレス実行の帰結（0014 の担当分）</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>アセット</th><th>止まる / 進む</th><th>既定</th></tr></thead>
+    <tbody>
+      <tr><td><code>worktree.sh add</code> / <code>list</code> / <code>remove</code></td><td><b>進む</b></td><td>承認を求める経路を持たない。<code>add</code> は既定の置き場（リポジトリの外）に切る。<code>remove</code> は未コミットの差分・未合流のコミットがあれば WT006 で失敗終了し、<b>消さない</b>（<code>--force</code> でも未コミットは飛ばさない）</td></tr>
+      <tr><td><code>worktree.sh merge</code></td><td><b>止まる</b>（自動で解けない衝突のとき）</td><td>前提検査の未充足は WT003 で全件列挙して失敗終了。衝突は <code>git merge --abort</code> で合流前へ戻して WT004 で失敗終了し、<b>衝突を一方に寄せて進めない</b>。中断も記録に残る（<code>result:"aborted"</code>）</td></tr>
+      <tr><td><code>ticket.sh create</code>（作業ツリーでの拒否）</td><td><b>止まる</b></td><td>TK009 で拒否し、本流で作成するよう案内する。確認（ask）に置き換えて先へ進めない</td></tr>
+      <tr><td><code>push.sh</code>（本流限定）</td><td><b>止まる</b></td><td>push 前チェック 項目 5 の未充足として CP005。<b>スキップ記録では飛ばせない</b>ので、ヘッドレスでも回避の口が無い</td></tr>
     </tbody>
   </table>
   </div>
@@ -743,6 +942,13 @@ i0050-07 supersedes    i0009-64（相互参照は片方向）  / i0009-64 supers
     <li>（0013）<code>00-workflow-issue-mr-driven</code> に並列実施の起動手順を書くとき、起動プロンプトに<b>作業ツリーのパス</b>を明示する（SubagentStart の注入は起動された側の作業ツリーを見るので、用意できていない起動では <code>WF804</code> になり要点が届かない） — <b>0015</b></li>
     <li>（0013）<code>cd</code> を通さない決定の帰結（提供コマンドはルート相対表記でしか呼べない・作業ディレクトリはその作業ツリーのルートに保つ）を、実施タスクの共通手順にも 1 行で書く — <b>0015</b></li>
     <li>（0013）<code>WG-T19</code>〜<code>WG-T21</code> / <code>SA-T10</code> / <code>SA-T11</code> / <code>SE-T11</code> / <code>HK-T05</code>・<code>HK-T15</code>（追記分）の実装。<code>WG-T19</code>・<code>WG-T20</code>・<code>SA-T10</code> は<b>枚数の assert を先に書く</b>形が要件なので、テストヘルパに「本流と worktree を作って枚数を置く」補助を用意すると 3 本で共有できる — <b>0016（実装計画）／AI アセット実装</b></li>
+    <li>（0014）<code>00-workflow-issue-mr-driven</code> の切れ目の手順に、<b><code>worktree.sh list</code> で状況を確かめる → <code>merge</code> → <code>remove</code></b> の順を書く。<code>merge</code> は本流でしか動かないので、切れ目の処理を本流で行うことを明示する。<b><code>merge</code> の前提検査（作業中 0 枚）と切れ目の判定（<code>B_AT_BOUNDARY</code>）が条件として重なる</b>ので、どちらを先に見るかを決める — <b>0015</b></li>
+    <li>（0014）用語辞書に「作業ツリー」「本流」「共有ルート」「合流」「並列実施」「並列区間」を足すとき、本チケットが使った意味と揃える。とくに<b>「本流」= <code>.git</code> がディレクトリであるチェックアウト（= 共有ルート）</b>という含意を落とさない — <b>0015</b></li>
+    <li>（0014）<code>work-defaults.md</code> に並列してよいタスクの種類を足すとき、<b>計画タスク（<code>*-plan</code>）は常に直列で本流を走る</b>ことを明示する。採番を本流に一本化した決定（<code>i0050-05</code>）がこの前提の上に立っている — <b>0015</b></li>
+    <li>（0014）<code>agents/task-executor</code> の起動プロンプトの要点に、<b>「チケットを新規作成しない（<code>create</code> は本流）」「push しない」「合流しない」</b>を書く（<code>WT-E03</code> が測る対象でもある） — <b>0015</b></li>
+    <li>（0014）<code>WT-T01</code>〜<code>WT-T12</code> / <code>TICKET-T13</code> / <code>CP-T12</code> / <code>WT-E01</code>〜<code>WT-E03</code> の実装。<code>WT-T05</code>・<code>WT-T06</code>・<code>TICKET-T13</code>・<code>CP-T12</code> はどれも「一時リポジトリに本流と作業ツリーを作る」前提を要するので、0013 の <code>WG-T19</code> 系と<b>同じテストヘルパを共有</b>できる。eval は定義まで（実行しない） — <b>0016（実装計画）／AI アセット実装</b></li>
+    <li>（0014）<b><code>.gitignore</code> に <code>.claude/worktrees/</code> を足す</b>（P10 の後半）。<code>.gitignore</code> は <code>common.protected</code> で <code>ai-asset-implementation</code> の allow にも無いので、実装計画が許可範囲の追加として提案する必要がある — <b>0016（実装計画）</b></li>
+    <li>（0014）<code>worktree.sh</code> の実装では、<b>提供コマンドとして識別される形（ルート相対表記）でしか呼べない</b>ことをスキル本文の手順に明記する（<code>cd</code> を通さない決定の帰結。§7-8・§8） — <b>0016（実装計画）／AI アセット実装</b></li>
   </ol>
 </section>
 
@@ -762,6 +968,11 @@ i0050-07 supersedes    i0009-64（相互参照は片方向）  / i0009-64 supers
       <tr><td>（0013）分類の穴 L1・L2 は「扱う」＝ある程度は開ける、と読める</td><td>結論方針 P6 に従うと、開くのは <code>worktree list</code> の 1 件だけになる</td><td>「開かないことを仕様に明記する」形で扱い、◆に上げた（<a href="#f16">e16-2</a>）</td></tr>
       <tr><td>（0013）<code>-c</code> の危険な設定名を列挙するか一律 <code>unknown</code> かは、正当な用途を数えてから決める</td><td>リポジトリ内の <code>git -c</code> の使用は<b>テスト 2 件だけ</b>で、どちらも分類が変わっても結果が変わらない</td><td>迷う材料が無くなったので、計画書が推していた一律 <code>unknown</code> をそのまま採った（<a href="#f13">e13</a>）</td></tr>
       <tr><td>（0013）<code>cmdpos.sh</code> の P-2 は「閉じ括弧の後ろで段を割らない」だけで書ける</td><td>それだけだと、実行体そのものがコマンド置換の段（<code>$(which git) push</code>）まで「引数扱い」に倒れて拒否が緩む</td><td>潰れた語が<b>実行体の位置</b>か<b>引数の位置</b>かで分け、前者は従来どおり <code>_</code> のままにした（<a href="#f14">e14</a>）</td></tr>
+      <tr><td>（0014）合流を提供コマンドに寄せれば <code>git merge</code> の統制は閉じる</td><td><b>閉じない。</b> 合流はタスクの切れ目（作業中 0 枚）で行われ、その時点では <code>workflow-guard</code> が判定に入らないので、AI が直接打つ <code>git merge &lt;ローカルブランチ&gt;</code> は素通りする</td><td>「提供コマンドを通す」を<b>規約</b>として書き、素通りが残ることを DDR <code>i0050-03</code> の「影響」と残課題 R53 に明記した（<a href="#f22">e22</a>。◆に上げた）</td></tr>
+      <tr><td>（0014）0014 が触るフック共通仕様の節は §6 だけ</td><td>計画書の保留 P3（合流の記録先）が 0014 に投げられており、記録の置き場の正は §5 の表だった</td><td>§5 に表 1 行 + 根拠 1 行を足した。0012 の記述は変えていない（<a href="#f19">e19</a>。◆に上げた）</td></tr>
+      <tr><td>（0014）push の本流限定には新しいエラー識別子が要る</td><td>DoD が push 側に求めているのは「テスト ID が振られている」だけで、対処も既存の CP005 と同じだった</td><td>新しい番号を作らず、push 前チェックの<b>項目 5</b>（スキップ不可）にした（<a href="#f21">e21</a>。◇に上げた）</td></tr>
+      <tr><td>（0014）本流かどうかは <code>git rev-parse --git-common-dir</code> などで判定することになる</td><td><code>.git</code> がディレクトリかファイルかを見るだけで判定でき、<code>git</code> を呼ばずに済んだ</td><td>判定を <code>20-common-step-worktree</code> 仕様に 1 か所だけ置き、<code>ticket.sh</code> と <code>push.sh</code> が参照する形にした（<a href="#f20">e20</a>）</td></tr>
+      <tr><td>（0014）<code>20-common-step-ticket</code> の依存関係に 1 行足すだけで済む</td><td>足すと 6 項目になり、ルールの目安（5 項目以内）を超えた</td><td>既存の 2 行（テンプレート / スクリプト）を 1 行に統合して 5 項目に収め、実態と合わない「未作成」の注記も落とした（<a href="#f21">e21</a>。◇に上げた）</td></tr>
     </tbody>
   </table>
   </div>
@@ -778,6 +989,11 @@ i0050-07 supersedes    i0009-64（相互参照は片方向）  / i0009-64 supers
     <li><b>R50</b>: <b>A5 の「実行者照合」を機械テストで閉じるには <code>subagent-stop-check</code> 仕様に 1 行（<code>SP-T</code> の新設）が要る。</b> 要件は <code>subagent-start-check</code> に置いたが、WF801 を発行するのは <code>subagent-stop-check</code> で、そちらの仕様には作業ツリーの記述もテスト観点も無い。計画書の文書一覧に入っていないため 0013 では触っていない — 引き取り先: 0015 か 0016（実装計画が <code>SP-T</code> を割り付ける）</li>
     <li><b>R51</b>: <code>cd</code> を通さない決定の帰結として、<b>一時スクリプトを <code>bash wip/tmp/*.sh</code> で走らせる経路が無いまま</b>である（調査 e39 / 設計への反映 38）。本チケットの実施中も、長いスクリプトを書けず Edit / Write ツールに寄せて進めた — 引き取り先: 別 issue（<code>commands.build-test</code> に <code>wip/tmp/</code> を足すか、判定を広げるか）</li>
     <li><b>R52</b>: <code>_SC_READ_ONLY_CMDS</code> の <code>column</code> の重複（調査の設計への反映 40）と <code>_SC_SHELL_KEYWORDS</code> に全要素ループの検査が無い件（同 39）は、<code>HK-T15</code> に触る本チケットの範囲に隣接するが、分類の穴とは別の話なので扱っていない — 引き取り先: 0016（実装計画）</li>
+    <li><b>R53</b>: <b>タスクの切れ目（作業中チケット 0 枚）では <code>workflow-guard</code> が判定に入らないので、AI が直接打つ <code>git merge &lt;ローカルブランチ&gt;</code> が素通りする。</b> 合流を <code>worktree.sh merge</code> に一本化しても、この経路は規約でしか塞がれていない。閉じるには制御方式 1 に手を入れることになり、切れ目でのすべての操作の扱いに波及する — 引き取り先: 別 issue（<code>workflow-guard</code> の制御方式 1 の見直し。全体まとめフェーズで起票）</li>
+    <li><b>R54</b>: <b><code>git merge origin/&lt;既定ブランチ以外&gt;</code> が <code>merge-base</code> に分類される</b>（調査 e41）。0013 が閉じた「逆向きの穴 5 件」と同じ family だが、0013 は「対象は 6 つに限る。網羅は主張しない」と明示して閉じたので、7 つ目を後から足すと 0013 の決定を上書きすることになる — 引き取り先: 別 issue（<code>scope.sh</code> の <code>merge</code> 分類の精緻化。全体まとめフェーズで起票）</li>
+    <li><b>R55</b>: <b><code>.gitignore</code> に <code>.claude/worktrees/</code> を足せていない</b>（結論方針 P10 の後半）。<code>.gitignore</code> は <code>common.protected</code> で、設計フェーズにも実装フェーズの allow にも入っていない。足さないと外部の仕組みが作った作業ツリーが未追跡として拾われ、<code>push.sh</code> の項目 1 が落ちて本流の進行が止まる — 引き取り先: 0016（実装計画が許可範囲の追加として提案する）</li>
+    <li><b>R56</b>: <b>切れ目の判定（<code>boundary.sh</code> の「作業中 0 枚」）と <code>worktree.sh merge</code> の前提検査（項目 3・5）が条件として重なる。</b> どちらを先に見るか、<code>merge</code> が落ちたときに切れ目の処理をどう戻すかを決めていない — 引き取り先: 0015（<code>00-workflow-issue-mr-driven</code> の回）</li>
+    <li><b>R57</b>: <b><code>worktree.sh add</code> は「その作業ツリーでどのチケットを実施するか」を受け取らない。</b> 同じ未着手チケットを 2 つの作業ツリーで着手してしまう経路は、<code>ticket.sh start</code>（各作業ツリーで 1 枚）でも <code>workflow-guard</code>（WF207 は作業ツリー内の枚数）でも止まらず、割り付けの正しさは呼び出し元の運用に委ねている。<code>worktree.sh list</code> の <code>doing</code> で後から気づけるだけである — 引き取り先: 0015（割り付け手順）。機械で塞ぐなら別 issue</li>
   </ul>
 </section>
 

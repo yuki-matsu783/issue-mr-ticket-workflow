@@ -1,9 +1,9 @@
 ---
 type: spec
 title: 20-common-step-ticket スキル 仕様
-description: チケットの作成・着手・完了・取り消し・次の提示を行うテンプレートとスクリプトの内部仕様。チケットファイルの形式、置き場と状態遷移、完了検査の判定順、エラー識別子（TK0xx）を定める
+description: チケットの作成・着手・完了・取り消し・次の提示を行うテンプレートとスクリプトの内部仕様。チケットファイルの形式、置き場と状態遷移、採番を本流に限る判定、完了検査の判定順、エラー識別子（TK0xx）を定める
 tags: [spec, skill, common-step]
-keywords: [チケット, テンプレート, ticket.sh, 状態遷移, 連番, DoD 検査, 作業ログ検査, 開始時刻, 完了時刻, 差分基準点, TK0xx]
+keywords: [チケット, テンプレート, ticket.sh, 状態遷移, 連番, 採番, 本流, 作業ツリー, DoD 検査, 作業ログ検査, 開始時刻, 完了時刻, 差分基準点, TK0xx, TK009]
 ---
 
 # 20-common-step-ticket スキル 仕様
@@ -27,7 +27,7 @@ keywords: [チケット, テンプレート, ticket.sh, 状態遷移, 連番, Do
 
 - すべての task スキルが、チケットの作成・着手・完了・取り消し・次の確認を行うときに読み込む
 - `00-workflow-issue-mr-driven` が次のタスクの選択（`next`）と再開判定に使う
-- 前提: `wip/10_tickets/` が存在する（無ければ `create` が作成する）。bash が使える
+- 前提: `wip/10_tickets/` が存在する（無ければ `create` が作成する）。bash が使える。`create` は本流でだけ実行でき、`start` / `complete` / `cancel` / `next` は作業ツリーでも実行できる（対象はそのとき実行している作業ツリーの `wip/10_tickets/`）
 
 ## IN / OUT
 
@@ -74,6 +74,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 - タスクの種類 → スキル名の対応表: `10_spec/skills/00-workflow-issue-mr-driven.md`（正。実体は `.claude/hooks/config/task-types.tsv`）。`next` がそのファイルを読んで `skill` を返す唯一の箇所（`boundary.sh status` は透過）
 - frontmatter の読み取り: `20-common-step-shell-script` の `frontmatter.sh`（`fm_get` / `fm_list`。入れ子の `allow.write` とインラインマップの `human_review.required` をドット区切りで引く）。`ticket.sh` は自前の解析（`sed` / `grep` による切り出し）を持たない
 - 状態変更のコミット: `20-common-step-commit-push` の `commit.sh`（`ticket.sh` が内部から呼ぶ）
+- 本流かどうかの判定（`create` の拒否に使う）: `20-common-step-worktree` 仕様「本流かどうかの判定（提供コマンド共通）」（正。`ticket.sh` は同じ判定を使い、自前で持たない）
 - 種類ごとの宣言の上限・既定判断基準: 機構の設定と `rules/work-defaults.md`
 - 成果物のコミット手順: `20-common-step-commit-push`
 
@@ -87,8 +88,9 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 
 オプションは順不同。`--dod` / `--work` は繰り返して複数項目を渡す。`--predecessors` / `--allow-write` / `--allow-ops` はカンマ区切り。値の中の記号（`"` / `\` / `&` / `|`）はそのまま渡してよい（3 でエスケープする）。
 
+0. **本流で実行されていることを検査する**。本流でなければ（リポジトリルート直下の `.git` がディレクトリでなければ）**TK009** で拒否し、本流で作成するよう案内する。判定の正は `20-common-step-worktree` 仕様「本流かどうかの判定（提供コマンド共通）」で、`ticket.sh` は同じ判定を使う（ここで作り直さない）
 1. `wip/10_tickets/{00_todo,10_doing,20_done,30_cancelled}` を無ければ作成する。`<種類>` が `task-types.tsv` に無ければ TK008 で拒否する
-2. 全ディレクトリを走査して既存の最大連番 + 1 を採番する
+2. 全ディレクトリを走査して既存の最大連番 + 1 を採番する。**走査するのは実行している作業ツリーの `wip/10_tickets/` だけ**で、他の作業ツリーもリモートも見ない。手順 0 が本流に限っているので、連番を採る場所は 1 か所（本流）に限られ、**並列実施を行う場合**でも同じ番号が二重に採られることが構造的に起きない（決定と却下した案は DDR `i0050-05`）
 3. テンプレートをコピーし、渡された記載事項を埋める。frontmatter に書く文字列値は YAML の二重引用符の規則でエスケープする（`\` → `\\`、`"` → `\"`。改行は空白）。`{{ }}` の残存が 1 つでもあれば TK001 で拒否する
 4. `00_todo/` に置き、状態変更のコミット（対象はチケットファイルのみ、件名 `chore: チケット <連番> を作成`。`commit.sh` 経由）を行う（コミットの方式と `overall-plan` の例外は冒頭の規定に従う）。コミットが拒否されたら作成したファイルを削除して失敗を返す（未追跡のチケットが残ると機構は着手可能なチケットとして数える）
 
@@ -138,6 +140,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | TK006 | 先行チケット未完了 | 未完了の先行チケット番号の一覧 |
 | TK007 | 取り消し理由が空 | `--reason` の指定を案内 |
 | TK008 | 引数・環境の誤り（終了 2）: 不明なサブコマンド・引数・値、`task-types.tsv` に無い種類、テンプレート不在、`commit.sh` 不在、`jq` 不在、リポジトリルートに移れない | 正しい呼び方（`usage`）または不足しているもの |
+| TK009 | 作業ツリーでの `create`（本流でない場所での新規作成。終了 1） | 現在の作業ツリーの置き場と本流の置き場。本流を作業ディレクトリにして作成し直すことの案内（着手・完了・取り消し・次の提示は作業ツリーでも行えること） |
 
 ### テスト観点
 
@@ -155,6 +158,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | TICKET-T10 | 異常系 | `commit.sh` が拒否する状況（コミット時の検査（フック）の失敗・除外パターンに一致するファイルが同時にステージされている場合）で `ticket.sh` が同じ最終行で失敗し、start / complete / cancel ではチケットが元の置き場に記載事項も含めて戻り（index にも残らない）、create では作成ファイルが残らない |
 | TICKET-T11 | 境界 | ファイル名の種類と `ticket_type` が食い違うチケットで `next` / `start` が frontmatter の値を使う |
 | TICKET-T12 | 異常系 | 不明なサブコマンド・不明な引数・`task-types.tsv` に無い種類の `create` が TK008・終了 2（最終行は `TK008:`） |
+| TICKET-T13 | 異常系・境界 | 本流から切った作業ツリーの中で `create` が **TK009**・終了 1 になり、チケットが 1 枚も作られない。**負のコントロール**: 同じ引数を本流で実行すれば作られる。同じ作業ツリーで `start` / `complete` / `cancel` / `next` は通り、対象がその作業ツリーの `wip/10_tickets/` になる |
 
 ## 要件との対応
 
@@ -173,6 +177,7 @@ bash .claude/skills/20-common-step-ticket/scripts/ticket.sh complete 0003
 | 例外: 検査で拒否されたら解消して再実行・形だけの記入をしない | TK003 のメッセージ |
 | 例外: スクリプト故障時は手作業で代替しない | 禁止事項（スキル本文に記載） |
 | 例外: 独自の記載事項を足さない | 禁止事項 + テンプレートの固定 |
+| 例外: 作業ツリーでの新規作成は拒否し本流へ案内する。着手・完了・取り消し・次の提示は作業ツリーで行える | create 0（TK009）・create 2（採番の走査範囲）・TICKET-T13 |
 | テンプレ節: テンプレートとスクリプトはこのスキル配下・重複所持の禁止 | 構成（assets/ と scripts/ のパス） |
 | テンプレ節: 作業ログの固定見出し 10 項目 | OUT ひな形（一覧の正は要件書） |
 | テンプレ節: 利用中に変更しない | 禁止事項（スキル本文に記載） |

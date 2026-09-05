@@ -4,6 +4,9 @@ title: i0004-07. コミットを生成する git サブコマンドは commit �
 description: block-direct-git の拒否対象を `git commit` / `git push` だけでなく、コミットを生成する revert / cherry-pick / am / rebase にも広げ、default ブランチの取り込みに使う merge だけを例外として受容する判断
 tags: [ddr, hook, block-direct-git, commit]
 keywords: [block-direct-git, revert, cherry-pick, am, rebase, merge, 規約検査の迂回, commit.sh, merge-base]
+status: 一部置き換え済み
+superseded_by: i0050-03-合流はタスクの切れ目に固定し提供コマンド経由でのみ行う.md
+superseded_scope: 「取り込み以外の merge はブランチ間の統合として merge-base 分類で拒否できる」という理由の記述（作業中チケットが 0 枚のときは workflow-guard が判定に入らないため実効ではない）。block-direct-git が merge を対象外とする決定と merge-base 分類の意味は有効
 ---
 
 # i0004-07. コミットを生成する git サブコマンドは commit と同列に拒否し、merge だけ例外とする

@@ -1,18 +1,18 @@
 ---
 type: report
-title: 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6（S1〜S4 分）
-description: issue #50 の AI アセット実装フェーズ（S1〜S10 / チケット 0018〜0027）が積み上げる実装結果レポート。S1 では scope-limits.json の allow に .gitignore を足し .claude/worktrees/ を無視した。S2 では hook-common.sh に作業ツリーの三分・作業ツリーの集合・パスの 4 段の畳み込み・共有ルートを入れ、decisions.jsonl に cwd と agent_id を足し、呼び手 3 本を WF209 / WF309 / WF605 に分岐させた。S3 では cmdpos.sh の正規化 2 件（算術展開は段を割らない / 置換の閉じ括弧の後ろの語を実行体にしない）と scope.sh の git の限定適用 6 件を入れ、cd は分類に足さないことを負のコントロールで固定した。S4 では workflow-guard の WF207 に「どの作業ツリーで数えたか」を足し、worktree.sh の置き場を指す引数だけを判定の例外にし、受け入れ条件 A1-6 を閉じる WG-T19 / WG-T20（枚数をテスト自身が assert する負のコントロール付き）と WG-T21 / SG-T12 / SG-T13 を新設した。workflow-state-guard は S2 の畳み込みで既に仕様どおりで無改修
+title: 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5（S1〜S5 分）
+description: issue #50 の AI アセット実装フェーズ（S1〜S10 / チケット 0018〜0027）が積み上げる実装結果レポート。S1 では scope-limits.json の allow に .gitignore を足し .claude/worktrees/ を無視した。S2 では hook-common.sh に作業ツリーの三分・作業ツリーの集合・パスの 4 段の畳み込み・共有ルートを入れ、decisions.jsonl に cwd と agent_id を足し、呼び手 3 本を WF209 / WF309 / WF605 に分岐させた。S3 では cmdpos.sh の正規化 2 件（算術展開は段を割らない / 置換の閉じ括弧の後ろの語を実行体にしない）と scope.sh の git の限定適用 6 件を入れ、cd は分類に足さないことを負のコントロールで固定した。S4 では workflow-guard の WF207 に「どの作業ツリーで数えたか」を足し、worktree.sh の置き場を指す引数だけを判定の例外にし、受け入れ条件 A1-6 を閉じる WG-T19 / WG-T20（枚数をテスト自身が assert する負のコントロール付き）と WG-T21 / SG-T12 / SG-T13 を新設した。workflow-state-guard は S2 の畳み込みで既に仕様どおりで無改修。S5 では案内側フック 4 本を作業ツリーごとに一意な判定へ揃え、受け入れ条件 A5 を DC-T08 / DC-T09・SA-T10 / SA-T11・SP-T09 で閉じ、session-start に WF705（mr.json が読めないとき現在地を断定しない）を入れ、post-push-* の push-state.json / usage/ を共有ルートへ移した
 tags: [report, ai-asset-implementation, issue-50]
-keywords: [scope-limits.json, .gitignore, .claude/worktrees/, common.confirm, WF203, WF601, ロックアウト対策, HK-T01, HK-T02, 判定順, hook-common.sh, HOOK_SHARED_ROOT, hook_worktrees, hook_rel_path, 作業ツリーの三分, 畳み込み, WF209, WF309, WF605, HK-T06, HK-T21, HK-T22, SG-T11, fail-closed, cmdpos.sh, scope.sh, 算術展開, コマンド置換, プロセス置換, git worktree list, 限定適用, 負のコントロール, HK-T05, HK-T12, HK-T15, workflow-guard, workflow-state-guard, WF207, WF201, WF202, WF205, WF301, WF302, WF303, A1-6, WG-T19, WG-T20, WG-T21, WG-T14, SG-T12, SG-T13, worktree.sh, 置き場を指す引数, 枚数の assert]
+keywords: [scope-limits.json, .gitignore, .claude/worktrees/, common.confirm, WF203, WF601, ロックアウト対策, HK-T01, HK-T02, 判定順, hook-common.sh, HOOK_SHARED_ROOT, hook_worktrees, hook_rel_path, 作業ツリーの三分, 畳み込み, WF209, WF309, WF605, HK-T06, HK-T21, HK-T22, SG-T11, fail-closed, cmdpos.sh, scope.sh, 算術展開, コマンド置換, プロセス置換, git worktree list, 限定適用, 負のコントロール, HK-T05, HK-T12, HK-T15, workflow-guard, workflow-state-guard, WF207, WF201, WF202, WF205, WF301, WF302, WF303, A1-6, WG-T19, WG-T20, WG-T21, WG-T14, SG-T12, SG-T13, worktree.sh, 置き場を指す引数, 枚数の assert, A5, workflow-diff-check, subagent-start-check, subagent-stop-check, session-start, post-push-compact-prompt, post-push-usage-report, WF804, WF815, WF705, WF702, WF703, DC-T08, DC-T09, SA-T10, SA-T11, SP-T05, SP-T09, SE-T11, 反転検査, git worktree add, 共有ルート, push-state.json, usage]
 ---
 
-# 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6（S1〜S4 分）
+# 0018〜0027 AI アセット実装・テスト結果 — 入口の設定・hook-common.sh の作業ツリーの三分・cmdpos / scope の穴の閉塞・拒否側フック 2 本と A1-6・案内側フック 4 本と A5（S1〜S5 分）
 
 - 対象 issue: [#50](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50)
 - MR: [#51](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51)（draft）
 - ブランチ: `feature-50-worktree-parallel-tickets`
-- チケット: 0018〜0027（実装計画書 `wip/20_plans/0016-ai-asset-implementation-plan.md` の S1〜S10。**このレポートは各チケットが節を積み上げる器**で、現時点の内容は 0018（S1）・0019（S2）・0020（S3）・0021（S4）分）
-- 作成日: 2026-09-05（0018）／更新: 2026-09-05（0019・0020・0021）
+- チケット: 0018〜0027（実装計画書 `wip/20_plans/0016-ai-asset-implementation-plan.md` の S1〜S10。**このレポートは各チケットが節を積み上げる器**で、現時点の内容は 0018（S1）・0019（S2）・0020（S3）・0021（S4）・0022（S5）分）
+- 作成日: 2026-09-05（0018）／更新: 2026-09-05（0019・0020・0021）・2026-09-06（0022）
 
 ## サマリ
 
@@ -30,10 +30,16 @@ S4（0021）は**中核 c** として拒否側フック 2 本を仕様に揃え�
 
 S4 の学びは 2 つ。①**`SG-T12` / `SG-T13` は書いた時点で通ってしまった**ので、期待値を 3 か所だけ誤値に差し替えて **3 件だけが FAIL する**ことを確かめてから戻す（反転検査）ことで識別力を測った（e21）。②実機のフックに直接ペイロードを流し、0018 レポートの **R13**（`scope.sh` の規則 5 の `--output=` が呼び手側で `WF205` になること）を閉じた（e22）。起動プロンプトが観測を期待していた e11（fail-closed の deny がツールを止めない）は、**中核を壊す状況が発生しなかったため観測できていない**。
 
-- ◎良 17 件 / △注意 4 件（e4・e10・e18・e21）/ ✕問題 1 件（e11）（節は e1〜e22 の 22 件。HTML ビューの章 ID は `f1`〜`f22` で 1 対 1）
-- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**。S3 は `HK-T05` / `HK-T12` / `HK-T15` / `HK-T02` PASS（テスト先行で 59 件の FAIL を確認してから実装）に加え、**リポジトリの全テスト 27 本 216 ID が PASS / FAIL 0 / 重複 ID なし**。S4 は `WG-T19` / `WG-T20` / `WG-T21` / `WG-T14` / `SG-T12` / `SG-T13` PASS に加え、**リポジトリの全テスト 27 本 221 ID が 1 回で PASS / FAIL 0**（新設 5 ID の分だけ増えた）
-- eval: **S1〜S4 とも対象は 0 件**（設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセットを作っていない）。このフェーズでは eval を**実行しない**
-- 仕様からの逸脱: 14 件（D1〜D14。D6・D7 が S2 分、D8〜D12 が S3 分、D13・D14 が S4 分）
+S5（0022）は**中核 d** として案内側フック 4 本と `post-push-*` を作業ツリーごとに一意な判定へ揃え、**受け入れ条件 A5**（差分の基準点・対象チケット・実行者照合が作業ツリーごとに一意）を機械テストで閉じた。実装で変えたのは 3 本 —— ①`subagent-start-check.sh` に **WF804**（作業ツリーを確定できないときは呼び出し元・本流のチケットで**代用しない**）②`subagent-stop-check.sh` に **WF815**（同じ理由で実行者照合と作業後の検査を行わない）③`session-start.sh` に **WF705**（`logs/mr.json` を読めないとき現在地を断定せず「不明」と根拠付きの推定を別の行に出す）と進行状態の**共有ルート**参照。**`workflow-diff-check.sh` は変更 0 行**（制御方式 0・1 は S2 で満たされていた）。`post-push-compact-prompt.sh` の `logs/push-state.json` と `post-push-usage-report.sh` の `logs/usage/`・`logs/mr.json` は `HOOK_SHARED_ROOT` へ移した。
+
+S5 で新設したテストは `DC-T08` / `DC-T09`（差分の基準点）・`SA-T10` / `SA-T11`（対象チケットの作業ツリー）・`SP-T09`（実行者照合）・`SE-T11`（現在地）で、いずれも **枚数・`executor` の前提をテスト自身が assert してから判定を呼ぶ**形（0021 の `WG-T19` / `WG-T20` を踏襲）。`WF804` / `WF815` / `WF705` の 3 件は**テスト先行**（それぞれ 3 件・5 件・12 件の FAIL を確認してから実装）で、書いた時点で通ってしまった `DC-T08` / `DC-T09` と `SA-T10` / `SP-T09` は**反転検査**（期待値を 3 か所ずつ誤値に差し替え、3 件だけが FAIL することを確認 → 戻して `git diff HEAD` が空）で識別力を測った。
+
+S5 の学びは 3 つ。①**`workflow-diff-check` の `DC-T08` だけは疑似の作業ツリーでは足りない**（このフックは `git status` / `git diff` を実際に走らせるので、`.git` ファイルを手で置いただけでは制御方式 7 で黙って抜ける）。テストの中で `git worktree add` を呼んで実物を作り、パスは OS ネイティブ表記（MSYS では `C:/…`）に揃えた —— `/tmp/…` のままだと `git` が相互参照のファイルに書く絶対パスと照合できず、worktree に居ても本流に倒れる（実測）。②**「作業ツリーの集合を読めない」は `HOOK_WORKTREE_STATE` に現れない**。集合が読めないとき `HOOK_WORKTREE` は本流に倒れる（`HK-T22` が固定している振る舞い）ので、そのまま進むと本流のチケットで代用したことになる。WF804 / WF815 の判定はフック側で `hook_worktrees` を呼んで検出する形にした。③**WF815 の文面が `WF801` / `WF811〜813` に言及する**ので、「WF801 が出ていないこと」を識別子では assert できない（`SP-T07` の `WF814` と同じ）。判定の文面（「実行者が違う」「作業中のまま残っている」）で見る。
+
+- ◎良 21 件 / △注意 6 件（e4・e10・e18・e21・e23・e27）/ ✕問題 1 件（e11）（節は e1〜e28 の 28 件。HTML ビューの章 ID は `f1`〜`f28` で 1 対 1）
+- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**。S3 は `HK-T05` / `HK-T12` / `HK-T15` / `HK-T02` PASS（テスト先行で 59 件の FAIL を確認してから実装）に加え、**リポジトリの全テスト 27 本 216 ID が PASS / FAIL 0 / 重複 ID なし**。S4 は `WG-T19` / `WG-T20` / `WG-T21` / `WG-T14` / `SG-T12` / `SG-T13` PASS に加え、**リポジトリの全テスト 27 本 221 ID が 1 回で PASS / FAIL 0**（新設 5 ID の分だけ増えた）。S5 は `DC-T08` / `DC-T09` / `SA-T10` / `SA-T11` / `SP-T05` / `SP-T08` / `SP-T09` / `SE-T11` と `post-push-*` の既存テストが PASS
+- eval: **S1〜S5 とも対象は 0 件**（設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセットを作っていない）。このフェーズでは eval を**実行しない**
+- 仕様からの逸脱: 18 件（D1〜D18。D6・D7 が S2 分、D8〜D12 が S3 分、D13・D14 が S4 分、D15〜D18 が S5 分）
 
 ### ◆特に見てほしい（0018 分）
 
@@ -77,6 +83,17 @@ S4 の学びは 2 つ。①**`SG-T12` / `SG-T13` は書いた時点で通って�
 - **通ってしまうテストの扱い**（e21 後半）。`SG-T12` / `SG-T13` は書いた時点で通ったので、テスト先行の「失敗を見る」が踏めない。**期待値を 3 か所だけ誤値に差し替えて 3 件だけが FAIL することを確かめてから戻す**（反転検査）という手順で代えた。戻し切ったことは `git diff HEAD` が空であることで確かめている。この代替手順を今後の「先に通ってしまうテスト」の標準にしてよいか
 - **`WG-T19` に「本流 1 枚・worktree 1 枚」のケースを足したこと**（D13）。仕様 `WG-T19` の括弧は「合計 2 枚」と書いているが、前半が指定する枚数（0 枚 + 1 枚）とは足し算が合わない。括弧の意図（合計 2 枚でも `WF207` が出ない）を確かめるためにケースを 1 つ足したが、仕様の枚数を変えたわけではない。この読み方でよいか
 
+### ◆特に見てほしい（0022 分）
+
+- **`subagent-start-check.sh` に PreToolUse `Agent` の経路（`WF801` / `WF803` と「経路の印」）を残したこと**（D15）。`subagent-start-check` 仕様は「このフックが担うのは要点の注入（WF802）だけ」と書き、テスト観点の表から `SA-T02` / `SA-T07` / `SA-T09` が消えている。一方で **`subagent-stop-check` 仕様の縮退判定は「`subagent-start-check` が PreToolUse `Agent` の経路を通ったとき印を残す」ことを前提にしており**、コードを消すと印を置く主体が居なくなって `SP-T05` / `SP-T08` の「印がある」分岐が実行不能になる。2 つの仕様が食い違っているので**消さずに残した**（登録は既に無いので死んだ経路）。どちらに寄せるかを判断してほしい
+- **WF804 / WF815 が「本流に居ても」出得ること**（D16）。「作業ツリーの集合を読めない」（`<ルート>/.git/worktrees/` が在るのに列挙できない）は作業ツリーごとの条件ではなくリポジトリ全体の条件なので、`cwd` が本流でも通知が出る。本流だけで作業している環境では答えが一意に決まるので黙って進んでもよいが、**「判定していないことを伝える」側に倒した**（案内側なので害は通知のノイズだけ）。この倒し方でよいか
+- **`DC-T08` だけ `git worktree add` で実物の作業ツリーを作ったこと**（e23）。0021 の `WG-T19` / `WG-T20` は疑似の作業ツリー（相互参照の 2 ファイル）で足りたが、`workflow-diff-check` は `git status --porcelain=v2` と `git diff` を実際に走らせるので、疑似では制御方式 7（git 不可）で黙って抜けてしまい**無出力を「差分が無い」と読み違える**。テストの中の `git worktree add` は一時リポジトリに閉じており、作業リポジトリには触れていない（`git worktree add` を私が Bash で実行したわけではない）。この作り分けでよいか
+
+### ◇判断が欲しい（0022 分）
+
+- **`post-push-*` の共有ルート化を固定する機械テストが無いこと**（e27・R21）。`test_post_push_compact_prompt.sh` / `test_post_push_usage_report.sh` は作業ツリーを 1 つしか作らないため `HOOK_ROOT` と `HOOK_WORKTREE` が同じ値になり、`HOOK_SHARED_ROOT` へ移したことをテストが区別できない（両方 PASS のまま）。根拠は**コードの読み（`grep` で `HOOK_WORKTREE/logs/` が 3 行しか残っていないこと）と `HK-T21`（三分の値が分かれること）**の組み合わせだけである。作業ツリーの足場を持つケースを両テストに足すか、S9（0026）の全体検査に回すかを判断してほしい
+- **`SE-T03` の前提を default ブランチに移したこと**（e26）。従来の `SE-T03` は `feature-12-login` の上で「チケットあり・MR 無し → 全体計画の途中 + `10-task-overall-plan`」を確かめていたが、新しい制御方式 7 では**補助 A（ブランチ名が `feature-<N>-*`）が成り立つので `WF705`（不明）になる**のが正しい。テストの前提だけを `main` に移して既存の期待値を保った（`SE-T11` (c) と同じ前提）。仕様の意図どおりの読み替えか確認してほしい
+
 ### ・細かいレビューは不要（ほぼ確実）
 
 - `.gitignore` の追記 2 行（コメント 1 行 + `.claude/worktrees/`）の文言と置き場所（末尾）
@@ -103,6 +120,10 @@ S4 の学びは 2 つ。①**`SG-T12` / `SG-T13` は書いた時点で通って�
 | e11（fail-closed の deny がツールを止めない）の追試（0021） | 起動プロンプトが「観測したら原因を追って記録すること」を求めていたが、**中核を壊す状況が発生しなかった**（`workflow-guard.sh` の変更は 2 か所で、どちらも `bash -n` → 担当テスト → `commit.sh` の順で通った）。壊して追試することはロックアウトの危険を負うので行っていない | フィードバック計画（0028） |
 | `WF207` の新しい文面が**実物のフックで**出ること（0021） | 実物で出すには 1 つの作業ツリーに作業中チケットを 2 枚作る必要があり、`ticket.sh start` が `TK002` で拒む（＝機構を壊さないと作れない状態）。機械テスト `WG-T08` で「番号の一覧」と「どの作業ツリーで数えたか」の両方を assert して代えた | S10（0027）の実測 / 切れ目のレビュー |
 | `worktree.sh` の置き場引数の例外が**実際に `worktree.sh` を動かして**役に立つこと（0021） | `worktree.sh` は S6（0023）で新設する。S4 の時点ではコマンドの実体が無いので、フックが引数の形をどう見るかだけを確かめた（実物のフックへのペイロードでも allow を確認 = e22） | S6（0023）の `WT-T01`〜`WT-T12` と `WG-T21` の踏み直し |
+| `post-push-*` の共有ルート化を**テストで**区別すること（0022） | 既存 2 本は一時リポジトリを 1 つしか作らず `HOOK_ROOT` と `HOOK_WORKTREE` が同じ値になるため、`$HOOK_WORKTREE/logs/...` と `$HOOK_SHARED_ROOT/logs/...` が同じファイルを指す。作業ツリーの足場を持つケースを新設していない（S5 の DoD は「既存テストが通ること」までを求めている） | S9（0026）の全体検査 / R21 |
+| `WF804` / `WF815` を**実機のフックで**踏むこと（0022） | 踏むには作業リポジトリの `.git/worktrees` を「在るのに列挙できない」状態にする必要があり、それ自体が機構を不調にする操作である（本流の判定にも影響する）。機械テスト `SA-T11` / `SP-T09` で代えた | S10（0027）の実測 / R20 |
+| `WF705` を**実機のセッションで**踏むこと（0022） | 踏むには `logs/mr.json` を消すか壊す必要があり、`workflow-state-guard` が進行状態ファイルへの直接書き込みを拒否する（`WF301`）。機械テスト `SE-T11` の 4 状態で代えた | S10（0027）の実測 / 切れ目のレビュー |
+| e11（fail-closed の deny がツールを止めない）の追試（0022） | 0021 と同じく**中核を壊す状況が発生しなかった**（変更は 3 本・計 5 か所で、いずれも `bash -n` → 担当テスト → `commit.sh` の順で通った）。起動プロンプトの指示どおり、意図的に壊しての追試はしていない | フィードバック計画（0028） |
 
 ## 実施条件（測った対象・環境）
 
@@ -131,6 +152,16 @@ S4 の学びは 2 つ。①**`SG-T12` / `SG-T13` は書いた時点で通って�
 - 対象: `.claude/hooks/20-PreToolUse/workflow-guard.sh`（454 行 → 469 行）と、そのテスト `test_workflow_guard.sh`（494 行 → 620 行）・`test_workflow_state_guard.sh`（231 行 → 297 行）。`workflow-state-guard.sh` は**変更なし**
 - 実行コマンド: `run-tests.sh --filter '*test_workflow_guard*' --timeout 300` / 同 `--filter '*test_workflow_state_guard*'` / 全件 `--timeout 300` / `bash -n`（変更した 3 本）/ `commit.sh` 1 回 / 実物のフックへの直接ペイロード 4 件（e22）
 - 編集は **Edit ツールだけ**で行った。復旧は `git checkout` を使わず `git show e348c12:<パス>` → Write の手順を用意したが、**使わずに済んだ**
+- `shellcheck` はこの環境に無い
+
+0022（S5）分:
+
+- 基準点: `c152f9f`（チケット 0022 の `base_sha`）。着手コミット `8683dcf`
+- 対象（本体 5 本）: `subagent-start-check.sh`（217 行 → 248 行）/ `subagent-stop-check.sh`（301 行 → 332 行）/ `session-start.sh`（239 行 → 271 行）/ `post-push-compact-prompt.sh`（3 か所）/ `post-push-usage-report.sh`（3 か所）。`workflow-diff-check.sh` は**変更 0 行**
+- 対象（テスト 4 本）: `test_workflow_diff_check.sh`（286 行 → 400 行）/ `test_subagent_start_check.sh`（259 行 → 386 行）/ `test_subagent_stop_check.sh`（300 行 → 405 行）/ `test_session_start.sh`（249 行 → 314 行）
+- 実行コマンド: `run-tests.sh --filter '*test_workflow_diff_check*' --timeout 300` / 同 `--filter '*test_subagent_start_check*'` / 同 `--filter '*test_subagent_stop_check*'` / 同 `--filter '*test_session_start*'` / 同 `--filter '*test_post_push*' --timeout 300` / 全件 `--ids --timeout 300` / 各テストの直接実行 / `bash -n`（変更した 9 本）/ `commit.sh` 4 回
+- 編集は **Edit ツールだけ**で行った。復旧は `git checkout` を使わず `git show c152f9f:<パス>` → Write の手順を用意したが、**使わずに済んだ**
+- `git worktree add` は**テストスクリプトの中で一時リポジトリに対してだけ**呼んでいる（作業リポジトリに対しては 1 度も実行していない。私が Bash で打つと `WF204` で拒否される）
 - `shellcheck` はこの環境に無い
 
 ## 実施した内容と結果
@@ -388,6 +419,79 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | `bash .claude/skills/20-common-step-worktree/scripts/worktree.sh add w1 ../repo-wt/w1` | allow（無出力） | S4 で入れた例外が実物でも効く |
 | `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m x ../repo-wt/w1/a.md` | `WF209` | 例外が `worktree.sh` に閉じている（実物での負のコントロール） |
 
+### e23. `workflow-diff-check` は無改修で仕様どおりだった。A5 を閉じる `DC-T08` / `DC-T09` を**実物の作業ツリー**で新設した（0022 / S5 ①）△注意
+
+`workflow-diff-check.sh` の**変更は 0 行**だった。仕様 制御方式 0（作業ツリーの確定と `WF605`）と 1（`HOOK_WORKTREE` の `10_doing/` を数える）は S2（0019）で入っており、判定に使う材料（作業中チケット・`base_sha`・`git status` / `git diff`）はすべて `$HOOK_WORKTREE` から取っている。S5 の仕事は**それを機械テストで固定すること**だけになった（0021 の `SG-T12` / `SG-T13` と同じ形）。
+
+疑似の作業ツリーでは足りなかった点が 0021 との違いである。`workflow-guard` は git を呼ばないので `.git` ファイルと `<本流>/.git/worktrees/<名前>/gitdir` を手で置けば済むが、**このフックは `git -C "$HOOK_WORKTREE" status --porcelain=v2` と `git diff --name-status <base_sha>` を実際に走らせる**ので、疑似の作業ツリーでは `git rev-parse --git-dir` が失敗して制御方式 7（黙って抜ける）に落ちる。無出力になるだけなので、DC-T09（負のコントロール）と見分けが付かない。そこで `dc_wt_fixture` はテストの一時リポジトリの中で `git worktree add -q -b dc-wt <置き場>` を呼んで実物を作り、フックが照合する相互参照の 2 ファイルが揃っていることをテスト自身が assert する。
+
+もう 1 つ実測で分かったのは**パス表記**である。1 回目は `cwd` を `hook_payload` の `$PWD`（MSYS では `/tmp/tmp.XXXX/w1`）に任せたが、`git worktree add` が相互参照のファイルに書くのは**ネイティブの絶対パス**（`C:/Users/…/Temp/tmp.XXXX/.git/worktrees/w1`）なので、`__hc_is_worktree_of` の照合が常に外れ、**worktree に居るのに本流のチケット（`0100-work.md`）で判定された**（`基準点は 97917c3`＝本流の base）。`pwd -W`（無ければ `pwd`）で両側をネイティブ表記に揃え、`cwd` は入力 JSON に明示で載せる形に直したら期待どおりになった。
+
+| ケース | `cwd` | 結果 |
+|---|---|---|
+| DC-T08 | worktree | `WF601` / `基準点は <worktree の base>` / `src/a.py（変更` / `docs/wt-only.md（未追跡` |
+| DC-T08（対照） | 本流 | `基準点は <本流の base>` / `docs/main-only.md（未追跡`。`docs/wt-only.md` は**出ない** |
+| DC-T09（負のコントロール） | worktree（0 枚） | **無出力・終了 0**（本流に 1 枚あっても代用しない） |
+| DC-T09（正のコントロール） | 本流（1 枚） | `WF601` / `docs/main-only.md` |
+
+`△注意` にしたのは、**書いた時点で 2 件とも通ってしまった**ため。反転検査（期待値 3 か所を誤値に差し替え → 3 件だけ FAIL → 戻して `git diff HEAD` が空）で識別力を測った（0021 の e21 と同じ手順）。
+
+### e24. `subagent-start-check` に `WF804` を足し、「集合を読めない」を確定できない側に含めた（0022 / S5 ②）◎良
+
+仕様「対象チケットを採る作業ツリー」の表は、SubagentStart の経路では**起動された側**の作業ツリーだけを見て、0 枚でも呼び出し元・本流のチケットで**代用しない**ことを求める。実装前の `subagent-start-check.sh` は `$HOOK_WORKTREE` の `10_doing/` → `00_todo/` を見る形で、**代用しないこと自体は満たしていた**（`SA-T10` は書いた時点で通った）。足りなかったのは「確定できないとき」の分岐である。
+
+ここで実装上の判断が 1 つ要った。**「作業ツリーの集合を読めない」は `HOOK_WORKTREE_STATE` に現れない** —— `<ルート>/.git/worktrees/` が在るのに列挙できない状態では `__hc_is_worktree_of` が相互参照を辿れず、`HOOK_WORKTREE` は `HOOK_ROOT`（本流）に**倒れたうえで `ok` のまま**になる（`HK-T22` が固定している振る舞い）。この状態で先へ進むと、まさに仕様が禁じている「本流のチケットで代用する」ことになる。実装前の `SA-T11` はそのとおり `WF802: 対象チケット 0100-implementation の要点`（本流側）を注入していた。
+
+そこで `__sa_worktree_ok()` を置き、(a) `HOOK_WORKTREE_STATE != ok`（`cwd` を正規化できない）と (b) `hook_worktrees` が 1 を返す（集合を読めない）の**両方**を「確定できない」とし、`hook_inject SubagentStart WF804` を出して要点を注入せずに終える。副作用として、本流だけで作業している環境でも `.git/worktrees` が壊れていれば通知が出る（D16）。案内側なので害は通知のノイズだけで、代用の危険を残すよりよいと判断した。
+
+### e25. `subagent-stop-check` に `WF815` を足し、実行者照合が呼び出し元の作業ツリーで行われることを `SP-T09` で固定した（0022 / S5 ③）◎良
+
+`__sp_degraded_mismatch`（WF801 の縮退判定）も `__sp_inspect`（WF811〜813）も、既に `$HOOK_WORKTREE` の `10_doing/` だけを見ていた。`SP-T09` の前半 —— 本流 `executor: opus` / worktree `executor: sonnet` の 2 枚を置き、`cwd`=本流 + `model=sonnet` で `WF801`（`executor は opus`）、`cwd`=worktree + `model=sonnet` で **出ない**、`cwd`=worktree + `model=opus` で `WF801`（`executor は sonnet`） —— は**書いた時点で通った**。実装が要ったのは e24 と同じ「集合を読めない」経路で、`__sp_worktree_ok()` を置き、SubagentStop では検査せずに記録（`__sp_save` + `hook_record notify WF815`）、PostToolUse では `hook_notify PostToolUse WF815` を出して終える形にした。
+
+テストの書き方で 2 つ躓いた。①**WF815 の文面が `WF801` / `WF811〜813` に言及する**ので、`assert_not_contains "WF801"` が自分の文面に当たって落ちる。`SP-T07`（`WF814`）が同じ理由で識別子ではなく文面で見ているので、それに倣って「実行者が違う」「作業中のまま残っている」で assert した。②`SubagentStop` の経路が `logs/sessions/<id>/subagent-<agentId>.json` に WF815 を**記録する**ため、続く PostToolUse を同じ `agentId` で流すと `__sp_load_saved` が WF815 を読み戻す。復旧後の対照は別の `agentId` で流す形に直した。
+
+`SP-T05` には仕様が求める「縮退の前提」を 2 つ足した ——（a）実運用の `settings.json` に **PreToolUse `Agent` × `subagent-start-check` の登録が 0 件**であること（`HK-T01` と同じ事実を別側から。正のコントロールとして SubagentStart の登録が 1 件あることも見る）（b）印が**無い**とき `WF801` が出て、テストが自分で印を置くと出**ない**こと。
+
+### e26. `session-start` を共有ルート参照にし、`logs/mr.json` を読めないときに現在地を断定しない形にした（0022 / S5 ④）◎良
+
+2 つを直した。①**参照の根**: `logs/sessions/`（片付け）・`logs/mr.json`・`logs/review-state.json`・`logs/merge-state.json` を `$HOOK_WORKTREE` から `$HOOK_SHARED_ROOT` に移した（共通仕様 §5 の根の列。進行状態は issue と MR に属するので作業ツリーで分けない）。`boundary.sh` の呼び出し先は仕様 制御方式 3 の明記どおり **`$HOOK_WORKTREE` 側のまま**にした（本流の実体を呼ぶと本流の作業領域を見た答えが返る）。
+
+②**制御方式 7（WF705）**: チケットがあって `logs/mr.json` が読めないとき、補助 A（ブランチ名が `feature-<N>-*` / `fix-<N>-*`）か補助 B（`20_done/` に `*-overall-plan.md`）のどちらかが成り立てば、現在地を `[WF705] 不明（logs/mr.json を読めないため現在地を断定できない）` にし、推定は**別の行**（`- 推定: 全体計画は完了済み（根拠: …）`）に出し、次に読み込むスキルは断定せず `boundary.sh status` での再導出に置き換える。**`10-task-overall-plan` という語をこの分岐の出力から完全に外した**（`SE-T11` が負のコントロールとして「含まないこと」を assert する）ので、案内文で「やり直さない」と書くときもスキル名を出していない。
+
+`SE-T11` は仕様の 4 状態を同じ作業領域で切り替える：(a) feature ブランチ + `20_done` に overall-plan → WF705 + 推定 + WF703（直し方は別の番号）(b) detached HEAD → ブランチは「不明」、補助 B だけで WF705 (c) `main` + overall-plan 無し → 従来どおり「全体計画の途中」+ `10-task-overall-plan`（正のコントロール）(d) `mr.json` 破損 → `[WF702] 破損: logs/mr.json` と `[WF705] 不明` が両方出る。実装前は 12 件が FAIL し、実装後に 0 件になった（テスト先行）。
+
+**既存の `SE-T03` は前提を default ブランチに移した**。`feature-12-login` の上で「チケットあり・MR 無し」を作ると、新しい制御方式 7 では補助 A が成り立って WF705 になるのが正しい振る舞いだからである（期待値は変えていない）。
+
+### e27. `post-push-*` の進行状態を共有ルートへ移した — ただし既存テストは根の違いを区別できない（0022 / S5 ⑤）△注意
+
+`post-push-compact-prompt.sh` の `logs/push-state.json` と `logs/mr.json`、`post-push-usage-report.sh` の `logs/usage/<branch>.json`・`logs/usage/report-*.md`・`logs/mr.json` を `$HOOK_SHARED_ROOT` に移した（共通仕様 §5 の根の列。前回 push 時点と使用量の蓄積はブランチ単位の資源で、作業ツリーごとに分けると push の回数も集計も割れる）。
+
+`△注意` にしたのは、**既存テスト 2 本がこの変更を区別できない**ため。どちらも一時リポジトリを 1 つしか作らず `HOOK_ROOT` と `HOOK_WORKTREE` が同じ値になるので、`$HOOK_WORKTREE/logs/...` でも `$HOOK_SHARED_ROOT/logs/...` でも同じファイルを指し、変更前も変更後も PASS する（`74 件 / failures=0`）。DoD が求める「共有ルートを指していること」の根拠は、コードの読みと参照更新一覧の `grep`（下）に依っている。
+
+```
+$ grep -rn 'HOOK_WORKTREE/logs/' --include="*.sh" .claude/
+.claude/hooks/13-SubagentStop/subagent-stop-check.sh:211:  local f="$HOOK_WORKTREE/logs/hooks/decisions.jsonl" line
+.claude/hooks/lib/hook-common.sh:412:  local d="$HOOK_WORKTREE/logs/sh"
+.claude/hooks/lib/hook-common.sh:746:  hc_append_jsonl "$HOOK_WORKTREE/logs/hooks/decisions.jsonl" "$line" || log_warn ...
+$ grep -rn 'HOOK_SHARED_ROOT/logs/' --include="*.sh" .claude/ | wc -l
+22
+```
+
+残った 3 行はいずれも §5 で根が「ツリー」の記録（`logs/hooks/decisions.jsonl` 2 行・`logs/sh/` 1 行）で、共有ルート側は計画書「参照更新一覧」#1 が期待した **22 行**にちょうど一致した。ただし計画書は「`logs/hooks/` の 2 行だけが残る（`logs/sh/` は logger 経由でこの検索に現れない）」と書いており、実際には `hook-common.sh:412` が現れる（D17）。
+
+### e28. 変更直後に `Write` を 1 回行い、`WF605` の誤爆が無いことを確かめた（0022 / ロックアウト対策）◎良
+
+計画書のロックアウト対策 S5 は「変更直後に `Write` を 1 回して `workflow-diff-check` の PostToolUse が回ること（案内側は deny を出せないので**止まらない**が、`WF605` が誤爆していないかを `logs/hooks/decisions.jsonl` で見る）」を求める。中核 3 本を変えたあと、`commit.sh` と `Edit` / `Write` を通し、記録を数えた。
+
+| 確認 | 結果 |
+|---|---|
+| `grep -c '"id":"WF605"' logs/hooks/decisions.jsonl` | **0 件**（誤爆なし） |
+| `grep -c '"hook":"workflow-diff-check"' logs/hooks/decisions.jsonl` | 239 件（PostToolUse は回っている＝無音ではない） |
+| `commit.sh` の実行 | 4 回とも成功（`d04f763` / `a1c0e66` / `86c3b8a` / `58be3f6`） |
+| `Edit` / `Write`（`.claude/hooks/**` と `wip/**`） | いずれも通った。復旧手順（`git show <base_sha>:<パス>` → Write）は使わずに済んだ |
+
+S2 で観測した e11（fail-closed の deny が記録されるのにツールが止まらない）は、**S5 でも中核を壊す状況が発生せず観測できていない**。起動プロンプトの指示どおり、追試のために意図的に壊すことはしていない（ロックアウトの危険）。R8 のままフィードバック計画へ渡す。
+
 ## 検証の結果
 
 | 検証 | 結果 |
@@ -450,6 +554,30 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | 変更が S4 の許可範囲に収まっているか | `git diff e348c12 --stat` = `.claude/hooks/20-PreToolUse/` 3 ファイル（本体 1・テスト 2）/ `wip/10_tickets/**` 1 枚（`00_todo` → `10_doing` の移動）/ `wip/30_reports/**` 2 ファイル。いずれも `allow.write`（`wip/**`, `.claude/hooks/**`）の内側。範囲外の差分なし |
 | S4 が担当する参照更新 | 実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。**S4 の担当は 0 行** |
 
+0022（S5）分:
+
+| 検証 | 結果 |
+|---|---|
+| `bash -n`（変更した 8 本） | `subagent-start-check.sh` / `subagent-stop-check.sh` / `session-start.sh` / `post-push-compact-prompt.sh` / `post-push-usage-report.sh` / テスト 4 本すべて終了コード 0 |
+| テスト先行（`SA-T11`） | 新しいケースを書いた時点で `passed=83 failures=3`（WF804 が無く**本流のチケットの要点が注入された**）→ `__sa_worktree_ok` を足して `passed=86 failures=0` |
+| テスト先行（`SP-T09`） | 書いた時点で `passed=76 failures=5`（WF815 が無い 5 件。前半の実行者照合 12 件は最初から PASS）→ `__sp_worktree_ok` を足して `passed=82 failures=0` |
+| テスト先行（`SE-T11`） | 書いた時点で `passed=56 failures=12` → 制御方式 7 を実装して `passed=68 failures=0` |
+| 反転検査（`DC-T08` / `DC-T09`） | 書いた時点で `passed=69 failures=0`。期待値を 3 か所（未追跡パス名・`assert_not_contains` の対象・負のコントロールの枚数）だけ誤値に差し替えると `passed=66 failures=3`（差し替えた 3 件だけが FAIL）→ 戻して `passed=69 failures=0` |
+| 反転検査（`SA-T10`） | 同様に 3 か所（種類の文字列・記録の `cwd`・負のコントロールの枚数）で `passed=83 failures=3` → 戻して `passed=86 failures=0` |
+| 反転検査（`SP-T09`） | 同様に 3 か所（`executor は opus`・`assert_not_contains` の対象・前提の `executor`）で `failures=3` → 戻して `passed=82 failures=0` |
+| 反転検査を戻し切ったか | 3 回とも直後の `git diff HEAD --stat` が**チケット 1 枚だけ**（テストファイルの差分が無い）。`INVERT` を含む行は 0 件 |
+| `run-tests.sh --filter '*test_workflow_diff_check*' --timeout 300` | `PASS / passed=69 failures=0`（`DC-T01`〜`DC-T09`） |
+| `run-tests.sh --filter '*test_subagent_start_check*'` | `PASS / passed=86 failures=0`（`SA-T01`〜`SA-T11`） |
+| `run-tests.sh --filter '*test_subagent_stop_check*'` | `PASS / passed=82 failures=0`（`SP-T01`〜`SP-T09`） |
+| `run-tests.sh --filter '*test_session_start*'` | `PASS / passed=68 failures=0`（`SE-T01`〜`SE-T11`） |
+| `run-tests.sh --filter '*test_post_push*' --timeout 300` | `OK: 2 本 / 15 件`（`passed=36` と `passed=38`、いずれも `failures=0`） |
+| ロックアウト対策（`Write` 1 回 + `WF605` の誤爆） | `grep -c '"id":"WF605"' logs/hooks/decisions.jsonl` = **0 件**。`workflow-diff-check` の記録は 239 行あり、PostToolUse が回っていることは確かめた（e28） |
+| 中核変更後に自分が動くか | `commit.sh` 4 回・`Edit` / `Write`・`Read` / `grep` / `run-tests.sh`（`hook-test`）がいずれも通った。復旧手順（`git show <base_sha>:<パス>` → Write）は使わずに済んだ |
+| `workflow-diff-check.sh` の変更量 | **0 行**（`git diff c152f9f -- .claude/hooks/22-PostToolUse/workflow-diff-check.sh` が空。制御方式 0・1 は S2 で満たされていた） |
+| 進行状態の根（参照更新一覧 #1） | `grep -rn 'HOOK_WORKTREE/logs/' --include="*.sh" .claude/` = **3 行**（`logs/hooks/` 2 行 + `logs/sh/` 1 行。いずれも §5 で根が「ツリー」）。`HOOK_SHARED_ROOT/logs/` = **22 行**（計画書の期待値どおり） |
+| 変更が S5 の許可範囲に収まっているか | `git diff c152f9f --stat` = `.claude/hooks/**` 8 ファイル（本体 5・テスト 4 のうち diff-check 本体は 0 行）/ `wip/10_tickets/**` 1 枚 / `wip/30_reports/**` 2 ファイル。いずれも `allow.write`（`wip/**`, `.claude/hooks/**`）の内側。範囲外の差分なし |
+| S5 が担当する参照更新 | 実装計画書「参照更新一覧」7 行はすべて S9（0026）担当。**S5 の担当は 0 行**（ただし #1 の消し込みは S5 で実質的に完了した。上の行） |
+
 ## 作成・更新したアセットの一覧（仕様書の節との対応）
 
 | # | アセット | 種別 | 変更 | 仕様書の節 | チケット |
@@ -470,7 +598,16 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | 14 | `.claude/hooks/20-PreToolUse/tests/test_workflow_guard.sh` | フックのテスト | 更新（`WG-T19` / `WG-T20` / `WG-T21` を新設。作業ツリーの足場 `wt_fixture` / 枚数を数える `doing_count` / cwd を差し替える `payload_at`・`run_at`・`raw_at` を追加。`WG-T08` に「どの作業ツリーで数えたか」の 1 件） | 同 テスト観点（`WG-T19` / `WG-T20` / `WG-T21` / `WG-T08` / `WG-T14`） | 0021 |
 | 15 | `.claude/hooks/20-PreToolUse/tests/test_workflow_state_guard.sh` | フックのテスト | 更新（`SG-T12` / `SG-T13` を新設。作業ツリーの足場 `sg_wt_fixture` と cwd を差し替える `payload_at`・`tfa`・`tca` を追加） | `10_spec/hooks/20-PreToolUse/workflow-state-guard.md` テスト観点（`SG-T12` / `SG-T13`）・「対象パスの畳み込み」 | 0021 |
 
-`.claude/skills/**` / `.claude/rules/**` / `.claude/agents/**` / `.claude/evals/**` / `.claude/settings.json` は S1〜S4 では**1 件も触っていない**。`.claude/hooks/config/**` は S1 のみ（S2〜S4 は触っていない）。**`.claude/hooks/20-PreToolUse/workflow-state-guard.sh` は S4 の対象だったが変更が要らなかった**（e21）ので、この表には本体としての行を置かない（S2 の 7 行目が最後の変更）。
+| 16 | `.claude/hooks/22-PostToolUse/tests/test_workflow_diff_check.sh` | フックのテスト | 更新（`DC-T08` / `DC-T09` を新設。`git worktree add` で実物の作業ツリーを作る `dc_wt_fixture` / ネイティブ表記を取る `dc_native` / 枚数を数える `dc_doing_count` / cwd を差し替える `dc_run_at` を追加。`write_ticket` を出力先を取る `write_ticket_at` に分けた） | `10_spec/hooks/22-PostToolUse/workflow-diff-check.md` テスト観点（`DC-T08` / `DC-T09`）・制御方式 0・1 | 0022 |
+| 17 | `.claude/hooks/12-SubagentStart/subagent-start-check.sh` | フック | 更新（`__sa_worktree_ok` 新設と `WF804` の注入。対象チケットの探索より前に置く） | `10_spec/hooks/12-SubagentStart/subagent-start-check.md`「対象チケットを採る作業ツリー」・制御方式 2・`WF804` | 0022 |
+| 18 | `.claude/hooks/12-SubagentStart/tests/test_subagent_start_check.sh` | フックのテスト | 更新（`SA-T10` / `SA-T11` を新設。疑似の作業ツリー `sa_wt_fixture` / `sa_doing_count` / `sa_write_ticket2` / `sa_ticket_type_of` を追加。`mk_payload` の `cwd` を `SA_CWD` で差し替えられるようにした） | 同 テスト観点（`SA-T10` / `SA-T11`） | 0022 |
+| 19 | `.claude/hooks/13-SubagentStop/subagent-stop-check.sh` | フック | 更新（`__sp_worktree_ok` 新設と `WF815`。SubagentStop では記録、PostToolUse では通知して終える） | `10_spec/hooks/13-SubagentStop/subagent-stop-check.md` 概要の経路の表・制御方式 2・3・`WF815` | 0022 |
+| 20 | `.claude/hooks/13-SubagentStop/tests/test_subagent_stop_check.sh` | フックのテスト | 更新（`SP-T09` を新設。`sp_wt_fixture` / `sp_doing_count` / `sp_executor_of` と `SP_CWD` を追加。`SP-T05` に「縮退の前提」2 件（`settings.json` の登録が 0 件 / 印の有無で `WF801` が分かれる）を追記） | 同 テスト観点（`SP-T05` / `SP-T09`） | 0022 |
+| 21 | `.claude/hooks/00-SessionStart/session-start.sh` | フック | 更新（進行状態とセッション状態を `HOOK_SHARED_ROOT` から読む／`__se_overall_plan_done` 新設と制御方式 7 の `WF705`・推定行・スキルを断定しない案内） | `10_spec/hooks/00-SessionStart/session-start.md` 概要・制御方式 2・4・7・`WF705`／`10_spec/フック共通仕様.md` §5 の根の列 | 0022 |
+| 22 | `.claude/hooks/00-SessionStart/tests/test_session_start.sh` | フックのテスト | 更新（`SE-T11` を新設 = (a)〜(d) の 4 状態。`SE-T03` の前提を default ブランチへ移した） | 同 テスト観点（`SE-T11`）・制御方式 7 | 0022 |
+| 23 | `.claude/hooks/22-PostToolUse/post-push-compact-prompt.sh` / `post-push-usage-report.sh` | フック | 更新（`logs/push-state.json`・`logs/usage/`・`logs/mr.json` の根を `HOOK_SHARED_ROOT` へ。計 5 か所） | `10_spec/フック共通仕様.md` §5「記録と状態」の根の列 | 0022 |
+
+`.claude/skills/**` / `.claude/rules/**` / `.claude/agents/**` / `.claude/evals/**` / `.claude/settings.json` は S1〜S5 では**1 件も触っていない**。`.claude/hooks/config/**` は S1 のみ（S2〜S4 は触っていない）。**`.claude/hooks/20-PreToolUse/workflow-state-guard.sh` は S4 の対象だったが変更が要らなかった**（e21）ので、この表には本体としての行を置かない（S2 の 7 行目が最後の変更）。**`.claude/hooks/22-PostToolUse/workflow-diff-check.sh` も S5 の対象だったが変更 0 行**（e23）なので、本体としての行は S2 の 8 行目が最後で、S5 はテスト（16 行目）だけを足している。
 
 ## テスト結果
 
@@ -532,12 +669,35 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 - 全件テストは **1 回**で通った。S2（`SG-T11`）・S3（`BC-T01`）と 2 チケット続いた「担当テストが通っても全件が退行を拾う」現象は S4 では起きていない。所要は約 30 分（`--timeout 300`）
 - **テスト先行**: `WG-T21` は 3 件の FAIL を先に確認してから実装した。`WG-T19` / `WG-T20` / `SG-T12` / `SG-T13` は**書いた時点で通った**ので、`SG-T12` / `SG-T13` は反転検査（期待値を 3 か所だけ誤値に差し替え、3 件だけが FAIL することを確認 → 戻す）で識別力を測った（e21）
 
+0022（S5）分:
+
+| テスト ID | 対象 | 実行コマンド | 結果 |
+|---|---|---|---|
+| DC-T08 | **A5 / A1-6**。本流と worktree に別々の `base_sha` を持つ作業中チケットを 1 枚ずつ置き（枚数と基準点が別であることを**テスト自身が assert**）、`cwd`=worktree で走らせると worktree 側の基準点以降の範囲外の差分だけが `WF601` に並ぶ。本流の作業ツリーにある `docs/main-only.md` は並ばない。`cwd`=本流 では逆（対照）。作業ツリーの実体は `git worktree add` で作る | `run-tests.sh --filter '*test_workflow_diff_check*' --timeout 300` | **PASS**（新設。書いた時点で通ったので反転検査で識別力を確認） |
+| DC-T09 | **DC-T08 の負のコントロール**。本流 1 枚・worktree 0 枚を assert してから `cwd`=worktree で走らせると**無出力・終了 0**。正のコントロールとして `cwd`=本流 では `WF601` | 同上 | **PASS**（新設） |
+| DC-T01〜DC-T07 | 既存の回帰 | 同上 | **全 PASS**（`passed=69 failures=0`） |
+| SA-T10 | **A5**。本流（`implementation` / `apl/**` / `sonnet`）と worktree（`design` / `.claude/docs/**` / `opus`）に 1 枚ずつ置き、枚数と `ticket_type` を assert してから `cwd`=worktree で `WF802` に worktree 側の要点が出る。`cwd`=本流 では本流側（対照）。worktree 0 枚では本流に 1 枚あっても**注入せず `skip`**（負のコントロール）。記録の `cwd` は対象を採った作業ツリー | `run-tests.sh --filter '*test_subagent_start_check*'` | **PASS**（新設。書いた時点で通ったので反転検査） |
+| SA-T11 | **作業ツリーの集合を読めない**（`.git/worktrees` を退避して同名のファイルを置く）と `WF804` を出して要点を注入せず、終了 0。本流のチケット（`0100-implementation`）で代用しない。読める状態なら `WF802`（正のコントロール）、戻せば再び `WF802` | 同上 | **PASS**（新設。**3 件の FAIL を先に確認**してから実装） |
+| SA-T01〜SA-T09 | 既存の回帰 | 同上 | **全 PASS**（`passed=86 failures=0`） |
+| SP-T09 | **A5**。本流 `executor: opus` / worktree `executor: sonnet` を assert してから、`cwd`=本流 + `model=opus` で `WF801` 無し、`model=sonnet` で `WF801`（`executor は opus`）。`cwd`=worktree では判定が入れ替わる。集合を読めない状態では `WF815` が出て本流のチケットで代用しない（SubagentStop の経路も同じ）。戻せば元どおり（対照） | `run-tests.sh --filter '*test_subagent_stop_check*'` | **PASS**（新設。WF815 の 5 件を先に確認してから実装） |
+| SP-T05 | 縮退の前提を別側から固定する 2 件を追記 —— (a) `settings.json` の PreToolUse `Agent` × `subagent-start-check` の登録が **0 件**（正のコントロール: SubagentStart は 1 件）(b) 印が無いと `WF801`、テストが印を置くと出ない | 同上 | **PASS**（追記） |
+| SP-T08 | 縮退時だけ自分で `WF801` を判定する（既存）。S5 では前提の書き直しのみで assert は変えていない | 同上 | **PASS**（変更なし） |
+| SP-T01〜SP-T07 | 既存の回帰 | 同上 | **全 PASS**（`passed=82 failures=0`） |
+| SE-T11 | **A1**。`logs/mr.json` が読めないとき現在地を断定しない。(a) feature ブランチ + `20_done` の overall-plan → `WF705` + 推定 + `WF703`、`10-task-overall-plan` を**含まない**（負のコントロール）(b) detached HEAD → ブランチ「不明」でも補助 B で `WF705` (c) `main` + overall-plan 無し → 「全体計画の途中」+ `10-task-overall-plan`（正のコントロール）(d) `mr.json` 破損 → `WF702` と `WF705` の両方 | `run-tests.sh --filter '*test_session_start*'` | **PASS**（新設。**12 件の FAIL を先に確認**してから実装） |
+| SE-T03 | チケットあり・MR 無しで「全体計画の途中」（既存）。**前提を default ブランチへ移した**（feature ブランチでは制御方式 7 の補助 A が成り立ち `WF705` になるのが正しい） | 同上 | **PASS**（前提のみ変更） |
+| SE-T01〜SE-T10 | 既存の回帰 | 同上 | **全 PASS**（`passed=68 failures=0`） |
+| `post-push-*` の既存テスト | `logs/push-state.json` / `logs/usage/` の置き場を共有ルートへ移した後の回帰 | `run-tests.sh --filter '*test_post_push*' --timeout 300` | **全 PASS**（`OK: 2 本 / 15 件`。ただし根の違いは区別できない — e27） |
+
+- **テスト先行**: `SA-T11`（3 件）・`SP-T09` の WF815 部分（5 件）・`SE-T11`（12 件）は**実装より先に FAIL を確認**した。合計 20 件
+- **反転検査**: `DC-T08` / `DC-T09`・`SA-T10`・`SP-T09` の実行者照合部分は書いた時点で通ったので、期待値を 3 か所ずつ誤値に差し替えて **3 件だけが FAIL する**ことを確かめてから戻した（3 回とも直後の `git diff HEAD` にテストファイルの差分が無いことで戻し切りを確認）
+
 ### eval
 
 | eval ID | 状態 |
 |---|---|
 | （該当なし） | S1 は設定ファイルのみを変更し、機械検証できない指示文のアセット（スキル・ルール・エージェント）を作成・変更していないので、定義すべき eval は 0 件 |
 | （該当なし・0021） | S4 が触ったのはフック 1 本とテスト 2 本（いずれも機械実行できる）。指示文のアセットは 1 件も作成・変更していないので、定義すべき eval は 0 件 |
+| （該当なし・0022） | S5 が触ったのはフック 5 本とテスト 4 本（いずれも機械実行できる）。指示文のアセットは 1 件も作成・変更していないので、定義すべき eval は 0 件 |
 
 **このフェーズで eval は実行しない**（`10-task-ai-asset-implementation-exec` の禁止事項。実行は人間の判断）。S5 以降で作るスキル・ルール・エージェントの eval も、定義まで作って実行しない。
 
@@ -563,6 +723,11 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | 参照更新一覧の消し込み（0021） | 実装計画書の 7 行 | S4 の担当 0 行 | 対象なし（全 7 行が S9 / 0026 担当） |
 | 静的検査（0021） | 変更した 3 本 | `bash -n` 3 / 3 OK、`shellcheck` は環境に無く未実施 | 一部未実施（「確かめられなかったこと」に記載） |
 | 反転検査を戻し切ったか（0021） | `test_workflow_state_guard.sh`（識別力の確認で 3 か所の期待値を一時的に誤値へ差し替えた） | `git diff HEAD -- <当該ファイル>` が空。`XX` で始まる仮の期待値は 0 件 | OK |
+| プレースホルダ（0022） | 変更した 9 本（フック 5 本・テスト 4 本）とこのレポート md / HTML | 0 件（テンプレート由来の二重波かっこ・`TODO` / `TBD` とも。`TODO` / `TBD` はこの表と「検証の結果」の項目名を除く） | OK |
+| frontmatter（0022） | S5 が触ったアセットに frontmatter を持つものは無い（シェルスクリプト 9 本）。チケット 0022 の frontmatter は `ticket.sh` が書いた項目以外を変更していない（`executor` / `human_review` / `adversarial_review` は変えていない） | 対象 0 件 | OK |
+| 参照更新一覧の消し込み（0022） | 実装計画書の 7 行 | S5 の担当 0 行（#1 は実質的に S5 で完了。期待値 22 行と一致） | 対象なし（消し込みの宣言は S9 / 0026） |
+| 静的検査（0022） | 変更した 9 本 | `bash -n` 9 / 9 OK、`shellcheck` は環境に無く未実施 | 一部未実施（「確かめられなかったこと」に記載） |
+| 反転検査を戻し切ったか（0022） | `test_workflow_diff_check.sh` / `test_subagent_start_check.sh` / `test_subagent_stop_check.sh`（各 3 か所） | 3 回とも直後の `git diff HEAD --stat` が**チケット 1 枚だけ**（テストファイルの差分なし）。`INVERT` を含む行は 0 件 | OK |
 
 ## 仕様からの逸脱
 
@@ -585,6 +750,11 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | D13 | `WG-T19` の仕様の文面が**それ自身と食い違っている**（0021） | `workflow-guard` 仕様 テスト観点 `WG-T19`: 前半は「本流の `10_doing/` を **0 枚**・worktree の `10_doing/` を **1 枚**にする」、末尾の括弧は「本流に 0 枚・worktree に 1 枚なので**合計 2 枚**だが、数えるのは作業ツリーの中だけ」 | 0 枚 + 1 枚は 1 枚で、「合計 2 枚」にならない。DoD と仕様の前半に従って **0 枚 + 1 枚**を主のケースにし、括弧が言おうとしている振る舞い（合計 2 枚でも `WF207` が出ない）を確かめるために**本流 1 枚・worktree 1 枚のケースを同じ `WG-T19` に足した** | 仕様は直さず記録。テストは仕様が要求する両方を満たす（前半の枚数どおり + 括弧の意図）。設計反映で括弧を「本流にも 1 枚あって合計 2 枚でも」に直す案 |
 | D14 | 提供コマンドの引数判定の例外を、仕様が挙げる**引数の意味**ではなく**引数の位置**で実装した（0021） | `workflow-guard` 仕様 制御方式 6: 例外は「`worktree.sh add <名前> [<置き場>]` の**置き場**、`worktree.sh remove <名前\|置き場>` の**位置引数**」 | オプションと値付きオプションを読み飛ばして数えた位置引数のうち、`add` の 3 番目と `remove` の 2 番目だけを例外にする。`add ../repo-wt/w1`（名前の位置に置き場を書いた形）は例外にならず `WF209` | 「置き場を意味する語」をコマンド行から判定する手段がフック側に無い（`worktree.sh` の引数解析を複製することになる）。位置で決めるほうが統制の穴が小さく、負のコントロールも書ける。設計反映で「位置で決める」を仕様に明記する案 |
 
+| D15 | `subagent-start-check.sh` に **PreToolUse `Agent` の経路**（`WF801` / `WF803` の判定と「経路の印」）が残っている（0022） | `subagent-start-check` 仕様 概要「**このフックが担うのは要点の注入（WF802）だけ**」／呼出条件「登録はこの 1 行だけで、PreToolUse `Agent` には登録しない」／テスト観点の表から `SA-T02` / `SA-T07` / `SA-T09` が消えている | コードと 3 つのテストを**残した**。`subagent-stop-check` 仕様の縮退判定が「`subagent-start-check` が PreToolUse `Agent` の経路を通ったとき `logs/sessions/<id>/subagent-start-check.json` に印を残す」ことを前提としており、消すと印を置く主体が居なくなって `SP-T05` / `SP-T08` の「印がある」分岐が実行不能になる | 2 つの仕様が食い違っている。**登録は既に無い**（`HK-T01` と `SP-T05` が固定）ので実運用の振る舞いは仕様どおり。どちらへ寄せるかを設計反映へ |
+| D16 | `WF804` / `WF815` が **`cwd` が本流でも出得る**（0022） | `subagent-start-check` 仕様 制御方式 2 / `subagent-stop-check` 仕様 概要は「作業ツリーを確定できない（§2 の解決に失敗した・**作業ツリーの集合を読めない**）」とだけ書く | 「集合を読めない」は `<ルート>/.git/worktrees/` が在るのに列挙できない状態で、リポジトリ全体の条件。`cwd` が本流でもこの条件は成立するので通知が出る | 案内側なので害は通知のノイズだけで、代用の危険を残すより安全側に倒した。「本流に居るときは黙ってよい」とするかを設計反映へ |
+| D17 | 実装計画書「参照更新一覧」#1 の期待値が `logs/sh/` を見落としている（0022） | 計画書: 「**`logs/hooks/` の 2 行だけが残る**（判定記録は作業ツリー側。`logs/sh/` は logger 経由でこの検索に現れない）」 | 実際は 3 行残る（`hook-common.sh:412` の `local d="$HOOK_WORKTREE/logs/sh"`）。共有ルート側の 22 行は期待値どおり | `logs/sh/` の根は §5 で「ツリー」なので**実装は正しい**。計画書の期待値の書き方が誤り。S9（0026）の消し込みで 3 行を期待値にする |
+| D18 | 仕様 `SA-T11` の「`.git/worktrees/` を退避する」だけでは「読めない」状態にならない（0022） | `subagent-start-check` 仕様 テスト観点 `SA-T11`: 「`.git/worktrees/` を読めない状態（**ディレクトリを退避する**）で」 | 退避（`mv`）だけだと `[[ -e ]]` が偽になり `hook_worktrees` は「集合が空」として **0 を返す**（`HK-T22` の負のコントロールが「集合が空なだけなら判定できないにならない」を固定している）。テストは退避したうえで**同じ名前のファイルを置いて**「在るのに列挙できない」状態を作った（`HK-T22` と同じ作り） | 仕様は直さず記録。テストの作り方は `HK-T22` に揃えた。設計反映で `SA-T11` の文言を「退避して同名のファイルを置く」に直す案 |
+
 ## 設計への反映
 
 | # | 反映すること | 引き取り先 |
@@ -602,6 +772,10 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | 11 | §7-9 に段の並び順（置換の中の段が先、それを含む段が後）を書くか、「順序は定めない」を明記する（e13） | 設計反映フェーズ |
 | 12 | `workflow-guard` 仕様 `WG-T19` の括弧「合計 2 枚」を、前半の枚数（本流 0 枚・worktree 1 枚）と矛盾しない書き方に直す（D13） | 設計反映フェーズ |
 | 13 | `workflow-guard` 仕様 制御方式 6 の例外を「引数の位置で決める」と明記する（D14）。あわせて `worktree.sh` に位置引数以外の置き場の指定（`--path` 等）を作らないことを `20-common-step-worktree` 仕様に書く | 設計反映フェーズ |
+| 14 | `subagent-start-check` 仕様と `subagent-stop-check` 仕様の食い違い（前者は「WF802 だけを担う」、後者は「`subagent-start-check` が PreToolUse `Agent` の経路で印を残す」を前提にする）を解消し、`SA-T02` / `SA-T07` / `SA-T09` を残すか消すかを決める（D15） | フィードバック計画（0028）→ 設計反映 |
+| 15 | 「作業ツリーの集合を読めない」ときの `WF804` / `WF815` を、`cwd` が本流のときも出すかを明記する（D16） | 設計反映フェーズ |
+| 16 | 実装計画書「参照更新一覧」#1 の期待値を「`logs/hooks/` 2 行 + `logs/sh/` 1 行の計 3 行」に直す（D17） | S9（0026）の全体検査 |
+| 17 | `subagent-start-check` 仕様 `SA-T11` の「`.git/worktrees/` を退避する」を「退避して同名のファイルを置く（在るのに列挙できない状態にする）」に直す（D18） | 設計反映フェーズ |
 
 ## 想定と異なった点
 
@@ -627,6 +801,15 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | （0021）`WG-T19` の「本流側のチケットは判定に使われない」は `WF201` で示せる | 本流に置いた `overall-plan` チケットは宣言が空なので、`apl/app/src/api/a.ts` は保護範囲ではなく**未記載**（`WF202`）に落ちた | 期待値を `WF202` に直した。同じパスが `cwd`=worktree で allow・`cwd`=本流 で `WF202` になる対比のほうが「材料が別のチケットである」ことを直接示せる |
 | （0021）中核（拒否側フック）を触るので、e11（fail-closed の deny がツールを止めない）を観測できる見込みが高い（起動プロンプト） | **観測の機会が無かった**。変更が 2 か所と小さく、`bash -n` → 担当テスト → `commit.sh` の順で 1 つずつ確かめたので、機構が壊れた状態を作らずに済んだ | 追試のために意図的に壊すことはしていない（ロックアウトの危険）。R8 のままフィードバック計画へ |
 
+| （0022）S5 は案内側フック **4 本**を仕様に合わせて書き換えるチケット（計画書 S5 ①〜④） | 変えたのは 3 本で、**`workflow-diff-check.sh` は変更 0 行**だった（制御方式 0・1 は S2 で満たされていた）。0021 の `workflow-state-guard.sh` に続いて 2 回目 | S5 の ① は「テストを足して固定する」作業になった（e23）。0018 レポートの R5 後半（`WF605` のテストは S5）の割り付けどおりで、範囲は動かしていない |
+| （0022）疑似の作業ツリー（`.git` ファイルと `gitdir` の相互参照）は 4 本とも同じ作りで足りる | `workflow-diff-check` だけ足りなかった。`git status` / `git diff` を実際に走らせるので、疑似では制御方式 7 で**黙って抜ける** —— 無出力になるだけなので DC-T09（負のコントロール）と見分けが付かない | `DC-T08` / `DC-T09` は一時リポジトリの中で `git worktree add` を呼んで実物を作った。`SA-T*` / `SP-T*` は git を使わないので 0021 と同じ疑似の作業ツリーのまま（e23） |
+| （0022）作業ツリーのパス表記はテストの都合で自由に決められる | `git worktree add` が相互参照のファイルに書くのは**ネイティブの絶対パス**（MSYS では `C:/Users/…/Temp/…`）で、`hook_payload` の `$PWD`（`/tmp/…`）と照合できない。1 回目の実行では worktree に居るのに**本流のチケットで判定された** | `pwd -W`（無ければ `pwd`）で両側をネイティブ表記に揃え、`cwd` は入力 JSON に明示で載せる形に直した。`cd` してから `$PWD` に任せると MSYS が `/tmp/…` に畳み戻すので使えない（e23） |
+| （0022）「作業ツリーを確定できない」は `HOOK_WORKTREE_STATE` を見れば分かる | 分からない。**集合を読めないときも `HOOK_WORKTREE_STATE` は `ok` のまま**で、`HOOK_WORKTREE` だけが本流に倒れる（`HK-T22` が固定している振る舞い）。実装前の `SA-T11` は本流のチケットの要点を注入していた | `__sa_worktree_ok` / `__sp_worktree_ok` で `hook_worktrees` の戻り値も見る形にした。副作用として本流に居ても通知が出る（D16。e24・e25） |
+| （0022）`assert_not_contains "WF801"` で「実行者照合をしていない」ことを確かめられる | `WF815` の文面が「実行者照合（**WF801**）と作業後の検査（**WF811〜813**）を行っていない」と書くので、自分の文面に当たって落ちる | `SP-T07`（`WF814`）と同じく、識別子ではなく判定の文面（「実行者が違う」「作業中のまま残っている」）で assert した（e25） |
+| （0022）`SubagentStop` で `WF815` を記録しても後続の判定に影響しない | 記録は `logs/sessions/<id>/subagent-<agentId>.json` に入り、**同じ `agentId` の PostToolUse が `__sp_load_saved` で読み戻す**ので、復旧後の対照が `WF815` を含んでしまった | 復旧後の対照は別の `agentId`（`A10`）で流す形に直し、その理由をテストにコメントで残した |
+| （0022）`SE-T03`（チケットあり・MR 無し → 全体計画の途中）は制御方式 7 を入れても通る | 通らない。`feature-12-login` の上では**補助 A が成り立つので `WF705` になるのが正しい** | テストの前提だけを default ブランチへ移した（期待値は変えていない）。`SE-T11` (c) と同じ前提（e26） |
+| （0022）`post-push-*` の既存テストが共有ルート化の回帰を拾う | 拾えない。作業ツリーを 1 つしか作らないので `HOOK_ROOT` と `HOOK_WORKTREE` が同じ値になり、変更前後で同じファイルを指す | 根拠を `grep`（`HOOK_WORKTREE/logs/` が 3 行）と `HK-T21`（三分が分かれること）に置き、テストの不足を R21 として残した（e27） |
+
 ## 残課題
 
 | # | 残課題 | 引き取り先 |
@@ -649,3 +832,8 @@ DDR `i0050-04` のとおり **`cd` は分類に足していない**（`unknown` 
 | R16 | `WG-T19` / `WG-T20` / `SG-T12` / `SG-T13` は**足場を相互参照で作った疑似の作業ツリー**に対する検査で、`git worktree add` が作る実物の構成では踏んでいない（`git worktree add` は `WF204`・起動プロンプトも禁止） | S10（0027）の実測 |
 | R17 | `worktree.sh` の置き場を指す引数の例外は**引数の位置**で決めている（D14）。`worktree.sh` に位置引数以外の置き場の指定（`--path <置き場>` のようなオプション）を後から足すと、その値には判定が当たってしまう（`WF209`）。`worktree.sh` の CLI を変えるときはこの例外も一緒に見る | S6（0023）の `worktree.sh` 新設 / 設計反映 |
 | R18 | `WF207` の新しい文面（どの作業ツリーで数えたか）は機械テストでしか踏めていない。実物で 2 枚の状態を作るには `ticket.sh start` の `TK002` を越える必要がある | S10（0027）の実測 / 切れ目のレビュー |
+| R19 | **0022 で閉じた残課題**: R5 の後半（`workflow-diff-check` の `WF605` / 差分の基準点 = `DC-T08` / `DC-T09`）。R5 はこれで全部閉じた。R16（疑似の作業ツリーで確かめている件）は `DC-T08` / `DC-T09` だけ**実物の `git worktree add`** で踏んだので部分的に解消し、`SA-T10` / `SA-T11` / `SP-T09` については残る | 閉じた（記録のみ）/ R16 は S10（0027）に残る |
+| R20 | `subagent-start-check` の `WF804` と `subagent-stop-check` の `WF815` は**機械テストでしか踏めていない**。実運用で踏むには `.git/worktrees` を壊す必要があり、それ自体が機構を不調にする操作なので実機では試していない | S10（0027）の実測 / フィードバック計画（0028） |
+| R21 | `post-push-compact-prompt` / `post-push-usage-report` の共有ルート化を固定する機械テストが無い（既存 2 本は作業ツリーを 1 つしか作らないので根の違いを区別できない）。`HOOK_SHARED_ROOT` を指していることの根拠は `grep` と `HK-T21` だけ（e27） | S9（0026）の全体検査 / 設計反映 |
+| R22 | `session-start` の `WF705` は**補助 A / B のどちらかが成り立つ**ときにだけ出る。両方が成り立たない（default ブランチ + 完了した全体計画が無い）状態では従来どおり「全体計画の途中」と断定する。`main` の上でチケットだけを持ち越した状態が「記録が壊れている」ケースだった場合は、依然として誤った案内になる | フィードバック計画（0028）→ 設計反映 |
+| R23 | `subagent-start-check.sh` の PreToolUse `Agent` の経路は**登録が無い死んだコード**として残っている（D15）。仕様が食い違ったままなので、どちらへ寄せるかが決まるまで `SA-T02` / `SA-T07` / `SA-T09` も残る | フィードバック計画（0028）→ 設計反映 |

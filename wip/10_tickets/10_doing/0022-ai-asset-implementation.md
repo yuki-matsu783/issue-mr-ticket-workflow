@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/hooks/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-06T00:20:20+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "c152f9f"
 ---
 
 # 0022 S5 中核 d: 案内側フック 4 本と post-push-* の共有ルート参照、A5 を閉じる機械テスト

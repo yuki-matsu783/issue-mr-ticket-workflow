@@ -1,7 +1,7 @@
 ---
 type: ticket
 ticket_type: ai-asset-implementation
-predecessors: []
+predecessors: ["0029"]
 executor: opus
 human_review: {required: false, reason: "全体計画書の方針（差分 3）"}
 adversarial_review: {required: true, reason: "全体計画書の方針（差分 3: フェーズごとに 1 回）"}

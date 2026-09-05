@@ -32,12 +32,12 @@ S4 の学びは 2 つ。①**`SG-T12` / `SG-T13` は書いた時点で通って�
 
 S5（0022）は**中核 d** として案内側フック 4 本と `post-push-*` を作業ツリーごとに一意な判定へ揃え、**受け入れ条件 A5**（差分の基準点・対象チケット・実行者照合が作業ツリーごとに一意）を機械テストで閉じた。実装で変えたのは 3 本 —— ①`subagent-start-check.sh` に **WF804**（作業ツリーを確定できないときは呼び出し元・本流のチケットで**代用しない**）②`subagent-stop-check.sh` に **WF815**（同じ理由で実行者照合と作業後の検査を行わない）③`session-start.sh` に **WF705**（`logs/mr.json` を読めないとき現在地を断定せず「不明」と根拠付きの推定を別の行に出す）と進行状態の**共有ルート**参照。**`workflow-diff-check.sh` は変更 0 行**（制御方式 0・1 は S2 で満たされていた）。`post-push-compact-prompt.sh` の `logs/push-state.json` と `post-push-usage-report.sh` の `logs/usage/`・`logs/mr.json` は `HOOK_SHARED_ROOT` へ移した。
 
-S5 で新設したテストは `DC-T08` / `DC-T09`（差分の基準点）・`SA-T10` / `SA-T11`（対象チケットの作業ツリー）・`SP-T09`（実行者照合）・`SE-T11`（現在地）で、いずれも **枚数・`executor` の前提をテスト自身が assert してから判定を呼ぶ**形（0021 の `WG-T19` / `WG-T20` を踏襲）。`WF804` / `WF815` / `WF705` の 3 件は**テスト先行**（それぞれ 3 件・5 件・12 件の FAIL を確認してから実装）で、書いた時点で通ってしまった `DC-T08` / `DC-T09` と `SA-T10` / `SP-T09` は**反転検査**（期待値を 3 か所ずつ誤値に差し替え、3 件だけが FAIL することを確認 → 戻して `git diff HEAD` が空）で識別力を測った。
+S5 で新設したテストは `DC-T08` / `DC-T09`（差分の基準点）・`SA-T10` / `SA-T11`（対象チケットの作業ツリー）・`SP-T09`（実行者照合）・`SE-T11`（現在地）で、いずれも **枚数・`executor` の前提をテスト自身が assert してから判定を呼ぶ**形（0021 の `WG-T19` / `WG-T20` を踏襲）。`WF804` / `WF815` / `WF705` の 3 件は**テスト先行**（それぞれ 3 件・5 件・12 件の FAIL を確認してから実装）で、書いた時点で通ってしまった `DC-T08` / `DC-T09` と `SA-T10` / `SP-T09` は**反転検査**（期待値を 3 か所ずつ誤値に差し替え、3 件だけが FAIL することを確認 → 戻して `git diff HEAD` が空）で識別力を測った。**全件テストも 27 本 / 227 ID が 1 回で全通し**で、S2・S3 で起きた「担当テストが通っても全件が退行を拾う」現象は 0021 に続いて起きなかった。
 
 S5 の学びは 3 つ。①**`workflow-diff-check` の `DC-T08` だけは疑似の作業ツリーでは足りない**（このフックは `git status` / `git diff` を実際に走らせるので、`.git` ファイルを手で置いただけでは制御方式 7 で黙って抜ける）。テストの中で `git worktree add` を呼んで実物を作り、パスは OS ネイティブ表記（MSYS では `C:/…`）に揃えた —— `/tmp/…` のままだと `git` が相互参照のファイルに書く絶対パスと照合できず、worktree に居ても本流に倒れる（実測）。②**「作業ツリーの集合を読めない」は `HOOK_WORKTREE_STATE` に現れない**。集合が読めないとき `HOOK_WORKTREE` は本流に倒れる（`HK-T22` が固定している振る舞い）ので、そのまま進むと本流のチケットで代用したことになる。WF804 / WF815 の判定はフック側で `hook_worktrees` を呼んで検出する形にした。③**WF815 の文面が `WF801` / `WF811〜813` に言及する**ので、「WF801 が出ていないこと」を識別子では assert できない（`SP-T07` の `WF814` と同じ）。判定の文面（「実行者が違う」「作業中のまま残っている」）で見る。
 
 - ◎良 21 件 / △注意 6 件（e4・e10・e18・e21・e23・e27）/ ✕問題 1 件（e11）（節は e1〜e28 の 28 件。HTML ビューの章 ID は `f1`〜`f28` で 1 対 1）
-- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**。S3 は `HK-T05` / `HK-T12` / `HK-T15` / `HK-T02` PASS（テスト先行で 59 件の FAIL を確認してから実装）に加え、**リポジトリの全テスト 27 本 216 ID が PASS / FAIL 0 / 重複 ID なし**。S4 は `WG-T19` / `WG-T20` / `WG-T21` / `WG-T14` / `SG-T12` / `SG-T13` PASS に加え、**リポジトリの全テスト 27 本 221 ID が 1 回で PASS / FAIL 0**（新設 5 ID の分だけ増えた）。S5 は `DC-T08` / `DC-T09` / `SA-T10` / `SA-T11` / `SP-T05` / `SP-T08` / `SP-T09` / `SE-T11` と `post-push-*` の既存テストが PASS
+- 機械テスト: S1 は `HK-T01` / `HK-T02` PASS。S2 は `HK-T06` / `HK-T21` / `HK-T22` PASS に加え、**全フックのテスト 17 本 128 ID が PASS / FAIL 0 / 重複 ID なし**。S3 は `HK-T05` / `HK-T12` / `HK-T15` / `HK-T02` PASS（テスト先行で 59 件の FAIL を確認してから実装）に加え、**リポジトリの全テスト 27 本 216 ID が PASS / FAIL 0 / 重複 ID なし**。S4 は `WG-T19` / `WG-T20` / `WG-T21` / `WG-T14` / `SG-T12` / `SG-T13` PASS に加え、**リポジトリの全テスト 27 本 221 ID が 1 回で PASS / FAIL 0**（新設 5 ID の分だけ増えた）。S5 は `DC-T08` / `DC-T09` / `SA-T10` / `SA-T11` / `SP-T05` / `SP-T08` / `SP-T09` / `SE-T11` と `post-push-*` の既存テストが PASS に加え、**リポジトリの全テスト 27 本 227 ID が 1 回で PASS / FAIL 0 / 重複 ID なし**（新設 6 ID の分だけ増えた）
 - eval: **S1〜S5 とも対象は 0 件**（設定ファイルとシェルスクリプトのみで、機械検証できない指示文のアセットを作っていない）。このフェーズでは eval を**実行しない**
 - 仕様からの逸脱: 18 件（D1〜D18。D6・D7 が S2 分、D8〜D12 が S3 分、D13・D14 が S4 分、D15〜D18 が S5 分）
 
@@ -486,9 +486,11 @@ $ grep -rn 'HOOK_SHARED_ROOT/logs/' --include="*.sh" .claude/ | wc -l
 | 確認 | 結果 |
 |---|---|
 | `grep -c '"id":"WF605"' logs/hooks/decisions.jsonl` | **0 件**（誤爆なし） |
-| `grep -c '"hook":"workflow-diff-check"' logs/hooks/decisions.jsonl` | 239 件（PostToolUse は回っている＝無音ではない） |
-| `commit.sh` の実行 | 4 回とも成功（`d04f763` / `a1c0e66` / `86c3b8a` / `58be3f6`） |
+| `commit.sh` の実行 | 5 回とも成功（`d04f763` / `a1c0e66` / `86c3b8a` / `58be3f6` / `722323b`） |
 | `Edit` / `Write`（`.claude/hooks/**` と `wip/**`） | いずれも通った。復旧手順（`git show <base_sha>:<パス>` → Write）は使わずに済んだ |
+| 全件テスト（`run-tests.sh --ids --timeout 300`） | **`OK: 27 本 / 227 件`（全 PASS / `FAIL ID:` 空 / 重複 ID なし）**。221 → 227 は S5 で新設した 6 ID（`DC-T08` / `DC-T09` / `SA-T10` / `SA-T11` / `SP-T09` / `SE-T11`）の分。**他のフックの退行は 0 件**（0021 に続いて 1 回で通った） |
+
+`decisions.jsonl` の `workflow-diff-check` の記録は 239 行あるが、**これは「回っている」ことの証拠にはならない** —— このフックは伝えることがあるときにしか記録を残さない（無出力の経路は `exit 0` するだけで、`log_debug` は既定の `LOG_LEVEL=INFO` では実行ログにも出ない）ので、239 行は本ブランチのそれまでの `WF601` の蓄積である。**「回っていて、かつ `WF605` を出していない」ことの根拠は機械テスト側**（`DC-T01`〜`DC-T09` が実物のフック本体を走らせ、`WF605` が出る条件と出ない条件を両方固定している）に置き、実機側の根拠は「`WF605` の記録が 1 件も増えていないこと」に限る。
 
 S2 で観測した e11（fail-closed の deny が記録されるのにツールが止まらない）は、**S5 でも中核を壊す状況が発生せず観測できていない**。起動プロンプトの指示どおり、追試のために意図的に壊すことはしていない（ロックアウトの危険）。R8 のままフィードバック計画へ渡す。
 
@@ -571,7 +573,8 @@ S2 で観測した e11（fail-closed の deny が記録されるのにツール�
 | `run-tests.sh --filter '*test_subagent_stop_check*'` | `PASS / passed=82 failures=0`（`SP-T01`〜`SP-T09`） |
 | `run-tests.sh --filter '*test_session_start*'` | `PASS / passed=68 failures=0`（`SE-T01`〜`SE-T11`） |
 | `run-tests.sh --filter '*test_post_push*' --timeout 300` | `OK: 2 本 / 15 件`（`passed=36` と `passed=38`、いずれも `failures=0`） |
-| ロックアウト対策（`Write` 1 回 + `WF605` の誤爆） | `grep -c '"id":"WF605"' logs/hooks/decisions.jsonl` = **0 件**。`workflow-diff-check` の記録は 239 行あり、PostToolUse が回っていることは確かめた（e28） |
+| ロックアウト対策（`Write` 1 回 + `WF605` の誤爆） | `grep -c '"id":"WF605"' logs/hooks/decisions.jsonl` = **0 件**（変更前後で 1 件も増えていない）。ただし「回っていること」自体は記録からは言えない（e28 の注） |
+| 全件テスト（`run-tests.sh --ids --timeout 300`） | **`OK: 27 本 / 227 件`**（全 PASS / `FAIL ID:` 空 / 重複 ID なし）。221 → 227 は S5 の新設 6 ID の分。**他のフックの退行は 0 件** |
 | 中核変更後に自分が動くか | `commit.sh` 4 回・`Edit` / `Write`・`Read` / `grep` / `run-tests.sh`（`hook-test`）がいずれも通った。復旧手順（`git show <base_sha>:<パス>` → Write）は使わずに済んだ |
 | `workflow-diff-check.sh` の変更量 | **0 行**（`git diff c152f9f -- .claude/hooks/22-PostToolUse/workflow-diff-check.sh` が空。制御方式 0・1 は S2 で満たされていた） |
 | 進行状態の根（参照更新一覧 #1） | `grep -rn 'HOOK_WORKTREE/logs/' --include="*.sh" .claude/` = **3 行**（`logs/hooks/` 2 行 + `logs/sh/` 1 行。いずれも §5 で根が「ツリー」）。`HOOK_SHARED_ROOT/logs/` = **22 行**（計画書の期待値どおり） |
@@ -687,6 +690,7 @@ S2 で観測した e11（fail-closed の deny が記録されるのにツール�
 | SE-T03 | チケットあり・MR 無しで「全体計画の途中」（既存）。**前提を default ブランチへ移した**（feature ブランチでは制御方式 7 の補助 A が成り立ち `WF705` になるのが正しい） | 同上 | **PASS**（前提のみ変更） |
 | SE-T01〜SE-T10 | 既存の回帰 | 同上 | **全 PASS**（`passed=68 failures=0`） |
 | `post-push-*` の既存テスト | `logs/push-state.json` / `logs/usage/` の置き場を共有ルートへ移した後の回帰 | `run-tests.sh --filter '*test_post_push*' --timeout 300` | **全 PASS**（`OK: 2 本 / 15 件`。ただし根の違いは区別できない — e27） |
+| 全件 27 本 / 227 ID | リポジトリの全テスト（フック 17 本 + 提供コマンド 10 本） | `run-tests.sh --ids --timeout 300` | **全 PASS**（`OK: 27 本 / 227 件` / `FAIL ID:` 空 / 重複 ID なし。**1 回で通り、他のフックの退行は 0 件**） |
 
 - **テスト先行**: `SA-T11`（3 件）・`SP-T09` の WF815 部分（5 件）・`SE-T11`（12 件）は**実装より先に FAIL を確認**した。合計 20 件
 - **反転検査**: `DC-T08` / `DC-T09`・`SA-T10`・`SP-T09` の実行者照合部分は書いた時点で通ったので、期待値を 3 か所ずつ誤値に差し替えて **3 件だけが FAIL する**ことを確かめてから戻した（3 回とも直後の `git diff HEAD` にテストファイルの差分が無いことで戻し切りを確認）

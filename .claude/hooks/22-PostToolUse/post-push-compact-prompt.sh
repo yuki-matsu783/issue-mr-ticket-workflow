@@ -31,7 +31,9 @@ hook_enforce_enabled || hook_disabled
 # 前置判定（fork ゼロ）。push でなければ cmdpos も git も起動しない
 [[ "${HOOK_COMMAND,,}" == *push* ]] || exit 0
 
-__CP_STATE="$HOOK_WORKTREE/logs/push-state.json"
+# push-state.json は共有ルートの下（共通仕様 §5 の根の列）。前回 push 時点はブランチに属する情報で、
+# 作業ツリーごとに分けると同じブランチへの push が別々に数えられる
+__CP_STATE="$HOOK_SHARED_ROOT/logs/push-state.json"
 
 # 起点 sha は自分の状態から渡す。push_detect は状態ファイルを読まない（DDR i0009-24）
 __cp_prev_of_branch() { # $1=ブランチ → REPLY（無ければ空）、__CP_PREV_COUNT
@@ -85,9 +87,9 @@ __cp_default="${__cp_default//$'\r'/}"; __cp_default="${__cp_default#origin/}"
 
 # MR の記録（無ければ MR 依存のリンクを省く）
 __cp_mr=""
-if [[ -f "$HOOK_WORKTREE/logs/mr.json" ]] && command -v jq >/dev/null 2>&1; then
+if [[ -f "$HOOK_SHARED_ROOT/logs/mr.json" ]] && command -v jq >/dev/null 2>&1; then
   # 正のキーは mr（00-workflow-issue-mr-driven 仕様の logs/mr.json）。number / iid は別実装からの受け皿
-  __cp_mr="$(jq -r '(.mr // .number // .iid // empty) | tostring' "$HOOK_WORKTREE/logs/mr.json" 2>/dev/null | tr -d '\r' || true)"
+  __cp_mr="$(jq -r '(.mr // .number // .iid // empty) | tostring' "$HOOK_SHARED_ROOT/logs/mr.json" 2>/dev/null | tr -d '\r' || true)"
   [[ "$__cp_mr" =~ ^[0-9]+$ ]] || __cp_mr=""
 fi
 

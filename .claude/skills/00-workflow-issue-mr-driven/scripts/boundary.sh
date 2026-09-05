@@ -72,22 +72,33 @@ detect_host() {
 # jsonl は 1 行が壊れていても残りを読めるよう -R + fromjson? で受ける
 declare -A COVERED=()
 load_covered() {
-  local n cur=""
+  local n cur="" br=""
   COVERED=()
   # logs/ は clone に溜まり続ける一方、チケット番号は片付け（draft 解除）のたびに 0001 から振り直される。
   # 別 issue の切れ目に同じ番号が載っていると、いまの issue のチケットが既出扱いで落ちるので、
-  # 現在の MR の切れ目だけを数える（MR が分からないときは全件を数える＝拒否側に倒す）
+  # 現在の MR・ブランチの切れ目だけを数える。数える行は次のどちらか:
+  #   (a) 行の mr が現在の MR と一致する
+  #   (b) 行の mr が null（MR が分かる前・単独実行モードで書かれた切れ目）で、行の branch が現在のブランチと一致する
+  # (b) が無いと、同じ issue の中で mr.json が後からできた瞬間に、それ以前に null で記録された切れ目が
+  # covered から外れ、そのチケットが次の切れ目の last_task に再び入る（二重計上）。
+  # **MR も branch も分からないときは全件ではなく 0 件**に倒す — covered を広げるのはチケットを
+  # レビューから落とす緩い側で、狭めるのはレビューが重複する側（安全側）
   [ -f "$MR_JSON" ] && cur="$(jq -r '.mr // empty' "$MR_JSON" 2>/dev/null | tr -d '\r' || true)"
+  br="$(cur_branch)"
   if [ -f "$HISTORY_JSONL" ]; then
     while IFS= read -r n; do [ -n "$n" ] && COVERED["$n"]=1; done \
-      < <(jq -Rr --arg mr "$cur" \
-            'fromjson? | select($mr == "" or (((.mr // "") | tostring) == $mr)) | (.boundary.tickets // [])[]' \
+      < <(jq -Rr --arg mr "$cur" --arg br "$br" \
+            'fromjson? | select((($mr != "") and (((.mr // "") | tostring) == $mr))
+                                or (((.mr // null) == null) and ($br != "") and ((.branch // "") == $br)))
+             | (.boundary.tickets // [])[]' \
             "$HISTORY_JSONL" 2>/dev/null | tr -d '\r' || true)
   fi
   if [ -f "$REVIEW_JSON" ]; then
     while IFS= read -r n; do [ -n "$n" ] && COVERED["$n"]=1; done \
-      < <(jq -r --arg mr "$cur" \
-            'select($mr == "" or (((.mr // "") | tostring) == $mr)) | (.boundary.tickets // [])[]' \
+      < <(jq -r --arg mr "$cur" --arg br "$br" \
+            'select((($mr != "") and (((.mr // "") | tostring) == $mr))
+                    or (((.mr // null) == null) and ($br != "") and ((.branch // "") == $br)))
+             | (.boundary.tickets // [])[]' \
             "$REVIEW_JSON" 2>/dev/null | tr -d '\r' || true)
   fi
   return 0
@@ -281,7 +292,9 @@ write_review() { # $1=state $2=via $3=base $4=head $5=url $6=requested_at $7=com
   jq -n --argjson mr "${B_MR:-null}" --arg tt "$B_TASK_TYPE" --argjson tk "$tickets_json" --arg ld "$B_LAST_DONE" \
         --arg st "$1" --arg via "$2" --arg base "$3" --arg head "$4" --arg url "$5" \
         --arg rat "$6" --arg cat "$7" --argjson fd "$8" --argjson ac "$9" --arg sr "${10}" \
+        --arg br "$(cur_branch)" \
     '{mr: $mr,
+      branch: (if $br == "" then null else $br end),
       boundary: {task_type: $tt, tickets: $tk, last_done: $ld},
       state: $st,
       via: (if $via == "" then null else $via end),

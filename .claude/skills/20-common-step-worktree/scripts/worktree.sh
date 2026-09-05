@@ -40,6 +40,31 @@ result_ng() { log_warn "${SCRIPT_PREFIX}$1: $2"; printf '%s%s: %s\n' "$SCRIPT_PR
 
 now_iso() { local ts; printf -v ts '%(%Y-%m-%dT%H:%M:%S%z)T' -1; printf '%s:%s' "${ts:0:22}" "${ts:22}"; }
 
+# バイト長（ロケールに依らない。fork しない）。LC_ALL の代入は bash がその場でロケールに反映する
+# （hook-common.sh の __hc_bytelen と同じ規則。UTF-8 のロケールでは ${#x} が文字数になる）
+bytelen() { # $1=文字列
+  local LC_ALL=C
+  printf '%s' "${#1}"
+}
+
+# 存在する最深の祖先を実際に辿って、git と同じ綴りの絶対パスに直す。
+# Git Bash では同じディレクトリが /tmp/x（MSYS）と C:/Users/…/Temp/x（ネイティブ）の 2 通りに綴られ、
+# $PWD 基準で組んだパスは git worktree list 由来の登録と文字列比較で一致しない
+native_path() { # $1=絶対パス（存在しなくてよい）
+  local d="$1" rest="" base out
+  while [ -n "$d" ] && [ "$d" != "/" ] && [ ! -d "$d" ]; do
+    base="${d##*/}"
+    rest="${base}${rest:+/$rest}"
+    d="${d%/*}"
+    [ -n "$d" ] || d="/"
+  done
+  [ -d "$d" ] || { printf '%s' "$1"; return 0; }
+  out="$( cd "$d" 2>/dev/null && { pwd -W 2>/dev/null || pwd; } )" || out=""
+  [ -n "$out" ] || { printf '%s' "$1"; return 0; }
+  out="${out%/}"
+  printf '%s' "${out}${rest:+/$rest}"
+}
+
 # パスを正規化した絶対パスにする（存在しなくてよい。. と .. を畳む）
 abs_path() { # $1=path
   local p="$1" prefix="" out="" seg
@@ -85,11 +110,11 @@ is_under_repo() { # $1=絶対パス（存在しなくてよい）
   return 1
 }
 
-# ユーザーが与えたパスを git 目線の綴りに揃える（存在しなければそのまま）
+# ユーザーが与えたパスを git 目線の綴りに揃える（存在しなければ、存在する最深の祖先まで辿って揃える）
 canon_worktree_path() { # $1=パス
   local p top
   p="$(abs_path "$1")"
-  [ -d "$p" ] || { printf '%s' "$p"; return 0; }
+  [ -d "$p" ] || { native_path "$p"; return 0; }
   top="$(git -C "$p" rev-parse --show-toplevel 2>/dev/null || true)"
   if [ -n "$top" ]; then abs_path "$top"; else printf '%s' "$p"; fi
 }
@@ -253,7 +278,9 @@ cmd_add() {
 
   default_dest="${MAIN_ROOT%/*}/${MAIN_ROOT##*/}-wt/$name"
   [ -n "$dest" ] || dest="$default_dest"
-  dest="$(abs_path "$dest")"
+  # 綴りを git 目線に揃えてから照合する（相対パスを与えられたとき、$PWD 基準の綴りのままだと
+  # git worktree list 由来の登録と文字列比較で一致せず、WT002 の 4 経路目が素通りする）
+  dest="$(canon_worktree_path "$dest")"
   load_worktrees
 
   if is_under_repo "$dest"; then
@@ -329,8 +356,10 @@ record_merge() { # $1=名前 $2=置き場 $3=ブランチ $4=result $5=merge_com
   line="$(build_merge_line "$ts" "$1" "$2" "$3" "$4" "$5" "$6" "$7" 0)"
   n="$(printf '%s' "$7" | grep -c . 2>/dev/null || true)"
   [ -n "$n" ] || n=0
-  # 1 行を 4 KB 未満に保つ。超える分は conflicts を切り詰め、末尾に … を付ける
-  while [ "${#line}" -ge "$MERGE_LOG_MAX" ] && [ "$n" -gt 0 ]; do
+  # 1 行を 4 KB 未満に保つ。超える分は conflicts を切り詰め、末尾に … を付ける。
+  # 上限は**バイト**（フック共通仕様 §5）。文字数で見ると、UTF-8 のロケールで日本語のパスが並んだときに
+  # 4096 文字未満のまま 4 KB を超える（hook-common.sh の __hc_bytelen と同じ規則で数える）
+  while [ "$(bytelen "$line")" -ge "$MERGE_LOG_MAX" ] && [ "$n" -gt 0 ]; do
     n=$((n - 1))
     line="$(build_merge_line "$ts" "$1" "$2" "$3" "$4" "$5" "$6" "$(printf '%s' "$7" | head -n "$n")" 1)"
   done

@@ -165,6 +165,15 @@ case_WT_T02() {
   assert_contains "WT-T02" "作業ツリーが既に登録"
   git worktree prune >/dev/null 2>&1
   git branch -D tmpwt5 >/dev/null 2>&1
+  # (d') 相対パスの <置き場> でも登録と照合できる。Git Bash では同じディレクトリが /tmp/x と C:/…/x の
+  # 2 通りに綴られるので、$PWD 基準の綴りのままだと git worktree list 由来の登録と一致せず (d) を素通りする
+  git worktree add -q -b tmpwt7 "$WT_BASE/w7" >/dev/null 2>&1
+  rm -rf "$WT_BASE/w7"
+  run_cmd bash "$TARGET" add w7 "../${TMP_REPO##*/}-wt/w7"
+  assert_exit "WT-T02" 1
+  assert_contains "WT-T02" "作業ツリーが既に登録"
+  git worktree prune >/dev/null 2>&1
+  git branch -D tmpwt7 >/dev/null 2>&1
   # <名前> の形式違反は WT008・終了 2
   run_cmd bash "$TARGET" add Bad_Name
   assert_exit "WT-T02" 2
@@ -409,6 +418,40 @@ case_WT_T06() {
   assert_exit "WT-T06" 0
   assert_contains "WT-T06" "OK:"
   assert_eq "WT-T06" "1" "$(grep -c 'C2-ADD' "$TMP_REPO/wip/30_reports/r.md" | tr -d ' ')"
+  # 記録の 1 行の上限は**バイト**（フック共通仕様 §5）。日本語のパスは 1 文字 3 バイトなので、
+  # 文字数で見ていると 4096 文字未満のまま 4 KB を超える行が出る
+  local i nm dir="wip/30_reports/衝突検査用の置き場" line bytes chars
+  # 非 ASCII のパスを 8 進エスケープせずそのまま出す設定。既定（quotePath=true）だと
+  # 記録の行が ASCII だけになり、バイト数と文字数が食い違わない
+  git config core.quotePath false
+  mkdir -p "$dir"
+  for ((i = 1; i <= 40; i++)); do
+    printf 'BASE\n' > "$dir/日本語の名前がとても長い衝突するレポートのファイル-$i.md"
+  done
+  git add -A && git commit -qm "chore: バイト長の検査の下ごしらえ"
+  run_cmd bash "$TARGET" add c3
+  assert_exit "WT-T06" 0
+  for ((i = 1; i <= 40; i++)); do
+    nm="$dir/日本語の名前がとても長い衝突するレポートのファイル-$i.md"
+    printf 'C3\n' > "$WT_BASE/c3/$nm"
+    printf 'MAIN\n' > "$TMP_REPO/$nm"
+  done
+  git -C "$WT_BASE/c3" add -A && git -C "$WT_BASE/c3" commit -qm "chore: c3"
+  git add -A && git commit -qm "chore: 本流側の変更"
+  # UTF-8 のロケールで走らせる。C ロケールでは bash の ${#x} がそもそもバイト数を返すので、
+  # 文字数とバイト数の食い違いが起きず、この検査が空振りする（前提を下で assert する）
+  assert_eq "WT-T06" "3" "$( export LC_ALL=C.UTF-8; y="あああ"; printf '%s' "${#y}" )"
+  run_cmd env LC_ALL=C.UTF-8 bash "$TARGET" merge c3
+  assert_exit "WT-T06" 1
+  assert_eq "WT-T06" "WT004" "$(printf '%s' "$(last_line)" | cut -d: -f1)"
+  line="$(tail -n 1 "$MERGE_LOG")"
+  bytes="$(printf '%s' "$line" | LC_ALL=C wc -c | tr -d ' ')"
+  chars="$( export LC_ALL=C.UTF-8; printf '%s' "${#line}" )"
+  # 前提: 文字数では上限に達していない（バイトで見ないと切り詰めが起きない足場であること）
+  assert_eq "WT-T06" "under" "$(if [ "$chars" -lt 4096 ]; then printf 'under'; else printf 'over'; fi)"
+  assert_eq "WT-T06" "under" "$(if [ "$bytes" -lt 4096 ]; then printf 'under'; else printf 'over'; fi)"
+  # 切り詰めた印が末尾に入る
+  assert_eq "WT-T06" "…" "$(printf '%s' "$line" | tl_jq -r '.conflicts[-1]')"
 }
 
 # ---- WT-T08: remove の前提未充足 -----------------------------------------

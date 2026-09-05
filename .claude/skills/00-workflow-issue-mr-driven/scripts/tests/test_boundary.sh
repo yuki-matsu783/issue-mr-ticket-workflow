@@ -583,6 +583,32 @@ assert_eq "BD-T20" "0011" "$(printf '%s' "$bd" | tl_jq -r '.last_task.tickets | 
 printf '{"mr":1,"boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' > logs/review-history.jsonl
 bd="$(st)"
 assert_eq "BD-T20" "null" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+# mr が null の行（mr.json ができる前に閉じた切れ目）は、同じブランチのものだけ既出に数える。
+# mr だけで選ぶと、mr.json が後からできた瞬間にそれ以前の切れ目が既出から外れ、
+# そのチケットが次の切れ目の last_task に再び入る（二重計上）
+BD_BR="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+printf '{"mr":null,"branch":"%s","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  "$BD_BR" > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "null" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+# 負のコントロール: 別のブランチで書かれた null の行は数えない
+printf '{"mr":null,"branch":"other-branch","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+# MR が分からない（mr.json が無い＝単独実行モード）ときは全件ではなく 0 件に倒す。
+# covered を広げるのはチケットをレビューから落とす緩い側で、狭めるのはレビューが重複する側
+rm -f logs/mr.json
+printf '{"mr":null,"branch":"other-branch","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+assert_eq "BD-T20" "0011" "$(printf '%s' "$bd" | tl_jq -r '.last_task.tickets | join(" ")')"
+# 同じブランチの null 行なら、mr.json が無くても既出に数える
+printf '{"mr":null,"branch":"%s","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  "$BD_BR" > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "null" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
 reset_tickets
 
 # ================================================================ BD-T21

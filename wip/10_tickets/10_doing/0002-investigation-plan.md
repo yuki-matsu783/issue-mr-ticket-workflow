@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "基準どおり"}
 allow:
   write: ["wip/**"]
   ops: ["remote-read"]
-started_at: ""
+started_at: "2026-09-05T11:39:33+00:00"
 completed_at: ""
-base_sha: ""
+base_sha: "999624b"
 ---
 
 # 0002 hook機構.md の現状把握のための調査計画

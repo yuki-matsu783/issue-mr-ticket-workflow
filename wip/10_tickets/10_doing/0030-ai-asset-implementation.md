@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "実装フェーズの敵対的レ
 allow:
   write: ["wip/**", ".claude/hooks/**", ".claude/skills/**"]
   ops: ["read", "remote-read", "build-test", "hook-test"]
-started_at: ""
+started_at: "2026-09-06T06:18:22+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "df90f04"
 ---
 
 # 0030 実装の穴 7 件を塞ぐ（敵対的レビュー）: 畳み込みの最長一致・分類の残り穴・切れ目の既出判定

@@ -30,6 +30,7 @@ readonly REVIEW_JSON="logs/review-state.json"
 readonly HISTORY_JSONL="logs/review-history.jsonl"
 readonly MERGE_JSON="logs/merge-state.json"
 readonly TICKET_SH=".claude/skills/20-common-step-ticket/scripts/ticket.sh"
+readonly WORKTREE_SH=".claude/skills/20-common-step-worktree/scripts/worktree.sh"
 readonly FINAL_TYPE="overall-summary"
 
 usage() {
@@ -66,6 +67,51 @@ detect_host() {
 }
 
 # ---------------------------------------------------------------- 切れ目の判定
+# 既出集合（covered）= review-history.jsonl の各行の boundary.tickets ∪ 現在の review-state.json の
+# boundary.tickets。どちらも読めなければ空集合（仕様「切れ目の判定（正）」の last_task 1）。
+# jsonl は 1 行が壊れていても残りを読めるよう -R + fromjson? で受ける
+declare -A COVERED=()
+load_covered() {
+  local n cur=""
+  COVERED=()
+  # logs/ は clone に溜まり続ける一方、チケット番号は片付け（draft 解除）のたびに 0001 から振り直される。
+  # 別 issue の切れ目に同じ番号が載っていると、いまの issue のチケットが既出扱いで落ちるので、
+  # 現在の MR の切れ目だけを数える（MR が分からないときは全件を数える＝拒否側に倒す）
+  [ -f "$MR_JSON" ] && cur="$(jq -r '.mr // empty' "$MR_JSON" 2>/dev/null | tr -d '\r' || true)"
+  if [ -f "$HISTORY_JSONL" ]; then
+    while IFS= read -r n; do [ -n "$n" ] && COVERED["$n"]=1; done \
+      < <(jq -Rr --arg mr "$cur" \
+            'fromjson? | select($mr == "" or (((.mr // "") | tostring) == $mr)) | (.boundary.tickets // [])[]' \
+            "$HISTORY_JSONL" 2>/dev/null | tr -d '\r' || true)
+  fi
+  if [ -f "$REVIEW_JSON" ]; then
+    while IFS= read -r n; do [ -n "$n" ] && COVERED["$n"]=1; done \
+      < <(jq -r --arg mr "$cur" \
+            'select($mr == "" or (((.mr // "") | tostring) == $mr)) | (.boundary.tickets // [])[]' \
+            "$REVIEW_JSON" 2>/dev/null | tr -d '\r' || true)
+  fi
+  return 0
+}
+
+# 本流以外に作業ツリーが登録されているか。git worktree list は本流を含めて 1 件以上返すので、
+# 2 件目があるかだけを見る（管理対象が 0 のときに worktree.sh を起動しないための前置き）
+has_other_worktrees() {
+  local n
+  n="$(git worktree list --porcelain 2>/dev/null | grep -c '^worktree ' || true)"
+  [ -n "$n" ] && [ "$n" -gt 1 ]
+}
+
+# 管理対象の作業ツリーのどれかに作業中チケットが残っているか（仕様「切れ目の判定（正）」の at_boundary）。
+# 作業ツリーが本流だけのときは worktree.sh を呼ばない
+worktrees_have_doing() {
+  [ -f "$WORKTREE_SH" ] || return 1
+  has_other_worktrees || return 1
+  local out
+  out="$(bash "$WORKTREE_SH" list 2>/dev/null || true)"
+  [ -n "$out" ] || return 1
+  printf '%s' "$out" | jq -e 'map(select((.managed == true) and ((.doing | length) > 0))) | length > 0' >/dev/null 2>&1
+}
+
 # 出力変数: B_CURRENT B_NEXT B_NEXT_TYPE B_SKILL / B_TASK_TYPE B_LAST_DONE B_TASK_TICKETS B_REVIEW_REQUIRED
 #           B_AT_BOUNDARY B_FINAL B_POSITION B_MR B_HOST / R_STATE R_VIA R_BASE R_HEAD R_URL R_REQ_AT R_DONE_AT
 scan_tickets() {
@@ -80,17 +126,56 @@ scan_tickets() {
   mapfile -t fv < <(printf '%s' "$nx" | jq -r '[.current // "", .next // "", .type // "", .skill // ""] | .[]' | tr -d '\r')
   B_CURRENT="${fv[0]:-}"; B_NEXT="${fv[1]:-}"; B_NEXT_TYPE="${fv[2]:-}"; B_SKILL="${fv[3]:-}"
 
-  # 完了群の末尾から、同じ種類が続く範囲を最後のタスクとする
+  # 完了チケットを番号の昇順で読む
   B_TASK_TYPE=""; B_LAST_DONE=""; B_TASK_TICKETS=(); B_REVIEW_REQUIRED="false"
+  local -a d_n=() d_f=() d_t=() d_c=()
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     n="${f##*/}"; n="${n%%-*}"
-    t="$(fm_get "$f" ticket_type 2>/dev/null || true)"
-    if [ -z "$B_TASK_TYPE" ]; then B_TASK_TYPE="$t"; B_LAST_DONE="$n"; fi
-    [ "$t" = "$B_TASK_TYPE" ] || break
-    B_TASK_TICKETS+=("$n")
-    if [ "$(fm_get "$f" human_review.required 2>/dev/null || true)" = "true" ]; then B_REVIEW_REQUIRED="true"; fi
-  done < <(ls -1 "$DONE"/[0-9][0-9][0-9][0-9]-*.md 2>/dev/null | sort -r)
+    d_n+=("$n"); d_f+=("$f")
+    d_t+=("$(fm_get "$f" ticket_type 2>/dev/null || true)")
+    d_c+=("$(fm_get "$f" completed_at 2>/dev/null || true)")
+  done < <(ls -1 "$DONE"/[0-9][0-9][0-9][0-9]-*.md 2>/dev/null | sort)
+
+  # last_task は「既出の切れ目の補集合」で決める（DDR i0050-10）。番号の連続でも完了時刻の下限でも切らない
+  load_covered
+  local -a rem=() group=()
+  local i k
+  for ((i = 0; i < ${#d_n[@]}; i++)); do
+    [ -n "${COVERED[${d_n[$i]}]:-}" ] && continue
+    rem+=("$i")
+  done
+  if [ "${#rem[@]}" -gt 0 ]; then
+    # 2 種類以上あれば「最も早く完了したチケットの ticket_type」のまとまりだけを切り、残りは次の切れ目へ持ち越す。
+    # completed_at を使うのはこの並べ替えだけ（絞り込みの下限には使わない）。同着と completed_at 欠落は
+    # 連番の昇順で解く（欠落は空文字なので最も早い扱いになる。仕様に記述が無く、レポートの残課題 R59）
+    local best="${rem[0]}"
+    for k in "${rem[@]}"; do
+      if [[ "${d_c[$k]}" < "${d_c[$best]}" ]]; then best="$k"; fi
+    done
+    B_TASK_TYPE="${d_t[$best]}"
+    for k in "${rem[@]}"; do
+      [ "${d_t[$k]}" = "$B_TASK_TYPE" ] && group+=("$k")
+    done
+  else
+    # 補集合が空 = いま進行中（依頼済み・省略済み・完了済み）の切れ目そのもの。記録の切れ目をそのまま返す
+    local -A want=()
+    if [ -f "$REVIEW_JSON" ]; then
+      B_TASK_TYPE="$(jq -r '.boundary.task_type // ""' "$REVIEW_JSON" 2>/dev/null | tr -d '\r' || true)"
+      while IFS= read -r n; do [ -n "$n" ] && want["$n"]=1; done \
+        < <(jq -r '(.boundary.tickets // [])[]' "$REVIEW_JSON" 2>/dev/null | tr -d '\r' || true)
+    fi
+    for ((i = 0; i < ${#d_n[@]}; i++)); do
+      [ -n "${want[${d_n[$i]}]:-}" ] && group+=("$i")
+    done
+    [ "${#group[@]}" -gt 0 ] || B_TASK_TYPE=""
+  fi
+  for k in "${group[@]:-}"; do
+    [ -n "$k" ] || continue
+    B_TASK_TICKETS+=("${d_n[$k]}")
+    B_LAST_DONE="${d_n[$k]}"
+    if [ "$(fm_get "${d_f[$k]}" human_review.required 2>/dev/null || true)" = "true" ]; then B_REVIEW_REQUIRED="true"; fi
+  done
 
   # 全体まとめの切れ目（--final）: doing が overall-summary 1 枚
   shopt -s nullglob; local doing=("$DOING"/*.md); shopt -u nullglob
@@ -103,6 +188,9 @@ scan_tickets() {
   B_AT_BOUNDARY="false"
   if [ "${#doing[@]}" -eq 0 ]; then
     if [ -z "$B_NEXT" ] || [ "$B_NEXT_TYPE" != "$B_TASK_TYPE" ]; then B_AT_BOUNDARY="true"; fi
+    # 並列実施中は「doing が空」をすべての作業ツリーについて見る。1 枚だけ先に完了しても切れ目ではない（要件 A11）。
+    # ここで返る true は切れ目の「候補」で、合流の後にもう一度 status で確定させる（DDR i0050-09）
+    if [ "$B_AT_BOUNDARY" = "true" ] && worktrees_have_doing; then B_AT_BOUNDARY="false"; fi
   fi
 }
 

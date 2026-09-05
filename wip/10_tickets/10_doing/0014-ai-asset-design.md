@@ -8,9 +8,9 @@ adversarial_review: {required: true, reason: "全体計画書の方針（差分 
 allow:
   write: ["wip/**", ".claude/docs/**"]
   ops: ["read", "remote-read"]
-started_at: ""
+started_at: "2026-09-05T13:09:40+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "aaccfe3"
 ---
 
 # 0014 AI アセット設計: 20-common-step-worktree の新設と、合流手順・採番・push の一本化

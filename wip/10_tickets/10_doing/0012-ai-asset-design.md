@@ -42,7 +42,7 @@ AI アセット設計計画書（wip/20_plans/0010-ai-asset-design-plan.md）の
 ### 現在地
 
 - 完了。0012 が担う 9 対象（10_spec/フック共通仕様.md §1・§2・§5・§6・§11・§13 ／ workflow-state-guard の要件・仕様 ／ workflow-diff-check の要件・仕様 ／ 00_requirement/自己改善ワークフロー機構.md ／ DDR i0050-01・i0050-02・i0050-07）をすべて更新し、置き換えられた既存 DDR 3 本には frontmatter だけを足した。設計結果レポート wip/30_reports/0012-ai-asset-design.md と対の HTML を作り、check-html.sh を通した（`OK: 検査 7 項目すべて通過（id 25 件 / リンク 18 件を確認。テンプレート: report）`）。DoD 8 件すべてに根拠を記入した
-- 次に来るのは 0013（workflow-guard / subagent-start-check / session-start / §7・§8 / DDR i0050-04）。0013 は着手時にフック共通仕様 §2 と §5 を読み直すこと（0012 が三分・畳み込み・置き場を書き換えたため）
+- 後続は 0013（workflow-guard / subagent-start-check / session-start / §7・§8 / DDR i0050-04）が引き取る。0013 は着手時にフック共通仕様 §2 と §5 を読み直すこと（0012 が三分・畳み込み・置き場を書き換えたため）
 
 ### うまくいったこと
 
@@ -71,15 +71,12 @@ AI アセット設計計画書（wip/20_plans/0010-ai-asset-design-plan.md）の
 - **WF605 を新設し、WF604（基準点なし）に相乗りさせなかった**。1 番号 1 原因を保つため。受け取った側の対処が違う（604 は `ticket.sh start` のやり直し、605 は作業ツリーの外から操作していないかの確認）
 - **迷って決めきらず残した点**: `HOOK_SHARED_ROOT` を別 clone 運用で別の値に解決する必要が出たときの決め方（R48）。今回は「固定し、上書きの口を開けない」までを決め、解決方法は別 issue に送った
 
-### 検査とコミットの記録
-
-- `bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_reports/0012-ai-asset-design.html` → `OK: 検査 7 項目すべて通過（id 25 件 / リンク 18 件を確認。テンプレート: report）`
-- md と HTML の突き合わせ（check-html.sh が見ない分）: 章の見出し数 md `### e*` 8 件 = HTML `<h3 id=` 8 件／節 md `## ` 10 件 = HTML `<section id=` 10 件／件数 ◎良 6・△注意 2・✕問題 0 が md・HTML の両方で一致。表の数は md 13 / HTML 10 で、差の 3 本（確かめられなかったこと・設計への反映・残課題）はテンプレートが必須節に `<ul>` / `<ol>` を持つため行を li に畳んだもの（内容は同じ）
-- プレースホルダ: md 0 件 / HTML 0 件。要件定義書 2 書に `HOOK_` / `hook_rel_path` / `.git/worktrees` / `.sh` はいずれも 0 件（内部構造の漏れなし）。追加した行に旧名・旧パス（`work-*` / `src/` / ルート直下の `docs/`）は 0 件
-- `bash .claude/skills/20-common-step-commit-push/scripts/commit.sh -m "docs: issue #50 の作業ツリーの三分と進行状態の一本化を正史に落とす (#50)" ...` → `OK: 15 ファイルをコミットした（e580553）。除外: なし`
-
 ### 拒否・確認・迂回の記録
 
+- 検査: `bash .claude/skills/20-common-step-report-view/scripts/check-html.sh wip/30_reports/0012-ai-asset-design.html` → `OK: 検査 7 項目すべて通過（id 25 件 / リンク 18 件を確認。テンプレート: report）`
+- md と HTML の突き合わせ（check-html.sh が見ない分）: 章の見出し数 md `### e*` 8 件 = HTML `<h3 id=` 8 件／節 md `## ` 10 件 = HTML `<section id=` 10 件／件数 ◎良 6・△注意 2・✕問題 0 が md・HTML の両方で一致。表の数は md 13 / HTML 10 で、差の 3 本（確かめられなかったこと・設計への反映・残課題）はテンプレートが必須節に `<ul>` / `<ol>` を持つため行を li に畳んだもの（内容は同じ）
+- プレースホルダ: md 0 件 / HTML 0 件。要件定義書 2 書に `HOOK_` / `hook_rel_path` / `.git/worktrees` / `.sh` はいずれも 0 件（内部構造の漏れなし）。追加した行に旧名・旧パス（`work-*` / `src/` / ルート直下の `docs/`）は 0 件
+- コミット: `commit.sh -m "docs: issue #50 の作業ツリーの三分と進行状態の一本化を正史に落とす (#50)" ...` → `OK: 15 ファイルをコミットした（e580553）。除外: なし`／`commit.sh -m "chore: チケット 0012 の作業ログに検査とコミットの記録を残す" ...` → `OK: 1 ファイルをコミットした（bafd755）。除外: なし`
 - `cd` を含む bash コマンドが **WF204**（どの分類にも当たらない・既定拒否）で 2 回拒否された。迂回せず、`cd` を使わない形（作業ディレクトリはツールが保持する）に書き換えて実行した。チケットの `allow.ops` を広げる必要は生じていない
 - そのほかの拒否は無し。進行状態ファイルの直接編集・機構の無効化・`git worktree add` / `git checkout -b` / `git switch` は行っていない
 

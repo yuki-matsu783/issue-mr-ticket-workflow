@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-06T09:54:17+09:00"
 completed_at: ""
 base_sha: "bc427b2"
+cancelled_at: "2026-09-06T11:26:40+09:00"
+cancel_reason: "allow.ops に remote-write:issue-append が抜けており、スキル手順 2 の別 issue への追記が WF206 で止まったため。同じ内容を 0032 として作り直す"
 ---
 
 # 0031 issue #50 の全体まとめ

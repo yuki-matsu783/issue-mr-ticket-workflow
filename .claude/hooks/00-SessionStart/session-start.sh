@@ -42,9 +42,10 @@ if [[ -n "${HOOK_AGENT_ID:-}" || -n "${CLAUDE_AGENT_ID:-}" ]]; then
 fi
 
 # 制御方式 2: logs/sessions/ の古いディレクトリを片付ける（失敗は無視）。
-# frontmatter 索引の機構は未導入なので何もしない
+# frontmatter 索引の機構は未導入なので何もしない。
+# セッション状態は共有ルート（共通仕様 §5 の根の列）にあるので、作業ツリーが 2 つ以上でも片付け先は 1 つ
 __se_prune_sessions() {
-  local base="$HOOK_WORKTREE/logs/sessions" d
+  local base="$HOOK_SHARED_ROOT/logs/sessions" d
   [[ -d "$base" ]] || return 0
   local ng=0
   shopt -q nullglob && ng=1
@@ -60,10 +61,11 @@ __se_prune_sessions || true
 
 # 制御方式 10: 進行状態ファイルの破損は boundary.sh を呼ぶ前に見る。
 # boundary.sh status は壊れた記録を実態から再導出して**書き戻す**ので、呼んだ後では破損が見えない
+# 進行状態は共有ルートの下（共通仕様 §5 の根の列）。作業ツリーが 2 つ以上でも同じ内容を導出する
 __se_broken=()
 if command -v jq >/dev/null 2>&1; then
   for __se_sf in mr.json review-state.json merge-state.json; do
-    if [[ -f "$HOOK_WORKTREE/logs/$__se_sf" ]] && ! jq -e . "$HOOK_WORKTREE/logs/$__se_sf" >/dev/null 2>&1; then
+    if [[ -f "$HOOK_SHARED_ROOT/logs/$__se_sf" ]] && ! jq -e . "$HOOK_SHARED_ROOT/logs/$__se_sf" >/dev/null 2>&1; then
       __se_broken+=("logs/$__se_sf")
     fi
   done
@@ -112,14 +114,14 @@ __se_rstate="${__se_f[10]}"; __se_req_at="${__se_f[11]}"; __se_via="${__se_f[12]
 
 __se_branch="$(git -C "$HOOK_WORKTREE" branch --show-current 2>/dev/null || true)"
 __se_issue=""; __se_url=""
-if [[ -f "$HOOK_WORKTREE/logs/mr.json" ]] && jq -e . "$HOOK_WORKTREE/logs/mr.json" >/dev/null 2>&1; then
-  __se_issue="$(jq -r '.issue // "" | tostring' "$HOOK_WORKTREE/logs/mr.json" 2>/dev/null | tr -d '\r')"
-  __se_url="$(jq -r '.url // ""' "$HOOK_WORKTREE/logs/mr.json" 2>/dev/null | tr -d '\r')"
+if [[ -f "$HOOK_SHARED_ROOT/logs/mr.json" ]] && jq -e . "$HOOK_SHARED_ROOT/logs/mr.json" >/dev/null 2>&1; then
+  __se_issue="$(jq -r '.issue // "" | tostring' "$HOOK_SHARED_ROOT/logs/mr.json" 2>/dev/null | tr -d '\r')"
+  __se_url="$(jq -r '.url // ""' "$HOOK_SHARED_ROOT/logs/mr.json" 2>/dev/null | tr -d '\r')"
 fi
 __se_merge=""; __se_merge_broken=0
-if [[ -f "$HOOK_WORKTREE/logs/merge-state.json" ]]; then
-  if jq -e . "$HOOK_WORKTREE/logs/merge-state.json" >/dev/null 2>&1; then
-    __se_merge="$(jq -r '.state // ""' "$HOOK_WORKTREE/logs/merge-state.json" 2>/dev/null | tr -d '\r')"
+if [[ -f "$HOOK_SHARED_ROOT/logs/merge-state.json" ]]; then
+  if jq -e . "$HOOK_SHARED_ROOT/logs/merge-state.json" >/dev/null 2>&1; then
+    __se_merge="$(jq -r '.state // ""' "$HOOK_SHARED_ROOT/logs/merge-state.json" 2>/dev/null | tr -d '\r')"
   else
     __se_merge_broken=1
   fi
@@ -138,6 +140,16 @@ __se_range() { # 完了したタスクの範囲（先頭-末尾）
   if [[ "$first" == "$last" ]]; then printf '%s' "$first"; else printf '%s-%s' "$first" "$last"; fi
 }
 __se_has_skill() { [[ -n "$1" ]] && [[ -f "$HOOK_WORKTREE/.claude/skills/$1/SKILL.md" ]]; }
+
+# 制御方式 7 の補助 B: 完了した全体計画チケットが作業領域にあるか（作業領域は作業ツリー側）
+__se_overall_plan_done() {
+  local ng=0
+  shopt -q nullglob && ng=1
+  shopt -s nullglob
+  local -a hits=("$HOOK_WORKTREE"/wip/10_tickets/20_done/*-overall-plan.md)
+  (( ng )) || shopt -u nullglob
+  (( ${#hits[@]} > 0 ))
+}
 
 __se_has_ticket=0
 [[ -n "$__se_cur" || -n "$__se_next" || -n "$__se_last_done" ]] && __se_has_ticket=1
@@ -173,14 +185,26 @@ else
     __se_lines+=("- チケット: 無し")
   fi
 
-  # 制御方式 7: チケットはあるが MR が無い（issue 確定前）。現在地と次のスキルを揃える
-  __se_planning=0
-  if [[ "$__se_has_ticket" -eq 1 && ( -z "$__se_mr" || "$__se_mr" == "null" ) && "$__se_via" != "chat" ]]; then __se_planning=1; fi
+  # 制御方式 7: チケットはあるが logs/mr.json が読めない（不在・破損）。
+  # ここで「全体計画の途中」と断定すると、完了済みの全体計画をやり直す案内を確信を持って出すことになる。
+  # 補助 A（ブランチ名）か補助 B（完了した全体計画チケット）のどちらかが成り立てば全体計画は済んでいるので、
+  # 現在地は WF705「不明」にし、推定は別の行に根拠付きで出す
+  __se_planning=0; __se_unknown=0; __se_hint=""
+  if [[ "$__se_has_ticket" -eq 1 && ( -z "$__se_mr" || "$__se_mr" == "null" ) && "$__se_via" != "chat" ]]; then
+    # 補助 A: ブランチ名。detached HEAD（空）では成り立たないものとして扱う
+    if [[ "$__se_branch" =~ ^(feature|fix)-[0-9]+- ]]; then __se_hint="ブランチ名 $__se_branch"; fi
+    # 補助 B: 完了した全体計画チケット
+    if __se_overall_plan_done; then __se_hint="${__se_hint:+$__se_hint / }完了チケット（20_done の *-overall-plan.md）"; fi
+    if [[ -n "$__se_hint" ]]; then __se_unknown=1; else __se_planning=1; fi
+  fi
 
   # 現在地（制御方式 4 の対応表）。破損は WF702 をこの行に書き、残りの行は出す
   __se_here=""
-  if [[ "$__se_planning" -eq 1 ]]; then __se_pos_label="planning"; else __se_pos_label="$__se_pos"; fi
+  if [[ "$__se_unknown" -eq 1 ]]; then __se_pos_label="unknown"
+  elif [[ "$__se_planning" -eq 1 ]]; then __se_pos_label="planning"
+  else __se_pos_label="$__se_pos"; fi
   case "$__se_pos_label" in
+    unknown)        __se_here="[WF705] 不明（logs/mr.json を読めないため現在地を断定できない）" ;;
     planning)       __se_here="全体計画の途中（issue 確定前）" ;;
     in_task)        __se_here="タスクの途中（$(__se_name "$__se_cur" "$__se_next_type")）" ;;
     before_request) __se_here="レビュー依頼前（${__se_task_type:-種類不明} $(__se_range)）" ;;
@@ -194,13 +218,21 @@ else
   fi
   __se_lines+=("- 現在地: $__se_here")
 
+  # 推定は現在地と別の行に出す（事実と混ぜない。制御方式 7）
+  if [[ "$__se_unknown" -eq 1 ]]; then
+    __se_lines+=("- 推定: 全体計画は完了済み（根拠: $__se_hint）。推定であって事実ではないので、そのまま前提にしない")
+  fi
+
   # 次に読み込むスキル
   __se_note=""
   case "$__se_pos" in
     requested) __se_note="（レビュー完了の連絡があるまで応答を終える）" ;;
     merge_prep) __se_note="（\`finalize.sh release\` の再実行から）" ;;
   esac
-  if [[ "$__se_planning" -eq 1 ]]; then
+  if [[ "$__se_unknown" -eq 1 ]]; then
+    # 現在地が不明のときはスキル名を断定せず、再導出の案内に置き換える（制御方式 4）
+    __se_lines+=("- 次に読み込むスキル: 断定しない。\`boundary.sh status\`（CLI あり）で進行状態を再導出してから決める。再導出できないときはチケットの状態を自分で読んで確かめ、全体計画をやり直さないこと")
+  elif [[ "$__se_planning" -eq 1 ]]; then
     __se_lines+=("- 次に読み込むスキル: 10-task-overall-plan（全体計画の途中）")
   elif [[ -n "$__se_cur" || -n "$__se_next" ]]; then
     if [[ -n "$__se_skill" ]] && ! __se_has_skill "$__se_skill"; then

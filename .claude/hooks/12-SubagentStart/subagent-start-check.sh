@@ -78,6 +78,37 @@ __sa_norm() { # $1=モデル名 → REPLY に族名。判定できなければ�
   return 1
 }
 
+# ---- 制御方式 2: 作業ツリーを確定できないときは代用せず WF804 ----
+# 仕様「対象チケットを採る作業ツリー」: 対象は HOOK_WORKTREE の中だけを探し、他の作業ツリーへ回らない。
+# 「確定できない」は 2 通りある（共通仕様 §2「判定できないときの倒し方」）:
+#   (a) cwd から作業ツリーを解決できない（HOOK_WORKTREE_STATE != ok）
+#   (b) 同一リポジトリの作業ツリーの集合を読めない（hook_worktrees が 1 を返す）
+# (b) を見落とすと、集合を読めないまま HOOK_WORKTREE が本流に倒れ、
+# 「起動された側のチケット」ではなく本流のチケットの要点を注入する＝代用になる（SA-T11 が固定する）
+__sa_worktree_ok() { # REPLY に確定できない理由（確定できたときは空）
+  if [[ "${HOOK_WORKTREE_STATE:-ok}" != "ok" ]]; then
+    REPLY="cwd から作業ツリーを解決できない"
+    return 1
+  fi
+  if ! hook_worktrees; then
+    REPLY="同一リポジトリの作業ツリーの集合を読めない（<ルート>/.git/worktrees/ を列挙できない）"
+    return 1
+  fi
+  REPLY=""
+  return 0
+}
+
+if ! __sa_worktree_ok; then
+  __sa_why="$REPLY"
+  if [[ "$HOOK_EVENT" == "SubagentStart" ]]; then
+    # 案内側は deny を出せないので、黙って通す代わりに「注入していない」ことを伝える側に倒す
+    hook_inject SubagentStart WF804 "WF804: 作業ツリーを確定できないため、対象チケットの要点を注入していない（$__sa_why）。呼び出し元や本流のチケットで代用はしていない。起動プロンプトの記載を正として進め、書き込みが WF209 で拒否されるようなら、作業ツリーを片付けて（worktree.sh 経由）本流で作業をやり直すことをユーザーに提案する。"
+  else
+    hook_record skip "" "" "作業ツリーを確定できない（$__sa_why）"
+  fi
+  exit 0
+fi
+
 # ---- 対象チケットの読み取り ----
 __sa_file=""
 if ! __sa_target; then

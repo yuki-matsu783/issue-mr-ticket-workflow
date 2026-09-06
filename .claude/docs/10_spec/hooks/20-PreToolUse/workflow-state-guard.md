@@ -1,9 +1,9 @@
 ---
 type: spec
 title: workflow-state-guard フック 仕様
-description: 進行状態ファイル（logs/ の mr / review-state / review-history / merge-state）とチケットの作業中・完了の置き場への直接操作、draft 解除の直接実行を、作業中チケットの有無を問わず拒否するフックの内部仕様。保護対象の一覧、書き込みを伴う操作の判定、提供コマンド経由の許可、WF30x を定める
+description: 進行状態ファイル（共有ルートの mr / review-state / review-history / merge-state）とチケットの作業中・完了の置き場への直接操作、draft 解除の直接実行を、作業中チケットの有無と作業ツリーの数を問わず拒否するフックの内部仕様。保護対象の一覧、対象パスの畳み込み（他の作業ツリーの絶対パスの照合と判定不能時の拒否）、書き込みを伴う操作の判定、提供コマンド経由の許可、WF30x を定める
 tags: [spec, hook, workflow-state-guard]
-keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_done, 直接操作, git mv, draft 解除, gh pr ready, glab mr update --ready, 提供コマンド, WF301, WF304]
+keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_done, 直接操作, git mv, draft 解除, gh pr ready, glab mr update --ready, 提供コマンド, WF301, WF304, WF309, 作業ツリー, worktree, 共有ルート, hook_rel_path, 畳み込み, 絶対パス]
 ---
 
 # workflow-state-guard フック 仕様
@@ -12,7 +12,7 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 
 対応する要件は [00_requirement/hooks/20-PreToolUse/workflow-state-guard.md](../../../00_requirement/hooks/20-PreToolUse/workflow-state-guard.md)。共通事項は [フック共通仕様](../../フック共通仕様.md)。
 
-`workflow-guard` と独立に常時働き、提供コマンド以外の経路で進行状態を作る操作を塞ぐ。保護対象は `scope-limits.json` の `common.state_files`（進行状態ファイル）と `wip/10_tickets/10_doing/`・`20_done/`（置き場）、および draft 解除コマンド。遷移の前提条件は判定しない（提供コマンドの責務）。
+`workflow-guard` と独立に常時働き、提供コマンド以外の経路で進行状態を作る操作を塞ぐ。保護対象は `scope-limits.json` の `common.state_files`（進行状態ファイル。置き場は**共有ルート**）と `wip/10_tickets/10_doing/`・`20_done/`（置き場。**同一リポジトリのすべての作業ツリー**の分）、および draft 解除コマンド。遷移の前提条件は判定しない（提供コマンドの責務）。
 
 禁止事項:
 
@@ -28,19 +28,32 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 
 ## 入出力
 
-- 入力: `tool_name`、`tool_input.file_path`（書き込み）/ `tool_input.command`（実行）。参照: `scope-limits.json` の `common.state_files`
+- 入力: `tool_name`、`tool_input.file_path`（書き込み）/ `tool_input.command`（実行）。参照: `scope-limits.json` の `common.state_files`、`<HOOK_ROOT>/.git/worktrees/*/gitdir`（作業ツリーの集合。共通仕様 §2）
 - 出力: deny（WF301〜304、WF309）または許可
+
+### 対象パスの畳み込み（照合の前段）
+
+照合はルート相対パスで行うので、`file_path` とコマンドから取り出したパスは共通仕様 §2 の `hook_rel_path` に通してから `state_files` と置き場に照合する。結果は 3 通りで、**このフックは「畳めた根がどれか」を見ない**（自分の作業ツリーか、別の作業ツリーか、共有ルートかで扱いを変えない。保護は作業ツリーの数に依らない）。
+
+| 畳み込みの結果 | このフックの扱い |
+|---|---|
+| 同一リポジトリのいずれかの根（`HOOK_WORKTREE` / 共有ルート / 他の作業ツリー）の配下 | 畳んだルート相対パスで通常どおり照合する（`state_files` は共有ルートに、置き場は各作業ツリーにあるので、どちらの相対パスも同じ表で照合できる） |
+| どの根の配下でもない（同一リポジトリの外と確定） | 保護対象と無関係として**許可**（共通仕様 §13） |
+| 判定できない（作業ツリーの集合を読めない・正規化に失敗） | **deny WF309**（許可側に倒さない。DDR i0010-09） |
+
+- 作業ツリーの集合は `git` を呼ばずに `.git/worktrees/*/gitdir` の読み取りで作る（ホットパスの fork 上限。共通仕様 §1・§2）。集合が空（worktree が 1 つも無い）ことは「判定できない」ではない
+- 相対パスで与えられた対象は、これまでどおり `HOOK_WORKTREE` からの相対として扱う
 
 ## 制御方式
 
 0. **`scope-limits.json` が読めない・解釈できない**（**1 の後に評価する** — 停止中のセッションでは 1 で終わるので、この分岐の `notify` は出ない。§3 の「停止中のフックは判定・注入を行わず `disabled` を 1 行残す」に従う。番号は判定の材料としての前後関係を表す）（`HC_LIMITS_STATE` が `missing` / `broken`。副入力の破損・不在は `hook_read_input` を落とさないので、この分岐に**到達できる** — §1・DDR i0009-47）→ 判定をやめずに、`common.state_files` の**既定値** `logs/mr.json` / `logs/review-state.json` / `logs/review-history.jsonl` / `logs/merge-state.json` にフォールバックして続ける（`notify` で「既定値にフォールバックした」を記録）。置き場（`wip/10_tickets/10_doing/**`・`20_done/**`）と draft 解除の判定は設定に依存しないのでそのまま働く。**このフックは設定の破損では拒否に倒さない** — 倒すと `workflow-guard` が用意した WF210 の復旧経路（`scope-limits.json` 自身への ask 付きの書き込み）が潰れ、設定 1 ファイルの破損が完全なロックアウトになる（並列に走るので deny はどれか 1 つでも出れば成立する。DDR i0009-29）
 1. 停止中 → `disabled` を記録して許可
-2. **書き込みツール**: 対象パスが
+2. **書き込みツール**: 対象パスを畳み込み（上の表）に通し、その結果のルート相対パスが
    - `state_files` に一致 → **deny WF301**
    - `wip/10_tickets/10_doing/**` への新規作成（存在しないパスへの Write）→ **deny WF302**。既存ファイルの Edit / Write（本文の更新）は許可
    - `wip/10_tickets/20_done/**` への作成・編集 → **deny WF303**（完了済みは触らない）
    - それ以外 → 許可
-3. **実行ツール**: `cmdpos.sh` で実行位置のコマンド列を得て、
+3. **実行ツール**: `cmdpos.sh` で実行位置のコマンド列を得て（引数・リダイレクト先・書き込み先から取り出したパスはいずれも畳み込みに通してから照合する）、
    - 提供コマンド（共通仕様 §7-8）→ 許可（`ticket.sh` / `boundary.sh` / `finalize.sh` が唯一の書き換え経路。内部の処理はそもそも見えない）
    - `state_files` のパスが**書き込みを伴う位置**（リダイレクト先、`cp` / `mv` / `rm` / `tee` / `sed -i` / `truncate` / `git checkout --` / `git restore` の対象、`jq ... > file`）に現れる → **deny WF301**。引数以外の位置（`cat`、`grep`、`git diff`、地の文）は許可
    - `mv` / `cp` / `git mv` / `touch` / リダイレクトの**宛先**が `wip/10_tickets/10_doing/` → **deny WF302**、`20_done/` → **deny WF303**
@@ -86,6 +99,8 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 | SG-T08 | 正常系 | 地の文・コメント中の `review-state.json` / `ready` では拒否しない |
 | SG-T09 | 正常系 | **draft 解除以外の MCP ツール**（`mcp__github__get_issue` / `add_issue_comment` / `pull_request_read`）が**通る**（WF309 に落ちない）。`mcp__github__update_pull_request` の `draft:false` だけが WF304（負のコントロール付き） |
 | SG-T10 | 異常系 | `scope-limits.json` が無い・壊れているとき、**拒否に倒さず**既定の `state_files` で判定を続ける。`scope-limits.json` 自身への Write が**このフックを通る**（`workflow-guard` の WF210 の復旧経路を潰さない）。既定値にフォールバックした旨が記録に残る |
+| SG-T12 | 異常系 | **他の作業ツリーの保護対象を絶対パスで書く**（機械テスト）: 本流と worktree を持つ一時リポジトリで `cwd` を worktree 側にし、**本流の** `wip/10_tickets/20_done/0001-x.md` への Write が WF303、**本流の** `wip/10_tickets/10_doing/` への新規 Write が WF302、共有ルートの `logs/mr.json` への `echo >` が WF301 になる。いずれも絶対パスで指定し、`.` / `..` を挟んだ形と `\` 区切りの形でも同じ結果になる。**負のコントロール**: 同一リポジトリの外の絶対パス（OS の一時ディレクトリ）への同名ファイル（`mr.json`・`20_done/0001-x.md`）の書き込みは通る |
+| SG-T13 | 異常系 | **作業ツリーの集合を読めないとき**（機械テスト）: `.git/worktrees/` を読めない状態にすると、リポジトリ内と確定できない絶対パスへの書き込みが WF309 になる（許可に倒れない）。worktree が 1 つも無い（`.git/worktrees/` が存在しない）だけの状態では WF309 にならず、従来どおりの判定になる（負のコントロール） |
 | SG-T11 | 異常系 | **置き場ごとの削除**: `rm -rf wip/10_tickets/20_done` が WF303、`rm -rf wip/10_tickets` と `rm -rf wip` が WF302（作業中 0 枚でも拒否される）。`rm -rf wip/tmp` と `rm -rf logs` は通る（負のコントロール。DDR i0009-59） |
 
 ## 要件との対応
@@ -96,6 +111,8 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 | メイン: 読むだけは拒否しない | 制御方式 3（書き込みを伴う位置のみ） |
 | メイン: 提供コマンドの書き換えは許可 | 制御方式 3 |
 | メイン: 名前が現れるだけでは拒否しない | 制御方式 3、SG-T08 |
+| メイン: 別の作業ツリーの同じ対象を絶対パスで指しても同じ理由・同じ識別子で拒否 | 対象パスの畳み込み、制御方式 2・3、SG-T12 |
+| メイン: 同じリポジトリの外への書き込みは拒否しない | 対象パスの畳み込み（無関係 → 許可）、SG-T12 の負のコントロール |
 | メイン: 作業中への直接移動・作成の拒否 | WF302 |
 | メイン: 完了への直接移動・作成の拒否 | WF303 |
 | メイン: 作業中チケット本文の編集は拒否しない | 制御方式 2、SG-T03 |
@@ -107,5 +124,6 @@ keywords: [進行状態, state_files, review-state, merge-state, 10_doing, 20_do
 | 代替: 緊急停止 | 制御方式 1 |
 | 代替: 外部委任モード（MCP の draft 解除は拒否） | 制御方式（外部委任モード） |
 | 例外: 判定不能は関係しうる操作だけ拒否側 | 制御方式 5、WF309 |
+| 例外: 作業ツリーの一覧を読めない・位置を確定できないときは無関係と扱わず拒否側 | 対象パスの畳み込み（判定できない → WF309）、SG-T13 |
 | 代替: 外部委任モード（MCP は draft 解除だけ塞ぐ） | 制御方式 4、WF304 |
 | 例外: 拒否されたら迂回せず提供コマンドか報告 | 回復手順 |

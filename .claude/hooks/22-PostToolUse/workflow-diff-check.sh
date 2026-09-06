@@ -37,6 +37,17 @@ __DC_MAX_LIST=20
 # ---- 制御方式 1: 抜ける条件 ----
 hook_enforce_enabled || hook_disabled
 
+# ---- 制御方式 0: 作業ツリーの確定 ----
+# 決められない（cwd の正規化に失敗した・HOOK_ROOT すら解決できない）→ WF605 を伝えて抜ける。
+# 案内側は deny を出せないので、黙って通す代わりに「判定していない」ことを伝える側に倒す（共通仕様 §2）。
+# cwd が worktree でないと確かめられて HOOK_ROOT に倒れた場合は「決められない」ではない。
+# 停止中の判定（1）より後に置くのは、停止中のフックが判定も注入も行わない（§3）ため
+if [[ "${HOOK_WORKTREE_STATE:-ok}" != "ok" ]]; then
+  # hook_notify は本文の先頭に「<識別子>: 」を自分で付ける（§3）ので、本文には書かない
+  hook_notify PostToolUse WF605 "操作が行われた作業ツリーを決められないため、許可範囲外の差分の判定を行っていない。作業ツリーの外から操作していないかをユーザーに確認すること。" ""
+  exit 0
+fi
+
 hook_doing_ticket
 __dc_name="$REPLY"
 # 0 枚は通常の状態（チケット外の作業）。2 枚以上は判定不能（拒否は workflow-guard）
@@ -154,10 +165,14 @@ __dc_in_repo() { # $1=hook_rel_path の結果。ルート相対なら 0
   return 0
 }
 
+__dc_unknown=0
 for __dc_t in ${__dc_op_targets[@]+"${__dc_op_targets[@]}"}; do
   # 宛先が潰れている（cmdpos の `_`）ものは承認単位にできない
   [[ -n "$__dc_t" && "$__dc_t" != "_" ]] || continue
-  hook_rel_path "$__dc_t" >/dev/null
+  __dc_rc=0
+  hook_rel_path "$__dc_t" >/dev/null || __dc_rc=$?
+  # 判定できない（作業ツリーの集合を読めない・正規化に失敗）は、黙って飛ばさず伝える側に倒す（共通仕様 §2）
+  if (( __dc_rc == 2 )); then __dc_unknown=1; continue; fi
   __dc_p="$REPLY"
   __dc_in_repo "$__dc_p" || continue
   scope_resolve "$__dc_p"
@@ -194,6 +209,10 @@ if (( ${#__dc_new_scopes[@]} > 0 )); then
   fi
   # 今回承認された範囲は、この後の差分検知でも許可扱いにする（判定順 (6)）
   SC_APPROVED+=("${__dc_new_scopes[@]}")
+fi
+
+if (( __dc_unknown )); then
+  __dc_add_msg WF605 "今回の操作の対象のうち、どの作業ツリーのパスかを判定できなかったものがある（作業ツリーの集合を読めないか、パスの正規化に失敗した）。そのパスについては承認の記憶も許可範囲の判定も行っていない。作業ツリーの外から操作していないかをユーザーに確認すること。"
 fi
 
 # ---- 制御方式 7: git が使えなければ黙って抜ける ----

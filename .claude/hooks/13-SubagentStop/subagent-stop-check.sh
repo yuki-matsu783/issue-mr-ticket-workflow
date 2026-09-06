@@ -256,6 +256,38 @@ __sp_degraded_mismatch() {
   return 0
 }
 
+# ---- 共通仕様 §2: 作業ツリーを確定できないときは代用せず WF815 ----
+# 「確定できない」は 2 通りある:
+#   (a) cwd から作業ツリーを解決できない（HOOK_WORKTREE_STATE != ok）
+#   (b) 同一リポジトリの作業ツリーの集合を読めない（hook_worktrees が 1 を返す）
+# (b) を見落とすと、集合を読めないまま HOOK_WORKTREE が本流に倒れ、呼び出し元（または起動された側）の
+# チケットではなく本流のチケットで実行者照合と検査をしたことになる＝代用になる（SP-T09 が固定する）
+__sp_worktree_ok() { # REPLY に確定できない理由（確定できたときは空）
+  if [[ "${HOOK_WORKTREE_STATE:-ok}" != "ok" ]]; then
+    REPLY="cwd から作業ツリーを解決できない"
+    return 1
+  fi
+  if ! hook_worktrees; then
+    REPLY="同一リポジトリの作業ツリーの集合を読めない（<ルート>/.git/worktrees/ を列挙できない）"
+    return 1
+  fi
+  REPLY=""
+  return 0
+}
+
+if ! __sp_worktree_ok; then
+  __sp_why="$REPLY"
+  __sp_add WF815 "作業ツリーを確定できないため、実行者照合（WF801）と作業後の検査（WF811〜813）を行っていない（$__sp_why / 入力の cwd: ${HOOK_CWD:-（無し）}）。本流のチケットで代用はしていない。AI が自分でチケットの executor と起動したモデルを突き合わせ、作業中のまま残ったチケットと未コミットの差分の有無を確かめること。"
+  if [[ "$HOOK_EVENT" == "SubagentStop" ]]; then
+    __sp_save
+    hook_record notify WF815 "${__SP_AGENT:-}" "作業ツリーを確定できないので検査していない（$__sp_why）"
+    exit 0
+  fi
+  # hook_notify が notify の記録も行う
+  hook_notify PostToolUse WF815 "${__sp_texts[0]}" "${__SP_AGENT:-}"
+  exit 0
+fi
+
 # ---- 入口 1: SubagentStop（記録だけ。出力はメインに届かない）----
 if [[ "$HOOK_EVENT" == "SubagentStop" ]]; then
   __sp_inspect

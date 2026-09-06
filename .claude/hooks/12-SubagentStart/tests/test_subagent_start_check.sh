@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_subagent_start_check.sh — subagent-start-check.sh のテスト（仕様のテスト ID: SA-T01〜SA-T09）
+# test_subagent_start_check.sh — subagent-start-check.sh のテスト（仕様のテスト ID: SA-T01〜SA-T11）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*subagent_start_check*'
 # テストは set -e を使わない（終了コードは hook_run が取る）
 set -uo pipefail
@@ -46,10 +46,12 @@ write_ticket() { # $1=パス $2=ticket_type $3=executor $4=DoD 件数
 clear_tickets() { rm -f "$TMP_REPO"/wip/10_tickets/10_doing/*.md "$TMP_REPO"/wip/10_tickets/00_todo/*.md; }
 clear_logs() { rm -rf "$TMP_REPO/logs"; }
 
+SA_CWD=""   # 入力 JSON の cwd。空なら本流（TMP_REPO）。作業ツリーの検査（SA-T10 / SA-T11）で差し替える
+
 mk_payload() { # $1=event $2=tool $3=model $4=subagent_type $5=run_in_background（空=キー無し） $6=agent_id
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -nc \
     --arg ev "$1" --arg tn "$2" --arg model "$3" --arg st "$4" --arg bg "$5" --arg aid "$6" \
-    --arg cwd "$TMP_REPO" '
+    --arg cwd "${SA_CWD:-$TMP_REPO}" '
     {hook_event_name: $ev, session_id: "testsession", cwd: $cwd, tool_input: {}}
     | (if $tn != "" then .tool_name = $tn else . end)
     | (if $model != "" then .tool_input.model = $model else . end)
@@ -236,6 +238,129 @@ case_background() {
   assert_not_contains "SA-T09" "WF803"
 }
 
+# ---- 作業ツリーをまたぐ判定の足場（SA-T10 / SA-T11）----
+# このフックは git を呼ばないので、疑似の作業ツリー（`<作業ツリー>/.git` と
+# `<本流>/.git/worktrees/<名前>/gitdir` の相互参照）で足りる（0021 の WG-T19 と同じ作り）
+sa_wt_fixture() { # $1=作業ツリーの置き場 $2=登録名
+  mkdir -p "$1/.claude" "$1/wip/10_tickets/00_todo" "$1/wip/10_tickets/10_doing" \
+           "$TMP_REPO/.git/worktrees/$2"
+  printf 'gitdir: %s/.git/worktrees/%s\n' "$TMP_REPO" "$2" > "$1/.git"
+  printf '%s\n' "$1/.git" > "$TMP_REPO/.git/worktrees/$2/gitdir"
+  return 0
+}
+
+# 作業中チケットの枚数を数える（前提をテスト自身が確かめるため。0004 の e48）
+sa_doing_count() { # $1=作業ツリーのルート
+  local f n=0 ng=0
+  shopt -q nullglob && ng=1
+  shopt -s nullglob
+  for f in "$1"/wip/10_tickets/10_doing/*.md; do n=$(( n + 1 )); done
+  (( ng )) || shopt -u nullglob
+  printf '%s' "$n"
+}
+
+sa_write_ticket2() { # $1=パス $2=ticket_type $3=executor $4=allow.write の中身（逐語）
+  mkdir -p "${1%/*}"
+  {
+    printf -- '---\n'
+    printf 'type: ticket\n'
+    printf 'ticket_type: %s\n' "$2"
+    printf 'executor: %s\n' "$3"
+    printf 'allow:\n'
+    printf '  write: [%s]\n' "$4"
+    printf '  ops: ["read"]\n'
+    printf 'base_sha: "abc1234"\n'
+    printf -- '---\n\n# テスト用チケット\n\n## DoD\n\n'
+    printf -- '- [ ] %s の DoD（根拠: ）\n' "$2"
+  } > "$1"
+}
+
+sa_ticket_type_of() { # $1=チケット → frontmatter の ticket_type
+  sed -n 's/^ticket_type: //p' "$1" | head -n 1 | tr -d '\r'
+}
+
+SA_WT=""
+# ---- SA-T10: 対象チケットが起動された側の作業ツリーで一意に決まる（A5）----
+case_worktree_target() {
+  local main_tk wt_tk
+  clear_tickets; clear_logs
+  make_tmp_dir
+  SA_WT="$TMP_DIR/w1"
+  sa_wt_fixture "$SA_WT" w1
+  main_tk="$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md"
+  wt_tk="$SA_WT/wip/10_tickets/10_doing/0200-design.md"
+  sa_write_ticket2 "$main_tk" implementation sonnet '"apl/**"'
+  sa_write_ticket2 "$wt_tk"   design         opus   '".claude/docs/**"'
+
+  # 前提（両方の枚数と中身）をテスト自身が assert してから判定を呼ぶ
+  assert_eq "SA-T10" "1" "$(sa_doing_count "$TMP_REPO")"
+  assert_eq "SA-T10" "1" "$(sa_doing_count "$SA_WT")"
+  assert_eq "SA-T10" "implementation" "$(sa_ticket_type_of "$main_tk")"
+  assert_eq "SA-T10" "design" "$(sa_ticket_type_of "$wt_tk")"
+
+  # 起動された側（cwd = worktree）のチケットが対象になる
+  SA_CWD="$SA_WT"; start
+  assert_contains "SA-T10" "WF802"
+  assert_contains "SA-T10" "0200-design"
+  assert_contains "SA-T10" "タスクの種類: design"
+  assert_contains "SA-T10" ".claude/docs/**"
+  assert_not_contains "SA-T10" "0100-implementation"
+  assert_not_contains "SA-T10" "apl/**"
+  # 記録の cwd には対象チケットを採った作業ツリーが入る（§5 のスキーマ）
+  assert_eq "SA-T10" "$SA_WT" "$(tail -n 1 "$SA_WT/logs/hooks/decisions.jsonl" 2>/dev/null | tl_jq -r '.cwd // ""' 2>/dev/null)"
+
+  # 対照: cwd を本流にすると本流側のチケットが対象になる
+  SA_CWD="$TMP_REPO"; start
+  assert_contains "SA-T10" "0100-implementation"
+  assert_contains "SA-T10" "タスクの種類: implementation"
+  assert_not_contains "SA-T10" "0200-design"
+
+  # 負のコントロール: 起動された側が 0 枚なら、本流に 1 枚あっても代用せず skip
+  rm -f "$SA_WT"/wip/10_tickets/10_doing/*.md
+  assert_eq "SA-T10" "1" "$(sa_doing_count "$TMP_REPO")"
+  assert_eq "SA-T10" "0" "$(sa_doing_count "$SA_WT")"
+  SA_CWD="$SA_WT"; start
+  assert_eq "SA-T10" "" "$R_OUT"
+  assert_exit "SA-T10" 0
+  assert_eq "SA-T10" "skip" "$(tail -n 1 "$SA_WT/logs/hooks/decisions.jsonl" 2>/dev/null | tl_jq -r '.decision // ""' 2>/dev/null)"
+  SA_CWD=""
+}
+
+# ---- SA-T11: 作業ツリーを確定できないときは WF804（代用しない）----
+case_worktree_unknown() {
+  local main_tk wt_tk
+  clear_tickets; clear_logs
+  main_tk="$TMP_REPO/wip/10_tickets/10_doing/0100-implementation.md"
+  wt_tk="$SA_WT/wip/10_tickets/10_doing/0200-design.md"
+  sa_write_ticket2 "$main_tk" implementation sonnet '"apl/**"'
+  sa_write_ticket2 "$wt_tk"   design         opus   '".claude/docs/**"'
+  assert_eq "SA-T11" "1" "$(sa_doing_count "$TMP_REPO")"
+  assert_eq "SA-T11" "1" "$(sa_doing_count "$SA_WT")"
+
+  # 正のコントロール: 集合を読める状態なら要点が注入される
+  SA_CWD="$SA_WT"; start
+  assert_contains "SA-T11" "WF802"
+
+  # 作業ツリーの集合を読めない状態にする（登録ディレクトリを退避し、同じ名前のファイルを置く。HK-T22 と同じ作り）
+  mv "$TMP_REPO/.git/worktrees" "$TMP_REPO/.git/worktrees-off"
+  printf 'x\n' > "$TMP_REPO/.git/worktrees"
+  start
+  assert_contains "SA-T11" "WF804"
+  assert_not_contains "SA-T11" "WF802"
+  # 本流のチケットで代用しない（この状態では HOOK_WORKTREE が本流に倒れるので、代用が起きるならここに出る）
+  assert_not_contains "SA-T11" "0100-implementation"
+  assert_not_contains "SA-T11" "0200-design"
+  assert_exit "SA-T11" 0
+
+  # 戻せば再び WF802（WF804 が「読めない状態」に由来することの対照）
+  rm -f "$TMP_REPO/.git/worktrees"
+  mv "$TMP_REPO/.git/worktrees-off" "$TMP_REPO/.git/worktrees"
+  start
+  assert_contains "SA-T11" "WF802"
+  assert_not_contains "SA-T11" "WF804"
+  SA_CWD=""
+}
+
 # ---- 停止中 ----
 case_enforce() {
   clear_tickets; clear_logs
@@ -256,5 +381,7 @@ case_dod_cap
 case_subagent_type
 case_record
 case_background
+case_worktree_target
+case_worktree_unknown
 case_enforce
 finish

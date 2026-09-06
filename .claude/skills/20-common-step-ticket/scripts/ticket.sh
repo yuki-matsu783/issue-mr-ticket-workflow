@@ -33,6 +33,7 @@ usage() {
   create <種類> --title <見出し> --purpose <目的> --dod <項目> [--dod ...] [--work <手順>]...
          [--predecessors "0001,0002"] [--executor main] [--human-review true|false] [--human-review-reason <理由>]
          [--adversarial-review true|false] [--adversarial-review-reason <理由>] [--allow-write "wip/**"] [--allow-ops "read"]
+         ※ create は本流でだけ実行できる（作業ツリーでは TK009。採番を 1 か所に限るため）
   start <番号>                  未着手 → 作業中（開始時刻・差分基準点を記録）
   complete <番号>               作業中 → 完了（DoD・作業ログ・未コミットの検査）
   cancel <番号> --reason <理由>  未着手/作業中 → 取り消し
@@ -114,8 +115,32 @@ need_val() { # $1=オプション名 $2=残りの引数の数（$#）
   [ "$2" -ge 2 ] || result_ng 008 "$1 には値が必要（$1 <値> の形で指定する）" 2
 }
 
+# 本流かどうかの判定（正は 20-common-step-worktree 仕様「本流かどうかの判定（提供コマンド共通）」。リポジトリルート直下の .git がディレクトリなら本流、ファイルなら作業ツリー。この 4 行は worktree.sh / ticket.sh / push.sh でバイト一致させ、各コマンドで作り直さない）
+wt_is_main_root() { # $1=リポジトリルート
+  [ -d "$1/.git" ]
+}
+
+# 案内に使う本流の置き場（git-common-dir から導く。パスを文字列で突き合わせない）
+main_root_hint() {
+  local c
+  c="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+  case "$c" in
+    ""|".git") printf '（特定できない）' ;;
+    */.git) printf '%s' "${c%/.git}" ;;
+    *) printf '%s' "$c" ;;
+  esac
+}
+
 # ---------------------------------------------------------------- create
 cmd_create() {
+  # 0. 本流での実行を検査する（TK009）。採番を 1 か所に限って番号の二重取りを構造的に防ぐ（DDR i0050-05）。
+  #    この分岐は create の中だけに置く（start / complete / cancel / next は作業ツリーでも通る）
+  local repo_top
+  repo_top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$repo_top" ] || result_ng 008 "リポジトリルートを特定できない（git リポジトリの中で実行すること。環境の誤り）" 2
+  if ! wt_is_main_root "$repo_top"; then
+    result_ng 009 "作業ツリーではチケットを作成できない（現在: $repo_top / 本流: $(main_root_hint)）。本流を作業ディレクトリにして create し直すこと（着手・完了・取り消し・次の提示は作業ツリーでも行える）" 1
+  fi
   [ $# -ge 1 ] || result_ng 008 "create には種類を指定する（task-types.tsv の type）" 2
   local type="$1"; shift
   local title="" purpose="" preds="" executor="main" hr="true" hr_reason="既定（rules/work-defaults.md）" ar="false" ar_reason="既定（rules/work-defaults.md）" aw="wip/**" ao="read"

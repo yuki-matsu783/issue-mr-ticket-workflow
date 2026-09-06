@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0050 issue #15 の振り返りと後続の決定</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格はレポートテンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .steps { list-style: none; margin: 18px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .step { position: relative; margin: 0 0 22px; }
+  .step:last-child { margin-bottom: 0; }
+  .step-no { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--accent); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="plan">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">フィードバック計画</p>
+  <h1 id="title" data-required>0050 issue #15 の振り返りと後続の決定</h1>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#goal">この計画で何をするか</a></li>
+      <li><a href="#target">対象と範囲</a></li>
+      <li><a href="#approach">方法とステップ</a></li>
+      <li><a href="#verify">検証</a></li>
+      <li><a href="#tickets">チケット</a></li>
+      <li><a href="#risks">リスクと復旧</a></li>
+      <li><a href="#pending">保留した点 / 対象なし</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/shlex-hook-inspection-7t4sc1</code></dd></div>
+    <div><dt>チケット</dt><dd>0050</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="goal" data-required>
+  <h2>この計画で何をするか</h2>
+  <p class="lead">チケット 0040〜0052 の作業ログとレポートから改善候補 19 件を洗い出し、観点・類型・反映先の 2 軸で分類して対応先を決めた。issue #15 の 2026-09-03 追記分の受け入れ条件 6 件はすべて充足している。後続フェーズは全体まとめ 1 枚だけになる。</p>
+  <div class="box ok">
+    <p class="label">決めたこと</p>
+    <ul>
+      <li>新規に別 issue を 3 件起票する（<code>cmdpos.sh</code> の既知の制約 / HTML ビューの複製経路 / <code>ticket.sh</code> のフラグとテスト分類 3 件）</li>
+      <li>既存 issue に 8 件を合流させる（#30 / #32 / #23 / #34 / #10）。本 PR では追記しない</li>
+      <li>2 件は #15 に残す（<code>scope.sh</code> / <code>hook-common.sh</code> の移行判断、uv の導入）</li>
+      <li>2 件は対応しない（実測値の保守の仕組み、<code>cmdpos_parse</code> の速度）</li>
+      <li>後続フェーズは設計反映・追加設計・追加実装のいずれも不要。全体まとめ 0053 を 1 枚起こす</li>
+    </ul>
+  </div>
+</section>
+
+<section id="target" data-required>
+  <h2>対象と範囲</h2>
+  <h3>確認した記録の範囲</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>対象</th><th>内容</th><th>根拠・仕様の節</th></tr></thead>
+    <tbody>
+      <tr><td>完了チケット</td><td>0040 / 0041 / 0043 / 0044 / 0045 / 0046 / 0047 / 0048 / 0052（9 枚）</td><td>作業ログの固定見出し 9 項目すべて</td></tr>
+      <tr><td>取り消しチケット</td><td>0042 / 0049 / 0051（3 枚）</td><td>いずれも作業ログは空。取り消し理由は frontmatter に記録</td></tr>
+      <tr><td>レポート</td><td><code>0043</code> / <code>0046</code> / <code>0047</code> / <code>0052</code></td><td>「想定と異なった点」「残課題」</td></tr>
+      <tr><td>計画書</td><td><code>0041</code> / <code>0044</code> / <code>0048</code></td><td>「保留した点」</td></tr>
+      <tr><td>MR のレビュー指摘</td><td>PR #36 の通常コメント全件（2 件）</td><td>いずれもこちらから出したレビュー依頼。<strong>人間からの指摘は 0 件</strong>。差分行に付くレビューコメントも 0 件</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>受け入れ条件の充足</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件</th><th>チケット</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>出力 10 項目の切り分け</td><td>0046</td><td>A-1 の 10 行の表。<code>shlex</code> が供給するのは 3 項目のみ</td></tr>
+      <tr><td>2</td><td>ホットパス 5 本の増分の実測</td><td>0043</td><td>B-1 の 8 行の表。1 本 +20.7 ms、5 本で +103 ms</td></tr>
+      <tr><td>3</td><td>DDR i0009-22 の扱いの決定</td><td>0047</td><td><code>i0015-01</code> の「決定」節（維持）と「却下した案」(c)</td></tr>
+      <tr><td>4</td><td>置き場の選択と却下理由</td><td>0047</td><td><code>i0015-01</code> の「決定」節と「却下した案」の 3 案</td></tr>
+      <tr><td>5</td><td>実装とテストの同一 ID・同一結果</td><td>0052</td><td><code>cmdpos.sh</code> の差分 0 行。25 本 165 ID が PASS、失敗 0</td></tr>
+      <tr><td>6</td><td>仕様書 §1・§7 の更新</td><td>0047</td><td>§1 に実測の目安（比率）、§7 に前処理 4 機能の説明</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><strong>6 件すべて充足。</strong> #15 にはこの追記分以外の受け入れ条件が残るため open のままにする。</p>
+</section>
+
+<section id="approach" data-required>
+  <h2>方法とステップ</h2>
+  <h3>改善候補の一覧</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>候補</th><th>出どころ</th><th>観点</th><th>類型</th><th>いつ効くか</th><th>守らせ方</th><th>対応先</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><code>cmdpos.sh</code> がクォートで割った語（<code>git 'commit'</code>）のサブコマンドを判定できない</td><td>0046 A-3、DDR <code>i0015-01</code></td><td>足りなかった</td><td>(b) 誤っていた</td><td>操作のたび</td><td>機械的に拒否する</td><td><strong>別 issue A</strong></td></tr>
+      <tr><td>2</td><td>HTML ビューのテンプレートを <code>cp</code> できず、CSS 100 行超を毎回書き写している</td><td>0041・0046</td><td>邪魔だった</td><td>(c) 罠が書かれていなかった</td><td>スキル呼び出し時</td><td>手順化する</td><td><strong>別 issue B</strong></td></tr>
+      <tr><td>3</td><td><code>ticket.sh</code> の <code>--allow-write</code> / <code>--allow-ops</code> を繰り返すと黙って最後の 1 件だけが残る</td><td>0052</td><td>邪魔だった</td><td>(c) 罠が書かれていなかった</td><td>操作のたび</td><td>機械的に拒否する</td><td><strong>別 issue C</strong></td></tr>
+      <tr><td>4</td><td><code>run-tests.sh</code> が要求する分類と <code>scope_classify</code> の分類が別物である点が未明文</td><td>0052</td><td>足りなかった</td><td>(a) 無かった</td><td>スキル呼び出し時</td><td>読ませる</td><td>別 issue C に同梱</td></tr>
+      <tr><td>5</td><td>テスト ID <code>CP-T08</code> が 2 ファイルで重複している</td><td>0052</td><td>足りなかった</td><td>(b) 誤っていた</td><td>レビュー時</td><td>機械的に拒否する</td><td>別 issue C に同梱</td></tr>
+      <tr><td>6</td><td><code>commands.build-test</code> がディレクトリ単位・glob 指定をできない</td><td>0040・0041・0045、DDR <code>i0015-02</code></td><td>邪魔だった</td><td>(a) 無かった</td><td>操作のたび</td><td>機械的に拒否する</td><td>既存 <strong>#30</strong></td></tr>
+      <tr><td>7</td><td>チケット起票時に DoD と型の許可範囲を突き合わせる手順が無い</td><td>0045</td><td>足りなかった</td><td>(a) 無かった</td><td>スキル呼び出し時</td><td>手順化する</td><td>既存 <strong>#32</strong></td></tr>
+      <tr><td>8</td><td>設計フェーズでテストを走らせられないことが TR006 で止まるまで分からない</td><td>0047</td><td>足りなかった</td><td>(c) 罠が書かれていなかった</td><td>スキル呼び出し時</td><td>手順化する</td><td>既存 <strong>#32</strong></td></tr>
+      <tr><td>9</td><td>DDR のファイル名規約が明文化されていない</td><td>0047</td><td>足りなかった</td><td>(a) 無かった</td><td>スキル呼び出し時</td><td>読ませる</td><td>既存 <strong>#23</strong></td></tr>
+      <tr><td>10</td><td>DDR 一覧を frontmatter から生成する仕組みが無い</td><td>0048</td><td>足りなかった</td><td>(b) 誤っていた</td><td>スキル呼び出し時</td><td>読ませる</td><td>既存 <strong>#23</strong></td></tr>
+      <tr><td>11</td><td>MCP 経由で issue 本文が HTML エスケープされる注意が仕様に無い</td><td>0040</td><td>足りなかった</td><td>(c) 罠が書かれていなかった</td><td>スキル呼び出し時</td><td>読ませる</td><td>既存 <strong>#23</strong></td></tr>
+      <tr><td>12</td><td>SKILL.md の <code>retrospective</code> という type が <code>task-types.tsv</code> に無い</td><td>0040</td><td>足りなかった</td><td>(b) 誤っていた</td><td>常時読込</td><td>読ませる</td><td>既存 <strong>#34</strong></td></tr>
+      <tr><td>13</td><td><code>merge-prep.sh reset-wip</code> が無いまま <code>wip/</code> が main に入る</td><td>0040</td><td>無かった</td><td>(a) 無かった</td><td>操作のたび</td><td>手順化する</td><td>既存 <strong>#10</strong></td></tr>
+      <tr><td>14</td><td>WF303 が <code>20_done</code> の削除を拒み、AI が片付けられない</td><td>0040</td><td>邪魔だった</td><td>(a) 無かった</td><td>操作のたび</td><td>機械的に拒否する</td><td>既存 <strong>#10</strong></td></tr>
+      <tr><td>15</td><td>計画書・レポートのひな形が全タスク種で未作成</td><td>0041・0044・0046</td><td>無かった</td><td>(a) 無かった</td><td>スキル呼び出し時</td><td>手順化する</td><td>既存 <strong>#10</strong></td></tr>
+      <tr><td>16</td><td><code>scope.sh</code> / <code>hook-common.sh</code> の移行判断</td><td>DDR <code>i0015-01</code>、0047</td><td>問題なし</td><td>—</td><td>—</td><td>—</td><td><strong>#15 に残す</strong></td></tr>
+      <tr><td>17</td><td>uv の導入と Python のバージョン固定</td><td>0040 全体計画</td><td>問題なし</td><td>—</td><td>—</td><td>—</td><td><strong>#15 に残す</strong></td></tr>
+      <tr><td>18</td><td>仕様書に実測値を残す仕組みが無い</td><td>0043・0044・0047</td><td>足りなかった</td><td>(a) 無かった</td><td>レビュー時</td><td>読ませる</td><td><strong>対応しない</strong></td></tr>
+      <tr><td>19</td><td><code>cmdpos_parse</code> が 2.4 ms かかっており速くする余地がある</td><td>0043</td><td>問題なし</td><td>—</td><td>—</td><td>—</td><td><strong>対応しない</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="box">
+    <p class="label">「対応しない」の理由</p>
+    <ul>
+      <li><strong>#18</strong>: 本 PR で仕様書 §1 に比率の形で実測の目安を置いたことで当面の受け皿はできた。比率は環境で変わらないので古びにくく、更新の契機を機構化するほどの頻度が無い。次に実測が要る場面が来たときに #15 の中で改めて扱う</li>
+      <li><strong>#19</strong>: ホットパスの上限（DDR <code>i0009-22</code>）に収まっており実害が無い。最適化はボトルネックを特定してから行う原則に反する</li>
+    </ul>
+  </div>
+
+  <h3>合意</h3>
+  <p>ユーザーの指示「敵対的レビューを人間の代わりに入れているので、draft 解消まで止めずに進むように」（2026-09-03）に基づき、<strong>候補ごとの対応先はこちらで決定し、レビュー依頼で一括して提示する</strong>。対話で 1 件ずつ合意する手順は取っていない。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>決定</th><th>件数</th><th>候補 #</th></tr></thead>
+    <tbody>
+      <tr><td>別 issue を新規に起票</td><td>3</td><td>1 / 2 / 3（#4・#5 は C に同梱）</td></tr>
+      <tr><td>既存 issue に合流</td><td>8</td><td>6（#30）/ 7・8（#32）/ 9・10・11（#23）/ 12（#34）/ 13・14・15（#10）</td></tr>
+      <tr><td>#15 に残す</td><td>2</td><td>16 / 17</td></tr>
+      <tr><td>対応しない</td><td>2</td><td>18 / 19</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>既存 issue への合流は<strong>本 PR では追記しない</strong>。合流先はいずれも別の作業の進行中で、本 PR のスコープ外の本文を書き換えることになるため。全体まとめのチケットで、合流先と候補の対応を PR 本文に残す。</p>
+
+  <h3>起票する別 issue（起票は全体まとめ 0053 で実施）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>仮番号</th><th>起票された issue</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/37">#37</a></td></tr>
+      <tr><td>B</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/38">#38</a></td></tr>
+      <tr><td>C</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/39">#39</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>仮番号</th><th>題名（案）</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td><code>cmdpos.sh</code> がクォートで割った語のサブコマンドを判定できない</td><td><code>git 'commit'</code> の <code>sub</code> が <code>_</code> になる。<code>test_cmdpos.sh</code> が既知の制約として固定している。<code>shlex</code> に頼らず直せる見込みがある。拒否側に倒れるので危険側ではないが、<code>git</code> のサブコマンド判定に依存する 5 本のフックの精度が落ちる</td></tr>
+      <tr><td>B</td><td>レポート・計画書の HTML ビューを毎回 CSS ごと書き写している</td><td>手順は「テンプレートをコピーして Edit で埋める」だが WF205 が <code>cp</code> を拒むため、実際は Read → Write で 260 行を書き写している。複製経路（<code>wip/tmp/</code> 経由を許す / 雛形生成コマンドを足す / 手順を実態に合わせる）のどれかを決める</td></tr>
+      <tr><td>C</td><td><code>ticket.sh</code> のフラグの繰り返し指定と、テスト分類の食い違い 3 件</td><td>(1) <code>--allow-write</code> / <code>--allow-ops</code> を繰り返すと黙って最後の 1 件だけが残る（本 PR でチケットを 1 枚取り消す原因になった）。(2) <code>run-tests.sh</code> が要求する分類と <code>scope_classify</code> の分類の違いが未明文。(3) テスト ID <code>CP-T08</code> が 2 ファイルで重複しており報告されるだけで止まらない</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>許可範囲（やってよいこと）</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>ステップ</th><th>write</th><th>ops</th></tr></thead>
+    <tbody>
+      <tr><td>洗い出し・分類・計画書（チケット 0050）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code></td></tr>
+      <tr><td>別 issue の起票・PR 本文・draft 解除（チケット 0053）</td><td><code>wip/**</code></td><td><code>read</code>, <code>remote-read</code>, <code>remote-write:issue-create</code>, <code>remote-write:mr-edit</code>, <code>remote-write:mr-comment</code>, <code>remote-write:push</code>, <code>remote-write:draft-ready</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="verify" data-required>
+  <h2>検証</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>何を</th><th>どう確かめるか</th><th>テスト ID / 成果物</th></tr></thead>
+    <tbody>
+      <tr><td>洗い出しに漏れが無い</td><td>完了・取り消しの全チケットを番号順に、作業ログの固定見出し 9 項目すべてで機械的に走査した</td><td>成果物: 本書「確認した記録の範囲」</td></tr>
+      <tr><td>受け入れ条件の充足</td><td>#15 の 2026-09-03 追記分 6 件それぞれに、満たしたチケットと根拠を対応づけた</td><td>成果物: 本書「受け入れ条件の充足」の 6 行の表</td></tr>
+      <tr><td>候補の割り振りに抜けが無い</td><td>候補 19 件の対応先の件数（3 + 8 + 2 + 2 = 15 行、うち #4・#5 は C に同梱で 2 件を含む）が一覧の行数と一致する</td><td>成果物: 本書「合意」の件数の表</td></tr>
+      <tr><td>後続フェーズの要否</td><td>4 つのフェーズそれぞれに要否と理由を書いた</td><td>成果物: チケット 0053（<code>overall-summary</code>）1 枚</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="tickets" data-required>
+  <h2>チケット</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>番号</th><th>種類</th><th>担当ステップ / 内容</th><th>先行</th></tr></thead>
+    <tbody>
+      <tr><td>0053</td><td><code>overall-summary</code></td><td>別 issue 3 件の起票・PR 本文の最終整形・作業領域の片付け・#15 へのコメント・draft 解除</td><td>0050</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>後続フェーズの決定</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>フェーズ</th><th>要否</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>設計反映（<code>design-feedback-plan</code> / <code>design-feedback</code>）</td><td><strong>不要</strong></td><td>アプリのソースコードを含まない AI アセット中心の issue で、<code>apl/</code> 配下の設計文書に反映すべき変更が無い</td></tr>
+      <tr><td>AI アセット設計（追加）</td><td><strong>不要</strong></td><td>振り返りの候補はいずれも #15 の受け入れ条件の外にあり、別 issue へ送る。<code>.claude/docs/</code> への追加の変更は無い</td></tr>
+      <tr><td>AI アセット実装・テスト（追加）</td><td><strong>不要</strong></td><td>同上。本 PR で <code>.claude/</code> に加えた変更は <code>scope-limits.json</code> の 2 行と <code>test_cmdpos.sh</code> の 1 件のみで、いずれも完了している</td></tr>
+      <tr><td>全体まとめ（<code>overall-summary</code>）</td><td><strong>要</strong></td><td>別 issue の起票・PR 本文の最終整形・片付け・#15 へのコメント・draft 解除</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>未着手チケットは 0053 を作った時点で 1 枚だけになる。振り返りの結果による範囲・実行者・レビュー要否の変更は無い（<code>work-defaults</code> の <code>overall-summary</code> は「メインエージェント / 人間レビュー要（最終確認）/ 敵対的レビュー不要」で、全体計画の方針どおり）。</p>
+</section>
+
+<section id="risks">
+  <h2>リスクと復旧</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>リスク</th><th>影響</th><th>対処・巻き戻し</th></tr></thead>
+    <tbody>
+      <tr><td>対応先の決定を対話で合意していない</td><td>ユーザーの意向と食い違う割り振りが残る</td><td>19 件すべての決定と根拠を本書に残した。レビューで差し戻されたら同じ type の追加チケットで割り振り直す</td></tr>
+      <tr><td>既存 issue への合流を本 PR で追記しない</td><td>合流先の issue を見ても本 PR の知見に辿り着けない</td><td>0053 で PR 本文に合流先と候補の対応を残す。合流先の本文の書き換えは本 PR のスコープ外</td></tr>
+      <tr><td>別 issue の起票を 0053 に回した</td><td>0053 が失敗すると起票されないまま終わる</td><td>起票する 3 件の題名と内容を本書に確定させた。0053 はこの表をそのまま使う</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>仕様からの逸脱</h3>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>逸脱</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td>処理フロー 4「対話で合意する」を行わず、対応先をこちらで決めて一括提示にした</td><td>ユーザーの指示「draft 解消まで止めずに進むように」に従った。決定の内容と根拠は本書に全件残している</td></tr>
+      <tr><td>処理フロー 5「合意された候補を本チケットで起票する」を行わず、全体まとめ（0053）に回した</td><td>本チケットの <code>allow.ops</code> に <code>remote-write:issue-create</code> が無い。<code>feedback-plan</code> の型の既定には含まれるが、起票時のフラグの渡し方の誤り（候補 #3 と同じ原因）で <code>["remote-read"]</code> だけになっていた。迂回せず、起票の権限を型として持つ <code>overall-summary</code> に回した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="pending" data-required>
+  <h2>保留した点 / 対象なし</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>項目</th><th>決める時期・根拠</th></tr></thead>
+    <tbody>
+      <tr><td>別 issue A・B・C の本文の最終形</td><td>0053。本書の表を素案として使う</td></tr>
+      <tr><td><code>wip/10_tickets/20_done</code> に残るチケットの削除</td><td>0053。WF303 のため人間の手が要る</td></tr>
+      <tr><td>#15 の残りの受け入れ条件（<code>scope.sh</code> / <code>hook-common.sh</code>、uv）</td><td>#15 の次の PR。本 PR では扱わない</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a> — 計画の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

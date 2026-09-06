@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0047 shlex の置き場の決定を DDR と仕様書に書いた結果</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">AI アセット設計結果</p>
+  <h1 id="title" data-required>0047 shlex の置き場の決定を DDR と仕様書に書いた結果</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 置き場の決定と却下した案</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. DDR 2 本の起票</a></li>
+          <li><a href="#f3"><span class="mk warn">△</span> 3. フック共通仕様への追記</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">受け入れ条件との対応</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a></dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/shlex-hook-inspection-7t4sc1</code></dd></div>
+    <div><dt>チケット</dt><dd>0047</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-03</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead"><strong>置き場は「採用しない」で確定した。</strong>本番置換もテストの照合役も採らず、<code>cmdpos.sh</code> は純 bash のまま据え置く。DDR <code>i0009-22</code>（ホットパスが起動してよい外部プロセスは <code>jq</code> だけ）は上書きせず維持する。決定を新規 DDR 2 本とフック共通仕様の 2 箇所に書いた。既存の記述は消していない。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>案 (b)（テストの照合役）の却下が妥当か。<code>shlex</code> は現行実装の弱点を 6 件で正しく解いており、捨てるには惜しい。却下の根拠は「盲点のあるものを正解とみなす仕組みは誤った警告と誤った安心の両方を生む」だが、比較項目を絞れば成立する余地はある</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇承認が欲しい</p>
+      <p class="sub">方針は決めた</p>
+      <ul>
+        <li>DDR に「この判断は <code>shlex</code> に限らず外部プロセスとして起動する字句解析器一般に及ぶ」と書いた。理由 2・3 は言語を問わないため</li>
+        <li>§1 の実測は絶対値ではなく比率で残した。絶対値は環境で変わり、古びると誤った基準になる</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>DDR 2 本の節構成は既存の <code>i0009-22</code> に揃えた（背景 / 決定 / 理由 / 却下した案 / 影響）</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li><strong>テストが通ることの確認</strong>。<code>ai-asset-design</code> の型は <code>build-test</code> / <code>hook-test</code> を許可しておらず、<code>run-tests.sh</code> が TR006 で止まった。実行は実装フェーズ（0049）に回した</li>
+      <li><strong><code>scope.sh</code> / <code>hook-common.sh</code> の移行判断</strong>。同じ理由が効く見込みと書いたが実測はしていない</li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">置き場の決定と却下した案 <span class="chip good">◎良</span> <span class="basis">根拠: 0046 A-1〜A-3、0043 B-1・B-2</span></h3>
+      <p>3 案のうち (c) 採用しないを選んだ。理由は 3 つあり、<strong>どれか 1 つでも単独で却下理由になる</strong>。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>理由</th><th>数字</th><th>出どころ</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>判定を誤る</td><td>見落とし 6 件・誤検知 1 件（コーパス 50 件中）</td><td>0046 A-3</td></tr>
+          <tr><td>2</td><td>ホットパスが遅くなる</td><td>1 本 +20.7 ms、5 本で +103 ms。<code>jq</code> 1 回の予算の 7.1 倍</td><td>0043 B-1</td></tr>
+          <tr><td>3</td><td>Python が全実行環境で保証されない</td><td>fail-open を塞げない。フォールバックを残すと 2 言語の二重実装</td><td>0043 B-2</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>却下した案</th><th>却下理由</th></tr></thead>
+        <tbody>
+          <tr><td>(a) 本番の <code>cmdpos.sh</code> を <code>shlex</code> に置き換える</td><td>置き換わるのは 429 行のうち正規化部 120 行程度。得られる縮小に対し理由 1・2・3 がすべて乗る</td></tr>
+          <tr><td>(b) <code>shlex</code> をテストの照合役として常設する</td><td>照合役が信頼できない（比較の相手は「<code>shlex</code> + 自前の再実装」で、その再実装が 4 つの盲点を持つ）／雑音比が高い（差分 23 件のうち 10 件が表現差）／費用が効果に見合わない（見つかったのは既知の制約 1 件、新規の不具合はゼロ）</td></tr>
+          <tr><td>(c) <code>i0009-22</code> を上書きして Python を認める</td><td>上書きの必要が無い。理由 2 と 3 は緩めても消えない</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>(b) は筋のある案だった。却下は「<code>shlex</code> が役に立たない」からではなく、<strong>盲点のあるものを正解とみなす仕組みが誤った警告と誤った安心の両方を生む</strong>からである。<code>git 'commit'</code> の制約は実在し、<code>shlex</code> に頼らずに直せる見込みがあるので、DDR の「影響」節から別 issue へ送った。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">DDR 2 本の起票 <span class="chip good">◎良</span> <span class="basis">根拠: i0009-22 の節構成に揃えた</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>DDR</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td><code>i0015-01</code> フックのコマンド検査に外部の字句解析器を使わない</td><td>3 案から (c) を選んだ決定。理由 3 つ、却下した 3 案。適用範囲を <code>shlex</code> に限らず外部プロセスとして起動する字句解析器一般に広げた（理由 2・3 は言語を問わないため）</td></tr>
+          <tr><td><code>i0015-02</code> 調査の計測コマンドは実行入口を 1 本に固定して列挙する</td><td>チケット 0045 の判断。前方一致が半角空白区切りである性質、拒否側 4 パターンが拒否のままであることの確認、残る弱点（<code>wip/tmp/</code> は追跡外で中身は自由）を正直に記載</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p><code>i0015-02</code> には「残る弱点」の節を設けた。入口を固定しても中身が任意である以上、実質は任意の Python 実行に等しい。<code>npm test</code> も同じ性質を持つ（<code>package.json</code> の <code>scripts.test</code> は自由に書ける）ため、列挙による制限は「うっかり別のものを走らせない」歯止めであって悪意ある書き換えを防ぐ機構ではない、と書いた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">3</span>
+      <h3 id="f3">フック共通仕様への追記 <span class="chip warn">△注意</span> <span class="basis">根拠: §1 の「実測はフェーズ 4c」、§7 冒頭</span></h3>
+      <p><strong>§1</strong>: 同節は「実測はフェーズ 4c」と書いたまま実測値の置き場が無かった。<strong>比率</strong>の形で目安を置いた。ホットパス 1 本の実態は <code>jq</code> 1 回起動のおよそ 1.7 倍。bash の空起動を 1 として、<code>cmdpos_parse</code> の解析が 1・<code>jq -n</code> の起動が 1.6・ホットパス 1 本の合計が 2.8。絶対値は括弧内の参考値に留めた。</p>
+      <p><strong>§7</strong>: 冒頭の「純 bash（外部プロセス無し）」の直後に、外部の字句解析器を使わない旨と DDR への参照を置いた。§7-1 の前処理が担う 4 つの働きを名指しし、欠けたときに何が起きるかを具体例で書いた。</p>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>比率にしたのは絶対値が環境で変わるため。ただし<strong>誰がいつ測り直すかは決めていない</strong>。比率にしたことで古びにくくはしたが、更新の契機が無いままである。</p>
+      </div>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>受け入れ条件との対応</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>受け入れ条件</th><th>満たした箇所</th></tr></thead>
+    <tbody>
+      <tr><td>3</td><td>DDR i0009-22 を上書きするか維持するかが決まり、新しい DDR に理由とともに記録されている</td><td><code>i0015-01</code> の「決定」節（維持する）と「却下した案」(c)</td></tr>
+      <tr><td>4</td><td><code>shlex</code> の置き場が 3 案から選ばれ、却下した案の理由が残っている</td><td><code>i0015-01</code> の「決定」節と「却下した案」節（3 案すべて）</td></tr>
+      <tr><td>6</td><td>仕様書「フック共通仕様」§1・§7 の記述が決定に合わせて更新されている</td><td>§1 に実測の目安（比率）、§7 に外部の字句解析器を使わない旨と前処理 4 機能の説明</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>条件 1・2 は調査（0046・0043）で、条件 5 は次の実装フェーズで満たす。</p>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>実装フェーズ（0048 計画 → 0049 実施）で、既存テストが変更後も同じ検査 ID・同じ結果で通ることを確認する。<code>cmdpos.sh</code> のコードは変えないので、確認そのものが受け入れ条件 5 の中身になる</li>
+    <li>フィードバック計画で、<code>cmdpos.sh</code> の既知の制約（<code>git 'commit'</code>）を別 issue にするかを決める</li>
+    <li><code>scope.sh</code> / <code>hook-common.sh</code> の移行判断は issue #15 の他の受け入れ条件として残す。本 PR では扱わない</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>却下した案は 2 つ（本番置換・照合役）</td><td><code>i0009-22</code> の上書き自体も 1 案として却下対象になった</td><td>3 案に増やして DDR に書いた</td></tr>
+      <tr><td>§1 には実測の絶対値を書く</td><td>絶対値は環境で変わり、古びると誤った基準になる</td><td>比率を主とし、絶対値は括弧内の参考値に落とした</td></tr>
+      <tr><td>設計フェーズでテストが走らせる</td><td><code>ai-asset-design</code> の型は <code>build-test</code> / <code>hook-test</code> を許可しておらず TR006 で止まった</td><td>型どおりの制約。テストの実行は実装フェーズ（0049）に回した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong><code>cmdpos.sh</code> の既知の制約</strong>（<code>git 'commit'</code> のサブコマンドが <code>_</code> になる）。<code>shlex</code> を使わずに直せる見込みだが issue #15 の受け入れ条件に無い</li>
+    <li><strong><code>scope.sh</code> / <code>hook-common.sh</code> の移行判断</strong>。同じ理由が効くと書いたが実測はしていない</li>
+    <li><strong>仕様書の実測の目安の保守</strong>。誰がいつ測り直すかは決めていない</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/15">#15</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/36">#36</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

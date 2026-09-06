@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "work-defaults の基準どおり�
 allow:
   write: ["wip/**"]
   ops: ["read", "remote-read", "remote-write:mr-update", "remote-write:push"]
-started_at: ""
+started_at: "2026-09-06T09:54:17+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "bc427b2"
 ---
 
 # 0031 issue #50 の全体まとめ

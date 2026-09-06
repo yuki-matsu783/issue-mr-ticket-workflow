@@ -11,6 +11,8 @@ allow:
 started_at: "2026-09-06T11:27:08+09:00"
 completed_at: ""
 base_sha: "f02813e"
+cancelled_at: "2026-09-06T11:28:38+09:00"
+cancel_reason: "allow.ops の名前が種別 overall-summary の上限と食い違っていた（mr-update は上限に無く mr-edit が正、issue-append は上限に無い）。上限どおりの宣言で 0033 として作り直す"
 ---
 
 # 0032 issue #50 の全体まとめ

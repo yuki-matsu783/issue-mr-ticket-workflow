@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0003 調査結果 — hook機構.md の章番号の連続性と前方参照の現状把握</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">調査結果レポート / 調査</p>
+  <h1 id="title" data-required>0003 調査結果 — hook機構.md の章番号の連続性と前方参照の現状把握</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 2</span>
+    <span class="chip warn">△注意 0</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 実見出しは37件、§6〜§12.2に欠落・重複・飛びは無く、末尾は§12.2の表の最終行で完結して終わる</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 前方参照（§表記）は15件・参照先12種類のうち実在は2種類、§以外の表記は0件</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/52">#52</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/53">#53</a>（draft）</dd></div>
+    <div><dt>ブランチ</dt><dd>claude/hook-mechanism-hx89wi</dd></div>
+    <div><dt>チケット</dt><dd>0003</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">`.claude/docs/00_requirement/hook機構.md`（680 行）を読み取りだけで確認した。見出し行は `grep -n '^#\+ '` で 45 件ヒットするが、うち 8 件はフェンスコードブロック（yaml/bash の設定例）内のコメント行で実際の章立てではない。除外すると実見出しは 37 件で、§6〜§12.2 の範囲に欠落・重複・飛びは無い。ファイルは §12.2 の表（3 行）が完結した直後、§12.3 以降が存在しないまま終わっている。前方参照（§表記）は本文中に 15 件、参照先の節番号は重複を除くと 12 種類あり、既存ファイル内に実在するのは 2 種類（§8.5・§7.4）のみで、残り 10 種類は存在しない。§ を使わない参照表記は 0 件だった。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>2</b><span>◎良</span></li>
+    <li class="kpi warn"><b>0</b><span>△注意</span></li>
+    <li class="kpi stop"><b>0</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li>無し</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇判断が欲しい</p>
+      <p class="sub">決めた方針の承認 / 決められない点の判断</p>
+      <ul>
+        <li>無し（本チケットは現状の実測に限り、章番号を直す・A4 の明記方法を決めるといった設計判断はしていない。次工程の AI アセット設計計画（0004）が引き取る）</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>見出し抜き出し・フェンスコードブロックとの重なり判定・§ 参照の抜き出しはいずれも grep の出力と目視確認が一致しており、機械的に再現できる</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>取り込む原文（スクリーンショット画像）の内容 — メインエージェントのセッションにのみ存在しサブエージェントから読めない。本チケットの範囲外（起動プロンプトの指示どおり）。引き取り先: AI アセット設計計画（0004、executor: main）</li>
+      <li>§ を使わない参照表記が本当に 0 件かの完全性 — `第[0-9]+章` / `[0-9]+(\.[0-9]+)*節` / `→ *[0-9]+(\.[0-9]+)*` の 3 パターンと「参照」という語の周辺を検索したが、これら以外の表記までは想定していない。引き取り先: 次工程で新しい参照表記が見つかったら追加チケットで検索式を足す</li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">実見出しは37件、§6〜§12.2に欠落・重複・飛びは無く、末尾は§12.2の表の最終行で完結して終わる <span class="chip good">◎良</span> <span class="basis">根拠: grep -n '^#\+ '（45件）とフェンス開閉行の突き合わせ（除外8件、実見出し37件）、680行目の内容確認</span></h3>
+      <p><b>見出しの全件抜き出し</b>: `grep -n '^#\+ ' .claude/docs/00_requirement/hook機構.md` の出力は 45 件。うち 8 件（450, 471, 561, 564, 568, 571, 608, 620 行）はフェンスコードブロック（yaml/bash 設定例）内のコメント行で、実際の見出しではない。フェンス `` ``` `` の開閉行を `grep -n '^```' ` で 44 件（22 ペア）抜き出し突き合わせて確認した。除外後の実見出しは 37 件。</p>
+      <p><b>章番号の並び</b>: 最上位（##）は 6, 7, 8, 9, 10, 11, 12 で連番、欠落無し（§0〜§5 はファイル先頭に存在しないが、これは取り込み範囲の性質であり「欠落」ではない）。副見出しも §6.1〜6.5・§7.1〜7.4・§8.1〜8.7・§9.1〜9.4・§10.1〜10.5・§11.1〜11.3・§12.1〜12.2 のいずれも連番で欠落・重複・飛びが無い。ただし §8.7 の見出し文字列は「⑥⑦⑧その他」で、§8.2〜§8.6 が①〜⑤の単一項目に対応するのに対し §8.7 だけが 3 項目を 1 節にまとめている非対称な構成である（章番号としての欠落ではない）。</p>
+      <p><b>先頭</b>: 行1、`## 6. Layer構成の概要`。前置きの本文は無い。</p>
+      <p><b>末尾（680行目）</b>: `| Bash実行対象 | bash x.sh, python x.py 等 | target_directories.exec → 未定義時はreadにフォールバック | exec |`。これは行674の見出し `### 12.2 パス権限判定` に続く表（ヘッダ・区切り・3データ行）の最終データ行で、表自体は構文的に壊れていない。表が完結した直後、§12.3 以降の節が無いままファイルが終わっている。</p>
+      <details>
+        <summary>根拠を見る（実行コマンドと出力）</summary>
+        <pre><code>$ grep -n '^#\+ ' .claude/docs/00_requirement/hook機構.md | wc -l
+45
+$ grep -n '^```' .claude/docs/00_requirement/hook機構.md | wc -l
+44（22ペア）
+除外後の実見出し: 37件（行1,3,12,31,44,65,78,80,117,138,161,182,186,202,228,265,293,362,397,421,425,454,466,486,502,504,516,525,535,558,577,579,594,603,638,640,674）
+$ sed -n '674,680p' .claude/docs/00_requirement/hook機構.md
+### 12.2 パス権限判定
+（表: ヘッダ行 + 区切り行 + データ3行、680行目がデータ最終行）</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>§6〜§12.2 の範囲に章番号の欠落・重複・飛びは無い。末尾は表の途中ではなく、§12.2 の表が完結した直後に §12.3 以降が続かないままファイルが終わっている。</p>
+      </div>
+    </li>
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">前方参照（§表記）は15件・参照先12種類のうち実在は2種類、§以外の表記は0件 <span class="chip good">◎良</span> <span class="basis">根拠: grep -noE '§[0-9]+(\.[0-9]+)*'（15件）と第N章／N節／→N.N（各0件）、e1の章番号集合との突き合わせ</span></h3>
+      <p>`grep -noE '§[0-9]+(\.[0-9]+)*'` で 15 件の前方参照を抽出した。`第[0-9]+章`・`[0-9]+(\.[0-9]+)*節`・`→ *[0-9]+(\.[0-9]+)*` はいずれも 0 件で、「参照」という語の周辺（4 件）も章番号を指すものではなかった。§ を使わない参照表記は本文に存在しない。</p>
+      <p>参照先の節番号は重複を除くと 12 種類（§7.4, §8.5, §14.3, §14.5, §14.9, §16, §16.3, §17, §17.2, §17.3, §17.5, §18）。e1 で確定した実見出しの集合（§6〜§12.2）と突き合わせると、実在するのは §7.4（行161）・§8.5（行293）の 2 種類のみで、残り 10 種類（延べ 13 件）は存在しない。存在しない参照先はすべて §12 より後（§14・§16・§17・§18）を指しており、e1 の「ファイルは §12.2 で終わる」という事実と整合する。</p>
+      <details>
+        <summary>根拠を見る（前方参照の全件表と検索式）</summary>
+        <pre><code>検索式と件数:
+  grep -noE '§[0-9]+(\.[0-9]+)*' → 15件
+  grep -noE '第[0-9]+章'          → 0件
+  grep -noE '[0-9]+(\.[0-9]+)*節' → 0件
+  grep -noE '→ *[0-9]+(\.[0-9]+)*' → 0件
+  grep -n '参照'                  → 4件（章番号への参照なし）
+
+全件表（参照元行番号 / 参照先節番号 / 存在Y-N / 抜粋）:
+62  §16    N  "無視した記述 | §16のレポートに記録"
+73  §14.9  N  "承認キャッシュの失効判定 | 値が変われば全エントリを破棄(§14.9)"
+115 §8.5   Y  "settings.json自体の書き換え保護はLayer 1に委ねる(§8.5)"
+124 §18    N  "PostToolUseの差分検証(§18)の前提が崩れるため"
+157 §16    N  "承認ゲートでリスクスコア加点+逸脱表示(§16, §17)"
+157 §17    N  同上（同一行に2件）
+158 §7.4   Y  "次回セッション開始時の完全性検証で人間の確認を強制(§7.4)"
+159 §14.9  N  "config_hash変更により全承認キャッシュが失効(§14.9)"
+278 §17.2  N  "承認UI(§17.2) | 範囲外へのallowを「想定外領域」として強調表示"
+279 §17.3  N  "リスクスコア(§17.3) | 範囲外1件につき+15"
+280 §16.3  N  "起動時レポート(§16.3) | SCOPE_DEVIATIONとして列挙"
+281 §14.5  N  "承認キャッシュ(§14.5) | 範囲外はprefix→exactに強制降格"
+349 §14.3  N  "askのとき、明示的askをキャッシュ対象に含めるか(§14.3)"
+496 §17.5  N  "未承認扱い→§17.5の降格処理"
+658 §14.3  N  "cacheable: bool # §14.3で決定"</code></pre>
+      </details>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>前方参照は15件・参照先12種類。実在するのは §7.4・§8.5 の2種類のみで、残り10種類（§14.3・§14.5・§14.9・§16・§16.3・§17・§17.2・§17.3・§17.5・§18）は既存ファイル内に存在しない。これらが受け入れ条件A4で明記すべき「残る参照」の候補になる。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>見出しの抜き出しに漏れが無い</td><td>一致（生の抜き出し45件、フェンス内除外8件、実見出し37件を全件記載）</td></tr>
+      <tr><td>章番号の連続性の判定に根拠がある</td><td>全37件に行番号を記載</td></tr>
+      <tr><td>前方参照の抜き出しに漏れが無い</td><td>§表記15件 + 第N章/N節/→N.N各0件を確認し、検索式を全件記載</td></tr>
+      <tr><td>参照先の有無の判定が機械的</td><td>全15件に参照元行番号・参照先節番号・存在Y/N・抜粋の4列を記載</td></tr>
+      <tr><td>末尾の切れ位置が特定できている</td><td>680行目の内容と、表完結直後に§12.3以降が無いことを記載</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>章番号は §6〜§12.2 の範囲で欠落・重複・飛びが無いこと（受け入れ条件A3の判定材料） → AI アセット設計計画（0004）</li>
+    <li>前方参照10種類（§14.3・§14.5・§14.9・§16・§16.3・§17・§17.2・§17.3・§17.5・§18）が既存ファイル内に存在しないこと（受け入れ条件A4で明記する節番号の候補） → AI アセット設計計画（0004）</li>
+    <li>§8.7が①〜⑤とは異なり⑥⑦⑧の3項目を1節にまとめている非対称な構成であること（生写しするかどうかは設計判断） → AI アセット設計計画（0004）</li>
+    <li>ファイルは§12.2の表が完結した直後で終わっており、§12.3以降は存在しないこと（続きをどこから足すかの起点） → AI アセット設計計画（0004）</li>
+  </ol>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>計画書は見出し抜き出しを「そのまま章番号として集計する」想定で書かれていた</td><td>grep出力45件のうち8件はフェンスコードブロック内のコメント行（yaml/bash例示中の#見出し）で、実際の章立てではなかった</td><td>フェンス開閉行を全件抜き出して22ペアと突き合わせ、除外リストを表で明示した上で実見出し37件を確定した</td></tr>
+      <tr><td>§12.2の末尾は「表の途中で切れている」可能性を計画書は想定していた</td><td>実際には表はヘッダ・区切り・3データ行が揃って完結しており、切れているのは表の後に続くはずの§12.3以降の節が存在しないことだった</td><td>e1に正確に記載し、DoDの問いに「表の途中ではなく、表の直後で節が続かないまま終わっている」と回答した</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li>R1: 取り込み範囲の確定（issue #52 の追記コメントで §0〜補遺の全文に広がっているとされる点）は本チケットの範囲外。本調査の結果は取り込む量によらず有効。引き取り先: 前タスク（0002）の保留P1のとおりAIアセット設計計画（0004）の入口で確定</li>
+    <li>R2: §8.7「⑥⑦⑧その他」の非対称な構成をどう扱うか（分割するか、生写しのまま残すか）は設計判断であり本チケットでは決めていない。引き取り先: AIアセット設計計画（0004）</li>
+    <li>R3: §12.3以降・§13〜§23・付録A〜D・補遺の内容確認は、取り込む原文がスクリーンショット画像でありサブエージェントから読めないため本チケットでは行っていない。引き取り先: AIアセット設計計画（0004、executor: main）</li>
+  </ul>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/52">#52</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/53">#53</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

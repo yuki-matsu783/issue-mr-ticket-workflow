@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0011 全体まとめ結果 — hook機構（Claude Code Ticket Guard）設計文書の取り込み</title>
+<style>
+  /* クリーン・ライト（ライト / ダーク両対応）。骨格は計画書テンプレートと同じ */
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  [id] { scroll-margin-top: 16px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", system-ui, sans-serif;
+    line-height: 1.8; font-size: 15px;
+  }
+  a { color: var(--accent); }
+  code {
+    background: var(--code-bg); border-radius: 5px; padding: 1px 5px; font-size: 13px;
+    font-family: "SFMono-Regular", Consolas, "Noto Sans Mono", monospace;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; overflow-x: auto; font-size: 13px; line-height: 1.65;
+  }
+  pre code { background: none; padding: 0; }
+
+  .shell { max-width: 1180px; margin: 0 auto; }
+  @media (min-width: 900px) { .shell { display: flex; align-items: flex-start; } }
+  .sidebar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 22px 20px; }
+  @media (min-width: 900px) {
+    .sidebar { width: 280px; flex: 0 0 280px; position: sticky; top: 0; max-height: 100vh;
+               overflow-y: auto; border-bottom: 0; border-right: 1px solid var(--line); }
+  }
+  .sidebar .kind { margin: 0; font-size: 11px; letter-spacing: .18em; color: var(--accent); font-weight: 700; }
+  .sidebar h1 { margin: 6px 0 0; font-size: 19px; line-height: 1.45; }
+  .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+  .toc { margin-top: 22px; }
+  .toc-title { margin: 0 0 6px; font-size: 11px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
+  .toc ol { margin: 0; padding-left: 20px; font-size: 13.5px; }
+  .toc li { margin: 3px 0; }
+  .toc-sub { margin-top: 4px; padding-left: 16px; border-left: 1px solid var(--line); list-style: none; }
+  .toc-sub li { font-size: 13px; color: var(--muted); }
+  .mk { font-weight: 700; }
+  .mk.good { color: var(--good); } .mk.warn { color: var(--warn); } .mk.stop { color: var(--stop); }
+  .meta { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  .meta div { display: flex; gap: 8px; margin: 2px 0; }
+  .meta dt { flex: 0 0 68px; font-weight: 600; color: var(--ink); }
+  .meta dd { margin: 0; }
+  .main { flex: 1 1 auto; min-width: 0; padding: 26px 22px 80px; }
+  @media (min-width: 900px) { .main { padding: 32px 34px 90px; } }
+
+  h2 { font-size: 19px; margin: 34px 0 10px; padding-bottom: 8px; border-bottom: 2px solid var(--line); }
+  section:first-child h2 { margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 10px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .lead { font-size: 17px; line-height: 1.75; margin-top: 0; }
+  footer { margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; text-align: center; }
+
+  .chip { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; border: 1px solid transparent; }
+  .chip.good { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+  .chip.stop { background: var(--stop-soft); color: var(--stop); border-color: var(--stop); }
+
+  .kpis { display: flex; gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .kpi { flex: 1 1 110px; max-width: 190px; text-align: center; padding: 12px 8px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin: 0; }
+  .kpi b { display: block; font-size: 26px; line-height: 1.2; }
+  .kpi span { font-size: 12px; font-weight: 700; }
+  .kpi.good { border-color: var(--good); } .kpi.good b, .kpi.good span { color: var(--good); }
+  .kpi.warn { border-color: var(--warn); } .kpi.warn b, .kpi.warn span { color: var(--warn); }
+  .kpi.stop { border-color: var(--stop); } .kpi.stop b, .kpi.stop span { color: var(--stop); }
+
+  .focuses { display: grid; gap: 12px; margin-top: 22px; }
+  @media (min-width: 760px) { .focuses { grid-template-columns: repeat(3, 1fr); } }
+  .focus { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+  .focus .label { margin: 0; font-size: 13.5px; font-weight: 700; }
+  .focus .sub { margin: 0; font-size: 11.5px; color: var(--muted); }
+  .focus ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  .focus.must { border-width: 2px; border-color: var(--accent); background: var(--accent-soft); }
+  .focus.must .label, .focus.want .label { color: var(--accent); }
+  .focus.want { border-color: var(--accent); }
+  .focus.skip, .focus.skip .label { color: var(--muted); }
+
+  .box { border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--radius) var(--radius) 0; padding: 12px 16px; margin: 16px 0; }
+  .box > :first-child { margin-top: 0; } .box > :last-child { margin-bottom: 0; }
+  .box .label { font-size: 12px; font-weight: 700; letter-spacing: .06em; margin: 0 0 4px; color: var(--accent); }
+  .box.ok { border-color: var(--ok); background: var(--ok-soft); } .box.ok .label { color: var(--ok); }
+  .box.warn { border-color: var(--warn); background: var(--warn-soft); } .box.warn .label { color: var(--warn); }
+  .box.stop { border-color: var(--stop); background: var(--stop-soft); } .box.stop .label { color: var(--stop); }
+
+  .tl { list-style: none; margin: 22px 0 0; padding: 0 0 0 30px; border-left: 2px solid var(--line); }
+  .tl-item { position: relative; margin: 0 0 30px; padding: 0; }
+  .tl-item:last-child { margin-bottom: 0; }
+  .tl-dot { position: absolute; left: -41px; top: 1px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 999px; font-size: 11px; font-weight: 700; color: #fff; background: var(--muted); }
+  .tl-dot.good { background: var(--good); } .tl-dot.warn { background: var(--warn); } .tl-dot.stop { background: var(--stop); }
+  .basis { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+  details { margin: 8px 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  details > summary { cursor: pointer; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  details pre { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); }
+
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); font-weight: 600; white-space: nowrap; }
+
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1a1d21; --muted: #5b636d; --line: #dfe3e8;
+    --accent: #2563eb; --accent-soft: #eaf0fe; --ok: #1a7f4b; --ok-soft: #e6f4ec;
+    --warn: #a35a00; --warn-soft: #fdf1e0; --stop: #b3261e; --stop-soft: #fdecea;
+    --good: #1d4ed8; --good-soft: #e7edfd; --code-bg: #f0f2f5; --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #161a20; --ink: #e6e8eb; --muted: #9aa3ad; --line: #2a3038;
+      --accent: #7aa2f7; --accent-soft: #1b2333; --ok: #6ee7a8; --ok-soft: #14261d;
+      --warn: #f0b866; --warn-soft: #2a2113; --stop: #f2857c; --stop-soft: #2b1614;
+      --good: #8ab4f8; --good-soft: #17233a; --code-bg: #1d222a;
+    }
+  }
+</style>
+</head>
+<body data-template="report">
+
+<div class="shell">
+
+<aside class="sidebar">
+  <p class="kind">全体まとめ結果レポート / 全体まとめ</p>
+  <h1 id="title" data-required>0011 全体まとめ結果 — hook機構（Claude Code Ticket Guard）設計文書の取り込み</h1>
+
+  <p class="counts" id="counts" data-required>
+    <span class="chip good">◎良 6</span>
+    <span class="chip warn">△注意 1</span>
+    <span class="chip stop">✕問題 0</span>
+  </p>
+
+  <nav class="toc" id="toc" data-required>
+    <p class="toc-title">目次</p>
+    <ol>
+      <li><a href="#overview">サマリ・重点レビュー依頼</a></li>
+      <li><a href="#unverified">確かめられなかったこと</a></li>
+      <li>
+        <a href="#findings">実施した内容と結果</a>
+        <ol class="toc-sub">
+          <li><a href="#f1"><span class="mk good">◎</span> 1. 受け入れ条件 4 件をすべて満たした</a></li>
+          <li><a href="#f2"><span class="mk good">◎</span> 2. 6 フェーズを通しチケット 11 枚を完了</a></li>
+          <li><a href="#f3"><span class="mk good">◎</span> 3. 各タスクの人間レビューの結果</a></li>
+          <li><a href="#f4"><span class="mk good">◎</span> 4. 敵対的レビューの指摘 7 件を全件反映</a></li>
+          <li><a href="#f5"><span class="mk good">◎</span> 5. フィードバック計画の対応</a></li>
+          <li><a href="#f6"><span class="mk good">◎</span> 6. 別 issue 9 件を起票</a></li>
+          <li><a href="#f7"><span class="mk warn">△</span> 7. 全体計画書の表題が実範囲とずれたまま</a></li>
+          <li><a href="#f8"><span class="mk stop">✕</span> 8. finalize.sh release が止まり draft 未解除</a></li>
+        </ol>
+      </li>
+      <li><a href="#verified">検証の結果</a></li>
+      <li><a href="#next">設計への反映</a></li>
+      <li><a href="#surprises">想定と異なった点</a></li>
+      <li><a href="#todo">残課題</a></li>
+    </ol>
+  </nav>
+
+  <dl class="meta" id="meta" data-required>
+    <div><dt>issue</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/52">#52</a></dd></div>
+    <div><dt>PR</dt><dd><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/53">#53</a>（draft のまま）</dd></div>
+    <div><dt>ブランチ</dt><dd><code>claude/hook-mechanism-hx89wi</code></dd></div>
+    <div><dt>チケット</dt><dd>0001〜0011</dd></div>
+    <div><dt>作成日</dt><dd>2026-09-05</dd></div>
+    <div><dt>正文</dt><dd>同名の .md</dd></div>
+  </dl>
+</aside>
+
+<main class="main">
+
+<section id="overview" data-required>
+  <p class="lead">Confluence の設計文書「Claude Code Ticket Guard」の全文を <code>.claude/docs/00_requirement/hook機構.md</code> へ生写しで取り込んだ。文書は 680 行から 2383 行になり、章番号は §0 概要から §23 と付録 A〜D・補遺まで連続し、未解決の前方参照は 0 件になった。読み取れなかった箇所と原文の中の食い違いは転記注記 16 件で明示している。受け入れ条件は 4 件すべて満たし（A4 は読み替えたうえで）、フェーズは 6 つ全部を通してチケット 11 枚を完了、取り消しは 0 枚。敵対的レビューを 1 回実施して 7 件の指摘を全件反映し、改善候補 20 件は 9 つの別 issue（#54〜#62）へ渡した。</p>
+  <p><strong>ただし draft は解除できていない。</strong><code>finalize.sh release</code> の段階 1（前提検査）が <code>--external</code> を渡しても MR 本文の取得を要求し、<code>gh</code> が無いこの環境では必ず失敗する。機構自身の不具合なので迂回せず、別 issue <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71">#71</a> に渡した。#71 が直るまで issue #52 の draft は解除できない。</p>
+  <ul class="kpis">
+    <li class="kpi good"><b>6</b><span>◎良</span></li>
+    <li class="kpi warn"><b>1</b><span>△注意</span></li>
+    <li class="kpi stop"><b>1</b><span>✕問題</span></li>
+  </ul>
+  <div class="focuses">
+    <div class="focus must" id="focus-must" data-required>
+      <p class="label">◆特に見てほしい</p>
+      <p class="sub">判断に困っている</p>
+      <ul>
+        <li><strong>draft を解除できないまま終わること</strong>。<code>finalize.sh release</code> が段階 1 で止まり、完了検査の書き出し・成果物リンク一覧・作業領域の片付け・draft 解除が未実施で残る（<a href="#f8">8</a>）。機構を直す <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71">#71</a> が先で、この MR はそれまで draft のままになる</li>
+        <li><strong>転記注記 16 件の扱い</strong>。原文の中で食い違っている箇所（リスクスコア 40 の境界・§21 の丸数字の体系・§14.3 と付録 B.3 のキャッシュ可否）を、本文を直さず注記で示している。生写しを保つ判断だが、この文書を実装に落とすときはどちらを採るか決め直す必要がある。原本の作者に確認できるなら注記ではなく原本を直すのが本筋である</li>
+      </ul>
+    </div>
+    <div class="focus want" id="focus-want" data-required>
+      <p class="label">◇判断が欲しい</p>
+      <p class="sub">決めた方針の承認 / 決められない点の判断</p>
+      <ul>
+        <li><strong>受け入れ条件 A4 の読み替え</strong>。取り込み範囲が全文に広がって未提供の節が無くなったため、「前方参照の全件確認で未解決 0 件」をもって答えている</li>
+        <li><strong>既存部（§6〜§12.2）に手を入れなかった</strong>。原文と突き合わせると 3 か所が食い違うが、取り込み範囲の外なので転記注記だけを付け、修正は <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/61">#61</a> に渡した</li>
+        <li><strong>改善候補の対応先</strong>。ユーザーの指示（レビューなしで進める）により、スキルの既定の提案どおりに決めた</li>
+      </ul>
+    </div>
+    <div class="focus skip" id="focus-skip" data-required>
+      <p class="label">・細かいレビューは不要</p>
+      <p class="sub">ほぼ確実</p>
+      <ul>
+        <li>MR タイトルを実際の取り込み範囲（§0 概要〜補遺の全文）に合わせて直した</li>
+        <li>敵対的レビューの指摘 7 件は、原文の写真と突き合わせた結果いずれも転記誤りではなく、原文由来の欠落・食い違いだった</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="unverified" data-required>
+  <div class="box warn">
+    <p class="label">確かめられなかったこと（この結果が言っていないこと）</p>
+    <ul>
+      <li>§20.1 の YAML の下端から先。原文の写真が <code>".current-ticket.md": deny</code> の行までしか写っていない → 転記注記で明示</li>
+      <li>§17.5 の承認台帳の JSONL の行末。原文でも横スクロールの途中で <code>"approved_</code> の後が切れている → 転記注記で明示</li>
+      <li>§14.8 のコード例・§14.10 の JSON の 2 件目以降・付録 C.1 の JSON・付録 C.2 の YAML・付録 D.2 の <code>--explain</code> 出力。いずれも原文の写真が途中で切れている → 転記注記で明示</li>
+      <li>§11.3 の判定結果の表。原文の該当ページが提供されていない。既存部なので取り込み範囲の外でもある → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/61">#61</a></li>
+      <li>squash merge の可否と既定。<code>gh</code> が無く <code>gh repo view</code> が使えず、MCP 側にも該当ツールが無い → ユーザーに確認した（2026-09-05）。squash が既定で問題ないとの回答</li>
+    </ul>
+  </div>
+</section>
+
+<section id="findings" data-required>
+  <h2>実施した内容と結果</h2>
+  <ol class="tl">
+    <li class="tl-item">
+      <span class="tl-dot good">1</span>
+      <h3 id="f1">受け入れ条件 4 件をすべて満たした（A4 は読み替えたうえで） <span class="chip good">◎良</span> <span class="basis">根拠: チケット 0005・0006・0008</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>受け入れ条件</th><th>満たした内容</th><th>根拠</th></tr></thead>
+        <tbody>
+          <tr><td>A1</td><td><code>hook機構.md</code> が §0 概要表から始まり、§1〜§5 が §6 の前に入っている</td><td>§0 概要（表）から始まり、§1 サマリ・§2 解決する課題・§3 脅威モデル・§4 設計原則・§5 アーキテクチャが §6 の前に入った</td><td>チケット 0005。文書の 1 行目が <code>## 0. 概要</code>、§6 は 249 行目</td></tr>
+          <tr><td>A2</td><td>提供された表・コードブロック・図が行の欠落なく Markdown として再現されている</td><td>原文の表はヘッダと各行のセル数が一致し、コードフェンスは 118 個（偶数）で開閉が対になっている。罫線図と画面例は mermaid に変換せずコードフェンスで再現した</td><td>チケット 0005・0006・0008。敵対的レビューの確認事項でも全表のセル数一致とフェンスの対を確認</td></tr>
+          <tr><td>A3</td><td>章番号が連続し、重複や飛びが無い</td><td><code>grep '^## '</code> の結果が §0 → §1 → … → §23 → 付録 A〜D → 補遺。欠番・重複なし。§18・§19 の欠番はチケット 0008 で解消した</td><td>チケット 0006・0008</td></tr>
+          <tr><td>A4</td><td>未提供の節と、本文からそれらへの参照が残ることが文書内に明記されている（読み替え済み）</td><td>取り込み範囲が全文に広がって未提供の節が無くなったため、「本文の §N 参照 34 種を全件抜き出し、対応する見出しが実在することを確認。未解決 0 件」で答えた。原文が切れている箇所は転記注記 16 件で明示している</td><td>チケット 0008。読み替えの経緯はチケット 0006 の作業ログ</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>受け入れ条件 4 件のうち 3 件はそのまま、A4 は読み替えたうえで満たした。読み替えの是非は人間の判断に委ねる。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">2</span>
+      <h3 id="f2">6 フェーズを通し、チケット 11 枚を完了して取り消しは 0 枚 <span class="chip good">◎良</span> <span class="basis">根拠: 作業領域のチケット</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>フェーズ</th><th>チケット</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td>全体計画</td><td>0001</td><td>issue #52 を起票、draft MR #53 とブランチを用意、フェーズ列と方針を合意</td></tr>
+          <tr><td>調査（計画 → 実施）</td><td>0002・0003</td><td>既存文書が §6 から始まり §12.2 で終わること、前方参照 15 件の所在を確定</td></tr>
+          <tr><td>AI アセット設計（計画 → 実施）</td><td>0004・0005・0006・0008・0009</td><td>全文の取り込み。文書は 680 → 2383 行</td></tr>
+          <tr><td>AI アセット実装・テスト（計画 → 実施）</td><td>0007</td><td>対象なし。実装チケットは 0 枚</td></tr>
+          <tr><td>フィードバック計画</td><td>0010</td><td>改善候補 20 件を洗い出し、9 つの別 issue 案に束ねた</td></tr>
+          <tr><td>全体まとめ</td><td>0011</td><td>このレポート</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>必須フェーズを 1 つも省かず通した。実装フェーズは「対象なし」で空のまま閉じた。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">3</span>
+      <h3 id="f3">各タスクの人間レビューの結果 <span class="chip good">◎良</span> <span class="basis">根拠: PR #53 のコメントと進行状態</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>タスク</th><th>チケット</th><th>人間レビュー</th><th>結果</th></tr></thead>
+        <tbody>
+          <tr><td>全体計画</td><td>0001</td><td>要（実施）</td><td>「レビューオッケー」。指摘 0 件</td></tr>
+          <tr><td>調査計画</td><td>0002</td><td>省略</td><td>全体計画の承認③で合意済み（読むだけの小さな調査）</td></tr>
+          <tr><td>調査実施</td><td>0003</td><td>省略</td><td>同上</td></tr>
+          <tr><td>AI アセット設計計画</td><td>0004</td><td>省略</td><td>計画書は設計結果と一緒に見れば足りる</td></tr>
+          <tr><td>AI アセット設計実施</td><td>0005・0006・0008・0009</td><td>要（実施）</td><td>「レビューなしで draft 解消まで進めて」。指摘 0 件。レビュー依頼で挙げた 3 点は承認されたものとして扱った</td></tr>
+          <tr><td>AI アセット実装・テスト計画</td><td>0007</td><td>省略</td><td>ユーザーの指示（2026-09-05）により、残りのフェーズはレビューを省略</td></tr>
+          <tr><td>フィードバック計画</td><td>0010</td><td>省略</td><td>同上</td></tr>
+          <tr><td>全体まとめ</td><td>0011</td><td>省略</td><td>同上</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>MR #53 のレビュースレッドとレビューはいずれも 0 件だった。通常コメントは機構と AI が投稿した記録用のものだけである。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">4</span>
+      <h3 id="f4">敵対的レビューを 1 回実施し、指摘 7 件を全件反映した <span class="chip good">◎良</span> <span class="basis">根拠: チケット 0009 と PR #53 のコメント</span></h3>
+      <p>モデルは <code>claude-fable-5-1</code>（<code>work-defaults.md</code> の既定どおり。実行者はメインエージェントなので差し替え不要）。対象は AI アセット設計の差分。実施回数はタスクごとの上限 1 回を消化した。指摘 7 件はすべて <code>confidence &gt;= 0.5</code> で全件採用し、追加チケット 0009 で反映した。原文の写真 6 枚と突き合わせた結果、<strong>転記誤りは 0 件</strong>で、6 件は原文由来の欠落・食い違いだった（残る 1 件はチケット 0008 で注記ごと削除して解消済み）。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>指摘</th><th>原文と照合した結果</th></tr></thead>
+        <tbody>
+          <tr><td>§6.1 の題名欠落と §11.3 の判定結果の表の欠落</td><td>既存部の欠け。原文には題名も Layer 0-A の行もある</td></tr>
+          <tr><td>§17.4 直後の注記が §16.5 を誤って挙げている</td><td>チケット 0008 で注記ごと削除して解消</td></tr>
+          <tr><td>§3.3 の T-2（→§11.3）と T-5（→§8.7）の参照先</td><td>原文どおり。実際の規定は §11.1 順 3 と §8.6 にある</td></tr>
+          <tr><td>§21 の検知層の丸数字が 2 体系を混用</td><td>原文どおり</td></tr>
+          <tr><td>§14.3 に <code>IMPL_TICKET_UNAPPROVED</code> が無い</td><td>原文どおり。付録 B.3 との食い違いは原文由来</td></tr>
+          <tr><td>リスクスコア 40 の境界（以上 / 超）の食い違い</td><td>原文どおり。4 か所で表記が割れている</td></tr>
+          <tr><td>付録 C.3 の箇条書きがフェンスの外</td><td>原文どおり。テンプレートではなく解説である</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>生写しを保つため本文は直さず、7 か所に転記注記を足した（追加 14 行・削除 0 行）。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">5</span>
+      <h3 id="f5">フィードバック計画の対応 <span class="chip good">◎良</span> <span class="basis">根拠: チケット 0010 の計画書</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>対応先</th><th>件数</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>別 issue</td><td>17 件</td><td>9 つの issue（#54〜#62）に束ねて起票した</td></tr>
+          <tr><td>対応しない</td><td>2 件</td><td>§8.7 の非対称な構成（生写しを保つ。#62 の型変換と一緒に判断する）/ squash merge の確認（ユーザーに確認済み）</td></tr>
+          <tr><td>この MR</td><td>1 件</td><td>MR タイトルと実範囲のずれ。タイトルを直した</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>作業領域は片付けで消えるので、候補 20 件をそのまま転記する。</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>#</th><th>候補</th><th>出どころ</th><th>観点</th><th>類型</th><th>対応先</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><code>ticket.sh create</code> の <code>--allow-ops</code> が <code>scope-limits.json</code> の正規名を検査せず、日本語ラベルを受け付ける</td><td>0001</td><td>足りなかった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/55">#55</a></td></tr>
+          <tr><td>2</td><td><code>ticket.sh create</code> の引数が長いと WF209 で拒否される。DoD をファイルから読ませる手段が無い</td><td>0004</td><td>邪魔だった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/55">#55</a></td></tr>
+          <tr><td>3</td><td>提供コマンドはリポジトリルートからの相対パスで呼ぶ必要がある（絶対パスは WF204）</td><td>0003・0007</td><td>足りなかった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/54">#54</a></td></tr>
+          <tr><td>4</td><td>長文の生成は Bash のヒアドキュメントではなく Write ツールを使う必要がある（WF209）</td><td>0008</td><td>足りなかった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/54">#54</a></td></tr>
+          <tr><td>5</td><td>セッションのスクラッチパッドが作業ツリー外にあり WF209 で使えない。下書きの置き場がどこにも書かれていない</td><td>0005</td><td>足りなかった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/54">#54</a></td></tr>
+          <tr><td>6</td><td><code>gh</code> / <code>glab</code> が使えない環境で issue の追記コメントを読む手段が無い</td><td>0001・0002</td><td>無かった</td><td>(a) アセットが無かった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/56">#56</a></td></tr>
+          <tr><td>7</td><td>WF204 の拒否メッセージに判定の根拠が入っていない。同じ <code>curl</code> が 1 回目は通り 2 回目は拒否された</td><td>0002</td><td>足りなかった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/57">#57</a></td></tr>
+          <tr><td>8</td><td>外部資料の取り込みで「読めた範囲」と「推し量った範囲」を分けて確定する手順が無い</td><td>0006・0009</td><td>無かった</td><td>(a) アセットが無かった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/58">#58</a></td></tr>
+          <tr><td>9</td><td>添付画像は転記の精度が要る用途では Read で開き直す必要がある。アップロード領域に残ることも書かれていない</td><td>0005・0009</td><td>足りなかった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/54">#54</a></td></tr>
+          <tr><td>10</td><td><code>.claude/docs/</code> に外部原本の生写しを置くときの扱いが <code>ai-asset-design-docs</code> ルールに無い</td><td>0001・0008</td><td>無かった</td><td>(a) アセットが無かった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/59">#59</a></td></tr>
+          <tr><td>11</td><td><code>10-task-ai-asset-design-plan</code> に「取り込み型」の分岐が無く、1:1:1・テスト ID・DDR が空振りする</td><td>0004</td><td>無かった</td><td>(a) アセットが無かった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/58">#58</a></td></tr>
+          <tr><td>12</td><td><code>10-task-ai-asset-implementation-plan</code> の「対象なし」の書き方がテンプレートに無い</td><td>0007</td><td>足りなかった</td><td>(c) あったが罠が書かれていなかった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/54">#54</a></td></tr>
+          <tr><td>13</td><td><code>boundary.sh</code> の <code>last_task</code> が完了チケットの番号順で決まる。<code>logs/mr.json</code> が空だと <code>note</code> / <code>request --external</code> も通らない</td><td>0010・全体計画 P5</td><td>あったが誤っていた</td><td>(b) あったが誤っていた</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/60">#60</a></td></tr>
+          <tr><td>14</td><td><code>hook機構.md</code> の既存部（§6〜§12.2）が原文と食い違う</td><td>0005・0006・0009</td><td>問題なし</td><td>(b) あったが誤っていた</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/61">#61</a></td></tr>
+          <tr><td>15</td><td>生写しの <code>hook機構.md</code> を要件定義書の型へ変換するか</td><td>全体計画 P3・0004</td><td>問題なし</td><td>(b) あったが誤っていた</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/62">#62</a></td></tr>
+          <tr><td>16</td><td>取り込んだ設計と既存 <code>.claude/hooks/</code> の実装との差分が未整理</td><td>全体計画 P4・0001</td><td>無かった</td><td>(a) アセットが無かった</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/62">#62</a></td></tr>
+          <tr><td>17</td><td>§8.7「⑥⑦⑧その他」の非対称な構成をどう扱うか</td><td>0003 レポート R2</td><td>問題なし</td><td>(b) あったが誤っていた</td><td>対応しない（#62 の型変換と一緒に判断する）</td></tr>
+          <tr><td>18</td><td>squash merge の可否と既定が未確認</td><td>全体計画 P1・0001</td><td>問題なし</td><td>(d) あったのに辿り着けなかった</td><td>対応しない（ユーザーに確認済み。squash が既定）</td></tr>
+          <tr><td>19</td><td>全体計画書の表題と MR タイトルが「§1〜§5」のままで実範囲とずれている</td><td>0002・0004・0007</td><td>問題なし</td><td>(b) あったが誤っていた</td><td>この MR（タイトルを直した）</td></tr>
+          <tr><td>20</td><td><code>hook機構.md</code> に frontmatter が無く、<code>.claude/docs/</code> の中から参照されていない</td><td>0004・0005</td><td>問題なし</td><td>(b) あったが誤っていた</td><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/59">#59</a></td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>改善候補 20 件に行き先の無いものは残っていない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot good">6</span>
+      <h3 id="f6">別 issue 9 件を起票した <span class="chip good">◎良</span> <span class="basis">根拠: #54〜#62</span></h3>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>issue</th><th>タイトル</th><th>元の候補</th></tr></thead>
+        <tbody>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/54">#54</a></td><td>提供コマンドとツールの呼び出し作法を共通ステップに明記する</td><td>3・4・5・9・12</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/55">#55</a></td><td>ticket.sh create の入力検査と長い引数の回避</td><td>1・2</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/56">#56</a></td><td>gh / glab が使えない環境での issue コメントの取得手順を用意する</td><td>6</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/57">#57</a></td><td>WF204 の拒否メッセージに判定の根拠を含める</td><td>7</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/58">#58</a></td><td>外部資料の取り込み型のタスク手順を用意する</td><td>8・11</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/59">#59</a></td><td>.claude/docs/ に外部原本の生写しを置くときの規約を決める</td><td>10・20</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/60">#60</a></td><td>boundary.sh の last_task の導出と logs/mr.json が空のときの扱いを直す</td><td>13</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/61">#61</a></td><td>hook機構.md の既存部（§6〜§12.2）を原文と全件突き合わせて直す</td><td>14</td></tr>
+          <tr><td><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/62">#62</a></td><td>hook機構.md を要件定義書の型へ変換し、既存 .claude/hooks/ 実装との差分を整理する</td><td>15・16・17</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="box ok">
+        <p class="label">結論</p>
+        <p>ユーザーの承認（2026-09-05「9 件すべて起票する」）を得てから起票した。この 9 件は改善候補 20 件の引き取り先であり、<a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71">#71</a>（全体まとめ自身が止まった原因）は含まない。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot warn">7</span>
+      <h3 id="f7">全体計画書の表題が実範囲とずれたまま終わった <span class="chip warn">△注意</span> <span class="basis">根拠: チケット 0002・0004・0007 の作業ログ</span></h3>
+      <p>全体計画書の表題は「§1〜§5 を取り込む」のままで、確定した範囲（§0 概要〜補遺の全文）とずれている。計画タスクは全体計画書を書き換えられない決まりがあり、全体まとめの片付けで作業領域ごと消えるため直しても残らない。MR タイトルは実範囲に合わせて直した。</p>
+      <div class="box warn">
+        <p class="label">結論</p>
+        <p>default ブランチに残るのは MR のタイトル・本文・コメントとこのレポートなので、実害は無い。記録としてここに残す。</p>
+      </div>
+    </li>
+
+    <li class="tl-item">
+      <span class="tl-dot stop">8</span>
+      <h3 id="f8">finalize.sh release が段階 1 で止まり draft を解除できていない <span class="chip stop">✕問題</span> <span class="basis">根拠: チケット 0011 の作業ログ</span></h3>
+      <p>チケット 0011 の DoD 5「<code>finalize.sh release</code> が完了し draft が解除されている」は<strong>未充足</strong>である。</p>
+      <pre><code>$ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release \
+    --external --pr 53 --body-file wip/tmp/mr-body-linked.md
+- MR 本文を取得できない（host=github mr=53。CLI が無い環境は --external を使う）
+FN001: release の前提を満たしていない。未充足 1 件（上に列挙）</code></pre>
+      <p>原因はスクリプトの側にある。段階 1 の前提検査が <code>fetch_body</code> を無条件に呼び、<code>fetch_body</code> は <code>command -v gh</code> が失敗すると 1 を返す（<code>finalize.sh</code> の 176〜182 行と 241〜245 行）。<code>--external</code> の分岐は段階 4（<code>put_body</code>）と段階 7（draft 解除）にしかなく、段階 1 には無い。スキル本文の「CLI が使えない環境」の節は段階 4 と段階 7 だけを代行対象として書いており、前提検査が CLI を要求することは書かれていない。実装と文書の契約がずれている。</p>
+      <p><code>gh</code> を導入して突破する道も塞がっている。バイナリの取得先が作業ツリーの外になり WF209 で拒否される。迂回はしていない。</p>
+      <div class="box stop">
+        <p class="label">結論</p>
+        <p>未達のまま残ったのは、完了検査の書き出し・成果物リンク一覧・作業領域の片付け・draft 解除の 4 つ。ユーザーの判断で、機構を直す別 issue <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71">#71</a> に渡した（機構の変更なのでこの issue の範囲外）。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section id="verified">
+  <h2>検証の結果</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>検証</th><th>結果</th></tr></thead>
+    <tbody>
+      <tr><td>章番号の連続性</td><td><code>grep '^## '</code> の出力が §0 → §1 → … → §23 → 付録 A〜D → 補遺。欠番・重複なし</td></tr>
+      <tr><td>コードフェンスの対</td><td>ファイル全体で 118 個（偶数）。開閉が対になっている</td></tr>
+      <tr><td>前方参照の解決</td><td>本文の §N 参照 34 種を全件抜き出し、対応する見出しの実在を確認。未解決 0 件</td></tr>
+      <tr><td>転記注記の件数</td><td><code>grep -c '&gt; 転記注記'</code> が 16</td></tr>
+      <tr><td>既存部の無改変（設計実施の各回）</td><td><code>git diff --numstat</code> の削除がチケット 0005・0006 で 0 行、0008 で 4 行（差し替えた欠落注記のみ）、0009 で 0 行</td></tr>
+      <tr><td>完了チケットと取り消しチケット</td><td>完了 11 枚（0001〜0011）・取り消し 0 枚</td></tr>
+      <tr><td>MR のレビュー指摘</td><td>GitHub MCP でレビュー 0 件・レビュースレッド 0 件を確認</td></tr>
+      <tr><td>default との衝突</td><td><code>git rev-list --count HEAD..origin/main</code> が 0</td></tr>
+      <tr><td>draft 解除</td><td><strong>未達</strong>。<code>finalize.sh release --external</code> が段階 1 の前提検査（FN001）で停止。別 issue <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71">#71</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="next" data-required>
+  <h2>設計への反映</h2>
+  <ol>
+    <li>取り込んだ設計と既存 <code>.claude/hooks/</code> 実装との差分整理 → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/62">#62</a></li>
+    <li>生写しの文書を要件定義書の型へ変換するか → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/62">#62</a></li>
+    <li><code>.claude/docs/</code> に外部原本を置くときの規約（型の適用対象外・転記注記の書式・frontmatter・索引） → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/59">#59</a></li>
+  </ol>
+  <p><code>.claude/docs/</code> に残すべき内容で未反映のものは無い。作業領域に残るのは計画書 4 件・レポート 2 件・チケット 11 枚で、いずれもこの issue の進行の記録である。改善候補は上の別 issue に渡した。</p>
+</section>
+
+<section id="surprises" data-required>
+  <h2>想定と異なった点</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>計画時の見込み</th><th>実際</th><th>どう扱ったか</th></tr></thead>
+    <tbody>
+      <tr><td>取り込む範囲は §1〜§5（issue 本文と全体計画書の表題）</td><td>写真が 9 回に分けて追加提供され、§0 概要から補遺までの全文になった</td><td>issue #52 に範囲の追記コメントを重ね、設計計画（0004）で全文に確定した。全体計画書の表題は直せないまま残った（結論 7）</td></tr>
+      <tr><td>未提供の §13〜§23 への参照が残る（受け入れ条件 A4）</td><td>全文が揃って未提供の節が無くなり、未解決の前方参照が 0 件になった</td><td>A4 を「前方参照の全件確認で未解決 0 件」に読み替えて答えた</td></tr>
+      <tr><td>実施タスクはサブエージェント（opus）が担当する</td><td>原本の写真がセッションにしか無くサブエージェントから読めない</td><td>チケット 0005・0006・0008・0009 の <code>executor</code> をメインエージェントにした。<code>work-defaults.md</code> からの逸脱として MR に記録した</td></tr>
+      <tr><td>AI アセット実装・テストは「対象なし」で即完了する見込み</td><td>見込みどおり。4 つの機械的な確認で反例が 1 つも出なかった</td><td>実装チケットを 0 枚として計画を閉じた</td></tr>
+      <tr><td><code>boundary.sh</code> の切れ目処理は <code>--external</code> で通る</td><td><code>logs/mr.json</code> が空で「MR が無い」と拒否された</td><td><code>--standalone</code>（<code>via: chat</code>）で記録し、コメントは GitHub MCP で MR へ投稿した。状態ファイルの <code>via</code> だけが実態と食い違う → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/60">#60</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="todo" data-required>
+  <h2>残課題</h2>
+  <ul>
+    <li><strong>R1</strong> 原文の写真が切れている 7 か所（§14.8 のコード例・§14.10 の JSON・§17.5 の台帳 JSONL・§20.1 の YAML・付録 C.1 の JSON・付録 C.2 の YAML・付録 D.2 の出力例）。転記注記で明示済み → 原本の追加提供があれば補える。issue は立てていない</li>
+    <li><strong>R2</strong> 既存部（§6〜§12.2）と原文の食い違い。§6 の見出し・§6.1 の Layer 0-A の行・§11.3 の判定結果の表 → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/61">#61</a></li>
+    <li><strong>R3</strong> 原文の中の食い違い 3 件（リスクスコア 40 の境界・§21 の丸数字の体系・§14.3 と付録 B.3 のキャッシュ可否）。転記注記で明示済み → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/62">#62</a> の型変換のときに原本の作者と決める</li>
+    <li><strong>R4</strong> <code>hook機構.md</code> に frontmatter が無く、<code>.claude/docs/</code> の中から参照されていない → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/59">#59</a></li>
+    <li><strong>R5</strong> 機構の不具合 4 件（<code>ticket.sh create</code> の入力検査・<code>boundary.sh</code> の <code>last_task</code>・WF204 のメッセージ・<code>gh</code> 不在環境での issue コメント取得） → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/55">#55</a>・<a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/60">#60</a>・<a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/57">#57</a>・<a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/56">#56</a></li>
+    <li><strong>R6</strong> 全体計画書の表題が実範囲とずれたまま片付けで消える → 対応しない（MR タイトルは直した。記録はこのレポートに残る）</li>
+    <li><strong>R7</strong> <code>finalize.sh release</code> の前提検査が <code>--external</code> でも MR 本文の取得を要求するため draft を解除できず、完了検査の書き出し・成果物リンク一覧・作業領域の片付けも未実施のまま残る → <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71">#71</a>。直ってから issue #52 の draft を解除する</li>
+  </ul>
+  <div class="box warn">
+    <p class="label">運用上の注記</p>
+    <p>この環境に <code>gh</code> / <code>glab</code> が無く、MR と issue の読み書きはすべて GitHub MCP ツールで代行した。<code>boundary.sh</code> は MR を検出できず（<code>logs/mr.json</code> が空）、進行状態には単独実行モード（<code>via: chat</code>）が残っている。実際のレビュー依頼・判断の記録・敵対的レビューの指摘は PR #53 のコメントにあり、証跡そのものは MR に残っているが、<strong><code>gh</code> 自身が確認する強度より劣る</strong>。<code>finalize.sh release</code> は段階 4 と段階 7 を <code>--external</code> で代行する想定だったが、段階 1 の前提検査を通れず一度も実行できていない（<a href="#f8">8</a>）。</p>
+  </div>
+</section>
+
+<footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/52">#52</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/53">#53</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
+
+</main>
+</div>
+
+</body>
+</html>

@@ -1,15 +1,15 @@
 ---
 type: report
 title: 0011 全体まとめ結果 — hook機構（Claude Code Ticket Guard）設計文書の取り込み
-description: issue #52 の統括。Confluence の設計文書全文を .claude/docs/00_requirement/hook機構.md へ生写しで取り込み、受け入れ条件 4 件を満たし、改善候補 20 件を 9 つの別 issue（#54〜#62）へ渡した記録。
+description: issue #52 の統括。Confluence の設計文書全文を .claude/docs/00_requirement/hook機構.md へ生写しで取り込み、受け入れ条件 4 件を満たし、改善候補 20 件を 9 つの別 issue（#54〜#62）へ渡した記録。draft 解除は finalize.sh の不具合（#71）で未達。
 tags: [report, overall-summary, issue-52]
-keywords: [全体まとめ, hook機構, Ticket Guard, 生写し, 転記注記, 受け入れ条件, 別issue, draft解除, 敵対的レビュー]
+keywords: [全体まとめ, hook機構, Ticket Guard, 生写し, 転記注記, 受け入れ条件, 別issue, draft解除, 敵対的レビュー, finalize.sh, FN001]
 ---
 
 # 0011 全体まとめ結果 — hook機構（Claude Code Ticket Guard）設計文書の取り込み
 
 - 対象 issue: [#52](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/52)
-- MR: [#53](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/53)（draft → 解除）
+- MR: [#53](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/53)（draft のまま。解除は未達）
 - ブランチ: `claude/hook-mechanism-hx89wi`
 - チケット: 0001〜0011
 - 作成日: 2026-09-05
@@ -20,7 +20,9 @@ Confluence の設計文書「Claude Code Ticket Guard」の全文を `.claude/do
 
 受け入れ条件は 4 件すべて満たした（A4 は読み替えたうえで）。フェーズは 6 つ全部を通し、チケットは 11 枚を完了、取り消しは 0 枚。敵対的レビューを 1 回実施して 7 件の指摘を全件反映した。改善候補 20 件は 9 つの別 issue（#54〜#62）へ渡した。
 
-- ◎良 6 件（e1〜e6）/ △注意 1 件（e7）/ ✕問題 0 件（節は e1〜e7 の 7 件）
+ただし **draft は解除できていない**。`finalize.sh release` の段階 1（前提検査）が `--external` を渡しても MR 本文の取得を要求し、`gh` が無いこの環境では必ず失敗する。機構自身の不具合なので迂回せず、別 issue [#71](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71) に渡した。#71 が直るまで issue #52 の draft は解除できない。
+
+- ◎良 6 件（e1〜e6）/ △注意 1 件（e7）/ ✕問題 1 件（e8）（節は e1〜e8 の 8 件）
 
 ### ◆特に見てほしい（判断に困っている）
 
@@ -149,9 +151,28 @@ MR #53 のレビュースレッドとレビューはいずれも 0 件だった�
 | [#61](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/61) | hook機構.md の既存部（§6〜§12.2）を原文と全件突き合わせて直す | 14 |
 | [#62](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/62) | hook機構.md を要件定義書の型へ変換し、既存 .claude/hooks/ 実装との差分を整理する | 15・16・17 |
 
+起票の可否はユーザーに 1 回で確認し「9 件すべて起票する」との回答を得た。この 9 件は改善候補 20 件の引き取り先であり、後述する [#71](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71)（全体まとめ自身が止まった原因）はここには含まれない。
+
 ### e7. 全体計画書の表題が実範囲とずれたまま終わった △注意
 
 全体計画書の表題は「§1〜§5 を取り込む」のままで、確定した範囲（§0 概要〜補遺の全文）とずれている。計画タスクは全体計画書を書き換えられない決まりがあり、全体まとめの片付けで作業領域ごと消えるため直しても残らない。MR タイトルは実範囲に合わせて直した。
+
+### e8. finalize.sh release が段階 1 で止まり draft を解除できていない ✕問題
+
+チケット 0011 の DoD 5「`finalize.sh release` が完了し draft が解除されている」は**未充足**である。
+
+```
+$ bash .claude/skills/10-task-overall-summary/scripts/finalize.sh release \
+    --external --pr 53 --body-file wip/tmp/mr-body-linked.md
+- MR 本文を取得できない（host=github mr=53。CLI が無い環境は --external を使う）
+FN001: release の前提を満たしていない。未充足 1 件（上に列挙）
+```
+
+原因はスクリプトの側にある。段階 1 の前提検査が `fetch_body` を無条件に呼び、`fetch_body` は `command -v gh` が失敗すると 1 を返す（`finalize.sh` の 176〜182 行と 241〜245 行）。`--external` の分岐は段階 4（`put_body`）と段階 7（draft 解除）にしかなく、段階 1 には無い。スキル本文の「CLI が使えない環境」の節は段階 4 と段階 7 だけを代行対象として書いており、前提検査が CLI を要求することは書かれていない。実装と文書の契約がずれている。
+
+`gh` を導入して突破する道も塞がっている。バイナリの取得先が作業ツリーの外になり WF209 で拒否される。迂回はしていない。
+
+未達のまま残ったのは、完了検査の書き出し・成果物リンク一覧・作業領域の片付け・draft 解除の 4 つである。ユーザーの判断で、機構を直す別 issue [#71](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71) に渡した（機構の変更なのでこの issue の範囲外）。
 
 ## 検証の結果
 
@@ -165,6 +186,7 @@ MR #53 のレビュースレッドとレビューはいずれも 0 件だった�
 | 完了チケットと取り消しチケット | 完了 11 枚（0001〜0011）・取り消し 0 枚 |
 | MR のレビュー指摘 | GitHub MCP でレビュー 0 件・レビュースレッド 0 件を確認 |
 | default との衝突 | `git rev-list --count HEAD..origin/main` が 0 |
+| draft 解除 | **未達**。`finalize.sh release --external` が段階 1 の前提検査（FN001）で停止。別 issue [#71](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71) |
 
 ## 設計への反映
 
@@ -196,7 +218,8 @@ MR #53 のレビュースレッドとレビューはいずれも 0 件だった�
 | R4 | `hook機構.md` に frontmatter が無く、`.claude/docs/` の中から参照されていない | 別 issue [#59](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/59) |
 | R5 | 機構の不具合 4 件（`ticket.sh create` の入力検査・`boundary.sh` の `last_task`・WF204 のメッセージ・`gh` 不在環境での issue コメント取得） | 別 issue [#55](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/55)・[#60](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/60)・[#57](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/57)・[#56](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/56) |
 | R6 | 全体計画書の表題が実範囲とずれたまま片付けで消える | 対応しない（MR タイトルは直した。記録はこのレポートに残る） |
+| R7 | `finalize.sh release` の前提検査が `--external` でも MR 本文の取得を要求するため draft を解除できず、完了検査の書き出し・成果物リンク一覧・作業領域の片付けも未実施のまま残る | 別 issue [#71](https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/71)。直ってから issue #52 の draft を解除する |
 
 ## 運用上の注記
 
-この環境に `gh` / `glab` が無く、MR と issue の読み書きはすべて GitHub MCP ツールで代行した。`boundary.sh` は MR を検出できず（`logs/mr.json` が空）、進行状態には単独実行モード（`via: chat`）が残っている。実際のレビュー依頼・判断の記録・敵対的レビューの指摘は PR #53 のコメントにあり、証跡そのものは MR に残っているが、**`gh` 自身が確認する強度より劣る**。`finalize.sh release` の段階 4 と段階 7 も `--external` で代行した。
+この環境に `gh` / `glab` が無く、MR と issue の読み書きはすべて GitHub MCP ツールで代行した。`boundary.sh` は MR を検出できず（`logs/mr.json` が空）、進行状態には単独実行モード（`via: chat`）が残っている。実際のレビュー依頼・判断の記録・敵対的レビューの指摘は PR #53 のコメントにあり、証跡そのものは MR に残っているが、**`gh` 自身が確認する強度より劣る**。`finalize.sh release` は段階 4 と段階 7 を `--external` で代行する想定だったが、段階 1 の前提検査を通れず一度も実行できていない（e8）。

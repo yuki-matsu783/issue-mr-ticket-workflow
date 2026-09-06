@@ -17,7 +17,7 @@ mkdir -p .claude/skills/20-common-step-shell-script/scripts .claude/skills/20-co
 cp "$REAL"/skills/20-common-step-shell-script/scripts/*.sh .claude/skills/20-common-step-shell-script/scripts/
 cp "$REAL"/skills/20-common-step-commit-push/scripts/*.sh .claude/skills/20-common-step-commit-push/scripts/
 cp "$REAL"/skills/20-common-step-commit-push/assets/exclude-patterns.txt .claude/skills/20-common-step-commit-push/assets/
-cp "$REAL"/skills/20-common-step-ticket/scripts/ticket.sh .claude/skills/20-common-step-ticket/scripts/
+cp "$REAL"/skills/20-common-step-ticket/scripts/*.sh .claude/skills/20-common-step-ticket/scripts/
 cp "$REAL"/skills/20-common-step-ticket/assets/ticket.template.md .claude/skills/20-common-step-ticket/assets/
 cp "$REAL"/hooks/config/task-types.tsv .claude/hooks/config/
 T=".claude/skills/20-common-step-ticket/scripts/ticket.sh"
@@ -305,5 +305,60 @@ run_cmd bash "$T" complete 9999   # 作業中があっても find_ticket の失�
 assert_exit "TICKET-T12" 1
 assert_eq "TICKET-T12" "TK004" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 if ls wip/10_tickets/00_todo/0014-*.md >/dev/null 2>&1; then fail "TICKET-T12" "拒否された create がファイルを残した"; else pass "TICKET-T12"; fi
+
+# TICKET-T13 作業ツリーでの create が TK009・終了 1 でチケットを 1 枚も作らない。
+# 負のコントロール: 同じ引数を本流で実行すれば作られる。start / complete / cancel / next は作業ツリーでも通り、
+# 対象はその作業ツリーの wip/10_tickets/ になる。「本流かどうかの判定」は 20-common-step-worktree 仕様が正で、
+# ticket.sh / push.sh はそれをバイト一致でコピーする（作り直さない。DDR i0009-36 と同じやり方）
+run_cmd bash "$T" create investigation --title "作業ツリー用 A" --purpose "p" --dod "d"   # 0014
+assert_exit "TICKET-T13" 0
+run_cmd bash "$T" create investigation --title "作業ツリー用 B" --purpose "p" --dod "d"   # 0015
+assert_exit "TICKET-T13" 0
+WT13="${TMP_REPO}-wt13"
+_TL_TMPS+=("$WT13")
+# 置き場 4 つを追跡させる（本番のリポジトリと同じく .gitkeep がある。無いと空ディレクトリが
+# チェックアウトされず、作業ツリー側の start が置き場の不在で落ちる）
+touch wip/10_tickets/00_todo/.gitkeep wip/10_tickets/10_doing/.gitkeep wip/10_tickets/20_done/.gitkeep wip/10_tickets/30_cancelled/.gitkeep
+git add wip/10_tickets/00_todo/.gitkeep wip/10_tickets/10_doing/.gitkeep wip/10_tickets/20_done/.gitkeep wip/10_tickets/30_cancelled/.gitkeep >/dev/null 2>&1
+git commit -q -m "chore: 置き場を追跡する"
+git worktree add -q -b wt13 "$WT13" HEAD
+WT13_T="$WT13/.claude/skills/20-common-step-ticket/scripts/ticket.sh"
+count_tickets() { ls -1 "$1"/wip/10_tickets/*/[0-9][0-9][0-9][0-9]-*.md 2>/dev/null | wc -l | tr -d ' '; }
+wt_before="$(count_tickets "$WT13")"
+main_before="$(count_tickets "$TMP_REPO")"
+# 作業ツリーでの create（本流と同じ引数）
+run_cmd bash "$WT13_T" create investigation --title "作業ツリーで採番" --purpose "p" --dod "d"
+assert_exit "TICKET-T13" 1
+assert_eq "TICKET-T13" "TK009" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "TICKET-T13" "本流"
+assert_eq "TICKET-T13" "$wt_before" "$(count_tickets "$WT13")"     # 作業ツリーに 1 枚も作られない
+assert_eq "TICKET-T13" "$main_before" "$(count_tickets "$TMP_REPO")" # 本流にも作られない
+# 負のコントロール: 同じ引数を本流で実行すれば作られる
+run_cmd bash "$T" create investigation --title "作業ツリーで採番" --purpose "p" --dod "d"
+assert_exit "TICKET-T13" 0
+assert_contains "TICKET-T13" "0016-investigation.md を作成した"
+# 着手・完了・取り消し・次の提示は作業ツリーでも通り、対象はその作業ツリーの wip/10_tickets/
+run_cmd bash "$WT13_T" next
+assert_exit "TICKET-T13" 0
+assert_eq "TICKET-T13" "null" "$(printf '%s' "$R_OUT" | tl_jq -r '.current // "null"')"   # 本流の作業中（0012）は見えない
+assert_eq "TICKET-T13" "0013" "$(printf '%s' "$R_OUT" | tl_jq -r '.next')"
+run_cmd bash "$T" next
+assert_eq "TICKET-T13" "0012" "$(printf '%s' "$R_OUT" | tl_jq -r '.current // "null"')"   # 本流は自分の doing を見る
+run_cmd bash "$WT13_T" start 0013
+assert_exit "TICKET-T13" 0
+if [ -f "$WT13/wip/10_tickets/10_doing/0013-investigation.md" ] && [ -f wip/10_tickets/00_todo/0013-investigation.md ]; then pass "TICKET-T13"; else fail "TICKET-T13" "作業ツリーの start が本流側と取り違えている"; fi
+fulfill "$WT13/wip/10_tickets/10_doing/0013-investigation.md"
+run_cmd bash "$WT13_T" complete 0013
+assert_exit "TICKET-T13" 0
+if [ -f "$WT13/wip/10_tickets/20_done/0013-investigation.md" ]; then pass "TICKET-T13"; else fail "TICKET-T13" "作業ツリーの complete が通らない"; fi
+run_cmd bash "$WT13_T" cancel 0014 --reason "作業ツリーでの取り消し"
+assert_exit "TICKET-T13" 0
+if [ -f "$WT13/wip/10_tickets/30_cancelled/0014-investigation.md" ]; then pass "TICKET-T13"; else fail "TICKET-T13" "作業ツリーの cancel が通らない"; fi
+# 本流かどうかの判定が 3 本でバイト一致する（worktree.sh が正。ticket.sh / push.sh はコピー）
+extract_ismain() { awk '/^# 本流かどうかの判定/ {f=1} f {print} f && /^}$/ {exit}' "$1"; }
+ISMAIN_REF="$(extract_ismain "$REAL/skills/20-common-step-worktree/scripts/worktree.sh")"
+if [ -n "$ISMAIN_REF" ]; then pass "TICKET-T13"; else fail "TICKET-T13" "worktree.sh に「本流かどうかの判定」の節が無い"; fi
+assert_eq "TICKET-T13" "$ISMAIN_REF" "$(extract_ismain "$REAL/skills/20-common-step-ticket/scripts/ticket.sh")"
+assert_eq "TICKET-T13" "$ISMAIN_REF" "$(extract_ismain "$REAL/skills/20-common-step-commit-push/scripts/push.sh")"
 
 finish

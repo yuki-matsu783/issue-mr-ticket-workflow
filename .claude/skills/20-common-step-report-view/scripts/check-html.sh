@@ -2,9 +2,10 @@
 # check-html.sh — HTML ビューの機械検査（提供コマンド）
 # 仕様: .claude/docs/10_spec/skills/20-common-step-report-view.md「check-html.sh」
 # 使い方: bash .claude/skills/20-common-step-report-view/scripts/check-html.sh <file.html>
-#   検査 1〜7（RV001〜RV007）を全項目実行し、未充足を全件列挙する。引数・ファイル不正は検査に入る前に RV008（終了 2）。必須節はテンプレート（<body data-template="report|plan">
+#   検査 1〜7（RV001〜RV007）を全項目実行し、未充足を全件列挙する。引数・ファイル不正は検査に入る前に RV008（終了 2）、
+#   環境の不備（awk が無い）はその後・検査に入る前に RV009（終了 2）。必須節はテンプレート（<body data-template="report|plan">
 #   で特定。無ければ置き場のディレクトリで推定）の data-required 要素から導出する。
-# 終了コード: 成功 0 / 検査不合格 1 / 引数・ファイル不正 2。最終行は `OK: ...` または `RV<番号>: ...`
+# 終了コード: 成功 0 / 検査不合格 1 / 引数・ファイル不正 2（RV008）/ 環境の不備 2（RV009）。最終行は `OK: ...` または `RV<番号>: ...`
 set -euo pipefail
 
 # 共通ライブラリの読み込み行（20-common-step-shell-script 仕様「読み込み行」が正）。引数 <lib> <policy> だけを変え、中身を改変しない。
@@ -25,7 +26,7 @@ usage() {
 USAGE
 }
 
-# 引数・ファイル不正（検査に入る前）。最終行は RV008: で終了 2
+# 検査に入る前に止める経路（引数・ファイル不正 RV008 / 環境の不備 RV009）。最終行は RV<番号>: で終了 2
 result_ng2() { log_warn "$1"; printf '%s\n' "$1"; exit 2; }
 
 # HTML コメントを除く（地の文で <style> や id="…" に触れるコメントを数えないため）。
@@ -61,6 +62,9 @@ main() {
   [ -f "$file" ] || result_ng2 "RV008: ファイルが無い: $file"
   [ -r "$file" ] || result_ng2 "RV008: ファイルを読めない: $file"
   case "$file" in *.html) ;; *) result_ng2 "RV008: .html 以外は検査しない: $file" ;; esac
+  # 環境の不備は引数の誤り（RV008）と別の番号で返す（受け取った側の対処が違う — DDR i0010-05）。
+  # awk はコメント除去と属性・id の抽出の全部で使うので、無いまま進むと「検査した」記録だけが残る
+  command -v awk >/dev/null 2>&1 || result_ng2 "RV009: awk が無いので検査できない（縮退させない。POSIX awk を入れること）"
   log_info "start $file"
 
   local raw body

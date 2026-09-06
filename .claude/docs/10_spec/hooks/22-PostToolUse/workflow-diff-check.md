@@ -1,9 +1,9 @@
 ---
 type: spec
 title: workflow-diff-check フック 仕様
-description: 操作のあとに作業中チケットの許可範囲外の差分（未追跡含む）を検知して復旧を促し、未記載パスの承認をセッション内の記憶（approvals.json）に記録し、先行チケットの未完了と種類の改変を警告するフックの内部仕様。scope.sh の共有、基準点の扱い、WF60x を定める
+description: 操作のあとに、操作が行われた作業ツリー（HOOK_WORKTREE）に閉じて作業中チケットの許可範囲外の差分（未追跡含む）を検知して復旧を促し、未記載パスの承認をセッション内の記憶（approvals.json）に記録し、先行チケットの未完了と種類の改変を警告するフックの内部仕様。scope.sh の共有、作業ツリーごとに一意な基準点の扱い、WF60x を定める
 tags: [spec, hook, workflow-diff-check]
-keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope.sh, approvals.json, 承認の記憶, 先行チケット, 種類の改変, 自動巻き戻し禁止, WF601, WF602, WF603, WF604]
+keywords: [差分検知, base_sha, git status, HOOK_WORKTREE, 作業ツリー, worktree, 一意, 未追跡, 許可範囲外, scope.sh, approvals.json, 承認の記憶, 先行チケット, 種類の改変, 自動巻き戻し禁止, WF601, WF602, WF603, WF604, WF605]
 ---
 
 # workflow-diff-check フック 仕様
@@ -13,6 +13,8 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 対応する要件は [00_requirement/hooks/22-PostToolUse/workflow-diff-check.md](../../../00_requirement/hooks/22-PostToolUse/workflow-diff-check.md)。共通事項は [フック共通仕様](../../フック共通仕様.md)（§5 記録、§8 scope.sh、§9 チケット frontmatter）。
 
 案内側のフック。作業中チケットがあるときだけ、操作後の作業ツリーを `base_sha`（`ticket.sh start` が frontmatter に記録した差分基準点）と比べ、範囲外の差分を AI に伝える。判定規則は `scope.sh`（`workflow-guard` と同一）。
+
+**判定の対象は `HOOK_WORKTREE`（操作が行われた作業ツリー。共通仕様 §2）に閉じる。** 作業中チケットも `base_sha` も差分の取得も、すべて同じ `HOOK_WORKTREE` から取る（`git` の呼び出しは `git -C "$HOOK_WORKTREE"`）。したがって、同じリポジトリに作業ツリーが 2 つ以上あり、それぞれで別のチケットが作業中でも、**この判定に使う基準点は 1 つに定まる**（受け入れ条件 A5）。他の作業ツリーの中の差分は、この判定には現れない（そちらで操作が行われたときに、そちらの基準点で判定される）。
 
 禁止事項:
 
@@ -28,12 +30,13 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 
 ## 入出力
 
-- 入力: `tool_name`、`tool_input`、`tool_response`（`ask` の後に実行されたかの判定に使う）。参照: 作業中チケットの frontmatter（`base_sha`、`ticket_type`、`predecessors`）、`git status --porcelain=v2 -z -uall`（1 回）、`git diff --name-status <base_sha>`、`scope-limits.json`、`approvals.json`、`wip/10_tickets/20_done/`
-- 出力: PostToolUse の additionalContext（WF601〜604）または無出力。`approvals.json` への追記
+- 入力: `tool_name`、`tool_input`、`tool_response`（`ask` の後に実行されたかの判定に使う）。参照: **`HOOK_WORKTREE` の**作業中チケットの frontmatter（`base_sha`、`ticket_type`、`predecessors`）、`git -C "$HOOK_WORKTREE" status --porcelain=v2 -z -uall`（1 回）、`git -C "$HOOK_WORKTREE" diff --name-status <base_sha>`、`scope-limits.json`（`HOOK_ROOT`）、`approvals.json`（共有ルート）、`HOOK_WORKTREE` の `wip/10_tickets/20_done/`
+- 出力: PostToolUse の additionalContext（WF601〜605）または無出力。`approvals.json` への追記
 
 ## 制御方式
 
-1. 停止中 → `disabled` を記録して抜ける。作業中チケット 0 枚 → 抜ける。2 枚以上・設定不正・種類不正 → 判定不能として黙って抜ける（拒否は `workflow-guard`）
+0. **作業ツリーの確定**: `HOOK_WORKTREE` を共通仕様 §2 の順で決める。決められない（`cwd` の正規化に失敗した・`HOOK_ROOT` すら解決できない）→ **WF605** を伝えて抜ける（差分判定は行わない。案内側は deny を出せないので、黙って通す代わりに「判定していない」ことを伝える側に倒す。共通仕様 §2「判定できないときの倒し方」）。**`cwd` が worktree でないと確かめられて `HOOK_ROOT` に倒れた場合は「決められない」ではない**（決まった値が `HOOK_ROOT` なだけ）
+1. 停止中 → `disabled` を記録して抜ける。作業中チケット（`HOOK_WORKTREE` の `wip/10_tickets/10_doing/`）0 枚 → 抜ける。2 枚以上・設定不正・種類不正 → 判定不能として黙って抜ける（拒否は `workflow-guard`）
 2. `base_sha` が無い → **WF604** を伝えて抜ける（差分判定は行わない）
 3. **承認の記憶**: 今回の操作が書き込み（または書き込みを伴うコマンド）で、対象パスが `scope.sh` の判定で WF202（未記載）に該当し、操作が実行された（PostToolUse に到達した = 承認された）→ 承認単位（親ディレクトリ。`file_granular` のファイルとリポジトリルート直下のファイルはファイル単位。`"."` は記録しない）を `approvals.json` に追記する。WF203（毎回確認）の範囲は記録しない
 4. **差分の検知**: `git status --porcelain=v2 -z -uall`（未追跡・変更・移動）と `git diff --name-status <base_sha>` を合わせ、パスごとに（移動は移動先で）`scope.sh` を適用する。**`-uall` は省略しない** — 既定の `-unormal` では未追跡がディレクトリ単位（`dir/`）に畳まれ、中身のファイルのパスが得られず許可範囲を判定できない。除外: `logs/**`、`wip/00_overall_plan/**`、`wip/tmp/**`、機構自身の記録。判定が deny（禁止・保護）または ask（未記載で未承認）のパスがあれば **WF601** でパスの一覧と復旧の指示（許可範囲内へ戻す `git checkout <base_sha> -- <path>` / 未追跡は削除。必要ならユーザーに提案。迂回しない）を伝える
@@ -57,6 +60,7 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 | WF602 | 先行チケット未完了 | 未完了の番号 / 先に完了させるか計画を見直す |
 | WF603 | 種類の改変 | 元の値と現在値 / 元に戻す |
 | WF604 | 基準点なし | `base_sha` が無いこと / 差分判定を行っていないこと / `ticket.sh start` で着手し直すことの検討 |
+| WF605 | 作業ツリーを確定できない | 操作が行われた作業ツリーを決められないこと / 差分判定を行っていないこと / 作業ツリーの外から操作していないかの確認をユーザーに求めること |
 
 ## 回復手順
 
@@ -80,6 +84,8 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 | DC-T05 | 異常系 | `ticket_type` を書き換えると WF603（元の値付き） |
 | DC-T06 | 境界 | `base_sha` 無しで WF604 のみ。作業中 2 枚・設定不正で何も出さない |
 | DC-T07 | 正常系 | `git` が使えない環境で何も出さず終了 0 |
+| DC-T08 | 正常系 | **差分の基準点が worktree 側のチケットの `base_sha` になる**（機械テスト。受け入れ条件 A5・A1-6）: 一時リポジトリに本流と worktree を作り、**それぞれ別の `base_sha` を持つ作業中チケットを 1 枚ずつ置く**（枚数はテスト自身が `10_doing/` を数えて assert し、前提が崩れたまま進まない）。`cwd` を worktree にして走らせると、worktree 側チケットの `base_sha` 以降に worktree で生じた範囲外の差分だけが WF601 に並び、本流側チケットの `base_sha` 以降の差分と、本流の作業ツリーにある範囲外のファイルは**並ばない** |
+| DC-T09 | 正常系 | **（DC-T08 の負のコントロール）本流側のチケットでは判定されない**（機械テスト）: 同じ構成で**本流に作業中 1 枚・worktree に 0 枚**を置き（枚数をテスト自身が assert する）、`cwd` を worktree にして走らせると、worktree の作業中が 0 枚なので**何も出ない**。この前提を作らずに DC-T08 だけを見ると、無出力を「判定した結果、差分が無かった」と読み違える |
 
 ## 要件との対応
 
@@ -88,6 +94,8 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 | メイン: 作業中なしは何もしない | 制御方式 1 |
 | メイン: 基準点以降の差分・未追跡を範囲判定し復旧指示 | 制御方式 4、WF601 |
 | メイン: 範囲内なら何も伝えない | 制御方式 4 |
+| メイン: 差分を調べる対象は操作が行われた作業ツリーに閉じる | 概要（`git -C "$HOOK_WORKTREE"`）、制御方式 0・1、DC-T08 |
+| メイン: 差分の基準点が作業ツリーごとに一意に決まる | 概要、制御方式 2、DC-T08・DC-T09 |
 | メイン: 移動は移動先で判定 | 制御方式 4 |
 | メイン: 機構の記録・全体計画の置き場は違反にしない | 制御方式 4（除外） |
 | メイン: 自動巻き戻しをしない | 禁止事項 |
@@ -101,3 +109,4 @@ keywords: [差分検知, base_sha, git status, 未追跡, 許可範囲外, scope
 | 代替: 基準点なし | WF604 |
 | 例外: 2 枚以上・設定不正・種類不正は黙って抜ける | 制御方式 1 |
 | 例外: 差分取得失敗は黙って抜ける | 制御方式 7 |
+| 例外: 作業ツリーを確定できないときは基準点を確定できなかったことを伝える | 制御方式 0、WF605 |

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_workflow_diff_check.sh — workflow-diff-check.sh のテスト（仕様のテスト ID: DC-T01〜DC-T07）
+# test_workflow_diff_check.sh — workflow-diff-check.sh のテスト（仕様のテスト ID: DC-T01〜DC-T09）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*workflow_diff_check*'
 # テストは set -e を使わない（終了コードは hook_run が取る）
 set -uo pipefail
@@ -38,19 +38,23 @@ TKP="wip/10_tickets/10_doing/$TK"
 BASE=""
 
 # ---- 補助 ----
-write_ticket() { # $1=ticket_type $2=base_sha $3=predecessors（配列の中身。空可）
-  mkdir -p "$TMP_REPO/wip/10_tickets/10_doing"
+write_ticket_at() { # $1=出力先パス $2=ticket_type $3=base_sha $4=predecessors（配列の中身。空可）
+  mkdir -p "${1%/*}"
   {
     printf -- '---\n'
     printf 'type: ticket\n'
-    printf 'ticket_type: %s\n' "$1"
-    printf 'predecessors: [%s]\n' "$3"
+    printf 'ticket_type: %s\n' "$2"
+    printf 'predecessors: [%s]\n' "$4"
     printf 'allow:\n'
     printf '  write: []\n'
     printf '  ops: ["read"]\n'
-    printf 'base_sha: "%s"\n' "$2"
-    printf -- '---\n\n# 0100 テスト用チケット\n'
-  } > "$TMP_REPO/$TKP"
+    printf 'base_sha: "%s"\n' "$3"
+    printf -- '---\n\n# テスト用チケット\n'
+  } > "$1"
+}
+
+write_ticket() { # $1=ticket_type $2=base_sha $3=predecessors（配列の中身。空可）
+  write_ticket_at "$TMP_REPO/$TKP" "$1" "$2" "$3"
 }
 
 # 基準点を作る: 素の状態をコミットしてから、チケットに base_sha を書き戻す
@@ -262,6 +266,118 @@ case_boundary() {
   assert_exit "DC-T06" 0
 }
 
+# ---- 作業ツリーをまたぐ判定の足場（DC-T08 / DC-T09）----
+# このフックは判定に git を実際に走らせる（status --porcelain=v2 / diff / show）ので、
+# test_workflow_guard.sh の疑似作業ツリー（`.git` ファイルと `<本流>/.git/worktrees/<名前>/gitdir` を
+# 手で置くだけ）では status も diff も取れず、制御方式 7 で黙って抜けてしまう。
+# そこで実体は `git worktree add` で作り、フックが照合する相互参照の 2 ファイルが揃っていることを
+# テスト自身が assert する（0021 の疑似作業ツリーと見ているものは同じで、作り方だけが違う）。
+#
+# パスは OS ネイティブ表記に揃える: `git worktree add` が相互参照のファイルに書くのは
+# ネイティブの絶対パス（MSYS では `C:/…`）で、入力の `cwd` と `HOOK_ROOT` を `/tmp/…` のままにすると
+# `__hc_is_worktree_of` の照合が必ず外れ、worktree 側に居ても本流に倒れる
+dc_native() { ( cd "$1" && { pwd -W 2>/dev/null || pwd; } ); }
+
+DC_WT=""; DC_WT_N=""; DC_ROOT_N=""; DC_HOOK_N=""
+dc_wt_fixture() { # 本流（TMP_REPO）から作業ツリーを 1 つ切る
+  make_tmp_dir
+  DC_WT="$TMP_DIR/w1"
+  git -C "$TMP_REPO" worktree add -q -b dc-wt "$DC_WT" >/dev/null 2>&1 || return 1
+  DC_WT_N="$(dc_native "$DC_WT")"
+  DC_ROOT_N="$(dc_native "$TMP_REPO")"
+  DC_HOOK_N="$DC_ROOT_N/.claude/hooks/22-PostToolUse/workflow-diff-check.sh"
+  mkdir -p "$DC_WT/wip/10_tickets/00_todo" "$DC_WT/wip/10_tickets/10_doing" "$DC_WT/wip/10_tickets/20_done"
+  return 0
+}
+
+# 作業中チケットの枚数を数える（負のコントロールの前提をテスト自身が確かめるため。0004 の e48）
+dc_doing_count() { # $1=作業ツリーのルート
+  local f n=0 ng=0
+  shopt -q nullglob && ng=1
+  shopt -s nullglob
+  for f in "$1"/wip/10_tickets/10_doing/*.md; do n=$(( n + 1 )); done
+  (( ng )) || shopt -u nullglob
+  printf '%s' "$n"
+}
+
+# cwd は入力 JSON に明示で載せる。`cd` してから hook_payload の `$PWD` に任せると、MSYS が
+# ネイティブ表記を `/tmp/…` に畳み戻してしまい（実測）、`C:/…` で書かれた相互参照と照合できない
+dc_run_at() { # $1=ネイティブ表記の cwd、以降 hook_payload の引数（event tool [key=value ...]）
+  local cwd="$1"
+  shift
+  R_ERR=""
+  R_OUT="$( hook_payload "$@" \
+            | MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL="*" jq -c --arg c "$cwd" '.cwd=$c' | tr -d '\r' \
+            | ( cd "$cwd" && bash "$DC_HOOK_N" ) 2>/dev/null )"
+  R_EXIT=$?
+  return 0
+}
+
+# ---- DC-T08: 差分の基準点が worktree 側チケットの base_sha になる（A5 / A1-6）----
+case_worktree_base() {
+  local main_base wt_base
+  start_case investigation ""                       # 本流に作業中 1 枚（基準点 = BASE）
+  main_base="$BASE"
+  if ! dc_wt_fixture; then fail "DC-T08" "git worktree add に失敗した（この環境では作業ツリーを作れない）"; return 0; fi
+  if [[ -f "$DC_WT/.git" && -f "$TMP_REPO/.git/worktrees/w1/gitdir" ]]; then
+    pass "DC-T08"
+  else
+    fail "DC-T08" "相互参照（<作業ツリー>/.git と <本流>/.git/worktrees/w1/gitdir）が揃っていない"
+    return 0
+  fi
+
+  # worktree 側の基準点を本流と別のコミットにする
+  rm -f "$DC_WT"/wip/10_tickets/10_doing/*.md
+  printf 'print("wt")\n' > "$DC_WT/src/old.py"
+  git -C "$DC_WT" add -A >/dev/null 2>&1
+  git -C "$DC_WT" commit -q -m "wt base" >/dev/null 2>&1
+  wt_base="$(git -C "$DC_WT" rev-parse --short HEAD)"
+  write_ticket_at "$DC_WT/wip/10_tickets/10_doing/0200-work.md" investigation "$wt_base" ""
+
+  # 前提（枚数と基準点が別であること）をテスト自身が assert してから判定を呼ぶ
+  assert_eq "DC-T08" "1" "$(dc_doing_count "$TMP_REPO")"
+  assert_eq "DC-T08" "1" "$(dc_doing_count "$DC_WT")"
+  if [[ -n "$wt_base" && "$wt_base" != "$main_base" ]]; then pass "DC-T08"; else fail "DC-T08" "基準点が本流と同じ（$main_base）"; fi
+
+  # 範囲外の差分を両側に別々に作る
+  printf 'print("changed")\n' > "$DC_WT/src/a.py"
+  printf '# wt\n' > "$DC_WT/docs/wt-only.md"
+  printf '# main\n' > "$TMP_REPO/docs/main-only.md"
+
+  dc_run_at "$DC_WT_N" PostToolUse Bash command='ls -la'
+  assert_contains "DC-T08" "WF601"
+  assert_contains "DC-T08" "基準点は $wt_base"
+  assert_not_contains "DC-T08" "基準点は $main_base"
+  assert_contains "DC-T08" "src/a.py（変更"
+  assert_contains "DC-T08" "docs/wt-only.md（未追跡"
+  assert_not_contains "DC-T08" "docs/main-only.md"
+  assert_exit "DC-T08" 0
+
+  # 対照: cwd を本流にすると本流側チケットの基準点で判定され、worktree の中の差分は現れない
+  dc_run_at "$DC_ROOT_N" PostToolUse Bash command='ls -la'
+  assert_contains "DC-T08" "WF601"
+  assert_contains "DC-T08" "基準点は $main_base"
+  assert_contains "DC-T08" "docs/main-only.md（未追跡"
+  assert_not_contains "DC-T08" "docs/wt-only.md"
+}
+
+# ---- DC-T09: DC-T08 の負のコントロール（本流 1 枚・worktree 0 枚）----
+case_worktree_negative() {
+  [[ -n "$DC_WT" ]] || { fail "DC-T09" "DC-T08 の足場が無い"; return 0; }
+  rm -f "$DC_WT"/wip/10_tickets/10_doing/*.md
+  # 前提（本流 1 枚・worktree 0 枚）をテスト自身が assert する。
+  # これを置かずに DC-T08 だけを見ると、無出力を「判定した結果、差分が無かった」と読み違える
+  assert_eq "DC-T09" "1" "$(dc_doing_count "$TMP_REPO")"
+  assert_eq "DC-T09" "0" "$(dc_doing_count "$DC_WT")"
+  dc_run_at "$DC_WT_N" PostToolUse Bash command='ls -la'
+  assert_eq "DC-T09" "" "$R_OUT"
+  assert_exit "DC-T09" 0
+  # 正のコントロール: 同じ差分でも cwd を本流にすれば判定される（無出力が判定の不在であることの対照）
+  dc_run_at "$DC_ROOT_N" PostToolUse Bash command='ls -la'
+  assert_contains "DC-T09" "WF601"
+  assert_contains "DC-T09" "docs/main-only.md（未追跡"
+}
+
 # ---- DC-T07: git が使えない環境では何も出さずに終了 0 ----
 case_no_git() {
   start_case investigation ""
@@ -280,5 +396,7 @@ case_approvals
 case_predecessors
 case_type_changed
 case_boundary
+case_worktree_base
+case_worktree_negative
 case_no_git
 finish

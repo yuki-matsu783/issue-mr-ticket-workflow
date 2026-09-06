@@ -339,4 +339,97 @@ case_operands() {
 }
 case_operands
 
+# ---- HK-T05: 置換の正規化（§7-1 の 2 件）----
+# (P-1) 算術展開 `$(( ))` はコマンド置換ではない。ダブルクォートの中でも外でも段を割らず 1 語の `_` に潰す。
+#       ここが破れると `echo "$((n+1))"` が `n+1` の段に割れ、読み取りだけのコマンドが WF204 で落ちる
+# (P-2) コマンド置換・プロセス置換は中身を実行位置として解析したうえで、外側では 1 語の `_` に潰す。
+#       閉じ括弧の後ろに続く語は**引数**であって新しい段の実行体ではない
+case_hk_t05_substitution() {
+  # (a) 算術展開: クォートの中でも外でも段を割らない
+  run_cmd dump 'echo "$((n+1))"'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=echo sub=_ args=[_]"
+  assert_not_contains "HK-T05" "exe=n+1"
+  run_cmd dump 'echo $((n+1))'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=echo"
+  run_cmd dump 'sed -n "$((s)),$((e))p" f.txt'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=sed sub=_ args=[-n _ f.txt]"
+  run_cmd dump 'echo "left $((1<<2)) right"; git commit'
+  assert_contains "HK-T05" "count=2"
+  assert_contains "HK-T05" "exe=git sub=commit"
+  # (b) コマンド置換: 中身は段、閉じ括弧の後ろの語は引数（3 段）
+  run_cmd dump 'sed -n "$(grep -n X f | cut -d: -f1),+45p" path/to/file.sh'
+  assert_contains "HK-T05" "count=3"
+  assert_contains "HK-T05" "exe=grep"
+  assert_contains "HK-T05" "exe=cut"
+  assert_contains "HK-T05" "exe=sed sub=_ args=[-n _ path/to/file.sh]"
+  assert_not_contains "HK-T05" "exe=file.sh"
+  # (c) プロセス置換 <( ) / >( ): 中身は段、後ろの語は引数（2 段）
+  run_cmd dump 'comm -12 <(sort -u a.txt) b.txt'
+  assert_contains "HK-T05" "count=2"
+  assert_contains "HK-T05" "exe=sort"
+  assert_contains "HK-T05" "exe=comm sub=_ args=[-12 _ b.txt]"
+  assert_not_contains "HK-T05" "exe=b.txt"
+  run_cmd dump 'tee >(cat) out.txt'
+  assert_contains "HK-T05" "count=2"
+  assert_contains "HK-T05" "exe=cat"
+  assert_contains "HK-T05" "exe=tee sub=_ args=[_ out.txt]"
+  assert_not_contains "HK-T05" "exe=out.txt"
+  # (d) 潰れた語が実行体の位置にあるときは `_` のまま（呼び手が拒否側に倒す）
+  run_cmd dump '$(which git) push'
+  assert_contains "HK-T05" "count=2"
+  assert_contains "HK-T05" "exe=which"
+  assert_contains "HK-T05" "exe=_ sub=push args=[push]"
+  assert_contains "HK-T05" "gitlike=1"
+  # バッククォートも同じ規則（後ろの語は引数）
+  run_cmd dump 'echo `git commit` x'
+  assert_contains "HK-T05" "count=2"
+  assert_contains "HK-T05" "exe=git sub=commit"
+  assert_contains "HK-T05" "exe=echo sub=_ args=[_ x]"
+  # 入れ子の置換（$( ) の中の $( )）でも外側の段は 1 つ
+  run_cmd dump 'echo "$(basename "$(pwd)")" tail.txt'
+  assert_contains "HK-T05" "count=3"
+  assert_contains "HK-T05" "exe=pwd"
+  assert_contains "HK-T05" "exe=basename"
+  assert_contains "HK-T05" "exe=echo sub=_ args=[_ tail.txt]"
+  # 閉じない置換でも中身の段を落とさない（頑健性）
+  run_cmd dump 'echo $(git commit'
+  assert_contains "HK-T05" "count=2"
+  assert_contains "HK-T05" "exe=git sub=commit"
+  # 語の途中の置換は**語を割らない**（bash は `ch$()mod` を 1 語 `chmod` として実行する）。
+  # 割ると実行体が `ch` に見え、難読化した禁止コマンドが block-chmod を素通りする（BC-T01 が拾った退行）
+  run_cmd dump 'ch$()mod +x a'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=ch_mod"
+  run_cmd dump 'ch$( : )mod +x a'
+  assert_contains "HK-T05" "count=2"
+  assert_contains "HK-T05" "exe=ch_mod"
+  run_cmd dump 'ch$(echo)mod +x a'
+  assert_contains "HK-T05" "exe=ch_mod"
+  run_cmd dump 'chmod$() +x a'
+  assert_contains "HK-T05" "exe=chmod_"
+  run_cmd dump 'ch`echo`mod +x a'
+  assert_contains "HK-T05" "exe=ch_mod"
+  # 負のコントロール 1: 素の括弧（サブシェル・グループ）は従来どおり段を割る
+  run_cmd dump '(git commit)'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "exe=git sub=commit"
+  run_cmd dump 'ls; (cd a && git commit)'
+  assert_contains "HK-T05" "count=3"
+  assert_contains "HK-T05" "exe=git sub=commit"
+  run_cmd dump '{ git commit; }'
+  assert_contains "HK-T05" "exe=git sub=commit"
+  # 負のコントロール 2: 生の内部マーカ（\x05 / \x06）を混ぜても段を偽造できない。
+  # 偽造できると、実行位置の語を「置換の外の 1 語」に見せかけて判定から外せる
+  run_cmd dump $'echo a \x05 git commit'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=echo"
+  run_cmd dump $'echo a \x06 git commit'
+  assert_contains "HK-T05" "count=1"
+  assert_contains "HK-T05" "seg0: exe=echo"
+}
+case_hk_t05_substitution
+
 finish

@@ -41,15 +41,28 @@ __WG_LIMITS_PATH=".claude/hooks/config/scope-limits.json"
 __WG_CMD_WRITE_OK=('wip/tmp/**' 'logs/**')
 # 提供コマンドの引数のうち、値がパスではないもの（メッセージ・宣言・理由）。次の語を読み飛ばす
 __WG_VALUE_OPTS=' -m --message --reason --dod --title --body --note --label --type --allow-write --allow-ops --issue --pr '
+# 作業ツリーの提供コマンド。置き場を指す引数だけは書き込みの判定を当てない（仕様 制御方式 6 の例外）
+__WG_WORKTREE_CMD='.claude/skills/20-common-step-worktree/scripts/worktree.sh'
 
 __WG_NO_BYPASS="拒否されたら迂回せず、宣言の範囲内で進めること。範囲を広げる必要があるなら作業を止めてユーザーに提案する（未着手チケットの見直しか計画の追加チケット）。"
 
 # ---- 制御方式 1: 作業中チケットが無ければ何もしない（記録もしない）----
 hook_doing_ticket
 __WG_NAME="$REPLY"
-[[ -n "$__WG_NAME" ]] || exit 0
 
 __WG_CLASS="$(tool_class "$HOOK_TOOL" "${HOOK_SKILL:-}")"
+
+# 作業ツリーを確定できないときは、数えた枚数そのものが当てにならない（§2「判定できないときの倒し方」）。
+# ここで通すと、作業ツリーだと自称する cwd から本流の 0 枚を数えて全操作が素通りする（静かな無効化）。
+# 読み取り・起動・宣言は判定材料が無くても害が無いので、下の制御方式 8 に任せて通す
+if [[ "${HOOK_WORKTREE_STATE:-ok}" != "ok" ]]; then
+  case "$__WG_CLASS" in
+    spawn|read|declare) ;;
+    *) hook_deny WF209 "cwd（$HOOK_CWD）がどの作業ツリーかを確定できないので、作業中チケットの宣言範囲を当てられない。作業ツリーだと自称するディレクトリ（.git の gitdir: が <ルート>/.git/worktrees/ を指す）で相互参照が壊れている可能性がある。リポジトリのルートか、正しく登録された作業ツリーで実行し直すこと。直らないなら機構の不調としてユーザーに報告すること。$__WG_NO_BYPASS" "$HOOK_TOOL" ;;
+  esac
+fi
+
+[[ -n "$__WG_NAME" ]] || exit 0
 
 # 起動（Agent / Workflow）は常に許可（制御方式 8）。実行者の不一致は subagent-start-check が伝える。
 # 読み取りは matcher の外だが、届いても判定材料が無いので通す
@@ -61,9 +74,16 @@ esac
 # ルート相対に直したうえで `.` と `..` を畳む。畳んでも作業ツリーの外に出るパスは判定できないので拒否側に倒す
 # （`wip/../.claude/settings.json` のような書き方で保護範囲の glob をすり抜けられるため。プローブで確認した）
 __wg_rel() { # $1=パス → REPLY にルート相対（末尾の / を落とす）
-  local raw p seg out=""
+  local raw p seg out="" rc=0
   raw="$1"
-  hook_rel_path "$raw" >/dev/null
+  hook_rel_path "$raw" >/dev/null || rc=$?
+  # 共通仕様 §2「判定できないときの倒し方」: 作業ツリーを確定できない / 正規化に失敗した /
+  # 作業ツリーの集合を読めなかったときは「無関係」に倒さず拒否側へ（DDR i0010-09）
+  if (( rc == 2 )); then
+    hook_deny WF209 "$raw がどの作業ツリーのパスかを判定できない（作業ツリーの解決かパスの正規化に失敗した）。やってよいことの内側かを確かめられないので拒否した。パスを作業ツリーからの相対か絶対パスで書き直すこと。それでも直らないなら機構の不調としてユーザーに報告すること。$__WG_NO_BYPASS" "$raw"
+  fi
+  # 1〜3 段で畳めたパスはそのツリーのルート相対。4 段目（同一リポジトリの外）は絶対パスのまま返るので、
+  # 下の「作業ツリーの外」の検査が拾う
   p="${REPLY%/}"
   if [[ "$p" == *"/../"* || "$p" == "../"* || "$p" == *"/.." || "$p" == ".."      || "$p" == *"/./"* || "$p" == "./"* || "$p" == *"/." ]]; then
     while [[ -n "$p" ]]; do
@@ -79,9 +99,10 @@ __wg_rel() { # $1=パス → REPLY にルート相対（末尾の / を落とす
     done
     p="$out"
   fi
-  # 作業ツリーの外（絶対パス・先頭の ..）は、どの範囲にも属さないので承認単位にもしない
+  # 同一リポジトリのどの根（自ツリー / 共有ルート / 他の作業ツリー）にも畳めなかったパスは、
+  # どの範囲にも属さないので承認単位にもしない（共通仕様 §2 の 4 段目）
   if [[ -z "$p" || "$p" == ".." || "$p" == "../"* || "$p" == /* || "$p" =~ ^[A-Za-z]:/ ]]; then
-    hook_deny WF209 "$raw は作業ツリー（$HOOK_WORKTREE）の外を指すので、やってよいことの内側か判定できない。作業はリポジトリの中で行い、外に出す必要があるならユーザーに報告すること。$__WG_NO_BYPASS" "$raw"
+    hook_deny WF209 "$raw は同一リポジトリのどの作業ツリー（判定の起点は $HOOK_WORKTREE）の外を指すので、やってよいことの内側か判定できない。作業はリポジトリの中で行い、外に出す必要があるならユーザーに報告すること。$__WG_NO_BYPASS" "$raw"
   fi
   REPLY="$p"
   return 0
@@ -135,7 +156,9 @@ if (( HOOK_DOING_COUNT > 1 )); then
     printf '%s' "$out"
   }
   if ! __wg_all_provided; then
-    hook_deny WF207 "作業中チケットが $HOOK_DOING_COUNT 枚ある（$(__wg_list)）。1 枚だけの状態でしか判定できないので、bash .claude/skills/20-common-step-ticket/scripts/ticket.sh で 1 枚を残して他を未着手に戻すこと。$__WG_NO_BYPASS" "$HOOK_TOOL"
+    # 枚数は「1 作業ツリーあたり」の話（仕様 概要）。どの作業ツリーで数えたかを必ず出す —
+    # 他の作業ツリーにも作業中チケットがあり得るので、書かないと「どこを 1 枚に戻すのか」が決まらない
+    hook_deny WF207 "作業ツリー $HOOK_WORKTREE の作業中チケットが $HOOK_DOING_COUNT 枚ある（$(__wg_list)）。枚数は 1 作業ツリーあたりで数えるので、他の作業ツリーの作業中チケットは含まない。1 枚だけの状態でしか判定できないので、この作業ツリーで bash .claude/skills/20-common-step-ticket/scripts/ticket.sh を使い 1 枚を残して他を未着手に戻すこと。$__WG_NO_BYPASS" "$HOOK_TOOL"
   fi
   hook_record allow "" "$HOOK_TOOL" "作業中 $HOOK_DOING_COUNT 枚だが提供コマンドなので通す"
   exit 0
@@ -278,15 +301,114 @@ __wg_check_write_targets() { # $1=US 区切りの宛先
   return 0
 }
 
-# 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）
+# 削除だけを行う段か（`rm` / `git rm`）。ファイルの中身を作らないので、対象がチケットの
+# allow.write に収まっていれば通す（Edit / Write にファイルを消す手段が無く、これが無いと
+# AI は自分が作ったアセットを片付けられない。仕様 制御方式 6 との差分は 0036 の作業ログ）
+__wg_is_delete_seg() { # $1=セグメント番号
+  case "${CP_EXE[$1]:-}" in
+    rm)  return 0 ;;
+    git) [[ "${CP_SUBCMD[$1]:-}" == rm ]] && return 0 ;;
+  esac
+  return 1
+}
+
+__wg_delete_targets() { # $1=セグメント番号 → 削除対象を REPLY_LIST に置く。読み取れなければ 1
+  local i="$1" a seen_sub=0
+  if [[ "${CP_EXE[$i]:-}" == rm ]]; then
+    # cmdpos が抜いた書き込み先をそのまま使う（オプションの規則を複製しない）
+    __wg_split_us "${CP_WRITE_TARGETS[$i]:-}"
+    (( ${#REPLY_LIST[@]} )) || return 1
+    return 0
+  fi
+  # git rm はサブコマンドより後ろの非オプション語が対象（cmdpos は git の書き込み先を抜かない）
+  REPLY_LIST=()
+  cmdpos_args "$i"
+  for a in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
+    if (( seen_sub == 0 )); then [[ "$a" == rm ]] && seen_sub=1; continue; fi
+    [[ "$a" == --pathspec-from-file* ]] && return 1   # 対象が別ファイルにあり読み取れない
+    [[ "$a" == -* ]] && continue
+    REPLY_LIST+=("$a")
+  done
+  (( ${#REPLY_LIST[@]} )) || return 1
+  return 0
+}
+
+# 対象の配下に「消してはいけない範囲」が入り得るか（ディレクトリごとの削除で子孫を巻き込ませない）。
+# glob は展開せず、文字列として `<対象>/` で始まるかだけを見る（判定できないものは拒否側に倒す）
+__wg_delete_covers_guarded() { # $1=ルート相対パス
+  local p="$1" g
+  for g in ${SC_COMMON_PROTECTED[@]+"${SC_COMMON_PROTECTED[@]}"} \
+           ${SC_COMMON_CONFIRM[@]+"${SC_COMMON_CONFIRM[@]}"} \
+           ${SC_COMMON_STATE_FILES[@]+"${SC_COMMON_STATE_FILES[@]}"} \
+           ${SC_TYPE_DENY[@]+"${SC_TYPE_DENY[@]}"} \
+           ${SC_TYPE_CONFIRM[@]+"${SC_TYPE_CONFIRM[@]}"}; do
+    [[ "$g" == "$p/"* ]] && return 0
+  done
+  return 1
+}
+
+# 削除してよいか。置き場（wip/tmp/** と logs/**）か、チケットが宣言した allow.write の内側だけを通す。
+# 宣言を必須にするのは、共通の許可範囲（計画書・レポート・未着手チケット）を削除に開かないため
+__wg_delete_ok() { # $1=ルート相対パス
+  local p="$1" g
+  # 進行状態のファイルは logs/ の中にあってもコマンドで消させない（書き換えと同じ扱い）
+  for g in ${SC_COMMON_STATE_FILES[@]+"${SC_COMMON_STATE_FILES[@]}"}; do scope_match "$g" "$p" && return 1; done
+  for g in "${__WG_CMD_WRITE_OK[@]}"; do scope_match "$g" "$p" && return 0; done
+  scope_resolve "$p"
+  [[ "$SC_DECISION" == allow ]] || return 1
+  (( ${#SC_DECL_WRITE[@]} )) || return 1
+  for g in "${SC_DECL_WRITE[@]}"; do scope_match "$g" "$p" && return 0; done
+  return 1
+}
+
+__wg_check_delete_targets() { # $1=セグメント番号
+  local i="$1" t p
+  if ! __wg_delete_targets "$i"; then
+    hook_deny WF205 "削除するコマンドだが、消す対象を読み取れなかった。消すファイルをパスで 1 つずつ指定すること（コマンドで消してよいのはチケットの allow.write の内側だけ）。" "$(__wg_cmd_head)"
+  fi
+  __wg_load_approvals
+  for t in ${REPLY_LIST[@]+"${REPLY_LIST[@]}"}; do
+    if [[ "$t" == "_" ]]; then
+      hook_deny WF205 "削除の対象を読み取れなかった（クォート等で潰れている）。消すファイルをパスでそのまま指定すること。" "$(__wg_cmd_head)"
+    fi
+    # 展開前の文字列は、どのパスになるか決まらない（`.claude/hooks/*` が glob として宣言に一致してしまう）
+    if [[ "$t" == *'*'* || "$t" == *'?'* || "$t" == *'['* || "$t" == *'{'* \
+       || "$t" == *'$'* || "$t" == *'`'* || "$t" == *'~'* || "$t" == *','* ]]; then
+      hook_deny WF205 "削除の対象 $t は展開してからでないとパスが決まらない（glob・ブレース・変数・コンマ区切り）。消すファイルを 1 つずつ書くこと。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
+    __wg_rel "$t"; p="$REPLY"
+    if __wg_delete_covers_guarded "$p"; then
+      hook_deny WF205 "$p を丸ごと消すと、配下の保護範囲・毎回確認の範囲・進行状態のファイルまで巻き込む。中のファイルを 1 つずつ消すこと。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
+    if ! __wg_delete_ok "$p"; then
+      hook_deny WF205 "$p を消そうとしているが、$(__wg_ticket_line)が宣言した allow.write の外（判定 $SC_STAGE）。コマンドで消せるのは wip/tmp/** と logs/**、それに宣言した範囲だけ。$__WG_NO_BYPASS" "$(__wg_cmd_head)"
+    fi
+  done
+  return 0
+}
+
+# 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）。
+# 例外は worktree.sh の**作業ツリーの置き場を指す引数**だけ（`add <名前> [<置き場>]` の置き場、
+# `remove <名前|置き場>` の位置引数）。置き場の既定はリポジトリの外（20-common-step-worktree 仕様）なので
+# 判定を当てると必ず WF209 になり、提供コマンドを設けた意味が無くなる。置き場が妥当か
+# （既存の作業ツリーと重ならない・同一リポジトリの作業ツリーである）は worktree.sh 自身が検査する（WT002）
 __wg_check_provided_args() { # $1=セグメント番号
-  local i="$1" a skip=0 first=1 p
+  local i="$1" a skip=0 first=1 p pos=0 wt=0 sub=""
+  [[ "${CP_PROVIDED[$i]:-}" == "$__WG_WORKTREE_CMD" ]] && wt=1
   cmdpos_args "$i"
   for a in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
     if (( first )); then first=0; continue; fi          # 第 1 引数は提供コマンド自身
     if (( skip )); then skip=0; continue; fi
     if [[ "$__WG_VALUE_OPTS" == *" $a "* ]]; then skip=1; continue; fi
     [[ "$a" == -* ]] && continue
+    pos=$(( pos + 1 ))                                  # 1 始まりの位置引数（1 = サブコマンド）
+    if (( wt )); then
+      (( pos == 1 )) && sub="$a"
+      # 例外は引数の位置で決まる（名前の位置に外のパスを書けば従来どおり判定に掛かる）
+      if { [[ "$sub" == add ]] && (( pos == 3 )); } || { [[ "$sub" == remove ]] && (( pos == 2 )); }; then
+        continue
+      fi
+    fi
     # パスらしい語だけを見る（メッセージ・番号・部分文字列を対象にしない）
     [[ "$a" == *[[:space:]]* ]] && continue
     if [[ "$a" == */* ]] || [[ "$a" =~ ^[A-Za-z0-9_.@-]+\.[A-Za-z0-9]+$ ]]; then
@@ -310,6 +432,14 @@ for (( __wg_i = 0; __wg_i < CP_COUNT; __wg_i++ )); do
   __WG_TARGETS="${SC_TARGETS:-}"
   if [[ -n "${CP_REDIRECTS[$__wg_i]:-}" ]]; then
     __WG_TARGETS="${__WG_TARGETS}${__WG_TARGETS:+$__WG_US}${CP_REDIRECTS[$__wg_i]}"
+  fi
+
+  # 削除だけの段は allow.write で判定する（作成・更新は従来どおり Edit / Write に寄せる）。
+  # リダイレクト先は削除ではなく書き込みなので、置き場の判定を当てる
+  if __wg_is_delete_seg "$__wg_i"; then
+    __wg_check_delete_targets "$__wg_i"
+    __wg_check_write_targets "${CP_REDIRECTS[$__wg_i]:-}"
+    continue
   fi
 
   case "$__WG_SEG_CLASS" in

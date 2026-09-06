@@ -31,6 +31,13 @@ _CP_BT='`'
 _CP_US=$'\x1e'
 _CP_DUP=$'\x01'     # `>&` `<&`（fd 複製）の保護
 _CP_AMPRED=$'\x02'  # `&>`（stdout+stderr のリダイレクト）の保護
+# 置換（コマンド置換 `$( )` / `` ` ` ``・プロセス置換 `<( )` `>( )`）の開始と終了の印（§7-1）。
+# 段の区切りは `(` `)` という文字そのものではなく置換の開始と終了の対応で決めるので、
+# 素の括弧（サブシェル・グループ）と区別できる印が要る。段を組み立てるときに消費するので出力には現れない。
+# **空白を付けずに置く**（`ch$()mod` は bash が 1 語 `chmod` として実行する形なので、
+# 印のところで語を割ると実行体が `ch` に見えてしまう。語の連結は段の組み立て側で行う）
+_CP_SUBOPEN=$'\x05'
+_CP_SUBCLOSE=$'\x06'
 _CP_MAX_LEN=4096
 
 # パターンは $'...' で組み立ててから、パラメータ展開の中へクォートせず展開する
@@ -63,6 +70,8 @@ _cp_normalize_to_reply() {
   # 入力に生のプレースホルダが混じっていると、段がデータだけに見えて実行位置の判定から外れる。
   # 出力に現れるプレースホルダは正規化が置いたものだけにする
   local raw="${1//$_CP_DATA_PH/_}"
+  # 置換の印も同様に潰す。混じったまま通すと、実行位置の語を「置換の外の 1 語」に見せかけて段を偽造できる
+  raw="${raw//$_CP_SUBOPEN/_}"; raw="${raw//$_CP_SUBCLOSE/_}"
   local -a lines=()
   mapfile -t lines <<<"$raw"
   local out='' state='code' rest head c prev=''
@@ -97,24 +106,48 @@ _cp_normalize_to_reply() {
               fi ;;
             '$')
               if [[ "${rest:1:2}" == '((' ]]; then
+                # 算術展開はコマンド置換ではない。対応する `))` まで読み飛ばして 1 語の `_` に潰す（段を割らない）
                 _cp_skip_arithmetic_to_reply "$rest"; out+="$REPLY"; prev='_'; rest="$REPLY_CP_REST"
+              elif [[ "${rest:1:1}" == '(' ]]; then
+                ret_states+=('code'); ret_parens+=("$paren"); ret_closes+=(')'); paren=0
+                out+="$_CP_SUBOPEN"; prev='('; rest="${rest:2}"
               else out+='$'; prev='$'; rest="${rest:1}"; fi ;;
             "$_CP_BT")
               if ((${#ret_states[@]} > 0)) && [[ "${ret_closes[-1]}" == "$_CP_BT" ]]; then
                 state="${ret_states[-1]}"; paren="${ret_parens[-1]}"; unset 'ret_states[-1]' 'ret_parens[-1]' 'ret_closes[-1]'
+                out+="$_CP_SUBCLOSE"; [[ "$state" == 'code' ]] && out+='_'
+              else
+                ret_states+=('code'); ret_parens+=("$paren"); ret_closes+=("$_CP_BT"); paren=0
+                out+="$_CP_SUBOPEN"
               fi
-              out+=" $_CP_BT "; prev="$_CP_BT"; rest="${rest:1}" ;;
-            '(') paren=$((paren + 1)); out+=' ( '; prev='('; rest="${rest:1}" ;;
+              prev='_'; rest="${rest:1}" ;;
+            '(')
+              if [[ "$prev" == '>' ]]; then
+                # プロセス置換 `>( )`。`>` は既に out に入っているので剥がす（リダイレクトではない）
+                out="${out%>}"
+                ret_states+=('code'); ret_parens+=("$paren"); ret_closes+=(')'); paren=0
+                out+="$_CP_SUBOPEN"
+              else paren=$((paren + 1)); out+=' ( '; fi
+              prev='('; rest="${rest:1}" ;;
             ')')
-              if ((paren > 0)); then paren=$((paren - 1))
+              if ((paren > 0)); then paren=$((paren - 1)); out+=' ) '
               elif ((${#ret_states[@]} > 0)) && [[ "${ret_closes[-1]}" == ')' ]]; then
                 state="${ret_states[-1]}"; paren="${ret_parens[-1]}"; unset 'ret_states[-1]' 'ret_parens[-1]' 'ret_closes[-1]'
-              fi
-              out+=' ) '; prev=')'; rest="${rest:1}" ;;
+                # 置換の終わり。外側が code なら 1 語の `_` として残す（ダブルクォートの中なら
+                # クォートの `_` が既にあるので足さない）。閉じ括弧の後ろの語は外側の段の引数になる
+                out+="$_CP_SUBCLOSE"; [[ "$state" == 'code' ]] && out+='_'
+              else out+=' ) '; fi
+              prev=')'; rest="${rest:1}" ;;
             '<')
-              _cp_read_heredoc_open_to_reply "$rest"
-              if [[ -n "$REPLY_CP_DELIM_SET" ]]; then hd_delims+=("$REPLY_CP_DELIM"); hd_strips+=("$REPLY_CP_STRIP"); fi
-              out+="$REPLY"; prev='_'; rest="$REPLY_CP_REST" ;;
+              if [[ "${rest:0:2}" == '<(' ]]; then
+                # プロセス置換 `<( )`
+                ret_states+=('code'); ret_parens+=("$paren"); ret_closes+=(')'); paren=0
+                out+="$_CP_SUBOPEN"; prev='('; rest="${rest:2}"
+              else
+                _cp_read_heredoc_open_to_reply "$rest"
+                if [[ -n "$REPLY_CP_DELIM_SET" ]]; then hd_delims+=("$REPLY_CP_DELIM"); hd_strips+=("$REPLY_CP_STRIP"); fi
+                out+="$REPLY"; prev='_'; rest="$REPLY_CP_REST"
+              fi ;;
           esac ;;
         sq)
           head="${rest%%$_CP_SQ_CHARS*}"
@@ -127,18 +160,23 @@ _cp_normalize_to_reply() {
             '"') state='code'; rest="${rest:1}" ;;
             '\') rest="${rest:2}" ;;
             '$')
-              if [[ "${rest:1:1}" == '(' ]]; then
+              if [[ "${rest:1:2}" == '((' ]]; then
+                # ダブルクォートの中でも算術展開は段を割らない。クォート全体が既に 1 語の `_` なので
+                # ここでは何も足さずに読み飛ばす（この検査を欠くと `echo "$((n+1))"` が `n+1` の段に割れる）
+                _cp_skip_arithmetic_to_reply "$rest"; rest="$REPLY_CP_REST"
+              elif [[ "${rest:1:1}" == '(' ]]; then
                 ret_states+=('dq'); ret_parens+=("$paren"); ret_closes+=(')'); state='code'; paren=0
-                out+=' ( '; prev='('; rest="${rest:2}"
+                out+="$_CP_SUBOPEN"; prev='('; rest="${rest:2}"
               else rest="${rest:1}"; fi ;;
             "$_CP_BT")
               ret_states+=('dq'); ret_parens+=("$paren"); ret_closes+=("$_CP_BT"); state='code'; paren=0
-              out+=" $_CP_BT "; prev="$_CP_BT"; rest="${rest:1}" ;;
+              out+="$_CP_SUBOPEN"; prev='('; rest="${rest:1}" ;;
           esac ;;
       esac
     done
     while ((${#ret_states[@]} > 0)) && [[ "${ret_closes[-1]}" == "$_CP_BT" ]]; do
       state="${ret_states[-1]}"; paren="${ret_parens[-1]}"; unset 'ret_states[-1]' 'ret_parens[-1]' 'ret_closes[-1]'
+      out+="$_CP_SUBCLOSE"; [[ "$state" == 'code' ]] && out+='_'
     done
     li=$((li + 1))
     if ((line_cont)); then line_cont=0; else out+="$_CP_NL"; prev="$_CP_NL"; fi
@@ -357,6 +395,45 @@ _cp_emit_segment() {
   return 0
 }
 
+# 空白で区切られたトークンを、先に現れる置換の印で 3 つに割る（REPLY = 印の手前 /
+# REPLY_CP_MARK = 印（無ければ空）/ REPLY_CP_REST = 印の後ろ）
+_cp_split_marker_to_reply() {
+  local s="$1" a b
+  a="${s%%"$_CP_SUBOPEN"*}"; b="${s%%"$_CP_SUBCLOSE"*}"
+  REPLY_CP_MARK=''
+  if ((${#a} < ${#b})); then REPLY="$a"; REPLY_CP_MARK="$_CP_SUBOPEN"; REPLY_CP_REST="${s:${#a}+1}"
+  elif ((${#b} < ${#s})); then REPLY="$b"; REPLY_CP_MARK="$_CP_SUBCLOSE"; REPLY_CP_REST="${s:${#b}+1}"
+  else REPLY="$s"; REPLY_CP_REST=''; fi
+  return 0
+}
+
+# 置換の開始（§7-1）: 組み立て途中の段と語を退避して、中身を独立した実行位置として組み立てる。
+# cmdpos_parse のローカル seg / cur / sstack / cstack を動的スコープで読み書きする（呼び出し元はこの 2 関数だけ）
+_cp_push_outer_segment() {
+  _cp_join_us_to_reply ${seg[@]+"${seg[@]}"}; sstack+=("$REPLY")
+  cstack+=("$cur")
+  seg=(); cur=''
+  return 0
+}
+
+# 置換の終了（§7-1）: 中身の段を出してから、退避しておいた外側の段と語を戻す。
+# 閉じ括弧の後ろに続く文字は**同じ語の続き**として `cur` に積まれる（新しい段の実行体にしない）。
+# `ch$()mod` のように印の前後が地続きの形は、bash と同じく 1 語（`ch_mod`）になる
+_cp_pop_outer_segment() {
+  [[ -n "$cur" ]] && seg+=("$cur")
+  cur=''
+  ((${#seg[@]} > 0)) && _cp_emit_segment "${seg[@]}"
+  seg=()
+  ((${#sstack[@]} > 0)) || return 0
+  local saved="${sstack[-1]}"
+  unset 'sstack[-1]'
+  cur="${cstack[-1]}"; unset 'cstack[-1]'
+  [[ -n "$saved" ]] || return 0
+  while [[ "$saved" == *"$_CP_US"* ]]; do seg+=("${saved%%"$_CP_US"*}"); saved="${saved#*"$_CP_US"}"; done
+  seg+=("$saved")
+  return 0
+}
+
 # ---- 公開 API ----
 # cmdpos_parse <コマンド文字列> [bash|powershell]
 cmdpos_parse() {
@@ -374,18 +451,30 @@ cmdpos_parse() {
   _cp_normalize_to_reply "$s"; norm="$REPLY"
   for m in ';' '&' '|' '(' ')' "$_CP_BT"; do norm="${norm//"$m"/ $m }"; done
   norm="${norm//"$_CP_NL"/ ; }"
-  local -a tokens=() seg=()
+  local -a tokens=() seg=() sstack=() cstack=()
   local IFS=$' \t\r\n'
   read -ra tokens <<<"$norm" || true
-  local t
+  local t cur=''
   for t in "${tokens[@]}"; do
     case "$t" in
       ';' | '&' | '|' | '(' | ')' | '{' | '}' | "$_CP_BT")
         ((${#seg[@]} > 0)) && _cp_emit_segment "${seg[@]}"
-        seg=() ;;
-      *) seg+=("$t") ;;
+        seg=(); cur=''; continue ;;
     esac
+    # 置換の印を境に語を組み立てる。空白は語の切れ目なので、トークンの終わりで語を確定する
+    while :; do
+      _cp_split_marker_to_reply "$t"
+      cur+="$REPLY"
+      [[ -n "$REPLY_CP_MARK" ]] || break
+      t="$REPLY_CP_REST"
+      if [[ "$REPLY_CP_MARK" == "$_CP_SUBOPEN" ]]; then _cp_push_outer_segment; else _cp_pop_outer_segment; fi
+    done
+    [[ -n "$cur" ]] && seg+=("$cur")
+    cur=''
   done
+  # 閉じない置換（`echo $(git commit`）でも中身の段を落とさない
+  while ((${#sstack[@]} > 0)); do _cp_pop_outer_segment; done
+  [[ -n "$cur" ]] && seg+=("$cur")
   ((${#seg[@]} > 0)) && _cp_emit_segment "${seg[@]}"
   return 0
 }

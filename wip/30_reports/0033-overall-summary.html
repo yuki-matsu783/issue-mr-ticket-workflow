@@ -428,6 +428,23 @@
 
 <footer><a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/issues/50">issue #50</a> / <a href="https://github.com/yuki-matsu783/issue-mr-ticket-workflow/pull/51">PR #51</a> — 結果の正文は同名の <code>.md</code>。外部依存を持たない自己完結 HTML。</footer>
 
+<section id="completion-check">
+  <h2>完了検査</h2>
+  <p>全体まとめチケットの完了検査（<code>finalize.sh release</code> の段階 2）。未充足 0 件。</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>DoD</th><th>合否</th><th>根拠</th></tr></thead>
+    <tbody>
+      <tr><td> 1 </td><td> 別 issue に起票すべき内容を確認し、起票したか追加の反映なしを統括レポートに書いた </td><td> ◎ 済 </td><td> 拠: フィードバック計画（0028）より後の記録はチケット 0028 自身のみ。その作業ログから 4 件の候補を拾い、ユーザーの合意で #68 / #69 への追記に決めたが、種別 overall-summary の上限に remote-write:issue-append が無く追記できなかった。統括レポートの残課題 R10 に、本文が組み立て済みであることと人間が当てる旨を書いた </td></tr>
+      <tr><td> 2 </td><td> default ブランチとの衝突を確認し、あれば承認を得て解消した </td><td> ◎ 済 </td><td> 拠: `git merge-tree --write-tree HEAD origin/main` が終了 0・衝突マーカー 0 件。origin/main 側の 1 コミット 4a96f75 は `.claude/docs/00_requirement/hook機構.md` の新規追加で、本ブランチの変更 132 件に同じパスは無い。衝突が無いのでスキルの手順 3 に従い承認なしで次へ進んだ </td></tr>
+      <tr><td> 3 </td><td> 統括レポート（md + HTML）があり、受け入れ条件との対応・各タスクのレビュー結果・フィードバック計画の対応・残課題の 4 つが埋まっている </td><td> ◎ 済 </td><td> 拠: `wip/30_reports/0033-overall-summary.md` と `.html`。受け入れ条件との対応は e1、各タスクのレビュー結果は e2、フィードバック計画の対応は e5、残課題は R1〜R11。`check-html.sh` は「検査 7 項目すべて通過（id 20 件 / リンク 13 件）」 </td></tr>
+      <tr><td> 4 </td><td> MR 本文の 統括 節に統括レポートの要約が書き写されている </td><td> ◎ 済 </td><td> 拠: `gh pr edit 51 --body-file` で更新。`## 統括` 配下に 受け入れ条件との対応（A1〜A6）・残課題（R1〜R11）・別 issue（#63〜#70）・成果物（骨格のみ。中身は finalize.sh の段階 4 が埋める）を置いた </td></tr>
+      <tr><td> 5 </td><td> issue の受け入れ条件 A1〜A6 が、どのタスク・どのテスト ID で満たされたかを根拠付きで示している </td><td> ◎ 済 </td><td> 拠: 統括レポートの e1 の表。A1 は HK-T06 / HK-T21 / HK-T22 / SG-T11 / WG-T19〜WG-T21 / SE-T11 / TICKET-T13 / CP-T12 / BD-T20 / BD-T21、A2 は DDR i0050-06、A3 は eval WFD-E08、A4 は DDR i0050-01〜i0050-10、A5 は DC-T08 / DC-T09 / SA-T10 / SA-T11 / SP-T09 / WG-T19 / WG-T20、A6 は WT-T01〜WT-T12 </td></tr>
+      <tr><td> 6 </td><td> 作業領域に残る成果物のうち .claude/docs/ に残すべきものが無いことを確認した </td><td> ◎ 済 </td><td> 拠: `wip/` 配下は計画書 6 本・レポート 4 本・チケット 33 枚・`wip/tmp/` の一時ファイルのみ。設計の正史は設計フェーズで `.claude/docs/` の 41 ファイルへ反映済み。未反映の 1 件（`scope-limits.json` の `.gitignore` 追加が共通仕様 §8 の初期値の表に無い）は候補 #42 として別 issue #70 の受け入れ条件に入れた </td></tr>    </tbody>
+  </table>
+  </div>
+</section>
+
 </main>
 </div>
 

@@ -8,9 +8,9 @@ adversarial_review: {required: false, reason: "work-defaults の基準どおり�
 allow:
   write: ["wip/**"]
   ops: ["read", "build-test", "remote-read", "remote-write:issue-create", "remote-write:issue-append", "remote-write:mr-update", "remote-write:push"]
-started_at: ""
+started_at: "2026-09-06T11:27:08+09:00"
 completed_at: ""
-base_sha: ""
+base_sha: "f02813e"
 ---
 
 # 0032 issue #50 の全体まとめ

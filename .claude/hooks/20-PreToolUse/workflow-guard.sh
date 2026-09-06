@@ -41,15 +41,28 @@ __WG_LIMITS_PATH=".claude/hooks/config/scope-limits.json"
 __WG_CMD_WRITE_OK=('wip/tmp/**' 'logs/**')
 # 提供コマンドの引数のうち、値がパスではないもの（メッセージ・宣言・理由）。次の語を読み飛ばす
 __WG_VALUE_OPTS=' -m --message --reason --dod --title --body --note --label --type --allow-write --allow-ops --issue --pr '
+# 作業ツリーの提供コマンド。置き場を指す引数だけは書き込みの判定を当てない（仕様 制御方式 6 の例外）
+__WG_WORKTREE_CMD='.claude/skills/20-common-step-worktree/scripts/worktree.sh'
 
 __WG_NO_BYPASS="拒否されたら迂回せず、宣言の範囲内で進めること。範囲を広げる必要があるなら作業を止めてユーザーに提案する（未着手チケットの見直しか計画の追加チケット）。"
 
 # ---- 制御方式 1: 作業中チケットが無ければ何もしない（記録もしない）----
 hook_doing_ticket
 __WG_NAME="$REPLY"
-[[ -n "$__WG_NAME" ]] || exit 0
 
 __WG_CLASS="$(tool_class "$HOOK_TOOL" "${HOOK_SKILL:-}")"
+
+# 作業ツリーを確定できないときは、数えた枚数そのものが当てにならない（§2「判定できないときの倒し方」）。
+# ここで通すと、作業ツリーだと自称する cwd から本流の 0 枚を数えて全操作が素通りする（静かな無効化）。
+# 読み取り・起動・宣言は判定材料が無くても害が無いので、下の制御方式 8 に任せて通す
+if [[ "${HOOK_WORKTREE_STATE:-ok}" != "ok" ]]; then
+  case "$__WG_CLASS" in
+    spawn|read|declare) ;;
+    *) hook_deny WF209 "cwd（$HOOK_CWD）がどの作業ツリーかを確定できないので、作業中チケットの宣言範囲を当てられない。作業ツリーだと自称するディレクトリ（.git の gitdir: が <ルート>/.git/worktrees/ を指す）で相互参照が壊れている可能性がある。リポジトリのルートか、正しく登録された作業ツリーで実行し直すこと。直らないなら機構の不調としてユーザーに報告すること。$__WG_NO_BYPASS" "$HOOK_TOOL" ;;
+  esac
+fi
+
+[[ -n "$__WG_NAME" ]] || exit 0
 
 # 起動（Agent / Workflow）は常に許可（制御方式 8）。実行者の不一致は subagent-start-check が伝える。
 # 読み取りは matcher の外だが、届いても判定材料が無いので通す
@@ -61,9 +74,16 @@ esac
 # ルート相対に直したうえで `.` と `..` を畳む。畳んでも作業ツリーの外に出るパスは判定できないので拒否側に倒す
 # （`wip/../.claude/settings.json` のような書き方で保護範囲の glob をすり抜けられるため。プローブで確認した）
 __wg_rel() { # $1=パス → REPLY にルート相対（末尾の / を落とす）
-  local raw p seg out=""
+  local raw p seg out="" rc=0
   raw="$1"
-  hook_rel_path "$raw" >/dev/null
+  hook_rel_path "$raw" >/dev/null || rc=$?
+  # 共通仕様 §2「判定できないときの倒し方」: 作業ツリーを確定できない / 正規化に失敗した /
+  # 作業ツリーの集合を読めなかったときは「無関係」に倒さず拒否側へ（DDR i0010-09）
+  if (( rc == 2 )); then
+    hook_deny WF209 "$raw がどの作業ツリーのパスかを判定できない（作業ツリーの解決かパスの正規化に失敗した）。やってよいことの内側かを確かめられないので拒否した。パスを作業ツリーからの相対か絶対パスで書き直すこと。それでも直らないなら機構の不調としてユーザーに報告すること。$__WG_NO_BYPASS" "$raw"
+  fi
+  # 1〜3 段で畳めたパスはそのツリーのルート相対。4 段目（同一リポジトリの外）は絶対パスのまま返るので、
+  # 下の「作業ツリーの外」の検査が拾う
   p="${REPLY%/}"
   if [[ "$p" == *"/../"* || "$p" == "../"* || "$p" == *"/.." || "$p" == ".."      || "$p" == *"/./"* || "$p" == "./"* || "$p" == *"/." ]]; then
     while [[ -n "$p" ]]; do
@@ -79,9 +99,10 @@ __wg_rel() { # $1=パス → REPLY にルート相対（末尾の / を落とす
     done
     p="$out"
   fi
-  # 作業ツリーの外（絶対パス・先頭の ..）は、どの範囲にも属さないので承認単位にもしない
+  # 同一リポジトリのどの根（自ツリー / 共有ルート / 他の作業ツリー）にも畳めなかったパスは、
+  # どの範囲にも属さないので承認単位にもしない（共通仕様 §2 の 4 段目）
   if [[ -z "$p" || "$p" == ".." || "$p" == "../"* || "$p" == /* || "$p" =~ ^[A-Za-z]:/ ]]; then
-    hook_deny WF209 "$raw は作業ツリー（$HOOK_WORKTREE）の外を指すので、やってよいことの内側か判定できない。作業はリポジトリの中で行い、外に出す必要があるならユーザーに報告すること。$__WG_NO_BYPASS" "$raw"
+    hook_deny WF209 "$raw は同一リポジトリのどの作業ツリー（判定の起点は $HOOK_WORKTREE）の外を指すので、やってよいことの内側か判定できない。作業はリポジトリの中で行い、外に出す必要があるならユーザーに報告すること。$__WG_NO_BYPASS" "$raw"
   fi
   REPLY="$p"
   return 0
@@ -135,7 +156,9 @@ if (( HOOK_DOING_COUNT > 1 )); then
     printf '%s' "$out"
   }
   if ! __wg_all_provided; then
-    hook_deny WF207 "作業中チケットが $HOOK_DOING_COUNT 枚ある（$(__wg_list)）。1 枚だけの状態でしか判定できないので、bash .claude/skills/20-common-step-ticket/scripts/ticket.sh で 1 枚を残して他を未着手に戻すこと。$__WG_NO_BYPASS" "$HOOK_TOOL"
+    # 枚数は「1 作業ツリーあたり」の話（仕様 概要）。どの作業ツリーで数えたかを必ず出す —
+    # 他の作業ツリーにも作業中チケットがあり得るので、書かないと「どこを 1 枚に戻すのか」が決まらない
+    hook_deny WF207 "作業ツリー $HOOK_WORKTREE の作業中チケットが $HOOK_DOING_COUNT 枚ある（$(__wg_list)）。枚数は 1 作業ツリーあたりで数えるので、他の作業ツリーの作業中チケットは含まない。1 枚だけの状態でしか判定できないので、この作業ツリーで bash .claude/skills/20-common-step-ticket/scripts/ticket.sh を使い 1 枚を残して他を未着手に戻すこと。$__WG_NO_BYPASS" "$HOOK_TOOL"
   fi
   hook_record allow "" "$HOOK_TOOL" "作業中 $HOOK_DOING_COUNT 枚だが提供コマンドなので通す"
   exit 0
@@ -364,15 +387,28 @@ __wg_check_delete_targets() { # $1=セグメント番号
   return 0
 }
 
-# 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）
+# 提供コマンドの引数に現れるパスにも、書き込みと同じ判定を当てる（仕様 制御方式 6・WG-T14）。
+# 例外は worktree.sh の**作業ツリーの置き場を指す引数**だけ（`add <名前> [<置き場>]` の置き場、
+# `remove <名前|置き場>` の位置引数）。置き場の既定はリポジトリの外（20-common-step-worktree 仕様）なので
+# 判定を当てると必ず WF209 になり、提供コマンドを設けた意味が無くなる。置き場が妥当か
+# （既存の作業ツリーと重ならない・同一リポジトリの作業ツリーである）は worktree.sh 自身が検査する（WT002）
 __wg_check_provided_args() { # $1=セグメント番号
-  local i="$1" a skip=0 first=1 p
+  local i="$1" a skip=0 first=1 p pos=0 wt=0 sub=""
+  [[ "${CP_PROVIDED[$i]:-}" == "$__WG_WORKTREE_CMD" ]] && wt=1
   cmdpos_args "$i"
   for a in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
     if (( first )); then first=0; continue; fi          # 第 1 引数は提供コマンド自身
     if (( skip )); then skip=0; continue; fi
     if [[ "$__WG_VALUE_OPTS" == *" $a "* ]]; then skip=1; continue; fi
     [[ "$a" == -* ]] && continue
+    pos=$(( pos + 1 ))                                  # 1 始まりの位置引数（1 = サブコマンド）
+    if (( wt )); then
+      (( pos == 1 )) && sub="$a"
+      # 例外は引数の位置で決まる（名前の位置に外のパスを書けば従来どおり判定に掛かる）
+      if { [[ "$sub" == add ]] && (( pos == 3 )); } || { [[ "$sub" == remove ]] && (( pos == 2 )); }; then
+        continue
+      fi
+    fi
     # パスらしい語だけを見る（メッセージ・番号・部分文字列を対象にしない）
     [[ "$a" == *[[:space:]]* ]] && continue
     if [[ "$a" == */* ]] || [[ "$a" =~ ^[A-Za-z0-9_.@-]+\.[A-Za-z0-9]+$ ]]; then

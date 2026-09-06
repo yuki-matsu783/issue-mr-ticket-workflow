@@ -2,8 +2,8 @@
 # push.sh — push 前チェック付きの push（提供コマンド）
 # 仕様: .claude/docs/10_spec/skills/20-common-step-commit-push.md「push.sh」
 # 使い方: bash .claude/skills/20-common-step-commit-push/scripts/push.sh
-#   前チェック 4 項目を全件実施し、未充足を全件列挙して CP005 で止まる。`wip/push-check-skip.md` に
-#   `- 項目 N: <理由>` と書かれた項目（1〜3）だけ飛ばす（項目 4 はスキップ不可）。
+#   前チェック 5 項目を全件実施し、未充足を全件列挙して CP005 で止まる。`wip/push-check-skip.md` に
+#   `- 項目 N: <理由>` と書かれた項目（1〜3）だけ飛ばす（項目 4・項目 5 はスキップ不可）。
 # 終了コード: 成功 0 / 前チェック未充足（CP005）・リモート拒否（CP006）1 / 引数や環境の誤り（CP007）2。最終行は `OK: ...` または `CP<番号>: ...`
 set -euo pipefail
 
@@ -17,14 +17,30 @@ readonly SCRIPT_PREFIX="CP"
 readonly SKIP_FILE="wip/push-check-skip.md"
 readonly DOING_DIR="wip/10_tickets/10_doing"
 readonly MERGE_STATE="logs/merge-state.json"
-readonly ITEM_NAMES=("" "未コミットの変更が無い" "作業中のチケットが無い" "レポート・計画書の対が揃っている" "draft 解除後の作業領域が空")
+readonly ITEM_NAMES=("" "未コミットの変更が無い" "作業中のチケットが無い" "レポート・計画書の対が揃っている" "draft 解除後の作業領域が空" "本流で実行している")
 
 usage() {
   cat <<'USAGE'
 使い方: bash .claude/skills/20-common-step-commit-push/scripts/push.sh
-  push 前チェック（1 未コミットなし / 2 作業中チケットなし / 3 md と html の対 / 4 draft 解除後の wip が空）を全件実施してから push する。
-  意図的に飛ばす項目は wip/push-check-skip.md に `- 項目 N: <理由>` と書いてコミットする（項目 4 は飛ばせない。読むのはコミット済みの版だけ）。
+  push 前チェック（1 未コミットなし / 2 作業中チケットなし / 3 md と html の対 / 4 draft 解除後の wip が空 / 5 本流で実行している）を全件実施してから push する。
+  意図的に飛ばす項目は wip/push-check-skip.md に `- 項目 N: <理由>` と書いてコミットする（項目 4 と項目 5 は飛ばせない。読むのはコミット済みの版だけ）。
 USAGE
+}
+
+# 本流かどうかの判定（正は 20-common-step-worktree 仕様「本流かどうかの判定（提供コマンド共通）」。リポジトリルート直下の .git がディレクトリなら本流、ファイルなら作業ツリー。この 4 行は worktree.sh / ticket.sh / push.sh でバイト一致させ、各コマンドで作り直さない）
+wt_is_main_root() { # $1=リポジトリルート
+  [ -d "$1/.git" ]
+}
+
+# 案内に使う本流の置き場（git-common-dir から導く。パスを文字列で突き合わせない）
+main_root_hint() {
+  local c
+  c="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+  case "$c" in
+    ""|".git") printf '（特定できない）' ;;
+    */.git) printf '%s' "${c%/.git}" ;;
+    *) printf '%s' "$c" ;;
+  esac
 }
 
 result_ok() { # $1=メッセージ
@@ -38,18 +54,22 @@ result_ng() { # $1=番号 $2=メッセージ $3=終了コード
   exit "$3"
 }
 
-# スキップ記録を読む: SKIP[n]=1（項目 1〜3 のみ）。項目 4 の指定は SKIP4_REQUESTED=1 として無視する
+# スキップ記録を読む: SKIP[n]=1（項目 1〜3 のみ）。項目 4・項目 5 の指定は FIXED_REQUESTED に集めて無視する
 # 記録はコミット済みの版（HEAD）だけを読む。作業ツリーにしか無い記録では飛ばせない（記録は必ず MR の差分に載る）
 declare -A SKIP=()
-SKIP4_REQUESTED=0
+FIXED_REQUESTED=()
 read_skip_file() {
-  local line content
+  local line content n
   content="$(git show "HEAD:$SKIP_FILE" 2>/dev/null || true)"
   [ -n "$content" ] || return 0
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%$'\r'}"
-    if [[ "$line" =~ ^[-*][[:space:]]*(項目[[:space:]]*)?([1-4])[[:space:]]*[:：] ]]; then
-      if [ "${BASH_REMATCH[2]}" = "4" ]; then SKIP4_REQUESTED=1; else SKIP["${BASH_REMATCH[2]}"]=1; fi
+    if [[ "$line" =~ ^[-*][[:space:]]*(項目[[:space:]]*)?([1-5])[[:space:]]*[:：] ]]; then
+      n="${BASH_REMATCH[2]}"
+      case "$n" in
+        4|5) FIXED_REQUESTED+=("$n") ;;
+        *) SKIP["$n"]=1 ;;
+      esac
     fi
   done <<<"$content"
 }
@@ -148,7 +168,21 @@ main() {
   else
     lines+=("✓ 項目 4: ${ITEM_NAMES[4]}（draft 解除前のため対象外）")
   fi
-  [ "$SKIP4_REQUESTED" -eq 1 ] && lines+=("注意: $SKIP_FILE の項目 4 の指定は無効（安全性の項目のためスキップできない）")
+  # 5. 本流で実行している（スキップ不可）。判定の正は 20-common-step-worktree 仕様
+  local repo_top
+  repo_top="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$repo_top" ] || result_ng 007 "リポジトリルートを特定できない（git リポジトリの中で実行すること。環境の誤り）" 2
+  if wt_is_main_root "$repo_top"; then
+    lines+=("✓ 項目 5: ${ITEM_NAMES[5]}")
+  else
+    unmet+=("項目 5: 本流ではなく作業ツリーで実行している（現在: $repo_top / 本流: $(main_root_hint)）→ worktree.sh merge で本流へ合流させてから本流で push する。この項目はスキップできない")
+    lines+=("✗ 項目 5: ${ITEM_NAMES[5]}")
+  fi
+  local fixed
+  for fixed in "${FIXED_REQUESTED[@]:-}"; do
+    [ -n "$fixed" ] || continue
+    lines+=("注意: $SKIP_FILE の項目 $fixed の指定は無効（安全性・原則の項目のためスキップできない）")
+  done
 
   printf '%s\n' "${lines[@]}"
   if [ "${#unmet[@]}" -gt 0 ]; then

@@ -60,8 +60,17 @@ __sg_load_state_files() {
 __sg_load_state_files
 
 # ---- パスの補助 ----
+# 畳んだ根（REPLY_ROOT）。他の作業ツリーへ畳まれたパスの実在検査は、自ツリーではなくその根から見る
+__SG_ROOT=""
 __sg_rel() { # $1=パス → REPLY にルート相対（外のパスは絶対のまま）。末尾の / を落とす
-  hook_rel_path "$1" >/dev/null
+  local rc=0
+  hook_rel_path "$1" >/dev/null || rc=$?
+  __SG_ROOT="$REPLY_ROOT"
+  # 仕様「対象パスの畳み込み」の 3 行目: 判定できない（集合を読めない・正規化に失敗）は
+  # 無関係に倒さず拒否側（DDR i0010-09）。同一リポジトリの外と**確定**した場合はここに来ない
+  if (( rc == 2 )); then
+    hook_deny WF309 "$1 がどの作業ツリーのパスかを判定できない（作業ツリーの集合を読めないか、パスの正規化に失敗した）。保護対象（進行状態ファイル・チケットの置き場）に当たるかを確かめられないので拒否側に倒した。$__SG_HOWTO_STATE $__SG_NO_BYPASS" "$1"
+  fi
   REPLY="${REPLY%/}"
   return 0
 }
@@ -119,8 +128,10 @@ if [[ "$__SG_CLASS" == write ]]; then
     hook_deny WF303 "$__SG_P は完了の置き場にある。$__SG_HOWTO_DONE $__SG_NO_BYPASS" "$__SG_P"
   fi
   if __sg_in_dir "$__SG_P" "$__SG_DOING"; then
-    # 既存チケット本文の更新（作業ログ）は許可。新規作成だけを拒否する
-    if [[ ! -e "$HOOK_WORKTREE/$__SG_P" ]]; then
+    # 既存チケット本文の更新（作業ログ）は許可。新規作成だけを拒否する。
+    # 実在の確認は**畳んだ根**から見る（他の作業ツリーの 10_doing/ を絶対パスで書く形では
+    # 自ツリーに同名が無いだけで既存の更新まで WF302 になる）
+    if [[ ! -e "${__SG_ROOT:-$HOOK_WORKTREE}/$__SG_P" ]]; then
       hook_deny WF302 "$__SG_P を作業中の置き場に直接作らない。$__SG_HOWTO_START $__SG_NO_BYPASS" "$__SG_P"
     fi
   fi

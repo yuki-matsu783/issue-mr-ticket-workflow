@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_session_start.sh — session-start.sh のテスト（仕様のテスト ID: SE-T01〜10）
+# test_session_start.sh — session-start.sh のテスト（仕様のテスト ID: SE-T01〜SE-T11）
 # 使い方: bash .claude/skills/20-common-step-shell-script/scripts/run-tests.sh --filter '*session_start*'
 # テストは set -e を使わない（終了コードは hook_run が取る）
 set -uo pipefail
@@ -110,12 +110,17 @@ git checkout -q feature-12-login
 
 # ================================================================ SE-T03
 # チケットあり・MR 無しで「全体計画の途中」と 10-task-overall-plan
+# 前提: 制御方式 7 の補助 A（ブランチ名が feature-<N>-* / fix-<N>-*）も補助 B（20_done の
+# *-overall-plan.md）も成り立たない状態でだけ断定する。feature-12-login のままだと補助 A が
+# 成り立って WF705（不明）になるので、default ブランチで確かめる（SE-T11 (c) と同じ前提）
 reset_all
+git checkout -q main
 mk_ticket 0001 overall-plan 10_doing false
 hook_run startup ""
 assert_exit "SE-T03" 0
 assert_contains "SE-T03" "全体計画の途中（issue 確定前）"
 assert_contains "SE-T03" "10-task-overall-plan"
+git checkout -q feature-12-login
 
 # ================================================================ SE-T04
 # チケット無し・merge-state.state=cleaned で「マージ前作業中」と release の再実行
@@ -245,5 +250,63 @@ assert_eq "SE-T10" "" "$R_OUT"
 assert_exit "SE-T10" 0
 if [[ "$(last_note)" == *"boundary.sh 不在"* ]]; then pass "SE-T10"; else fail "SE-T10" "skip の理由が不在になっていない: $(last_note)"; fi
 mkdir -p "${B%/*}"; mv .claude/hooks/boundary.sh "$B"
+
+# ================================================================ SE-T11
+# logs/mr.json が読めないときに現在地を断定しない（受け入れ条件 A1）。
+# 4 つの状態 (a)〜(d) を同じ作業領域で切り替えて固定する
+se_t11_setup() { # $1=20_done に完了した全体計画チケットを置くか（1/0）
+  reset_all
+  mk_ticket 0005 design-plan 00_todo false
+  (( $1 )) && mk_ticket 0001 overall-plan 20_done false
+  return 0
+}
+
+# (a) mr.json 不在 + ブランチ feature-50-x + 完了した overall-plan あり
+git checkout -q -b feature-50-x
+se_t11_setup 1
+hook_run startup ""
+assert_exit "SE-T11" 0
+assert_contains "SE-T11" "[WF705]"
+assert_contains "SE-T11" "- 現在地: [WF705] 不明"
+assert_contains "SE-T11" "- 推定: 全体計画は完了済み"
+assert_contains "SE-T11" "ブランチ名 feature-50-x"
+assert_contains "SE-T11" "20_done"
+assert_contains "SE-T11" "boundary.sh status"
+# 負のコントロール: 完了済みの全体計画をやり直す案内を出さない
+assert_not_contains "SE-T11" "10-task-overall-plan"
+assert_not_contains "SE-T11" "全体計画の途中"
+# 直し方は WF703 が別の行で案内する（番号の役割を重ねない）
+assert_contains "SE-T11" "[WF703]"
+
+# (b) mr.json 不在 + detached HEAD + 完了した overall-plan あり（補助 B だけで足りる）
+git checkout -q --detach
+hook_run startup ""
+assert_exit "SE-T11" 0
+assert_contains "SE-T11" "- ブランチ: 不明"
+assert_contains "SE-T11" "- 現在地: [WF705] 不明"
+assert_contains "SE-T11" "- 推定: 全体計画は完了済み"
+assert_not_contains "SE-T11" "10-task-overall-plan"
+git checkout -q feature-50-x
+
+# (c) 正のコントロール: 補助 A も B も成り立たなければ従来どおり「全体計画の途中」
+git checkout -q main
+se_t11_setup 0
+mk_ticket 0001 overall-plan 10_doing false
+hook_run startup ""
+assert_exit "SE-T11" 0
+assert_contains "SE-T11" "全体計画の途中（issue 確定前）"
+assert_contains "SE-T11" "10-task-overall-plan"
+assert_not_contains "SE-T11" "WF705"
+
+# (d) mr.json が破損しているときは (a) と同じ扱いで WF705 と WF702 が両方出る
+git checkout -q feature-50-x
+se_t11_setup 1
+printf '{壊れている\n' > logs/mr.json
+hook_run startup ""
+assert_exit "SE-T11" 0
+assert_contains "SE-T11" "[WF702] 破損: logs/mr.json"
+assert_contains "SE-T11" "[WF705] 不明"
+assert_not_contains "SE-T11" "10-task-overall-plan"
+git checkout -q feature-12-login
 
 finish

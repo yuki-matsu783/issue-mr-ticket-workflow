@@ -28,12 +28,19 @@ SC_DECISION=""; SC_ID=""; SC_STAGE=0; SC_ASK_SCOPE=""; SC_CLASS=""; SC_TARGETS="
 declare -A _SC_RE_CACHE=()
 
 # 読み取り系コマンド（状態を変えない）。git / gh / glab / sed / find / bash は個別規則
-_SC_READ_ONLY_CMDS=' ls cat head tail grep rg egrep fgrep jq wc sort uniq diff cmp test [ [[ echo printf true false pwd which type shellcheck stat file date basename dirname realpath readlink cut tr awk fold column od xxd sha256sum md5sum sha1sum less more tree du df printenv hostname whoami id uname seq expr bc comm join paste rev nl tac strings fmt yq column '
+_SC_READ_ONLY_CMDS=' ls cat head tail grep rg egrep fgrep jq wc sort uniq diff cmp test [ [[ echo printf true false pwd which type shellcheck stat file date basename dirname realpath readlink cut tr awk fold column od xxd sha256sum md5sum sha1sum less more tree du df printenv hostname whoami id uname seq expr bc comm join paste rev nl tac strings fmt yq '
 # シェルのキーワードだけの段（`for f in a b` / `done` / `fi` / `esac` / `case $x in`）。外部コマンドを起動しないので
 # 読み取り扱いにする。入れていないと `for` や `done` が「分類外のコマンド」になり、ふつうのループが既定拒否に落ちる
 # （実測で確認。仕様 §8 へ書き戻す）。リダイレクトは段に残るので、`done > out.txt` は書き込みとして先に拾われる
 _SC_SHELL_KEYWORDS=' for done fi esac case select coproc function '
 _SC_GIT_READ_SUBCMDS=' status log diff show branch rev-parse fetch ls-files ls-remote ls-tree rev-list describe blame shortlog cat-file merge-base reflog grep for-each-ref symbolic-ref check-ignore var count-objects whatchanged name-rev show-ref diff-tree diff-index diff-files '
+# git の分類は「サブコマンド名だけ」ではなく「サブコマンド + オプション」で決める（§8 の限定適用。DDR i0050-04）。
+# 広げるのではなく穴を閉じるための規則で、対象は 6 件に限る（それ以外のサブコマンドの扱いは変えない。網羅は主張しない）
+_SC_GIT_BRANCH_WRITE_OPTS=' -d -D --delete -m -M --move -c -C --copy -f --force -u --set-upstream-to --unset-upstream --edit-description '
+_SC_GIT_BRANCH_WRITE_CHARS='dDmMcCfu'   # 束ねた短オプション（-dr）でも上と同じ判定にするための 1 文字集合
+# `git branch` で次の語を値として取るオプション（その語はブランチ名ではないので位置引数に数えない）
+_SC_GIT_BRANCH_VALUE_OPTS=' --contains --no-contains --merged --no-merged --points-at --sort --format --color --abbrev '
+_SC_GIT_REFLOG_READ_SUBS=' show exists '
 
 # ---- 上限設定の読み込み（§8）----
 # scope_load [type]
@@ -365,6 +372,97 @@ _sc_web_add_out() { # $1=値 $2=本体の出力先なら 1（既定はログ等�
   return 0
 }
 
+# _sc_classify_git <セグメント番号>: git の分類（§8 の限定適用 6 件を先に当てる）。
+#   REPLY_ARGS は呼び手（scope_classify）が展開済み。コマンド文字列は再パースせず cmdpos の出力だけを見る。
+#   1 worktree は list だけ read / 2 branch は書き込みオプションで unknown / 3 symbolic-ref は位置引数 2 つ以上で unknown /
+#   4 reflog は show・exists だけ read / 5 read 形でも --output=<file> は write / 6 -c・--config-env は一律 unknown
+_sc_classify_git() {
+  local i="$1" sub="${CP_SUBCMD[$i]:-}" t j n cfg=0 next="" take=0
+  local __sc_np=0 __sc_list=0 __sc_take=0 __sc_dd=0 __sc_skip=""
+  local -a ops=() outs=()
+  n=${#REPLY_ARGS[@]}
+  # 規則 6: グローバル位置（サブコマンドより前）に -c / --config-env があれば設定名を見ずに一律 unknown。
+  # 列挙で実行を誘発する設定名（diff.external / core.pager …）を追う形は漏れが read のまま通るため安全側に倒す。
+  # 大文字小文字は畳まない（`git -C <path>` は作業ディレクトリの指定で、設定の -c ではない）
+  j=0
+  while (( j < n )); do
+    t="${REPLY_ARGS[j]}"
+    [[ -n "$sub" && "${t,,}" == "$sub" ]] && break
+    case "$t" in -c|--config-env|--config-env=*) cfg=1; break ;; esac
+    j=$((j + 1))
+  done
+  if (( cfg )); then SC_CLASS="unknown"; return 0; fi
+  # サブコマンドの後ろの位置引数（cmdpos の公開 API で取る。REPLY_ARGS は取り直して戻す）
+  cmdpos_operands "$i"
+  ops=(${REPLY_OPERANDS[@]+"${REPLY_OPERANDS[@]}"})
+  cmdpos_args "$i"
+  next="${ops[0]:-}"
+  case "$sub" in
+    worktree)      # 規則 1: list だけ read（作成・削除・移動は提供コマンド worktree.sh を通す）
+      if [[ "$next" == list ]]; then SC_CLASS="read"; else SC_CLASS="unknown"; fi
+      return 0 ;;
+    branch)        # 規則 2: 書き込みオプション、または位置引数（ブランチ名）があれば unknown
+      # 位置引数を数えるのは、`git branch <名前>` / `git branch <名前> <始点>` / `git branch -t <名前> origin/x`
+      # がオプション無しでブランチを作るため。オプションだけを見ると、同じ結果を生む
+      # `git checkout -b` / `git switch -c`（どちらも unknown）と扱いが割れる。
+      # 一覧の絞り込み（`--list <pattern>`）だけは read に戻す
+      SC_CLASS="read"
+      __sc_np=0; __sc_list=0; __sc_take=0; __sc_dd=0; __sc_skip="$sub"
+      for t in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
+        if (( __sc_take )); then __sc_take=0; continue; fi
+        if (( __sc_dd == 0 )); then
+          if [[ "$t" == "--" ]]; then __sc_dd=1; continue; fi
+          if [[ "$_SC_GIT_BRANCH_WRITE_OPTS" == *" $t "* || "$t" == --set-upstream-to=* ]]; then SC_CLASS="unknown"; break; fi
+          if [[ "$t" =~ ^-[A-Za-z]+$ && "$t" != --* ]]; then
+            for ((j = 1; j < ${#t}; j++)); do
+              [[ "$_SC_GIT_BRANCH_WRITE_CHARS" == *"${t:j:1}"* ]] && { SC_CLASS="unknown"; break; }
+            done
+            [[ "$SC_CLASS" == unknown ]] && break
+          fi
+          [[ "$t" == --list || "$t" == -l ]] && __sc_list=1
+          if [[ "$_SC_GIT_BRANCH_VALUE_OPTS" == *" $t "* ]]; then __sc_take=1; continue; fi
+          [[ "$t" == -* ]] && continue
+          if [[ -n "$__sc_skip" && "$t" == "$__sc_skip" ]]; then __sc_skip=""; continue; fi
+        fi
+        __sc_np=$(( __sc_np + 1 ))
+      done
+      if [[ "$SC_CLASS" == read ]] && (( __sc_np > 0 && __sc_list == 0 )); then SC_CLASS="unknown"; fi ;;
+    symbolic-ref)  # 規則 3: 削除形か、位置引数 2 つ以上（<name> <ref> の代入形）なら unknown
+      SC_CLASS="read"
+      (( ${#ops[@]} >= 2 )) && SC_CLASS="unknown"
+      for t in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
+        case "$t" in -d|--delete) SC_CLASS="unknown" ;; esac
+      done ;;
+    reflog)        # 規則 4: show / exists（省略時は show）だけ read
+      if [[ -z "$next" || "$_SC_GIT_REFLOG_READ_SUBS" == *" $next "* ]]; then SC_CLASS="read"; else SC_CLASS="unknown"; fi ;;
+    config)
+      SC_CLASS="unknown"; for t in "${REPLY_ARGS[@]}"; do case "$t" in --get|--get-all|--list|-l|--get-regexp) SC_CLASS="read" ;; esac; done ;;
+    remote)
+      SC_CLASS="read"; for t in "${REPLY_ARGS[@]:1}"; do case "$t" in add|remove|rename|set-url|prune|update) SC_CLASS="unknown" ;; esac; done ;;
+    merge)
+      SC_CLASS="unknown"; for t in "${REPLY_ARGS[@]}"; do [[ "$t" == origin/* ]] && SC_CLASS="merge-base"; done ;;
+    push) SC_CLASS="remote-write:push" ;;
+    *)
+      [[ "$_SC_GIT_READ_SUBCMDS" == *" $sub "* ]] && SC_CLASS="read" ;;
+  esac
+  # 規則 5: read 形でも --output=<file> / --output <file> があれば書き込み（出力先を SC_TARGETS へ）。
+  # git は _CP_WRITE_CMDS に無いので、この規則が無いと read のまま任意のパスへ書ける
+  if [[ "$SC_CLASS" == read ]]; then
+    for t in ${REPLY_ARGS[@]+"${REPLY_ARGS[@]}"}; do
+      if (( take )); then take=0; [[ -n "$t" ]] && outs+=("$t"); continue; fi
+      case "$t" in
+        --output=*) outs+=("${t#--output=}") ;;
+        --output)   take=1 ;;
+      esac
+    done
+    if (( ${#outs[@]} > 0 )); then
+      SC_CLASS="write"; SC_TARGETS=""
+      for t in "${outs[@]}"; do SC_TARGETS+="${SC_TARGETS:+$_SC_US}$t"; done
+    fi
+  fi
+  return 0
+}
+
 # scope_classify <セグメント番号>（cmdpos_parse 済み）→ provided / hook-test / build-test / read / remote-read /
 #   remote-write:<種別> / remote-write:upload / merge-base / web / write（SC_TARGETS に宛先）/ opaque / unknown を出力
 scope_classify() {
@@ -386,16 +484,7 @@ scope_classify() {
   elif [[ "${CP_OPAQUE[$i]:-0}" == 1 ]]; then
     SC_CLASS="opaque"
   elif [[ "$exe" == git ]]; then
-    local sub="${CP_SUBCMD[$i]:-}"
-    if [[ "$_SC_GIT_READ_SUBCMDS" == *" $sub "* ]]; then SC_CLASS="read"
-    elif [[ "$sub" == config ]]; then
-      SC_CLASS="unknown"; for t in "${REPLY_ARGS[@]}"; do case "$t" in --get|--get-all|--list|-l|--get-regexp) SC_CLASS="read" ;; esac; done
-    elif [[ "$sub" == remote ]]; then
-      SC_CLASS="read"; for t in "${REPLY_ARGS[@]:1}"; do case "$t" in add|remove|rename|set-url|prune|update) SC_CLASS="unknown" ;; esac; done
-    elif [[ "$sub" == merge ]]; then
-      SC_CLASS="unknown"; for t in "${REPLY_ARGS[@]}"; do [[ "$t" == origin/* ]] && SC_CLASS="merge-base"; done
-    elif [[ "$sub" == push ]]; then SC_CLASS="remote-write:push"
-    fi
+    _sc_classify_git "$i"
   elif [[ "$exe" == gh || "$exe" == glab ]]; then
     _sc_classify_gh "$exe" "${REPLY_ARGS[@]}"; SC_CLASS="$REPLY"
   elif [[ "$exe" == bash || "$exe" == sh ]]; then

@@ -48,7 +48,9 @@ __UR_BR="$(git -C "$HOOK_WORKTREE" rev-parse --abbrev-ref HEAD 2>/dev/null || tr
 __UR_BR="${__UR_BR//$'\r'/}"
 [[ -n "$__UR_BR" && "$__UR_BR" != "HEAD" ]] || __UR_BR="detached"
 __UR_SAFE="${__UR_BR//[^A-Za-z0-9._-]/-}"      # ファイル名にできる形（feature/x → feature-x）
-__UR_FILE="$HOOK_WORKTREE/logs/usage/$__UR_SAFE.json"
+# 使用量の蓄積はブランチ単位の資源なので共有ルートの下に置く（共通仕様 §5 の根の列）。
+# 作業ツリーごとに分けると、同じブランチの集計が割れて合計が出せない
+__UR_FILE="$HOOK_SHARED_ROOT/logs/usage/$__UR_SAFE.json"
 
 __UR_STATE=""; __UR_BROKEN=0
 
@@ -242,7 +244,7 @@ __ur_notes=()
 (( ${__UR_SUM[7]} > 0 )) && __ur_notes+=("読み取れなかった記録が ${__UR_SUM[7]} 行あり、その分は集計に含まれない")
 
 # MR の有無（単独実行モード）
-__UR_MR="$HOOK_WORKTREE/logs/mr.json"
+__UR_MR="$HOOK_SHARED_ROOT/logs/mr.json"
 __ur_mr_num=""
 if [[ -f "$__UR_MR" ]]; then
   __ur_mr_num="$(jq -r '(.mr // empty) | tostring' "$__UR_MR" 2>/dev/null | tr -d '\r' || true)"
@@ -280,8 +282,8 @@ __ur_body+="— この集計は Claude Code のセッション記録から機構
 
 # ---- 制御方式 4: 状態の更新とレポートの保存 ----
 __ur_report="logs/usage/report-$__UR_SAFE-$__ur_count.md"
-mkdir -p "$HOOK_WORKTREE/logs/usage" 2>/dev/null || true
-printf '%s\n' "$__ur_body" > "$HOOK_WORKTREE/$__ur_report" 2>/dev/null \
+mkdir -p "$HOOK_SHARED_ROOT/logs/usage" 2>/dev/null || true
+printf '%s\n' "$__ur_body" > "$HOOK_SHARED_ROOT/$__ur_report" 2>/dev/null \
   || log_warn "レポートを書けない: $__ur_report"
 
 if hc_lock "usage-$__UR_SAFE"; then

@@ -97,6 +97,12 @@ base_sha: ""
 TICKETEOF
 }
 reset_tickets() { rm -rf wip/10_tickets logs/review-state.json logs/review-history.jsonl logs/mr.json; }
+# mk_ticket は completed_at を空で作る。完了の前後関係が要るケースだけ後から入れる
+set_completed() { # $1=番号 $2=ISO8601
+  local f
+  f="$(ls wip/10_tickets/20_done/"$1"-*.md)"
+  sed -i "s|^completed_at: \"\"|completed_at: \"$2\"|" "$f"
+}
 # wip/ は追跡外なのでコミットは要らない。汚したケースの後だけ戻す（git の起動を減らす）
 DIRTY=0
 commit_all() { if [ "$DIRTY" = "1" ]; then git checkout -- . >/dev/null 2>&1; mark_pushed; DIRTY=0; fi; }
@@ -527,5 +533,154 @@ assert_exit "BD-T19" 0
 run_cmd bash "$B" skip --reason ""               # 前提未充足は終了 1 の BD001 のまま
 assert_exit "BD-T19" 1
 assert_eq "BD-T19" "BD001" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+
+# ================================================================ BD-T20
+# last_task が ticket_type のまとまりで切られ、持ち越しが失われない（既出の切れ目の補集合。DDR i0050-10）。
+# 完了群が 0011-investigation / 0012-design / 0013-investigation の順（completed_at はこの順）
+reset_tickets
+mk_ticket 0011 investigation 20_done false
+mk_ticket 0012 design 20_done false
+mk_ticket 0013 investigation 20_done false
+set_completed 0011 "2026-09-01T10:00:00+09:00"
+set_completed 0012 "2026-09-01T11:00:00+09:00"
+set_completed 0013 "2026-09-01T12:00:00+09:00"
+commit_all
+empty_remote
+bd="$(st)"
+assert_eq "BD-T20" "true" "$(printf '%s' "$bd" | tl_jq -r '.at_boundary')"
+assert_eq "BD-T20" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type')"
+assert_eq "BD-T20" "0011 0013" "$(printf '%s' "$bd" | tl_jq -r '.last_task.tickets | join(" ")')"
+assert_eq "BD-T20" "0013" "$(printf '%s' "$bd" | tl_jq -r '.last_task.last_done')"
+run_cmd bash "$B" skip --reason "1 回目の切れ目"
+assert_exit "BD-T20" 0
+# 2 回目: 持ち越した 0012 が自分のまとまりを作る（完了時刻の下限で絞ると落ちるチケット）
+bd="$(st)"
+assert_eq "BD-T20" "design" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type')"
+assert_eq "BD-T20" "0012" "$(printf '%s' "$bd" | tl_jq -r '.last_task.tickets | join(" ")')"
+assert_eq "BD-T20" "0012" "$(printf '%s' "$bd" | tl_jq -r '.last_task.last_done')"
+assert_eq "BD-T20" "none" "$(printf '%s' "$bd" | tl_jq -r '.review.state')"
+run_cmd bash "$B" skip --reason "2 回目の切れ目"
+assert_exit "BD-T20" 0
+# 1 つの切れ目 = review-history.jsonl の 1 行（進行中の切れ目だけが review-state.json 側）
+assert_eq "BD-T20" "1" "$(grep -c . logs/review-history.jsonl)"
+# 負のコントロール: どのチケットもどこかの last_task にちょうど 1 回だけ入る
+# （時刻の下限で絞ると 0012 が、番号の連続で切ると 0011 がどの切れ目にも入らない）
+covered="$( { tl_jq -r '(.boundary.tickets // [])[]' logs/review-history.jsonl;
+              tl_jq -r '(.boundary.tickets // [])[]' logs/review-state.json; } | sort )"
+assert_eq "BD-T20" "0011 0012 0013" "$(printf '%s\n' "$covered" | tr '\n' ' ' | sed 's/ *$//')"
+assert_eq "BD-T20" "3" "$(printf '%s\n' "$covered" | sort -u | grep -c .)"
+# 別 MR の切れ目の記録は既出に数えない（logs/ は clone に溜まる一方、チケット番号は片付けのたびに
+# 0001 から振り直される。数えると別 issue の同じ番号でレビュー未通過のチケットが落ちる）
+reset_tickets
+mk_ticket 0011 investigation 20_done false
+set_completed 0011 "2026-09-03T10:00:00+09:00"
+printf '{"host":"github","issue":1,"mr":1,"url":"u"}\n' > logs/mr.json
+printf '{"mr":35,"boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+assert_eq "BD-T20" "0011" "$(printf '%s' "$bd" | tl_jq -r '.last_task.tickets | join(" ")')"
+# 負のコントロール: 同じ MR の記録なら既出になり last_task から外れる
+printf '{"mr":1,"boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "null" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+# mr が null の行（mr.json ができる前に閉じた切れ目）は、同じブランチのものだけ既出に数える。
+# mr だけで選ぶと、mr.json が後からできた瞬間にそれ以前の切れ目が既出から外れ、
+# そのチケットが次の切れ目の last_task に再び入る（二重計上）
+BD_BR="$(git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+printf '{"mr":null,"branch":"%s","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  "$BD_BR" > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "null" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+# 負のコントロール: 別のブランチで書かれた null の行は数えない
+printf '{"mr":null,"branch":"other-branch","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+# MR が分からない（mr.json が無い＝単独実行モード）ときは全件ではなく 0 件に倒す。
+# covered を広げるのはチケットをレビューから落とす緩い側で、狭めるのはレビューが重複する側
+rm -f logs/mr.json
+printf '{"mr":null,"branch":"other-branch","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+assert_eq "BD-T20" "0011" "$(printf '%s' "$bd" | tl_jq -r '.last_task.tickets | join(" ")')"
+# 同じブランチの null 行なら、mr.json が無くても既出に数える
+printf '{"mr":null,"branch":"%s","boundary":{"task_type":"investigation","tickets":["0011"],"last_done":"0011"},"state":"skipped"}\n' \
+  "$BD_BR" > logs/review-history.jsonl
+bd="$(st)"
+assert_eq "BD-T20" "null" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+reset_tickets
+
+# ================================================================ BD-T21
+# 並列実施中の at_boundary がすべての作業ツリーを見る。管理対象の作業ツリーが 0 なら worktree.sh を呼ばない。
+# 合流の前後で next と last_task が変わる（確定は合流の後）
+# wip/ を追跡するリポジトリが要る（合流で作業ツリー側のチケットの移動を本流へ運ぶため）ので専用に作る
+make_tmp_repo
+P21="$TMP_REPO"
+cd "$P21" || exit 2
+mkdir -p .claude/skills/20-common-step-shell-script/scripts \
+         .claude/skills/20-common-step-ticket/scripts .claude/skills/20-common-step-ticket/assets \
+         .claude/skills/20-common-step-commit-push/scripts .claude/skills/20-common-step-commit-push/assets \
+         .claude/skills/20-common-step-worktree/scripts \
+         .claude/skills/00-workflow-issue-mr-driven/scripts .claude/hooks/config
+cp "$REAL"/skills/20-common-step-shell-script/scripts/*.sh .claude/skills/20-common-step-shell-script/scripts/
+cp "$REAL"/skills/20-common-step-commit-push/scripts/*.sh .claude/skills/20-common-step-commit-push/scripts/
+cp "$REAL"/skills/20-common-step-commit-push/assets/exclude-patterns.txt .claude/skills/20-common-step-commit-push/assets/
+cp "$REAL"/skills/20-common-step-ticket/scripts/*.sh .claude/skills/20-common-step-ticket/scripts/
+cp "$REAL"/skills/20-common-step-ticket/assets/ticket.template.md .claude/skills/20-common-step-ticket/assets/
+cp "$REAL"/skills/20-common-step-worktree/scripts/worktree.sh .claude/skills/20-common-step-worktree/scripts/worktree-real.sh
+cp "$REAL"/skills/00-workflow-issue-mr-driven/scripts/boundary.sh .claude/skills/00-workflow-issue-mr-driven/scripts/
+cp "$REAL"/hooks/config/task-types.tsv .claude/hooks/config/
+printf 'logs/\n' > .gitignore
+mk_ticket 0031 investigation 00_todo false
+# worktree.sh の呼び出し回数を数える（PATH ではなくパス指定で呼ばれるので、make_counting_path の
+# 記録先に同じ体裁のラッパーを被せる。counted_calls で読む）
+make_counting_path
+WTS=".claude/skills/20-common-step-worktree/scripts/worktree.sh"
+printf '#!/bin/bash\nprintf "%%s\\n" "worktree.sh" >> "%s"\nexec bash "%s" "$@"\n' \
+  "$COUNTING_LOG" "$P21/.claude/skills/20-common-step-worktree/scripts/worktree-real.sh" > "$WTS"
+git add -A >/dev/null 2>&1
+git commit -q -m "chore: init"
+WT_BASE21="${P21}-wt"
+_TL_TMPS+=("$WT_BASE21")
+
+# 管理対象の作業ツリーが 1 つも無い → worktree.sh を呼ばずに従来どおり判定する
+: > "$COUNTING_LOG"
+bd="$(st)"
+assert_eq "BD-T21" "0" "$(counted_calls worktree.sh)"
+assert_eq "BD-T21" "true" "$(printf '%s' "$bd" | tl_jq -r '.at_boundary')"
+assert_eq "BD-T21" "0031" "$(printf '%s' "$bd" | tl_jq -r '.next')"
+
+# 作業ツリーを切り、そちらだけ作業中 1 枚にする → at_boundary は false
+run_cmd bash "$WTS" add t0031
+assert_exit "BD-T21" 0
+WT21="$WT_BASE21/t0031"
+mkdir -p "$WT21/wip/10_tickets/10_doing" "$WT21/wip/10_tickets/20_done"
+mv "$WT21/wip/10_tickets/00_todo/0031-investigation.md" "$WT21/wip/10_tickets/10_doing/"
+git -C "$WT21" add -A >/dev/null 2>&1
+git -C "$WT21" commit -q -m "chore: チケット 0031 に着手"
+: > "$COUNTING_LOG"
+bd="$(st)"
+assert_eq "BD-T21" "false" "$(printf '%s' "$bd" | tl_jq -r '.at_boundary')"
+assert_eq "BD-T21" "1" "$(counted_calls worktree.sh)"
+
+# 作業ツリー側も 0 枚にする → true（切れ目の候補）。合流前の本流では next に返り続け last_task に入らない
+mv "$WT21/wip/10_tickets/10_doing/0031-investigation.md" "$WT21/wip/10_tickets/20_done/"
+sed -i 's|^completed_at: ""|completed_at: "2026-09-02T10:00:00+09:00"|' "$WT21/wip/10_tickets/20_done/0031-investigation.md"
+git -C "$WT21" add -A >/dev/null 2>&1
+git -C "$WT21" commit -q -m "chore: チケット 0031 を完了"
+bd="$(st)"
+assert_eq "BD-T21" "true" "$(printf '%s' "$bd" | tl_jq -r '.at_boundary')"
+assert_eq "BD-T21" "0031" "$(printf '%s' "$bd" | tl_jq -r '.next')"
+assert_eq "BD-T21" "null" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type // "null"')"
+
+# 合流の後に確定する: next から消え last_task に入る
+run_cmd bash "$WTS" merge --all
+assert_exit "BD-T21" 0
+bd="$(st)"
+assert_eq "BD-T21" "true" "$(printf '%s' "$bd" | tl_jq -r '.at_boundary')"
+assert_eq "BD-T21" "null" "$(printf '%s' "$bd" | tl_jq -r '.next // "null"')"
+assert_eq "BD-T21" "investigation" "$(printf '%s' "$bd" | tl_jq -r '.last_task.task_type')"
+assert_eq "BD-T21" "0031" "$(printf '%s' "$bd" | tl_jq -r '.last_task.last_done')"
 
 finish

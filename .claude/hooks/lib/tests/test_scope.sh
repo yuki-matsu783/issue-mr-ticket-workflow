@@ -197,6 +197,17 @@ case_classify() {
     assert_eq "HK-T15" "read" "$(classify_all "$w x")"
   done
   for w in $_SC_GIT_READ_SUBCMDS; do assert_eq "HK-T15" "read" "$(classify_all "git $w")"; done
+  # シェルのキーワードだけの段も全要素を踏む（読み取り扱い。一覧から漏れるとふつうのループが WF204 で止まる）
+  for w in $_SC_SHELL_KEYWORDS; do assert_eq "HK-T15" "read" "$(classify_all "$w")"; done
+  # 一覧に重複を残さない。重複があると「足したつもりが既にある」ことに気づけず、
+  # 全要素ループの検査も同じ語を 2 度踏むだけで空回りする（R52）
+  local dups
+  dups="$(printf '%s\n' $_SC_READ_ONLY_CMDS | sort | uniq -d | tr '\n' ' ')"
+  assert_eq "HK-T15" "" "${dups% }"
+  dups="$(printf '%s\n' $_SC_SHELL_KEYWORDS | sort | uniq -d | tr '\n' ' ')"
+  assert_eq "HK-T15" "" "${dups% }"
+  dups="$(printf '%s\n' $_SC_GIT_READ_SUBCMDS | sort | uniq -d | tr '\n' ' ')"
+  assert_eq "HK-T15" "" "${dups% }"
   for pair in 'git remote -v=read' 'git remote add o u=unknown' 'git config --get user.name=read' 'git config user.name x=unknown' \
               'git merge origin/main=merge-base' 'git merge feat=unknown' 'git push=remote-write:push' 'git commit -m x=unknown' \
               'gh repo view=remote-read' 'gh run list=remote-read' 'gh workflow view x=remote-read' 'gh release download v1=remote-read' \
@@ -348,11 +359,68 @@ case_load_errors() {
   assert_eq "HK-T15" "4" "${#SC_TYPES[@]}"
 }
 
+# ---- HK-T15: git の分類は「サブコマンド + オプション」で決める（§8 の限定適用 6 件。DDR i0050-04）----
+# 6 件を「閉じる側」と「通す側」の対で踏む。通す側が落ちれば読み取りだけの作業が WF204 で止まり、
+# 閉じる側が落ちれば作業ツリーの作成・削除やブランチの書き換えが read として素通りする。
+# 広げる規則ではないので、6 件の外（checkout / switch / stash など）は unknown のままであることも押さえる
+case_hk_t15_git_subcmd_opts() {
+  load_limits "$CFG"; scope_load ai-asset-implementation
+  local pair
+  for pair in \
+    'git worktree list=read' 'git worktree list --porcelain=read' 'git worktree list -v=read' \
+    'git worktree add ../wt-x=unknown' 'git worktree remove ../wt-x=unknown' 'git worktree move a b=unknown' \
+    'git worktree prune=unknown' 'git worktree repair=unknown' 'git worktree lock a=unknown' 'git worktree unlock a=unknown' \
+    'git worktree=unknown' 'git worktree "list"=unknown' \
+    'git branch=read' 'git branch -a=read' 'git branch -v=read' 'git branch -vv=read' 'git branch -r=read' \
+    'git branch --list=read' 'git branch --show-current=read' 'git branch -a --contains HEAD=read' \
+    'git branch -d topic=unknown' 'git branch -D topic=unknown' 'git branch --delete topic=unknown' \
+    'git branch -m old new=unknown' 'git branch -M main=unknown' 'git branch --move old new=unknown' \
+    'git branch -c old new=unknown' 'git branch -C old new=unknown' 'git branch --copy old new=unknown' \
+    'git branch -f topic HEAD=unknown' 'git branch --force topic HEAD=unknown' \
+    'git branch -u origin/topic=unknown' 'git branch --set-upstream-to origin/topic=unknown' \
+    'git branch --unset-upstream=unknown' 'git branch --edit-description=unknown' 'git branch -dr origin/topic=unknown' \
+    'git branch topic=unknown' 'git branch topic HEAD=unknown' 'git branch -t topic origin/x=unknown' \
+    'git branch --track topic origin/x=unknown' 'git branch -a topic=unknown' \
+    'git branch --list topic=read' 'git branch --list=read' 'git branch -a --list=read' \
+    'git branch --merged main=read' 'git branch --no-merged main=read' 'git branch --points-at HEAD=read' \
+    'git branch --no-contains HEAD=read' 'git branch --sort=-committerdate=read' \
+    'git symbolic-ref HEAD=read' 'git symbolic-ref -q HEAD=read' 'git symbolic-ref --short HEAD=read' \
+    'git symbolic-ref HEAD refs/heads/topic=unknown' 'git symbolic-ref -d HEAD=unknown' 'git symbolic-ref --delete HEAD=unknown' \
+    'git reflog=read' 'git reflog show=read' 'git reflog show HEAD=read' 'git reflog exists refs/heads/main=read' \
+    'git reflog expire --all=unknown' 'git reflog delete HEAD@{0}=unknown' 'git reflog drop refs/heads/x=unknown' \
+    'git diff --stat=read' 'git log --oneline=read' 'git show HEAD=read' \
+    'git diff --output=out.patch=write' 'git diff --output out.patch=write' 'git log --output=x/y.txt=write' \
+    'git log=read' 'git -C . status=read' 'git --git-dir .git log=read' 'git --no-pager log=read' \
+    'git -c core.pager=cat log=unknown' 'git -c diff.external=evil.sh diff=unknown' \
+    'git --config-env=core.pager=VAR log=unknown' 'git -c protocol.ext.allow=always fetch=unknown' \
+    'git checkout main=unknown' 'git switch main=unknown' 'git stash=unknown' 'git commit -m x=unknown'; do
+    assert_eq "HK-T15" "${pair##*=}" "$(classify_all "${pair%=*}")"
+  done
+  # 規則 5: 出力先が SC_TARGETS に入る（呼び手が §8 の判定順を当てて WF205 を決める）
+  cmdpos_parse 'git diff --output=.claude/hooks/lib/scope.sh'; scope_classify 0 >/dev/null
+  assert_eq "HK-T15" "write" "$SC_CLASS"
+  assert_eq "HK-T15" ".claude/hooks/lib/scope.sh" "$SC_TARGETS"
+  cmdpos_parse 'git log --output wip/tmp/o.txt'; scope_classify 0 >/dev/null
+  assert_eq "HK-T15" "wip/tmp/o.txt" "$SC_TARGETS"
+  # 通す向きの回帰: 作業ツリーとブランチの読み取りは 1 段でも複合でも read のまま
+  assert_eq "HK-T15" "read read" "$(classify_all 'git worktree list && git branch -a')"
+  assert_eq "HK-T15" "read read read" "$(classify_all 'git worktree list; git status --porcelain; git reflog show')"
+  # 負のコントロール: cd は分類に足さない（unknown → WF204 のまま）。read に足すと
+  # `cd <他の場所> && echo x > a.txt` の書き込み先が自分の作業ツリーの相対パスとして判定され、
+  # 作業ツリーの外への書き込みが通る（hook_rel_path は cd の効果を追跡しない。§8・DDR i0050-04）
+  assert_eq "HK-T15" "unknown" "$(classify_all 'cd /tmp')"
+  assert_eq "HK-T15" "unknown" "$(classify_all 'cd wip')"
+  assert_eq "HK-T15" "unknown read" "$(classify_all 'cd wip && ls')"
+  assert_eq "HK-T15" "unknown" "$(classify_all 'pushd wip')"
+  assert_eq "HK-T15" "unknown" "$(classify_all 'popd')"
+}
+
 case_glob
 case_order
 case_declaration
 case_ops
 case_classify
+case_hk_t15_git_subcmd_opts
 case_load_errors
 
 # ---- HK-T16: 読み込み系 3 関数の戻り値 0 / 1 / 2 の区別と、frontmatter.sh を隠した環境での無出力 ----

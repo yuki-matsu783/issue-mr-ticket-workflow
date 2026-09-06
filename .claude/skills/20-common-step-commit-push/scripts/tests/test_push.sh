@@ -143,4 +143,42 @@ assert_exit "CP-T11" 1
 assert_eq "CP-T11" "CP005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
 rm -f z.txt
 
+# CP-T12 作業ツリーからの push が項目 5 の未充足で CP005 になり、git push を実行しない。
+# wip/push-check-skip.md に項目 5 を書いてコミットしても飛ばせない（項目 4 と同じ扱い）。
+# 負のコントロール: 同じリポジトリの本流では項目 5 が通る。commit.sh は作業ツリーでも成功する
+remote_count() { git -C "$REMOTE" rev-list --count main; }
+before_remote="$(remote_count)"
+WT12="${TMP_REPO}-wt12"
+_TL_TMPS+=("$WT12")
+git worktree add -q -b wtcp12 "$WT12" HEAD
+WT12_PUSH="$WT12/.claude/skills/20-common-step-commit-push/scripts/push.sh"
+WT12_COMMIT="$WT12/.claude/skills/20-common-step-commit-push/scripts/commit.sh"
+run_cmd bash "$WT12_PUSH"
+assert_exit "CP-T12" 1
+assert_eq "CP-T12" "CP005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "CP-T12" "項目 5: 本流で実行している"
+assert_contains "CP-T12" "未充足 1 件"
+assert_eq "CP-T12" "$before_remote" "$(remote_count)"
+if git -C "$REMOTE" rev-parse --verify -q wtcp12 >/dev/null 2>&1; then fail "CP-T12" "サブブランチがリモートに push された"; else pass "CP-T12"; fi
+if git -C "$WT12" rev-parse --abbrev-ref --symbolic-full-name '@{u}' >/dev/null 2>&1; then fail "CP-T12" "作業ツリーのサブブランチに上流が作られた"; else pass "CP-T12"; fi
+# commit.sh は作業ツリーでも成功し、その作業ツリーの差分をコミットする
+wt_head_before="$(git -C "$WT12" rev-parse HEAD)"
+printf '%s\n' "- 項目 5: 飛ばしたい" >> "$WT12/wip/push-check-skip.md"
+run_cmd bash "$WT12_COMMIT" -m "chore: 項目 5 のスキップ記録を置く" wip/push-check-skip.md
+assert_exit "CP-T12" 0
+if [ "$wt_head_before" != "$(git -C "$WT12" rev-parse HEAD)" ]; then pass "CP-T12"; else fail "CP-T12" "作業ツリーでの commit.sh が commit を作っていない"; fi
+assert_eq "CP-T12" "$wt_head_before" "$(git rev-parse HEAD)"   # 本流の HEAD は動かない
+# 記録に書いても項目 5 は飛ばせない
+run_cmd bash "$WT12_PUSH"
+assert_exit "CP-T12" 1
+assert_eq "CP-T12" "CP005" "$(printf '%s' "${R_OUT##*$'\n'}" | cut -d: -f1)"
+assert_contains "CP-T12" "項目 5 の指定は無効"
+assert_not_contains "CP-T12" "skip 項目 5"
+assert_eq "CP-T12" "$before_remote" "$(remote_count)"
+if git -C "$REMOTE" rev-parse --verify -q wtcp12 >/dev/null 2>&1; then fail "CP-T12" "サブブランチがリモートに push された"; else pass "CP-T12"; fi
+# 負のコントロール: 同じリポジトリの本流では項目 5 が通る
+run_cmd bash "$PUSH"
+assert_exit "CP-T12" 0
+assert_contains "CP-T12" "✓ 項目 5: 本流で実行している"
+
 finish
